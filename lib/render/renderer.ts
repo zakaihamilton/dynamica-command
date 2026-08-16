@@ -16,7 +16,7 @@ import {
   type BuildingAnim,
 } from "./anim";
 import { HEIGHT_STEP, TILE_H, TILE_W, screenToGroundTile, tileToScreen, type Camera } from "./iso";
-import { cachedSprite, rasterize } from "./sprites";
+import { cachedSprite, drawSprite, rasterize } from "./sprites";
 import { buildingAt, canPlaceBuilding, heightAt } from "../sim/world";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
 
@@ -296,7 +296,7 @@ export function renderWorld(
       drawBuildingShadow(ctx, state, cam, e, z);
     }
     ctx.globalAlpha = (e.constructing > 0 ? 0.72 : 1) * damageFlicker(timeMs, e.id, damageStage);
-    ctx.drawImage(img, dx, dy, spec.w * z, spec.h * z);
+    drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
     ctx.globalAlpha = 1;
 
     if (bAnim) drawBuildingFx(ctx, e, s, z, bAnim);
@@ -914,7 +914,7 @@ function drawFxLayer(
       const ax = (spec.anchorX ?? spec.w / 2) * z;
       const ay = (spec.anchorY ?? spec.h) * z;
       ctx.globalAlpha = p > 0.7 ? 1 - (p - 0.7) / 0.3 : 1;
-      ctx.drawImage(img, Math.round(s.x - ax), Math.round(s.y + (TILE_H / 2) * z - ay), spec.w * z, spec.h * z);
+      drawSprite(ctx, spec, img, Math.round(s.x - ax), Math.round(s.y + (TILE_H / 2) * z - ay), spec.w * z, spec.h * z);
       ctx.globalAlpha = 1;
       continue;
     }
@@ -926,7 +926,7 @@ function drawFxLayer(
         const ax = (wreck.anchorX ?? wreck.w / 2) * z;
         const ay = (wreck.anchorY ?? wreck.h) * z;
         ctx.globalAlpha = 1 - p;
-        ctx.drawImage(img, Math.round(s.x - ax), Math.round(s.y + (TILE_H / 2) * z - ay), wreck.w * z, wreck.h * z);
+        drawSprite(ctx, wreck, img, Math.round(s.x - ax), Math.round(s.y + (TILE_H / 2) * z - ay), wreck.w * z, wreck.h * z);
         ctx.globalAlpha = 1;
       }
       const radius = (6 + p * 22) * z;

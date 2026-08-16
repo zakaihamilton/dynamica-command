@@ -42,38 +42,41 @@ export function paintShapes(ctx: CanvasRenderingContext2D, shapes: ShapeSpec[]):
 }
 
 const cache = new Map<string, HTMLCanvasElement>();
+const SVG_RASTER_SCALE = 2;
 
 export function rasterize(spec: SpriteSpec): HTMLCanvasElement {
   const hit = cache.get(spec.id);
   if (hit) return hit;
   const c = document.createElement("canvas");
-  c.width = spec.w;
-  c.height = spec.h;
   if (spec.svg) {
+    c.width = spec.w * SVG_RASTER_SCALE;
+    c.height = spec.h * SVG_RASTER_SCALE;
     const ctx = c.getContext("2d")!;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
+    ctx.scale(SVG_RASTER_SCALE, SVG_RASTER_SCALE);
     paintSvg(ctx, spec.svg);
-    cache.set(spec.id, c);
-    return c;
+  } else {
+    c.width = spec.w;
+    c.height = spec.h;
+    paintShapes(c.getContext("2d")!, spec.shapes);
   }
-  const pixelScale = Math.max(1, spec.pixelScale ?? 1);
-  const source = document.createElement("canvas");
-  source.width = Math.max(1, Math.ceil(spec.w / pixelScale));
-  source.height = Math.max(1, Math.ceil(spec.h / pixelScale));
-  const sourceCtx = source.getContext("2d")!;
-  sourceCtx.imageSmoothingEnabled = false;
-  sourceCtx.lineJoin = "round";
-  sourceCtx.lineCap = "round";
-  sourceCtx.scale(1 / pixelScale, 1 / pixelScale);
-  paintShapes(sourceCtx, spec.shapes);
-  const ctx = c.getContext("2d")!;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(source, 0, 0, source.width, source.height, 0, 0, spec.w, spec.h);
   cache.set(spec.id, c);
   return c;
+}
+
+export function drawSprite(
+  ctx: CanvasRenderingContext2D,
+  spec: SpriteSpec,
+  img: CanvasImageSource,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+): void {
+  const smooth = Boolean(spec.svg);
+  ctx.imageSmoothingEnabled = smooth;
+  if (smooth && "imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.imageSmoothingEnabled = false;
 }
 
 export function cachedSprite(id: string): HTMLCanvasElement | undefined {

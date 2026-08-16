@@ -14,7 +14,7 @@ import { renderMinimap } from "@/lib/render/minimap";
 import { pickEntity } from "@/lib/render/pick";
 import { renderWorld, pickTile, type RenderExtras } from "@/lib/render/renderer";
 import { burstsFromDestroyed, cullFx, type FxBurst } from "@/lib/render/fx";
-import { rasterize } from "@/lib/render/sprites";
+import { drawSprite, rasterize } from "@/lib/render/sprites";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission, tick } from "@/lib/sim/api";
 import { objectiveProgress } from "@/lib/sim/objectives";
@@ -63,12 +63,11 @@ function SpritePreview({
         ? unitSprite(kind as UnitKind, palette, { facing: 0, animationFrame })
         : buildingSprite(kind as BuildingKind, palette);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
       const image = rasterize(spec);
       const scale = Math.min(canvas.width / spec.w, canvas.height / spec.h) * 0.9;
       const dw = Math.max(1, Math.round(spec.w * scale));
       const dh = Math.max(1, Math.round(spec.h * scale));
-      ctx.drawImage(image, Math.round((canvas.width - dw) / 2), Math.round((canvas.height - dh) / 2), dw, dh);
+      drawSprite(ctx, spec, image, Math.round((canvas.width - dw) / 2), Math.round((canvas.height - dh) / 2), dw, dh);
     };
     paint(0);
     if (!isUnit) return;

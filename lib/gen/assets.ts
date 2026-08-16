@@ -36,6 +36,47 @@ function diamondPts(cx: number, cy: number, w: number, h: number): number[] {
   return [cx, cy - h / 2, cx + w / 2, cy, cx, cy + h / 2, cx - w / 2, cy];
 }
 
+function jitter(seed: number, i: number, span: number): number {
+  return ((seed >>> ((i * 3) % 28)) % (span * 2 + 1)) - span;
+}
+
+function irregularIso(cx: number, cy: number, w: number, h: number, seed: number, out = 1): number[] {
+  const hw = w / 2;
+  const hh = h / 2;
+  const verts: Array<[number, number]> = [
+    [cx, cy - hh],
+    [cx + hw, cy],
+    [cx, cy + hh],
+    [cx - hw, cy],
+  ];
+  const pts: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    const a = verts[i]!;
+    const b = verts[(i + 1) % 4]!;
+    pushJittered(pts, a[0], a[1], cx, cy, seed, i * 3, 2);
+    pushJittered(pts, a[0] * 0.67 + b[0] * 0.33, a[1] * 0.67 + b[1] * 0.33, cx, cy, seed, i * 3 + 1, 3 + out);
+    pushJittered(pts, a[0] * 0.33 + b[0] * 0.67, a[1] * 0.33 + b[1] * 0.67, cx, cy, seed, i * 3 + 2, 3 + out);
+  }
+  return pts;
+}
+
+function pushJittered(
+  pts: number[],
+  x: number,
+  y: number,
+  cx: number,
+  cy: number,
+  seed: number,
+  i: number,
+  span: number,
+): void {
+  const dx = x - cx;
+  const dy = y - cy;
+  const len = Math.hypot(dx, dy) || 1;
+  const j = jitter(seed, i, span);
+  pts.push(Math.round(x + (dx / len) * j), Math.round(y + (dy / len) * j * 0.5));
+}
+
 function hash(n: number): number {
   let x = n | 0;
   x = Math.imul(x ^ (x >>> 16), 2246822519);
@@ -173,7 +214,11 @@ function paintFloor(
   const cy = TH / 2;
   const base = kind === "water" || contour === "bank" ? wetGround(biome) : p.primary;
   shapes.push(poly(diamondPts(cx, cy, TW + 4, TH + 2), base));
+  shapes.push(poly(irregularIso(cx, cy, 58, 26, v, 2), base));
   if (kind !== "water" && contour !== "bank") {
+    shapes.push(poly(irregularIso(cx - 4, cy - 2, 36, 16, v >> 2, 3), p.light));
+    shapes.push(poly(irregularIso(cx + 6, cy + 3, 34, 14, v >> 5, 2), p.dark));
+    shapes.push(poly(irregularIso(cx + 1, cy, 24, 12, v >> 8, 2), p.secondary));
     shapes.push(ell(cx - 14, cy - 8, 28, 12, p.light));
     shapes.push(ell(cx + 2, cy + 1, 26, 12, p.dark));
     shapes.push(ell(cx - 6, cy - 1, 18, 8, p.primary));
@@ -191,10 +236,10 @@ function paintFloor(
     }
   }
   if (kind === "water" || contour === "bank") {
-    shapes.push(poly(diamondPts(cx, cy + 1, 58, 26), shoreSand(biome)));
+    shapes.push(poly(irregularIso(cx, cy + 1, 54, 24, v, 3), shoreSand(biome)));
     shapes.push(ell(cx - 16, cy - 2, 22, 10, shoreSand(biome)));
     shapes.push(ell(cx + 6, cy + 2, 20, 9, wetGround(biome)));
-    shapes.push(poly(diamondPts(cx - 1, cy + 2, 46, 18), wetGround(biome)));
+    shapes.push(poly(irregularIso(cx - 1, cy + 2, 40, 16, v >> 4, 2), wetGround(biome)));
   }
   if ((v & 3) === 0) shapes.push(ell(cx - 10 + (v % 7), cy - 2, 11, 5, p.dark));
 }
@@ -236,8 +281,8 @@ function paintRoad(shapes: ShapeSpec[], biome: BiomeName, v: number): void {
   const cy = TH / 2;
   const dirt = biome === "tundra grid" ? "#5a605e" : biome === "volcanic shelf" ? "#4a4038" : "#6a5844";
   const worn = biome === "tundra grid" ? "#747a76" : "#8a7354";
-  shapes.push(poly(diamondPts(cx, cy, 56, 24), dirt));
-  shapes.push(poly(diamondPts(cx + 1, cy, 44, 16), worn));
+  shapes.push(poly(irregularIso(cx, cy, 54, 22, v, 2), dirt));
+  shapes.push(poly(irregularIso(cx + 2, cy + 1, 40, 14, v >> 3, 2), worn));
   shapes.push(line(18, 12 + (v % 3), 46, 20 - (v % 2), "#4a3c30", 2));
   shapes.push(line(20, 14 + (v % 2), 44, 18, "#3a3028", 1));
   shapes.push(ell(cx - 8 + (v % 5), cy + 3, 4, 2, "#5a4a38"));
@@ -247,10 +292,10 @@ function paintRoad(shapes: ShapeSpec[], biome: BiomeName, v: number): void {
 function paintConcrete(shapes: ShapeSpec[], v: number): void {
   const cx = TW / 2;
   const cy = TH / 2;
-  shapes.push(poly(diamondPts(cx, cy, 58, 26), "#6a6c64", "#3a3c38", 1));
-  shapes.push(poly(diamondPts(cx, cy - 1, 48, 18), "#7a7c74"));
-  shapes.push(line(32, 4, 32, 28, "#50534c", 1));
-  shapes.push(line(8, 16, 56, 16, "#7c8076", 1));
+  shapes.push(poly(irregularIso(cx, cy, 56, 24, v, 1), "#6a6c64", "#3a3c38", 1));
+  shapes.push(poly(irregularIso(cx, cy - 1, 44, 16, v >> 2, 2), "#7a7c74"));
+  shapes.push(line(30 + (v % 3), 5, 34 - (v % 2), 27, "#50534c", 1));
+  shapes.push(line(10, 15 + (v % 2), 54, 17, "#7c8076", 1));
   if (v % 2 === 0) shapes.push(ell(cx + 8, cy + 4, 6, 3, "#5a5c54"));
   shapes.push(line(14, 10, 22, 14, "#8a8c82", 1));
 }
@@ -280,9 +325,9 @@ function paintWater(shapes: ShapeSpec[], biome: BiomeName, v: number, mask: numb
   const deep = waterDeep(biome);
   const mid = waterMid(biome);
   const hi = waterHi(biome);
-  shapes.push(poly(diamondPts(cx, cy, 50, 20), deep));
-  shapes.push(poly(diamondPts(cx + 1, cy - 1, 36, 12), mid));
-  shapes.push(poly(diamondPts(cx - 1, cy + 2, 24, 8), mid));
+  shapes.push(poly(irregularIso(cx, cy, 48, 18, v, 3), deep));
+  shapes.push(poly(irregularIso(cx + 2, cy - 1, 34, 12, v >> 4, 2), mid));
+  shapes.push(poly(irregularIso(cx - 3, cy + 2, 22, 8, v >> 7, 2), mid));
   const flow = (v % 5) - 2;
   shapes.push(line(16 + flow, 13, 30 + flow, 18, hi, 1));
   shapes.push(line(28 - flow, 12, 46 - flow, 19, hi, 1));

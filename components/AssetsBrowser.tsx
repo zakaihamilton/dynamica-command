@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
 import { listGeneratedAssets, type CatalogAsset } from "@/lib/gen/assetCatalog";
 import { buildingAnim } from "@/lib/render/anim";
-import { rasterize } from "@/lib/render/sprites";
+import { drawSprite, rasterize } from "@/lib/render/sprites";
 import type {
   AnimFrame,
   BuildingKind,
@@ -135,14 +135,13 @@ export function AssetsBrowser({
                     contour: selected.tileKind === "water" ? "bank" : "none",
                   });
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
       const image = rasterize(spec);
       const scale = Math.min(canvas.width / spec.w, canvas.height / spec.h) * 0.86;
       const dw = Math.max(1, Math.round(spec.w * scale));
       const dh = Math.max(1, Math.round(spec.h * scale));
       const dx = Math.round((canvas.width - dw) / 2);
       const dy = Math.round((canvas.height - dh) / 2);
-      ctx.drawImage(image, dx, dy, dw, dh);
+      drawSprite(ctx, spec, image, dx, dy, dw, dh);
       if (selected.category === "building") {
         paintOverlay(ctx, selected.kind as BuildingKind, canvas.width / 2, canvas.height / 2, Math.max(1, scale), now);
       }

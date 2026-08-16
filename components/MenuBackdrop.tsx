@@ -5,7 +5,7 @@ import { buildingSprite, tileSprite, unitSprite } from "@/lib/gen/assets";
 import { generateFactions } from "@/lib/gen/factions";
 import { generateMap } from "@/lib/gen/map";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
-import { rasterize } from "@/lib/render/sprites";
+import { drawSprite, rasterize } from "@/lib/render/sprites";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
 import type { BuildingKind, UnitKind } from "@/lib/types";
 import { BUILDING_STATS } from "@/lib/catalog";
@@ -283,7 +283,7 @@ export function MenuBackdrop() {
         const z = cam.zoom;
         const ax = (spec.anchorX ?? spec.w / 2) * z;
         const ay = (spec.anchorY ?? spec.h) * z;
-        ctx.drawImage(img, s.x - ax, s.y + (TILE_H / 2) * z - ay, spec.w * z, spec.h * z);
+        drawSprite(ctx, spec, img, s.x - ax, s.y + (TILE_H / 2) * z - ay, spec.w * z, spec.h * z);
       }
 
       for (const shot of shots) {

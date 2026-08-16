@@ -70,11 +70,11 @@ function colorToAlpha(color: string, alpha: number): string {
 }
 
 function applyStroke(ctx: CanvasRenderingContext2D, el: Element): void {
-  ctx.lineWidth = num(el, "stroke-width", 1);
+  ctx.lineWidth = Math.max(num(el, "stroke-width", 1), 0.75);
   const cap = attr(el, "stroke-linecap");
-  if (cap === "round" || cap === "butt" || cap === "square") ctx.lineCap = cap;
+  ctx.lineCap = cap === "round" || cap === "butt" || cap === "square" ? cap : "square";
   const join = attr(el, "stroke-linejoin");
-  if (join === "round" || join === "bevel" || join === "miter") ctx.lineJoin = join;
+  ctx.lineJoin = join === "round" || join === "bevel" || join === "miter" ? join : "miter";
 }
 
 function paintShape(ctx: CanvasRenderingContext2D, el: Element, grads: Map<string, CanvasGradient | string>, opacity: number): void {
@@ -158,8 +158,8 @@ export function paintSvg(ctx: CanvasRenderingContext2D, svg: string): void {
   const root = doc.documentElement;
   if (!root || root.tagName.toLowerCase() !== "svg") return;
   ctx.save();
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
+  ctx.lineJoin = "miter";
+  ctx.lineCap = "square";
   const grads = collectGradients(root, ctx);
   paintNode(ctx, root, grads, 1);
   ctx.restore();

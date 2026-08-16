@@ -139,20 +139,26 @@ describe("retro procedural assets", () => {
   it("draws organic terrain and SVG military silhouettes", () => {
     const grass = tileSprite("clear", 1, { biome: "ash plains", variant: 4, contour: "none" });
     expect(grass.shapes.filter((shape) => shape.type === "ellipse").length).toBeGreaterThan(8);
+    expect(grass.shapes.some((shape) => shape.type === "poly" && (shape.points?.length ?? 0) > 8)).toBe(true);
     const infantry = unitSprite("infantry", palette, { facing: 0, variant: 11 });
     expect(infantry.svg).toContain("<path");
     expect(infantry.svg).toContain("<ellipse");
     const barracks = buildingSprite("barracks", palette, { variant: 13 });
     expect(barracks.svg).toContain("<path");
-    expect(barracks.svg).toContain("linearGradient");
+    expect(barracks.svg).toContain("#8b9288");
+    expect(barracks.svg).toContain("#2c322e");
     const tank = unitSprite("tank", palette, { facing: 3, animationFrame: 2, variant: 4 });
-    expect(tank.svg).toContain("linearGradient");
+    expect(tank.svg).toContain("<path");
+    expect(tank.svg).toContain("#8b9288");
+    expect(tank.svg).toContain("#2c322e");
   });
 
-  it("gives finished buildings curved industrial silhouettes instead of cubic shells", () => {
+  it("gives finished buildings three-face industrial volumes, not cubic shells or sketches", () => {
     for (const kind of BUILDING_KINDS) {
       const spec = buildingSprite(kind, palette, { variant: 13 });
-      expect(spec.svg).toMatch(/[QC]/);
+      expect(spec.svg).toContain("#8b9288");
+      expect(spec.svg).toContain("#2c322e");
+      expect(spec.svg).not.toMatch(/ [QC]/);
     }
   });
 });
