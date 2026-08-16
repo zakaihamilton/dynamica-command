@@ -59,7 +59,7 @@ Lose if your construction yard falls (or the timer expires on a hold). Briefings
 
 ### Loop
 
-Harvest resource fields → spend credits and power → place buildings → produce units → fight. Enemy AI expands and sends waves. Maps grow from ~48×48 early to ~96×96 late, with **valleys, plains, hills, and mountains**. Units can climb one elevation step; a two-level drop is a cliff. Buildings need a flat footprint (no water, no overlap, one height).
+Harvest resource fields → spend credits and power → place buildings → produce units → fight. Damaged structures can be repaired from the sidebar wrench for a fraction of their build cost. Enemy AI expands and sends waves. Maps grow from ~48×48 early to ~96×96 late, with **valleys, plains, hills, and mountains**. Units can climb one elevation step; a two-level drop is a cliff. Buildings need a flat footprint (no water, no overlap, one height).
 
 Yards, power plants, and barracks are **2×2**; refineries and factories **3×2**; turrets are **1×1**. Hover a unit or building for a tooltip (kind, faction, HP, and extras such as harvester cargo or a marked target).
 
@@ -69,10 +69,17 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 | --- | --- |
 | Left click / drag | Select |
 | Right click | Move, attack, or harvest |
+| Repair wrench / R | Click a damaged friendly building to start or stop repairs |
 | Minimap click / drag | Move camera focus |
-| WASD | Pan |
-| Hover | Tooltip on the unit or building under the cursor |
-| Sidebar | Place buildings and produce units from the command tabs |
+| WASD / arrows | Pan |
+| Q / E | Construction / production tabs |
+| 1–5 | Sidebar cameo (Ctrl+1–5 cancels) |
+| H / Home | Jump to construction yard |
+| Space | Center camera on selection |
+| Esc | Pause, or cancel place/repair |
+| Hover | Tooltip on the unit or building under the cursor (shortcuts appear in HUD tips) |
+| Sidebar left click | Place buildings and produce units from the command tabs |
+| Sidebar right click | Cancel construction or a queued unit and refund its cost |
 
 ## Architecture
 
@@ -83,7 +90,7 @@ app/           menu, briefing, play routes
 components/    HUD, canvas, talking heads
 lib/seed       4-digit seed → mulberry32 forks
 lib/gen        world, factions, maps, story, sprite specs
-lib/sim        tick, pathfinding, economy, combat, AI, objectives
+lib/sim        tick, pathfinding, economy, combat, repair, AI, objectives
 lib/render     isometric camera, sprites, minimap
 lib/persist    save/load (localStorage or in-memory)
 scripts/       inspect + headless sim
@@ -98,7 +105,7 @@ Sprites, biome tiles, roads, cliffs, portraits, and SFX are **generated** (nativ
 createCampaign(seed)
 createMission({ seed, missionIndex })
 tick(state, commands?)
-issue(state, command)   // move | attack | harvest | build | produce
+issue(state, command)   // move | attack | harvest | build | produce | cancelBuild | cancelProduce | repair
 inspect(state)          // compact JSON: credits, counts, objective, result
 ```
 

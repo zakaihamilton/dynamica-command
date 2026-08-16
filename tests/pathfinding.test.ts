@@ -4,7 +4,7 @@ import { TILE_BLOCKED, addBuilding, addUnit, makeFixture, setHeight, setTile } f
 import { issue, tick } from "../lib/sim/api";
 import { buildingAt, canPlaceBuilding, occupies, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
-import { MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
+import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
 describe("pathfinding", () => {
   it("routes around a blocking building", () => {
@@ -164,5 +164,65 @@ describe("production queue", () => {
     expect(barracks.producing?.kind).toBe("antiArmor");
     expect(barracks.producing?.remaining).toBe(UNIT_STATS.antiArmor.buildTicks);
     expect(barracks.queue).toHaveLength(0);
+  });
+});
+
+describe("cancel production and construction", () => {
+  it("refunds a queued unit before cancelling the unit in progress", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "power", 2, 0);
+    const barracks = addBuilding(s, 0, "barracks", 6, 4);
+    issue(s, { type: "produce", fromId: barracks.id, unit: "infantry" });
+    issue(s, { type: "produce", fromId: barracks.id, unit: "infantry" });
+    issue(s, { type: "produce", fromId: barracks.id, unit: "antiArmor" });
+    const afterQueue = s.credits[0];
+
+    issue(s, { type: "cancelProduce", unit: "infantry" });
+    expect(barracks.producing?.kind).toBe("infantry");
+    expect(barracks.queue).toEqual(["antiArmor"]);
+    expect(s.credits[0]).toBe(afterQueue + UNIT_STATS.infantry.cost);
+
+    issue(s, { type: "cancelProduce", unit: "infantry" });
+    expect(barracks.producing?.kind).toBe("antiArmor");
+    expect(barracks.producing?.remaining).toBe(UNIT_STATS.antiArmor.buildTicks);
+    expect(barracks.queue).toHaveLength(0);
+    expect(s.credits[0]).toBe(afterQueue + UNIT_STATS.infantry.cost * 2);
+  });
+
+  it("cancels an unfinished building, refunds its cost, and frees the tiles", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    issue(s, { type: "build", building: "power", x: 6, y: 4 });
+    const power = s.entities.find((e) => e.kind === "power");
+    expect(power?.constructing).toBeGreaterThan(0);
+    expect(buildingAt(s, 6, 4)?.id).toBe(power?.id);
+    const afterBuild = s.credits[0];
+
+    issue(s, { type: "cancelBuild", building: "power" });
+    expect(power?.hp).toBe(0);
+    expect(power?.constructing).toBe(0);
+    expect(buildingAt(s, 6, 4)).toBeUndefined();
+    expect(s.credits[0]).toBe(afterBuild + BUILDING_STATS.power.cost);
+    expect(canPlaceBuilding(s, "power", 6, 4)).toBe(true);
+  });
+
+  it("cancels the most recently placed building of that kind", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    issue(s, { type: "build", building: "turret", x: 6, y: 4 });
+    issue(s, { type: "build", building: "turret", x: 8, y: 4 });
+    const first = s.entities.find((e) => e.kind === "turret" && e.x === 6);
+    const second = s.entities.find((e) => e.kind === "turret" && e.x === 8);
+    expect(first?.constructing).toBeGreaterThan(0);
+    expect(second?.constructing).toBeGreaterThan(0);
+
+    issue(s, { type: "cancelBuild", building: "turret" });
+    expect(second?.hp).toBe(0);
+    expect(first?.hp).toBeGreaterThan(0);
+    expect(first?.constructing).toBeGreaterThan(0);
   });
 });

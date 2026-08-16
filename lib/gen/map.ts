@@ -38,11 +38,15 @@ function hashNoise(x: number, y: number, salt: number): number {
   return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
 }
 
+function fade(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
 function valueNoise(x: number, y: number, salt: number): number {
   const x0 = Math.floor(x);
   const y0 = Math.floor(y);
-  const fx = x - x0;
-  const fy = y - y0;
+  const fx = fade(x - x0);
+  const fy = fade(y - y0);
   const v00 = hashNoise(x0, y0, salt);
   const v10 = hashNoise(x0 + 1, y0, salt);
   const v01 = hashNoise(x0, y0 + 1, salt);
@@ -58,6 +62,12 @@ function fbm(x: number, y: number, salt: number): number {
     valueNoise(x / 4, y / 4, salt + 17) * 0.3 +
     valueNoise(x / 2, y / 2, salt + 31) * 0.15
   );
+}
+
+function warpedFbm(x: number, y: number, salt: number): number {
+  const wx = (valueNoise(x / 10, y / 10, salt + 401) - 0.5) * 6;
+  const wy = (valueNoise(x / 10, y / 10, salt + 419) - 0.5) * 6;
+  return fbm(x + wx, y + wy, salt);
 }
 
 function inBounds(x: number, y: number, w: number, h: number): boolean {
@@ -83,18 +93,30 @@ function carveRoute(
   h: number,
   points: Vec2[],
   radius = 1,
+  noiseSalt = 1,
+  meander = true,
 ): void {
   for (let p = 0; p < points.length - 1; p++) {
     const a = points[p]!;
     const b = points[p + 1]!;
-    const steps = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y), 1);
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const px = -dy / len;
+    const py = dx / len;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy), 1);
     for (let step = 0; step <= steps; step++) {
       const t = step / steps;
-      const cx = Math.round(a.x + (b.x - a.x) * t);
-      const cy = Math.round(a.y + (b.y - a.y) * t);
-      for (let oy = -radius; oy <= radius; oy++) {
-        for (let ox = -radius; ox <= radius; ox++) {
-          if (Math.abs(ox) + Math.abs(oy) > radius + 1) continue;
+      const envelope = Math.sin(t * Math.PI);
+      const wander = meander
+        ? (valueNoise(a.x + dx * t, a.y + dy * t, noiseSalt + 77) * 2 - 1) * 3.6 * envelope
+        : 0;
+      const cx = Math.round(a.x + dx * t + px * wander);
+      const cy = Math.round(a.y + dy * t + py * wander);
+      const localRadius = radius + (valueNoise(cx * 0.35, cy * 0.35, noiseSalt + 91) > 0.62 ? 1 : 0);
+      for (let oy = -localRadius; oy <= localRadius; oy++) {
+        for (let ox = -localRadius; ox <= localRadius; ox++) {
+          if (Math.abs(ox) + Math.abs(oy) > localRadius + 1) continue;
           const x = cx + ox;
           const y = cy + oy;
           if (!inBounds(x, y, w, h)) continue;
@@ -153,17 +175,64 @@ function paintBase(
   }
 }
 
-function isNearWater(tiles: number[], x: number, y: number, w: number, h: number): boolean {
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      if (dx === 0 && dy === 0) continue;
-      const nx = x + dx;
-      const ny = y + dy;
-      if (!inBounds(nx, ny, w, h)) continue;
-      if (tiles[idx(nx, ny, w)] === TILE_WATER) return true;
+function countKind(
+  tiles: number[],
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  kind: number,
+): number {
+  let n = 0;
+  for (const nb of neighbors8(x, y)) {
+    if (!inBounds(nb.x, nb.y, w, h)) continue;
+    if (tiles[idx(nb.x, nb.y, w)] === kind) n += 1;
+  }
+  return n;
+}
+
+function smoothWater(
+  tiles: number[],
+  w: number,
+  h: number,
+  protect: (x: number, y: number) => boolean,
+): void {
+  for (let pass = 0; pass < 2; pass++) {
+    const next = tiles.slice();
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (protect(x, y)) continue;
+        const i = idx(x, y, w);
+        const n = countKind(tiles, x, y, w, h, TILE_WATER);
+        if (tiles[i] === TILE_WATER) {
+          if (n < 3) next[i] = TILE_CLEAR;
+        } else if (tiles[i] === TILE_CLEAR && n >= 5) {
+          next[i] = TILE_WATER;
+        }
+      }
+    }
+    for (let i = 0; i < tiles.length; i++) tiles[i] = next[i]!;
+  }
+}
+
+function relaxHeights(heights: number[], tiles: number[], w: number, h: number): void {
+  const next = heights.slice();
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = idx(x, y, w);
+      if (tiles[i] === TILE_WATER) continue;
+      const here = heights[i] ?? 1;
+      if (here < 2) continue;
+      let similar = 0;
+      for (const nb of neighbors8(x, y)) {
+        if (!inBounds(nb.x, nb.y, w, h)) continue;
+        const nh = heights[idx(nb.x, nb.y, w)] ?? 1;
+        if (nh >= 2) similar += 1;
+      }
+      if (similar < 2) next[i] = here >= 3 ? 2 : 1;
     }
   }
-  return false;
+  for (let i = 0; i < heights.length; i++) heights[i] = next[i]!;
 }
 
 function reachable(tiles: number[], heights: number[], w: number, h: number, start: Vec2, goal: Vec2): boolean {
@@ -253,40 +322,47 @@ export function generateMap(
   };
 
   const startClear = 8;
+  const protectedStart = (x: number, y: number) =>
+    Math.hypot(x - playerStart.x, y - playerStart.y) < startClear
+    || Math.hypot(x - enemyStart.x, y - enemyStart.y) < startClear;
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = idx(x, y, width);
-      const n = fbm(x, y, salt);
-      const distP = Math.hypot(x - playerStart.x, y - playerStart.y);
-      const distE = Math.hypot(x - enemyStart.x, y - enemyStart.y);
-      if (distP < startClear || distE < startClear) {
+      if (protectedStart(x, y)) {
         tiles[i] = TILE_CLEAR;
         continue;
       }
+      const n = warpedFbm(x * 0.72, y * 0.72, salt);
       if (n < tuning.water) tiles[i] = TILE_WATER;
     }
   }
+  smoothWater(tiles, width, height, protectedStart);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = idx(x, y, width);
+      const shore = warpedFbm(x * 0.72, y * 0.72, salt);
       if (tiles[i] === TILE_WATER) {
         heights[i] = 0;
         continue;
       }
-      if (isNearWater(tiles, x, y, width, height)) {
+      if (shore < tuning.water + 0.07) {
         heights[i] = 0;
-        continue;
+      } else {
+        const hn = warpedFbm(x * 0.85, y * 0.85, salt + 91);
+        if (hn > tuning.mountain) heights[i] = 3;
+        else if (hn > tuning.mountain - 0.18) heights[i] = 2;
+        else heights[i] = 1;
       }
-      const hn = fbm(x * 0.85, y * 0.85, salt + 91);
-      if (hn > tuning.mountain) heights[i] = 3;
-      else if (hn > tuning.mountain - 0.18) heights[i] = 2;
-      else heights[i] = 1;
-      const obstacleNoise = fbm(x * 1.7, y * 1.7, salt + 211);
-      if (obstacleNoise > tuning.blockers && heights[i]! < 3) tiles[i] = TILE_BLOCKED;
+      const grove = warpedFbm(x * 0.45, y * 0.45, salt + 211);
+      const detail = fbm(x * 2.1, y * 2.1, salt + 223);
+      if (grove > tuning.blockers - 0.08 && detail > 0.52 && heights[i]! < 3 && tiles[i] !== TILE_WATER) {
+        tiles[i] = TILE_BLOCKED;
+      }
     }
   }
+  relaxHeights(heights, tiles, width, height);
 
   paintBase(tiles, heights, surfaces, width, height, playerStart, startClear);
   paintBase(tiles, heights, surfaces, width, height, enemyStart, startClear);
@@ -301,17 +377,17 @@ export function generateMap(
     { x: Math.round(width * 0.24), y: Math.round(height * 0.58) },
     enemyStart,
   ];
-  carveRoute(tiles, heights, surfaces, width, height, upperRoute);
-  carveRoute(tiles, heights, surfaces, width, height, lowerRoute);
+  carveRoute(tiles, heights, surfaces, width, height, upperRoute, 1, salt);
+  carveRoute(tiles, heights, surfaces, width, height, lowerRoute, 1, salt + 11);
   if (mission.index >= 4) {
     carveRoute(tiles, heights, surfaces, width, height, [
       playerStart,
       { x: Math.round(width * 0.5), y: Math.round(height * 0.5) },
       enemyStart,
-    ]);
+    ], 1, salt + 23);
   }
   if (!reachable(tiles, heights, width, height, playerStart, enemyStart)) {
-    carveRoute(tiles, heights, surfaces, width, height, [playerStart, enemyStart], 2);
+    carveRoute(tiles, heights, surfaces, width, height, [playerStart, enemyStart], 2, salt, false);
   }
 
   const safeP = { x: Math.min(width - 5, playerStart.x + 10), y: Math.min(height - 5, playerStart.y + 4) };
@@ -378,13 +454,18 @@ function mixSalt(rng: Rng): number {
 }
 
 export const MAP_SKIRT = 14;
+export const MAP_SKIRT_ALPHA = 0.42;
 
 export type ScenerySample = { kind: number; elev: number };
 
-function outsideDist(x: number, y: number, w: number, h: number): number {
+export function outsideDist(x: number, y: number, w: number, h: number): number {
   const dx = x < 0 ? -x : x >= w ? x - w + 1 : 0;
   const dy = y < 0 ? -y : y >= h ? y - h + 1 : 0;
   return Math.max(dx, dy);
+}
+
+export function skirtAlpha(x: number, y: number, w: number, h: number): number {
+  return outsideDist(x, y, w, h) <= 0 ? 1 : MAP_SKIRT_ALPHA;
 }
 
 export function skirtSample(
@@ -397,9 +478,9 @@ export function skirtSample(
 ): ScenerySample {
   const dist = outsideDist(x, y, mapW, mapH);
   const salt = (Math.imul(seed ^ 0x9e3779b9, 747796405) >>> 0) % 1_000_000;
-  const n = fbm(x * 0.9, y * 0.9, salt);
-  const n2 = fbm(x * 1.65, y * 1.65, salt + 51);
-  const riverBand = fbm(x * 0.22, y * 0.22, salt + 113);
+  const n = warpedFbm(x * 0.9, y * 0.9, salt);
+  const n2 = warpedFbm(x * 1.65, y * 1.65, salt + 51);
+  const riverBand = warpedFbm(x * 0.22, y * 0.22, salt + 113);
   const tuning = biomeTuning(biome);
   const river = Math.abs(riverBand - 0.5) < 0.08 || n < tuning.water * 0.85;
   if (river && dist <= 8 && n2 < 0.72) {

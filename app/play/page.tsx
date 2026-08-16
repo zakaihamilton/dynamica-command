@@ -7,7 +7,7 @@ import { parseSeed } from "@/lib/seed/rng";
 
 const GameClient = dynamic(
   () => import("@/components/GameClient").then((m) => m.GameClient),
-  { ssr: false, loading: () => <div className="min-h-screen bg-[#0b0d10] text-[#e8e0d0]">Deploying…</div> },
+  { ssr: false, loading: () => <div className="min-h-screen bg-[var(--chrome-bg)] text-[var(--chrome-text)]">Deploying…</div> },
 );
 
 function Inner() {
@@ -20,7 +20,7 @@ function Inner() {
 
 export default function PlayPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0b0d10] text-[#e8e0d0]">Deploying…</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--chrome-bg)] text-[var(--chrome-text)]">Deploying…</div>}>
       <Inner />
     </Suspense>
   );

@@ -1,6 +1,6 @@
 import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor } from "../catalog";
-import { cliffFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, unitSprite, wreckSprite } from "../gen/assets";
-import { MAP_SKIRT, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
+import { cliffFaces, drawElevationFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite, wreckSprite } from "../gen/assets";
+import { MAP_SKIRT, MAP_SKIRT_ALPHA, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import type { BuildingKind, Entity, Facing, SimState, TileContour, UnitKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import {
@@ -18,6 +18,8 @@ import {
 import { HEIGHT_STEP, TILE_H, TILE_W, screenToGroundTile, tileToScreen, type Camera } from "./iso";
 import { cachedSprite, drawSprite, rasterize } from "./sprites";
 import { buildingAt, canPlaceBuilding, heightAt } from "../sim/world";
+import { fogAt } from "../sim/fog";
+import { canRepair } from "../sim/repair";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
 
 function tileKind(t: number): "clear" | "water" | "resource" | "blocked" {
@@ -73,7 +75,7 @@ export function pickTile(
 function entityVisible(state: SimState, e: Entity): boolean {
   const tx = Math.round(e.x);
   const ty = Math.round(e.y);
-  const fog = state.fog[ty * state.width + tx] ?? 0;
+  const fog = fogAt(state, tx, ty);
   if (e.owner === 1 && fog !== 2) return false;
   return true;
 }
@@ -102,6 +104,7 @@ export function entityAtPointer(state: SimState, sx: number, sy: number, cam: Ca
 export type RenderExtras = {
   cursor?: { x: number; y: number } | null;
   placeKind?: BuildingKind | null;
+  repairMode?: boolean;
   clockMs?: number;
   selectBox?: { x0: number; y0: number; x1: number; y1: number } | null;
   fx?: FxBurst[];
@@ -113,10 +116,11 @@ const drawList: Entity[] = [];
 
 type TerrainLayer = {
   canvas: HTMLCanvasElement | null;
+  skirt: HTMLCanvasElement | null;
   key: string;
 };
 
-const terrainLayer: TerrainLayer = { canvas: null, key: "" };
+const terrainLayer: TerrainLayer = { canvas: null, skirt: null, key: "" };
 
 function sceneryKey(x: number, y: number): number {
   return ((x + 512) << 12) | (y + 512);
@@ -148,19 +152,55 @@ function terrainCacheKey(state: SimState, cam: Camera, w: number, h: number): st
   return `${state.seed}:${state.missionIndex}:${w}x${h}:${cam.x | 0}:${cam.y | 0}:${cam.zoom}:${fogSignature(state.fog)}:${resourceSignature(state.resourceAmount)}`;
 }
 
-function ensureTerrainCanvas(w: number, h: number): HTMLCanvasElement | null {
+function ensureOffscreen(slot: "canvas" | "skirt", w: number, h: number): HTMLCanvasElement | null {
   if (typeof document === "undefined") return null;
-  let canvas = terrainLayer.canvas;
+  let canvas = terrainLayer[slot];
   if (!canvas) {
     canvas = document.createElement("canvas");
-    terrainLayer.canvas = canvas;
+    terrainLayer[slot] = canvas;
   }
   if (canvas.width !== w || canvas.height !== h) {
     canvas.width = w;
     canvas.height = h;
-    terrainLayer.key = "";
+    if (slot === "canvas") terrainLayer.key = "";
   }
   return canvas;
+}
+
+function ensureTerrainCanvas(w: number, h: number): HTMLCanvasElement | null {
+  return ensureOffscreen("canvas", w, h);
+}
+
+function paintTileRange(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  mode: "skirt" | "map",
+): void {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const margin = TILE_W * cam.zoom * 2;
+  const depth0 = x0 + y0;
+  const depth1 = (x1 - 1) + (y1 - 1);
+  for (let depth = depth0; depth <= depth1; depth++) {
+    const xs = Math.max(x0, depth - (y1 - 1));
+    const xe = Math.min(x1 - 1, depth - y0);
+    for (let x = xs; x <= xe; x++) {
+      const y = depth - x;
+      const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
+      const fog = fogAt(state, x, y);
+      if (mode === "skirt" && (inMap || fog === 0)) continue;
+      if (mode === "map" && !inMap && fog !== 0) continue;
+      const elev = memoScenery(state, x, y).elev;
+      const s = tileToScreen(x, y, cam, elev);
+      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
+      drawTile(ctx, state, cam, x, y);
+    }
+  }
 }
 
 function paintTerrain(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera): void {
@@ -171,24 +211,27 @@ function paintTerrain(ctx: CanvasRenderingContext2D, state: SimState, cam: Camer
   ctx.imageSmoothingEnabled = false;
   sceneryMemo.clear();
 
-  const margin = TILE_W * cam.zoom * 2;
   const x0 = -MAP_SKIRT;
   const y0 = -MAP_SKIRT;
   const x1 = state.width + MAP_SKIRT;
   const y1 = state.height + MAP_SKIRT;
-  const depth0 = x0 + y0;
-  const depth1 = (x1 - 1) + (y1 - 1);
-  for (let depth = depth0; depth <= depth1; depth++) {
-    const xs = Math.max(x0, depth - (y1 - 1));
-    const xe = Math.min(x1 - 1, depth - y0);
-    for (let x = xs; x <= xe; x++) {
-      const y = depth - x;
-      const elev = memoScenery(state, x, y).elev;
-      const s = tileToScreen(x, y, cam, elev);
-      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
-      drawTile(ctx, state, cam, x, y);
-    }
+  const skirt = ensureOffscreen("skirt", w, h);
+  const skirtCtx = skirt?.getContext("2d") ?? null;
+  if (skirt && skirtCtx) {
+    skirtCtx.clearRect(0, 0, w, h);
+    skirtCtx.imageSmoothingEnabled = false;
+    paintTileRange(skirtCtx, state, cam, x0, y0, x1, y1, "skirt");
+    ctx.save();
+    ctx.globalAlpha = MAP_SKIRT_ALPHA;
+    ctx.drawImage(skirt, 0, 0);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.globalAlpha = MAP_SKIRT_ALPHA;
+    paintTileRange(ctx, state, cam, x0, y0, x1, y1, "skirt");
+    ctx.restore();
   }
+  paintTileRange(ctx, state, cam, x0, y0, x1, y1, "map");
 }
 
 export function invalidateTerrainCache(): void {
@@ -334,7 +377,7 @@ export function renderWorld(
     const hpRatio = e.hp / e.maxHp;
     ctx.fillStyle = "#111";
     ctx.fillRect(s.x - barW / 2, s.y + (TILE_H / 2) * z + 4, barW, 3);
-    ctx.fillStyle = hpRatio > 0.4 ? "#3dba6a" : "#d45";
+    ctx.fillStyle = e.repairing ? "#5ec8e8" : hpRatio > 0.4 ? "#3dba6a" : "#d45";
     ctx.fillRect(s.x - barW / 2, s.y + (TILE_H / 2) * z + 4, barW * hpRatio, 3);
     if (e.constructing > 0) {
       ctx.fillStyle = "#9cf";
@@ -350,7 +393,29 @@ export function renderWorld(
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
   drawSelectBox(ctx, extras.selectBox);
 
-  if (hoverTile && !extras.placeKind) {
+  if (hoverTile && extras.repairMode && !extras.placeKind) {
+    const hovered = buildingAt(state, hoverTile.x, hoverTile.y);
+    if (hovered && hovered.hp > 0) {
+      const fp = footprintOf(hovered.kind as BuildingKind);
+      const ok = hovered.owner === 0 && (hovered.repairing || canRepair(hovered));
+      ctx.strokeStyle = ok ? "rgba(90,220,200,0.95)" : "rgba(220,70,70,0.95)";
+      ctx.fillStyle = ok ? "rgba(90,220,200,0.16)" : "rgba(220,70,70,0.16)";
+      ctx.lineWidth = 2;
+      for (let oy = 0; oy < fp.h; oy++) {
+        for (let ox = 0; ox < fp.w; ox++) {
+          const tx = hovered.x + ox;
+          const ty = hovered.y + oy;
+          const elev = heightAt(state, tx, ty);
+          const s = tileToScreen(tx, ty, cam, elev);
+          drawDiamond(ctx, s.x, s.y, TILE_W * cam.zoom, TILE_H * cam.zoom);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  if (hoverTile && !extras.placeKind && !extras.repairMode) {
     const s = tileToScreen(hoverTile.x, hoverTile.y, cam, heightAt(state, hoverTile.x, hoverTile.y));
     ctx.strokeStyle = "rgba(255,255,200,0.7)";
     ctx.lineWidth = 1.5;
@@ -468,7 +533,7 @@ function drawTile(
   y: number,
 ): void {
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
-  const fog = inMap ? (state.fog[y * state.width + x] ?? 0) : 2;
+  const fog = fogAt(state, x, y);
   const scenery = memoScenery(state, x, y);
   const elev = scenery.elev;
   const s = tileToScreen(x, y, cam, elev);
@@ -480,51 +545,26 @@ function drawTile(
     return;
   }
 
+  const prev = ctx.globalAlpha;
+  ctx.globalAlpha = prev * (fog === 1 ? 0.45 : 1);
+
   const east = memoScenery(state, x + 1, y).elev;
   const south = memoScenery(state, x, y + 1).elev;
   const dropE = Math.max(0, elev - east);
   const dropS = Math.max(0, elev - south);
-  if (dropS > 0) {
-    const drop = dropS * HEIGHT_STEP * cam.zoom;
-    const faces = cliffFaces(state.biome, elev);
-    ctx.beginPath();
-    ctx.moveTo(s.x - tw / 2, s.y + th / 2);
-    ctx.lineTo(s.x, s.y + th);
-    ctx.lineTo(s.x, s.y + th + drop);
-    ctx.lineTo(s.x - tw / 2, s.y + th / 2 + drop);
-    ctx.closePath();
-    ctx.fillStyle = faces.south;
-    ctx.fill();
-    ctx.strokeStyle = faces.southInk;
-    ctx.lineWidth = Math.max(1, cam.zoom);
-    for (let i = 1; i <= dropS; i++) {
-      const yOff = i * HEIGHT_STEP * cam.zoom;
-      ctx.beginPath();
-      ctx.moveTo(s.x - tw / 2, s.y + th / 2 + yOff);
-      ctx.lineTo(s.x, s.y + th + yOff);
-      ctx.stroke();
-    }
-  }
-  if (dropE > 0) {
-    const drop = dropE * HEIGHT_STEP * cam.zoom;
-    const faces = cliffFaces(state.biome, elev);
-    ctx.beginPath();
-    ctx.moveTo(s.x + tw / 2, s.y + th / 2);
-    ctx.lineTo(s.x, s.y + th);
-    ctx.lineTo(s.x, s.y + th + drop);
-    ctx.lineTo(s.x + tw / 2, s.y + th / 2 + drop);
-    ctx.closePath();
-    ctx.fillStyle = faces.east;
-    ctx.fill();
-    ctx.strokeStyle = faces.eastInk;
-    ctx.lineWidth = Math.max(1, cam.zoom);
-    for (let i = 1; i <= dropE; i++) {
-      const yOff = i * HEIGHT_STEP * cam.zoom;
-      ctx.beginPath();
-      ctx.moveTo(s.x + tw / 2, s.y + th / 2 + yOff);
-      ctx.lineTo(s.x, s.y + th + yOff);
-      ctx.stroke();
-    }
+  if (dropE > 0 || dropS > 0) {
+    drawElevationFaces(
+      ctx,
+      s.x,
+      s.y,
+      tw,
+      th,
+      HEIGHT_STEP * cam.zoom,
+      dropE,
+      dropS,
+      tileVariant(x, y),
+      cliffFaces(state.biome, elev),
+    );
   }
 
   const water = scenery.kind === TILE_WATER;
@@ -532,27 +572,27 @@ function drawTile(
   let edgeMask = 0;
   let contour: TileContour = "none";
   let kind: "clear" | "water" | "resource" | "blocked" = tileKind(scenery.kind);
+  const differs = (dx: number, dy: number): boolean => {
+    const n = memoScenery(state, x + dx, y + dy);
+    if (water) return n.kind !== TILE_WATER;
+    if (mountain) return !isMountainScenery(n);
+    return n.kind !== scenery.kind;
+  };
   if (water) {
     kind = "water";
     contour = "bank";
-    if (memoScenery(state, x, y - 1).kind !== TILE_WATER) edgeMask |= 1;
-    if (memoScenery(state, x + 1, y).kind !== TILE_WATER) edgeMask |= 2;
-    if (memoScenery(state, x, y + 1).kind !== TILE_WATER) edgeMask |= 4;
-    if (memoScenery(state, x - 1, y).kind !== TILE_WATER) edgeMask |= 8;
   } else if (mountain) {
     kind = "clear";
     contour = "ridge";
-    if (!isMountainScenery(memoScenery(state, x, y - 1))) edgeMask |= 1;
-    if (!isMountainScenery(memoScenery(state, x + 1, y))) edgeMask |= 2;
-    if (!isMountainScenery(memoScenery(state, x, y + 1))) edgeMask |= 4;
-    if (!isMountainScenery(memoScenery(state, x - 1, y))) edgeMask |= 8;
-  } else {
-    const currentKind = scenery.kind;
-    if (memoScenery(state, x, y - 1).kind !== currentKind) edgeMask |= 1;
-    if (memoScenery(state, x + 1, y).kind !== currentKind) edgeMask |= 2;
-    if (memoScenery(state, x, y + 1).kind !== currentKind) edgeMask |= 4;
-    if (memoScenery(state, x - 1, y).kind !== currentKind) edgeMask |= 8;
   }
+  if (differs(0, -1)) edgeMask |= 1;
+  if (differs(1, 0)) edgeMask |= 2;
+  if (differs(0, 1)) edgeMask |= 4;
+  if (differs(-1, 0)) edgeMask |= 8;
+  if (differs(1, -1)) edgeMask |= 16;
+  if (differs(1, 1)) edgeMask |= 32;
+  if (differs(-1, 1)) edgeMask |= 64;
+  if (differs(-1, -1)) edgeMask |= 128;
   const amount = inMap ? (state.resourceAmount[y * state.width + x] ?? 0) : 0;
   const opts = {
     biome: state.biome,
@@ -564,9 +604,16 @@ function drawTile(
   };
   const id = tileSpriteId(kind, elev, opts);
   const img = cachedSprite(id) ?? rasterize(tileSprite(kind, elev, opts));
-  ctx.globalAlpha = fog === 1 ? 0.45 : 1;
-  ctx.drawImage(img, Math.round(s.x - tw / 2), Math.round(s.y), Math.ceil(tw), Math.ceil(th));
-  ctx.globalAlpha = 1;
+  const padX = TILE_SPRITE_PAD_X * cam.zoom;
+  const padY = TILE_SPRITE_PAD_Y * cam.zoom;
+  ctx.drawImage(
+    img,
+    Math.round(s.x - tw / 2 - padX),
+    Math.round(s.y - padY),
+    Math.ceil(tw + padX * 2),
+    Math.ceil(th + padY * 2),
+  );
+  ctx.globalAlpha = prev;
 }
 
 function strokeFootprint(
@@ -608,7 +655,7 @@ function footprintPath(
 
 function tileTooltipLines(state: SimState, x: number, y: number): string[] {
   if (x < 0 || y < 0 || x >= state.width || y >= state.height) return ["Map edge"];
-  const fog = state.fog[y * state.width + x] ?? 0;
+  const fog = fogAt(state, x, y);
   if (fog === 0) return ["Unexplored"];
   const scenery = memoScenery(state, x, y);
   const surface = state.surfaces[y * state.width + x] ?? SURFACE_NONE;
@@ -645,6 +692,7 @@ function tooltipLines(state: SimState, e: Entity): string[] {
     const queued = e.queue?.length ?? 0;
     if (queued > 0) lines.push(`Queued ${queued}`);
   }
+  if (e.repairing) lines.push("Repairing");
   if (e.marked) lines.push("Marked objective");
   return lines;
 }
@@ -692,7 +740,7 @@ function drawWaterFx(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       if (state.tiles[y * state.width + x] !== TILE_WATER) continue;
-      const fog = state.fog[y * state.width + x] ?? 0;
+      const fog = fogAt(state, x, y);
       if (fog === 0) continue;
       const elev = heightAt(state, x, y);
       const s = tileToScreen(x, y, cam, elev);
@@ -766,7 +814,7 @@ function drawBuildingFx(
       ctx.fill();
     }
   }
-  if (anim.spark > 0.55 && (anim.constructing || anim.producing)) {
+  if (anim.spark > 0.55 && (anim.constructing || anim.producing || anim.repairing)) {
     ctx.globalAlpha = anim.spark;
     ctx.fillStyle = "#ffe08a";
     ctx.fillRect(s.x + (anim.frame - 1.5) * 5 * z, s.y + 2 * z, 2 * z, 2 * z);

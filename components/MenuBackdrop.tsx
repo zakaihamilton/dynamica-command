@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { buildingSprite, tileSprite, unitSprite } from "@/lib/gen/assets";
+import { cliffFaces, drawElevationFaces, buildingSprite, tileSprite, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite } from "@/lib/gen/assets";
 import { generateFactions } from "@/lib/gen/factions";
 import { generateMap } from "@/lib/gen/map";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
@@ -186,29 +186,23 @@ export function MenuBackdrop() {
           const kind = tileKind(map.tiles[y * map.width + x]!);
           const east = x + 1 < map.width ? map.heights[y * map.width + x + 1] ?? 0 : 0;
           const south = y + 1 < map.height ? map.heights[(y + 1) * map.width + x] ?? 0 : 0;
-          const dropE = Math.max(0, elev - east) * HEIGHT_STEP * cam.zoom;
-          const dropS = Math.max(0, elev - south) * HEIGHT_STEP * cam.zoom;
+          const dropE = Math.max(0, elev - east);
+          const dropS = Math.max(0, elev - south);
           const tw = TILE_W * cam.zoom;
           const th = TILE_H * cam.zoom;
-          if (dropS > 0) {
-            ctx.fillStyle = elev >= 3 ? "#332d27" : "#262d23";
-            ctx.beginPath();
-            ctx.moveTo(s.x - tw / 2, s.y + th / 2);
-            ctx.lineTo(s.x, s.y + th);
-            ctx.lineTo(s.x, s.y + th + dropS);
-            ctx.lineTo(s.x - tw / 2, s.y + th / 2 + dropS);
-            ctx.closePath();
-            ctx.fill();
-          }
-          if (dropE > 0) {
-            ctx.fillStyle = elev >= 3 ? "#51483d" : "#394334";
-            ctx.beginPath();
-            ctx.moveTo(s.x + tw / 2, s.y + th / 2);
-            ctx.lineTo(s.x, s.y + th);
-            ctx.lineTo(s.x, s.y + th + dropE);
-            ctx.lineTo(s.x + tw / 2, s.y + th / 2 + dropE);
-            ctx.closePath();
-            ctx.fill();
+          if (dropE > 0 || dropS > 0) {
+            drawElevationFaces(
+              ctx,
+              s.x,
+              s.y,
+              tw,
+              th,
+              HEIGHT_STEP * cam.zoom,
+              dropE,
+              dropS,
+              x * 13 + y * 7,
+              cliffFaces(map.biome, elev),
+            );
           }
           const img = rasterize(tileSprite(kind, elev, {
             biome: map.biome,
@@ -219,7 +213,9 @@ export function MenuBackdrop() {
           if (kind === "resource") {
             ctx.globalAlpha = 0.85 + Math.sin(t * 0.08 + x + y) * 0.15;
           }
-          ctx.drawImage(img, s.x - (TILE_W / 2) * cam.zoom, s.y, TILE_W * cam.zoom, TILE_H * cam.zoom);
+          const padX = TILE_SPRITE_PAD_X * cam.zoom;
+          const padY = TILE_SPRITE_PAD_Y * cam.zoom;
+          ctx.drawImage(img, s.x - tw / 2 - padX, s.y - padY, tw + padX * 2, th + padY * 2);
           ctx.globalAlpha = 1;
         }
       }

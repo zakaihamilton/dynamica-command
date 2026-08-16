@@ -24,7 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full`}
     >
-      <body className="min-h-full bg-[#0b0d10] text-[#e8e0d0]">
+      <body className="min-h-full bg-[var(--chrome-bg)] text-[var(--chrome-text)]">
         {children}
         <TooltipLayer />
       </body>

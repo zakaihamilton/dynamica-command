@@ -2,10 +2,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { parseTooltipPos, placeTooltip, type TooltipPos } from "@/lib/ui/tooltip";
+import { parseTooltipPos, placeTooltip, tooltipMaxBox, type TooltipPos } from "@/lib/ui/tooltip";
 
 type TipState = {
   text: string;
+  shortcut: string | null;
   pos: TooltipPos;
   anchor: DOMRect;
 };
@@ -39,8 +40,10 @@ export function TooltipLayer() {
         setTip(null);
         return;
       }
+      const shortcut = el.getAttribute("data-shortcut");
       setTip({
         text,
+        shortcut: shortcut && shortcut.trim() ? shortcut.trim() : null,
         pos: parseTooltipPos(el.getAttribute("data-tooltip-pos")),
         anchor: el.getBoundingClientRect(),
       });
@@ -85,7 +88,7 @@ export function TooltipLayer() {
     window.addEventListener("scroll", onScrollOrResize, true);
     window.addEventListener("resize", onScrollOrResize);
     const mo = new MutationObserver(paint);
-    mo.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["data-tooltip", "data-tooltip-pos", "data-tooltip-open"] });
+    mo.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["data-tooltip", "data-tooltip-pos", "data-tooltip-open", "data-shortcut"] });
     paint();
     return () => {
       document.removeEventListener("pointerover", onOver);
@@ -101,8 +104,12 @@ export function TooltipLayer() {
   useLayoutEffect(() => {
     const node = nodeRef.current;
     if (!node || !tip) return;
+    const view = { width: window.innerWidth, height: window.innerHeight };
+    const max = tooltipMaxBox(view);
+    node.style.maxWidth = `${max.width}px`;
+    node.style.maxHeight = `${max.height}px`;
     const size = node.getBoundingClientRect();
-    const next = placeTooltip(tip.anchor, size, tip.pos, { width: window.innerWidth, height: window.innerHeight });
+    const next = placeTooltip(tip.anchor, { width: size.width, height: size.height }, tip.pos, view);
     node.style.top = `${next.top}px`;
     node.style.left = `${next.left}px`;
   }, [tip]);
@@ -110,7 +117,8 @@ export function TooltipLayer() {
   if (!mounted || !tip) return null;
   return createPortal(
     <div ref={nodeRef} className="console-tooltip" role="tooltip" style={{ top: -9999, left: -9999 }}>
-      {tip.text}
+      <span className="console-tooltip-text">{tip.text}</span>
+      {tip.shortcut ? <kbd className="console-kbd">{tip.shortcut}</kbd> : null}
     </div>,
     document.body,
   );

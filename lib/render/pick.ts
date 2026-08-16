@@ -1,4 +1,5 @@
 import type { Entity, SimState } from "../types";
+import { fogAt } from "../sim/fog";
 import { buildingAt, heightAt } from "../sim/world";
 import { TILE_H, tileToScreen, type Camera } from "./iso";
 import { pickTile } from "./renderer";
@@ -6,7 +7,7 @@ import { pickTile } from "./renderer";
 function fogVisible(state: SimState, e: Entity): boolean {
   const tx = Math.round(e.x);
   const ty = Math.round(e.y);
-  const fog = state.fog[ty * state.width + tx] ?? 0;
+  const fog = fogAt(state, tx, ty);
   if (e.owner === 1 && fog !== 2) return false;
   return true;
 }

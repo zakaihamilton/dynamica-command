@@ -1,11 +1,65 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
+import { MAP_SKIRT } from "../gen/map";
 import type { BuildingKind, SimState, UnitKind } from "../types";
-import { at, inBounds, living } from "./world";
+import { living } from "./world";
+
+export function fogGridWidth(mapW: number): number {
+  return mapW + 2 * MAP_SKIRT;
+}
+
+export function fogGridHeight(mapH: number): number {
+  return mapH + 2 * MAP_SKIRT;
+}
+
+export function makeFog(mapW: number, mapH: number, fill = 0): number[] {
+  return new Array(fogGridWidth(mapW) * fogGridHeight(mapH)).fill(fill);
+}
+
+function isPaddedFog(state: { width: number; height: number; fog: number[] }): boolean {
+  return state.fog.length === fogGridWidth(state.width) * fogGridHeight(state.height);
+}
+
+export function expandFog(fog: number[], width: number, height: number): number[] {
+  const expected = fogGridWidth(width) * fogGridHeight(height);
+  if (fog.length === expected) return fog;
+  const next = makeFog(width, height, 0);
+  if (fog.length === width * height) {
+    const gw = fogGridWidth(width);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        next[(y + MAP_SKIRT) * gw + (x + MAP_SKIRT)] = fog[y * width + x] ?? 0;
+      }
+    }
+  }
+  return next;
+}
+
+export function fogIndex(state: { width: number; height: number; fog: number[] }, x: number, y: number): number | null {
+  if (isPaddedFog(state)) {
+    if (x < -MAP_SKIRT || y < -MAP_SKIRT || x >= state.width + MAP_SKIRT || y >= state.height + MAP_SKIRT) {
+      return null;
+    }
+    return (y + MAP_SKIRT) * fogGridWidth(state.width) + (x + MAP_SKIRT);
+  }
+  if (x < 0 || y < 0 || x >= state.width || y >= state.height) return null;
+  return y * state.width + x;
+}
+
+export function fogAt(state: { width: number; height: number; fog: number[] }, x: number, y: number): number {
+  const i = fogIndex(state, x, y);
+  if (i === null) return 0;
+  return state.fog[i] ?? 0;
+}
 
 export function tickFog(state: SimState): void {
+  state.fog = expandFog(state.fog, state.width, state.height);
   for (let i = 0; i < state.fog.length; i++) {
     if (state.fog[i] === 2) state.fog[i] = 1;
   }
+  const x0 = -MAP_SKIRT;
+  const y0 = -MAP_SKIRT;
+  const x1 = state.width + MAP_SKIRT;
+  const y1 = state.height + MAP_SKIRT;
   for (const e of living(state)) {
     if (e.owner !== 0) continue;
     const sight =
@@ -24,10 +78,10 @@ export function tickFog(state: SimState): void {
     const oy = Math.round(cy);
     for (let y = oy - r; y <= oy + r; y++) {
       for (let x = ox - r; x <= ox + r; x++) {
-        if (!inBounds(state, x, y)) continue;
-        if (Math.hypot(x - cx, y - cy) <= sight) {
-          state.fog[at(state, x, y)] = 2;
-        }
+        if (x < x0 || y < y0 || x >= x1 || y >= y1) continue;
+        if (Math.hypot(x - cx, y - cy) > sight) continue;
+        const i = fogIndex(state, x, y);
+        if (i !== null) state.fog[i] = 2;
       }
     }
   }

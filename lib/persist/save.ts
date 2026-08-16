@@ -1,5 +1,6 @@
 import { formatSeed } from "../seed/rng";
 import { generateWorld } from "../gen/world";
+import { expandFog } from "../sim/fog";
 import type { SimState } from "../types";
 import { SURFACE_NONE } from "../types";
 
@@ -37,10 +38,13 @@ export function deserializeState(raw: string): SimState {
     s.surfaces = new Array(s.width * s.height).fill(SURFACE_NONE);
   }
   if (!s.biome) s.biome = generateWorld(s.seed).biome;
+  if (!Array.isArray(s.fog)) s.fog = [];
+  s.fog = expandFog(s.fog, s.width, s.height);
   if (!Array.isArray(s.entities)) s.entities = [];
   for (const e of s.entities) {
     if (!e.queue) e.queue = [];
     if (e.facing === undefined) e.facing = e.owner === 0 ? 0 : 4;
+    if (e.repairing === undefined) e.repairing = false;
   }
   return s;
 }

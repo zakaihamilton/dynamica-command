@@ -18,7 +18,7 @@ export function createCampaign(seed: number): Campaign {
     const draft: MissionDef = {
       index,
       name: genMissionTitle(createRng(seed, `mission-title:${index}`), index),
-      briefing: "",
+      briefing: [],
       win,
       mapSize: mapSizeForMission(index),
     };

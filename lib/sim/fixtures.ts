@@ -1,6 +1,7 @@
 import { mixSeed } from "../seed/rng";
 import type { BuildingKind, SimState, UnitKind, WinCategory } from "../types";
 import { SURFACE_NONE, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../types";
+import { makeFog } from "./fog";
 import { emptyRoleCounts, spawnBuilding, spawnUnit } from "./world";
 
 export type FixtureOpts = {
@@ -26,7 +27,7 @@ export function makeFixture(opts: FixtureOpts): SimState {
     surfaces: new Array(width * height).fill(SURFACE_NONE),
     biome: "ash plains",
     resourceAmount,
-    fog: new Array(width * height).fill(2),
+    fog: makeFog(width, height, 2),
     entities: [],
     nextId: 1,
     credits: [5000, 2000],

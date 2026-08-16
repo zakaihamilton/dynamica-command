@@ -1,6 +1,7 @@
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, producerFor, productionQueueSize } from "../catalog";
 import type { BuildingKind, Command, Entity, SimEvent, SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
+import { canRepair } from "./repair";
 import { byId, canPlaceBuilding, closestApproach, powerFor, spawnBuilding } from "./world";
 
 export function issue(state: SimState, command: Command): SimEvent[] {
@@ -16,6 +17,12 @@ export function issue(state: SimState, command: Command): SimEvent[] {
       return startBuild(state, command.building, command.x, command.y);
     case "produce":
       return startProduce(state, command.fromId, command.unit);
+    case "cancelBuild":
+      return cancelBuild(state, command.building);
+    case "cancelProduce":
+      return cancelProduce(state, command.unit);
+    case "repair":
+      return toggleRepair(state, command.buildingId);
     default:
       return [];
   }
@@ -100,6 +107,61 @@ function startProduce(state: SimState, fromId: number, unit: UnitKind): SimEvent
   } else {
     b.queue.push(unit);
   }
+  return [];
+}
+
+function cancelBuild(state: SimState, kind: BuildingKind): SimEvent[] {
+  if (kind === "constructionYard" || kind === "objective") return [];
+  let target: Entity | undefined;
+  for (const e of state.entities) {
+    if (e.hp <= 0 || e.owner !== 0 || e.class !== "building") continue;
+    if (e.kind !== kind || e.constructing <= 0) continue;
+    target = e;
+  }
+  if (!target) return [];
+  target.hp = 0;
+  target.constructing = 0;
+  state.credits[0] += BUILDING_STATS[kind].cost;
+  return [];
+}
+
+function toggleRepair(state: SimState, buildingId: number): SimEvent[] {
+  const e = byId(state, buildingId);
+  if (!e || e.class !== "building" || e.owner !== 0) return [];
+  if (e.repairing) {
+    e.repairing = false;
+    return [];
+  }
+  if (!canRepair(e)) return [];
+  e.repairing = true;
+  return [];
+}
+
+function cancelProduce(state: SimState, unit: UnitKind): SimEvent[] {
+  let queued: { entity: Entity; index: number } | undefined;
+  let producing: Entity | undefined;
+  for (const e of state.entities) {
+    if (e.hp <= 0 || e.owner !== 0 || e.class !== "building" || e.constructing > 0) continue;
+    if (!e.queue) e.queue = [];
+    for (let i = e.queue.length - 1; i >= 0; i--) {
+      if (e.queue[i] === unit) {
+        queued = { entity: e, index: i };
+        break;
+      }
+    }
+    if (e.producing?.kind === unit) producing = e;
+  }
+  if (queued) {
+    queued.entity.queue.splice(queued.index, 1);
+    state.credits[0] += UNIT_STATS[unit].cost;
+    return [];
+  }
+  if (!producing?.producing) return [];
+  state.credits[0] += UNIT_STATS[unit].cost;
+  const next = producing.queue.shift();
+  producing.producing = next
+    ? { kind: next, remaining: UNIT_STATS[next].buildTicks }
+    : undefined;
   return [];
 }
 

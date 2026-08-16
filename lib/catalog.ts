@@ -128,6 +128,22 @@ export function labelFor(kind: UnitKind | BuildingKind): string {
 }
 
 export const HARVEST_PER_TICK = 2;
+export const REPAIR_COST_RATIO = 0.5;
+
+export function repairHpPerTick(kind: BuildingKind): number {
+  return Math.max(2, Math.ceil(BUILDING_STATS[kind].hp / 180));
+}
+
+export function repairValue(kind: BuildingKind): number {
+  const stats = BUILDING_STATS[kind];
+  return stats.cost > 0 ? stats.cost : Math.max(200, Math.round(stats.hp / 4));
+}
+
+export function repairCostFor(kind: BuildingKind, hp: number): number {
+  if (hp <= 0) return 0;
+  const raw = (hp / BUILDING_STATS[kind].hp) * repairValue(kind) * REPAIR_COST_RATIO;
+  return Math.max(1, Math.round(raw));
+}
 
 export function producerFor(unit: UnitKind): BuildingKind {
   if (unit === "infantry" || unit === "antiArmor") return "barracks";

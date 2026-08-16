@@ -5,6 +5,7 @@ import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } fro
 import { listGeneratedAssets, type CatalogAsset } from "@/lib/gen/assetCatalog";
 import { buildingAnim } from "@/lib/render/anim";
 import { drawSprite, rasterize } from "@/lib/render/sprites";
+import { assetsCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
 import type {
   AnimFrame,
   BuildingKind,
@@ -108,6 +109,18 @@ export function AssetsBrowser({
   }, [selectedId]);
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const command = assetsCommandFromKey(e, { typing: isEditableTarget(e.target) });
+      if (!command) return;
+      e.preventDefault();
+      if (command.type === "close") onClose();
+      else setPlaying((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !selected) return;
     const ctx = canvas.getContext("2d");
@@ -168,11 +181,11 @@ export function AssetsBrowser({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="console-label">Genesis Command</p>
-          <h2 id="assets-title" className="mt-1 text-2xl font-black uppercase tracking-[0.12em] text-[#e3d6a5]">
+          <h2 id="assets-title" className="mt-1 text-2xl font-black uppercase tracking-[0.12em] text-[var(--chrome-text)]">
             Asset bay
           </h2>
         </div>
-        <button type="button" className="console-button console-button-muted has-tooltip" data-tooltip="Close asset bay" onClick={onClose}>
+        <button type="button" className="console-button console-button-muted has-tooltip" data-tooltip="Close asset bay" data-shortcut={SHORTCUT.close} onClick={onClose}>
           Close
         </button>
       </div>
@@ -204,7 +217,7 @@ export function AssetsBrowser({
           <canvas ref={canvasRef} width={420} height={280} className="pixel-canvas h-full w-full" aria-label={`${selected.label} preview`} />
         </div>
         <div className="assets-controls">
-        <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-[#9aa17f]">
+        <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-[var(--chrome-muted)]">
           {selected.label}
           {showFacing ? ` · facing ${FACING_LABELS[facing]}` : ""}
           {showAnim && playing ? " · animating" : ""}
@@ -234,6 +247,7 @@ export function AssetsBrowser({
             type="button"
             className="console-button mt-3 has-tooltip w-full"
             data-tooltip={playing ? "Pause sprite animation" : "Play sprite animation"}
+            data-shortcut={SHORTCUT.play}
             onClick={() => setPlaying((v) => !v)}
           >
             {playing ? "Pause animation" : "Play animation"}

@@ -72,6 +72,13 @@ describe("animation helpers", () => {
     const producing = buildingAnim(barracks, 40);
     expect(producing.producing).toBe(true);
     expect(producing.doorOpen).toBeTypeOf("boolean");
+
+    barracks.producing = undefined;
+    barracks.hp = barracks.maxHp * 0.5;
+    barracks.repairing = true;
+    const repairing = buildingAnim(barracks, 20);
+    expect(repairing.repairing).toBe(true);
+    expect(repairing.spark).toBeGreaterThan(0);
   });
 
   it("keeps overlay helpers in range", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
-import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
+import { buildingSprite, elevationFace, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
 import { BIOMES } from "../lib/gen/names";
 
@@ -151,6 +151,35 @@ describe("retro procedural assets", () => {
     expect(tank.svg).toContain("<path");
     expect(tank.svg).toContain("#8b9288");
     expect(tank.svg).toContain("#2c322e");
+  });
+
+  it("paints floor silhouettes that are not four-point diamonds", () => {
+    const grass = tileSprite("clear", 1, { biome: "ash plains", variant: 4, contour: "none" });
+    const floor = grass.shapes.find((shape) => shape.type === "poly");
+    expect((floor?.points?.length ?? 0) / 2).toBeGreaterThan(4);
+    expect(grass.w).toBeGreaterThan(64);
+    expect(grass.h).toBeGreaterThan(32);
+  });
+
+  it("offsets blocked props away from the tile center", () => {
+    const trees = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
+    const cx = trees.w / 2;
+    const trunks = trees.shapes.filter((shape) => shape.type === "ellipse" && shape.h >= 10);
+    expect(trunks.some((shape) => Math.abs(shape.x + shape.w / 2 - cx) > 3)).toBe(true);
+  });
+
+  it("draws 1-step drops as hillsides without layer lines", () => {
+    const face = elevationFace("south", 1, 64, 32, 16, 42);
+    expect(face.cracks).toHaveLength(0);
+    expect(face.points.length / 2).toBeGreaterThan(4);
+  });
+
+  it("draws steep cliffs as jagged faces instead of parallelograms", () => {
+    const face = elevationFace("east", 2, 64, 32, 16, 7);
+    expect(face.points.length / 2).toBeGreaterThan(4);
+    expect(face.cracks.length).toBeGreaterThan(0);
+    const xs = face.points.filter((_, i) => i % 2 === 0);
+    expect(new Set(xs.map((x) => Math.round(x))).size).toBeGreaterThan(2);
   });
 
   it("gives finished buildings three-face industrial volumes, not cubic shells or sketches", () => {

@@ -61,6 +61,11 @@ export function tickAi(state: SimState): void {
     (e) => e.owner === 0 && e.kind === "constructionYard",
   );
   const waveEvery = Math.max(240, 480 - state.missionIndex * 30);
+  for (const b of enemyBuildings) {
+    if (b.constructing > 0 || b.hp <= 0) continue;
+    if (b.hp < b.maxHp) b.repairing = true;
+  }
+
   if (playerYard && state.tick > 0 && state.tick % waveEvery === 0) {
     for (const u of living(state)) {
       if (u.owner !== 1 || u.class !== "unit" || u.kind === "harvester") continue;

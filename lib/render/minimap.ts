@@ -1,5 +1,6 @@
 import type { Entity, SimState } from "../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
+import { fogAt } from "../sim/fog";
 
 function shade(hex: string, amount: number): string {
   const raw = hex.replace("#", "");
@@ -50,7 +51,7 @@ export function renderMinimap(
   const sy = h / state.height;
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
-      const fog = state.fog[y * state.width + x] ?? 0;
+      const fog = fogAt(state, x, y);
       if (fog === 0) continue;
       const t = state.tiles[y * state.width + x]!;
       const elev = state.heights[y * state.width + x] ?? 1;
@@ -73,7 +74,7 @@ export function renderMinimap(
   }
   for (const e of state.entities) {
     if (e.hp <= 0) continue;
-    const fog = state.fog[Math.round(e.y) * state.width + Math.round(e.x)] ?? 0;
+    const fog = fogAt(state, Math.round(e.x), Math.round(e.y));
     if (e.owner === 1 && fog !== 2) continue;
     ctx.fillStyle = entityColor(e, state);
     const bw = e.class === "building" ? 6 : 3;

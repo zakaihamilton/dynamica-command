@@ -6,11 +6,12 @@ import { generateMap } from "../gen/map";
 import { tickAi } from "./ai";
 import { tickCombat } from "./combat";
 import { tickEconomy } from "./economy";
-import { tickFog } from "./fog";
+import { makeFog, tickFog } from "./fog";
 import { applyCommands, issue } from "./orders";
 import { evaluateObjectives, inspect } from "./objectives";
 import { stepAlongPath } from "./pathfinding";
 import { tickProduction } from "./production";
+import { tickRepair } from "./repair";
 import { emptyRoleCounts, spawnBuildingAt, spawnUnit } from "./world";
 import type { Command } from "../types";
 
@@ -61,7 +62,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     surfaces: map.surfaces,
     biome: map.biome,
     resourceAmount: map.resourceAmount,
-    fog: new Array(map.width * map.height).fill(0),
+    fog: makeFog(map.width, map.height, 0),
     entities: [],
     nextId: 1,
     credits: [1000, 1400],
@@ -157,6 +158,7 @@ export function tick(state: SimState, commands?: Command[]): { state: SimState; 
   events.push(...tickEconomy(state));
   tickMovement(state);
   events.push(...tickCombat(state));
+  events.push(...tickRepair(state));
   tickAi(state);
   tickFog(state);
   state.tick += 1;

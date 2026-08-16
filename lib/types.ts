@@ -79,6 +79,7 @@ export type Entity = {
   gatherY?: number;
   idle: boolean;
   facing?: Facing;
+  repairing?: boolean;
 };
 
 export type Palette = {
@@ -109,14 +110,22 @@ export type FaceDna = {
   uniform: string;
   headgear: 0 | 1 | 2 | 3;
   insignia: 0 | 1 | 2 | 3;
+  beard: 0 | 1 | 2 | 3;
   scar: boolean;
 };
 
+export type CharacterRole = "commander" | "advisor" | "enemyLeader";
+
 export type Character = {
-  role: "commander" | "advisor" | "enemyLeader";
+  role: CharacterRole;
   name: string;
   title: string;
   face: FaceDna;
+};
+
+export type BriefingLine = {
+  speaker: CharacterRole;
+  text: string;
 };
 
 export type WorldSetting = {
@@ -130,7 +139,7 @@ export type WorldSetting = {
 export type MissionDef = {
   index: number;
   name: string;
-  briefing: string;
+  briefing: BriefingLine[];
   win: WinCategory;
   mapSize: number;
 };
@@ -233,7 +242,10 @@ export type Command =
   | { type: "attack"; unitIds: number[]; targetId: number }
   | { type: "harvest"; unitIds: number[]; x: number; y: number }
   | { type: "build"; building: BuildingKind; x: number; y: number }
-  | { type: "produce"; fromId: number; unit: UnitKind };
+  | { type: "produce"; fromId: number; unit: UnitKind }
+  | { type: "cancelBuild"; building: BuildingKind }
+  | { type: "cancelProduce"; unit: UnitKind }
+  | { type: "repair"; buildingId: number };
 
 export type SimEvent =
   | { type: "produced"; owner: Owner; kind: UnitKind }

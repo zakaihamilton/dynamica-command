@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateMap, sceneryAt, skirtSample, featureEdgeMask, isMountainScenery } from "../lib/gen/map";
+import { generateMap, sceneryAt, skirtSample, featureEdgeMask, isMountainScenery, MAP_SKIRT, MAP_SKIRT_ALPHA, skirtAlpha } from "../lib/gen/map";
 import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
 import { buildingAt } from "../lib/sim/world";
@@ -134,6 +134,17 @@ describe("map skirt scenery", () => {
     expect(sceneryAt(world, map.playerStart.x, map.playerStart.y).kind).toBe(map.tiles[map.playerStart.y * map.width + map.playerStart.x]);
   });
 
+  it("draws outside the playable map at a lower opacity", () => {
+    const w = 24;
+    const h = 24;
+    expect(skirtAlpha(0, 0, w, h)).toBe(1);
+    expect(skirtAlpha(w - 1, h - 1, w, h)).toBe(1);
+    expect(skirtAlpha(-1, 8, w, h)).toBe(MAP_SKIRT_ALPHA);
+    expect(skirtAlpha(w + MAP_SKIRT - 1, 8, w, h)).toBe(MAP_SKIRT_ALPHA);
+    expect(MAP_SKIRT_ALPHA).toBeGreaterThan(0);
+    expect(MAP_SKIRT_ALPHA).toBeLessThan(1);
+  });
+
   it("marks river banks and mountain ridges on region edges", () => {
     const map = generateMap(42, { index: 0, win: { kind: "annihilate" }, mapSize: 24 });
     const world = { ...map, seed: 42 };
@@ -158,6 +169,31 @@ describe("map skirt scenery", () => {
     expect(banked).toBeGreaterThan(0);
     expect(ridged).toBeGreaterThan(0);
     expect(interiorWater + interiorMountain).toBeGreaterThan(0);
+  });
+});
+
+describe("organic map generation", () => {
+  it("forms blob-like water instead of isolated speckle", () => {
+    const map = generateMap(0, { index: 0, win: { kind: "annihilate" }, mapSize: 48 });
+    let water = 0;
+    let neighborSum = 0;
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (map.tiles[y * map.width + x] !== TILE_WATER) continue;
+        water += 1;
+        for (let oy = -1; oy <= 1; oy++) {
+          for (let ox = -1; ox <= 1; ox++) {
+            if (!ox && !oy) continue;
+            const nx = x + ox;
+            const ny = y + oy;
+            if (nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;
+            if (map.tiles[ny * map.width + nx] === TILE_WATER) neighborSum += 1;
+          }
+        }
+      }
+    }
+    expect(water).toBeGreaterThan(0);
+    expect(neighborSum / water).toBeGreaterThan(3);
   });
 });
 

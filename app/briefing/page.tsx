@@ -15,7 +15,7 @@ function Inner() {
 
 export default function BriefingPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0b0d10] text-[#e8e0d0]">Loading briefing…</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--chrome-bg)] text-[var(--chrome-text)]">Loading briefing…</div>}>
       <Inner />
     </Suspense>
   );

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EDGE_PAN_BAND, panDirFromPointer } from "../lib/render/camera";
-import { parseTooltipPos, placeTooltip } from "../lib/ui/tooltip";
+import { parseTooltipPos, placeTooltip, TOOLTIP_PAD, tooltipMaxBox } from "../lib/ui/tooltip";
 
 describe("edge pan from pointer", () => {
   it("returns null away from the rim so map clicks stay selectable", () => {
@@ -58,5 +58,27 @@ describe("floating tooltips", () => {
       { width: 400, height: 300 },
     );
     expect(placed.left).toBeGreaterThan(50);
+  });
+
+  it("keeps a wide tooltip inside the viewport near a right edge", () => {
+    const size = { width: 280, height: 36 };
+    const view = { width: 400, height: 300 };
+    const placed = placeTooltip(
+      { top: 80, left: 350, width: 40, height: 20 },
+      size,
+      "above",
+      view,
+    );
+    expect(placed.left).toBeGreaterThanOrEqual(TOOLTIP_PAD);
+    expect(placed.left + size.width).toBeLessThanOrEqual(view.width - TOOLTIP_PAD);
+    expect(placed.top).toBeGreaterThanOrEqual(TOOLTIP_PAD);
+    expect(placed.top + size.height).toBeLessThanOrEqual(view.height - TOOLTIP_PAD);
+  });
+
+  it("caps tooltip size to the padded viewport so copy can wrap instead of clipping", () => {
+    expect(tooltipMaxBox({ width: 400, height: 300 })).toEqual({
+      width: 400 - TOOLTIP_PAD * 2,
+      height: 300 - TOOLTIP_PAD * 2,
+    });
   });
 });

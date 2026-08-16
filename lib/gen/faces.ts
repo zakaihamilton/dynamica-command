@@ -1,12 +1,13 @@
 import type { Rng } from "../seed/rng";
 import type { FaceDna } from "../types";
 
-const SKINS = ["#e8c39e", "#c68642", "#8d5524", "#f1c27d", "#ffdbac", "#ad8b73"];
-const HAIR = ["#1a1a1a", "#3b2f2f", "#6b4423", "#c4a35a", "#4a2c82", "#8b1e3f", "#d8d0c8"];
-const EYES = ["#2b2b2b", "#355c7d", "#3a7d44", "#6b3fa0", "#8b4513"];
+const SKINS = ["#e3b48a", "#c68642", "#8d5524", "#f0c9a0", "#d4a574", "#ad8b73"];
+const HAIR = ["#1a1a1a", "#2c241e", "#6b4423", "#c4a35a", "#3b2f2f", "#8b1e3f", "#d8d0c8"];
+const EYES = ["#2b2b2b", "#355c7d", "#3a7d44", "#5c3d1e", "#4a5a6a"];
 const UNIFORMS = ["#384333", "#353d46", "#514536", "#2f3d3b", "#48403b", "#303840"];
 
 export function generateFace(rng: Rng): FaceDna {
+  const roll = rng.next();
   return {
     skin: rng.pick(SKINS),
     hair: rng.pick(HAIR),
@@ -19,6 +20,7 @@ export function generateFace(rng: Rng): FaceDna {
     uniform: rng.pick(UNIFORMS),
     headgear: rng.int(4) as FaceDna["headgear"],
     insignia: rng.int(4) as FaceDna["insignia"],
+    beard: (roll < 0.58 ? 0 : roll < 0.78 ? 1 : roll < 0.91 ? 2 : 3) as FaceDna["beard"],
     scar: rng.chance(0.22),
   };
 }

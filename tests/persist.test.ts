@@ -31,6 +31,15 @@ describe("persist", () => {
     expect(new Set(loaded.surfaces)).toEqual(new Set([0]));
   });
 
+  it("expands legacy fog grids to cover the map skirt", () => {
+    const s = makeFixture({ seed: 77, win: { kind: "annihilate" } });
+    const raw = JSON.parse(serializeState(s)) as { fog: number[]; width: number; height: number };
+    raw.fog = new Array(s.width * s.height).fill(1);
+    const loaded = deserializeState(JSON.stringify(raw));
+    expect(loaded.fog.length).toBeGreaterThan(s.width * s.height);
+    expect(loaded.fog[0]).toBe(0);
+  });
+
   it("round-trips a production queue and backfills missing queues", () => {
     const s = makeFixture({ seed: 421, win: { kind: "annihilate" } });
     const barracks = addBuilding(s, 0, "barracks", 2, 2);
@@ -58,5 +67,21 @@ describe("persist", () => {
     const loaded = deserializeState(JSON.stringify(raw));
     expect(loaded.entities[0]?.facing).toBe(0);
     expect(loaded.entities[1]?.facing).toBe(4);
+  });
+
+  it("round-trips repairing and backfills it on legacy entities", () => {
+    const s = makeFixture({ seed: 11, win: { kind: "annihilate" } });
+    const power = addBuilding(s, 0, "power", 2, 2);
+    power.hp = 200;
+    power.repairing = true;
+    const storage = memoryStorage();
+    writeSave(storage, s);
+    const loaded = readSave(storage, 11);
+    expect(loaded?.entities[0]?.repairing).toBe(true);
+
+    const raw = JSON.parse(serializeState(s)) as { entities: { repairing?: boolean }[] };
+    delete raw.entities[0]!.repairing;
+    const backfilled = deserializeState(JSON.stringify(raw));
+    expect(backfilled.entities[0]?.repairing).toBe(false);
   });
 });

@@ -17,6 +17,7 @@ export type BuildingAnim = {
   frame: AnimFrame;
   constructing: boolean;
   producing: boolean;
+  repairing: boolean;
   damageStage: 0 | 1 | 2;
   lightOn: boolean;
   smoke: number;
@@ -91,15 +92,17 @@ export function buildingAnim(e: Entity, tick: number, clockMs?: number): Buildin
   const damageStage = hpRatio < 0.34 ? 2 : hpRatio < 0.67 ? 1 : 0;
   const constructing = e.constructing > 0;
   const producing = Boolean(e.producing);
-  const frame = animFrame(t, constructing || producing ? 110 : 280, 4, e.id);
+  const repairing = Boolean(e.repairing) && !constructing;
+  const frame = animFrame(t, constructing || producing || repairing ? 110 : 280, 4, e.id);
   return {
     frame,
     constructing,
     producing,
+    repairing,
     damageStage,
     lightOn: Math.sin(phase * (producing ? 14 : 5.5)) > (damageStage > 0 ? 0.15 : -0.15),
     smoke: (Math.sin(phase * 1.8) + 1) * 0.5,
-    spark: constructing || producing ? (Math.sin(phase * 17) + 1) * 0.5 : 0,
+    spark: constructing || producing || repairing ? (Math.sin(phase * 17) + 1) * 0.5 : 0,
     antenna: Math.sin(phase * 3.2) * 3,
     doorOpen: producing && frame >= 1,
   };
