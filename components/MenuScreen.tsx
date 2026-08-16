@@ -1,14 +1,11 @@
 "use client";
 
-import { Cinzel } from "next/font/google";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MenuBackdrop } from "@/components/MenuBackdrop";
 import { createCampaign } from "@/lib/gen/campaign";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { listSaves, localStorageAdapter } from "@/lib/persist/save";
-
-const cinzel = Cinzel({ subsets: ["latin"], weight: ["700", "900"] });
 
 export function MenuScreen() {
   const router = useRouter();
@@ -18,7 +15,8 @@ export function MenuScreen() {
   const seedInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setSaves(listSaves(localStorageAdapter()));
+    const frame = requestAnimationFrame(() => setSaves(listSaves(localStorageAdapter())));
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const preview = useMemo(() => {
@@ -47,20 +45,20 @@ export function MenuScreen() {
     : "Enter four digits to preview this theater";
 
   return (
-    <div className="relative min-h-screen overflow-hidden text-[#e8e0d0]">
+    <div className="relative min-h-screen overflow-hidden text-[#d9d4b9]">
       <MenuBackdrop />
       <div className="menu-vignette pointer-events-none absolute inset-0" />
       <div className="menu-scanlines pointer-events-none absolute inset-0" />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-3xl flex-col items-center px-6 py-10">
-        <p className="font-mono text-[0.7rem] tracking-[0.55em] text-[#c4b37a]">SEEDED THEATER</p>
+        <p className="console-label text-[0.7rem] tracking-[0.55em] text-[#c4b37a]">PROCEDURAL THEATER NETWORK</p>
         <h1
-          className={`${cinzel.className} menu-title mt-3 text-center text-6xl font-black leading-[0.9] tracking-[0.18em] text-[#f4e7c4] sm:text-8xl`}
+          className="menu-title mt-3 text-center text-6xl font-black leading-[0.9] tracking-[0.12em] text-[#e2d8b4] sm:text-8xl"
         >
           GENESIS
         </h1>
         <h1
-          className={`${cinzel.className} menu-title mt-1 text-center text-5xl font-black tracking-[0.32em] text-[#f4e7c4] sm:text-7xl`}
+          className="menu-title mt-1 text-center text-4xl font-black tracking-[0.28em] text-[#c7ba86] sm:text-6xl"
         >
           PROTOCOL
         </h1>
@@ -69,24 +67,24 @@ export function MenuScreen() {
           One four-digit seed writes the war — maps, factions, faces, and every mission objective.
         </p>
 
-        <div className="mt-10 w-full max-w-lg border border-[#c4b37a]/35 bg-[#0d120c]/78 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-sm">
+        <div className="metal-panel mt-10 w-full max-w-lg p-6 backdrop-blur-sm">
           <button
             type="button"
             onClick={newGame}
-            className="w-full border border-[#c4b37a] bg-[#2a3218]/90 px-4 py-3 text-left font-medium tracking-[0.2em] hover:bg-[#3a4520]"
+            className="console-button w-full text-left"
           >
             NEW GAME
           </button>
 
           <div className="mt-5">
-            <p className="font-mono text-[0.65rem] tracking-[0.35em] text-[#8f9a6a]">ENTER SEED</p>
+            <p className="console-label">ENTER SEED</p>
             <div className="mt-2 flex items-center gap-3">
               <div className="relative">
                 <div className="pointer-events-none flex gap-2" aria-hidden>
                   {[0, 1, 2, 3].map((i) => (
                     <div
                       key={i}
-                      className="flex h-16 w-14 items-center justify-center border border-[#3d4a38] bg-[#0b0d10]/80 font-mono text-3xl text-[#f3e6c4]"
+                      className="flex h-16 w-14 items-center justify-center border border-[#151914] bg-[#10150f] font-mono text-3xl text-[#d7cb91] shadow-[inset_1px_1px_#050705,inset_-1px_-1px_#545a4c]"
                     >
                       {code[i] ?? "·"}
                     </div>
@@ -112,13 +110,13 @@ export function MenuScreen() {
               <button
                 type="button"
                 onClick={enterSeed}
-                className="h-16 shrink-0 border border-[#3d4a38] px-4 text-sm tracking-wide hover:border-[#c4b37a]"
+                className="console-button h-16 shrink-0 px-4"
               >
                 Deploy
               </button>
             </div>
             <div className="mt-3 h-12">
-              <p className="truncate font-mono text-xs tracking-wide text-[#8f9a6a]">{previewLine}</p>
+              <p className="truncate font-mono text-xs uppercase tracking-wide text-[#9da482]">{previewLine}</p>
               <p className={`mt-1 text-sm ${error ? "text-red-400" : "invisible"}`}>
                 {error || "placeholder"}
               </p>
@@ -126,7 +124,7 @@ export function MenuScreen() {
           </div>
 
           <div className="mt-2">
-            <h2 className="font-mono text-[0.65rem] tracking-[0.35em] text-[#8f9a6a]">RESUME</h2>
+            <h2 className="console-label">RESUME OPERATIONS</h2>
             <div className="mt-2 h-28 overflow-y-auto">
               {saves.length === 0 ? (
                 <p className="text-sm text-[#6d7260]">No saved theaters.</p>
@@ -136,7 +134,7 @@ export function MenuScreen() {
                     <li key={s.seed}>
                       <button
                         type="button"
-                        className="w-full border border-[#2a3324] px-3 py-2 text-left text-sm hover:border-[#c4b37a]"
+                        className="console-button console-button-muted w-full px-3 py-2 text-left text-xs"
                         onClick={() => router.push(`/play?seed=${s.seed}&resume=1`)}
                       >
                         Seed {s.seed} · Mission {s.missionIndex + 1} · tick {s.tick}

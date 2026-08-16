@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { generateMap } from "../lib/gen/map";
+import { generateMap, sceneryAt, skirtSample, featureEdgeMask, isMountainScenery } from "../lib/gen/map";
+import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
 import { buildingAt } from "../lib/sim/world";
 import { BUILDING_STATS, footprintOf } from "../lib/catalog";
 import type { BuildingKind } from "../lib/types";
+import { TILE_BLOCKED, TILE_WATER } from "../lib/types";
+import { cameraViewQuad, createCamera, TILE_H, tileToScreen } from "../lib/render/iso";
+import { cameraPanBounds, canPan, clampCamera, panAvailability } from "../lib/render/camera";
 
 describe("terrain height", () => {
   it("generated maps have a heightmap with varied elevation", () => {
@@ -29,7 +33,68 @@ describe("terrain height", () => {
       }
     }
   });
+
+  it("generates deterministic, funded, traversable theaters across campaigns", () => {
+    for (let seed = 0; seed < 32; seed++) {
+      const campaign = createCampaign(seed);
+      for (const mission of campaign.missions) {
+        const a = generateMap(seed, mission);
+        const b = generateMap(seed, mission);
+        expect(a).toEqual(b);
+        expect(routeExists(a)).toBe(true);
+        expect(a.surfaces.filter((surface) => surface === 1).length).toBeGreaterThan(mission.mapSize * 2);
+        const total = a.resourceAmount.reduce((sum, amount) => sum + amount, 0);
+        const required = Math.max(
+          14_000 + mission.index * 3_000,
+          mission.win.kind === "harvestQuota" ? Math.ceil((mission.win.target ?? 0) * 1.5) : 0,
+        );
+        expect(total).toBeGreaterThanOrEqual(required);
+        expect(nearestResource(a, a.playerStart)).toBeLessThanOrEqual(14);
+        expect(nearestResource(a, a.enemyStart)).toBeLessThanOrEqual(14);
+        for (const spot of a.markedSpots) {
+          expect(a.tiles[spot.y * a.width + spot.x]).toBe(0);
+          expect(a.heights[spot.y * a.width + spot.x]).toBe(1);
+        }
+      }
+    }
+  }, 30_000);
 });
+
+function nearestResource(map: ReturnType<typeof generateMap>, start: { x: number; y: number }): number {
+  let best = Infinity;
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      if ((map.resourceAmount[y * map.width + x] ?? 0) <= 0) continue;
+      best = Math.min(best, Math.hypot(x - start.x, y - start.y));
+    }
+  }
+  return best;
+}
+
+function routeExists(map: ReturnType<typeof generateMap>): boolean {
+  const seen = new Uint8Array(map.width * map.height);
+  const queue = [map.playerStart];
+  seen[map.playerStart.y * map.width + map.playerStart.x] = 1;
+  while (queue.length) {
+    const current = queue.shift()!;
+    if (current.x === map.enemyStart.x && current.y === map.enemyStart.y) return true;
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        if (!ox && !oy) continue;
+        const x = current.x + ox;
+        const y = current.y + oy;
+        if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
+        const i = y * map.width + x;
+        if (seen[i] || map.tiles[i] === TILE_WATER || map.tiles[i] === TILE_BLOCKED) continue;
+        const currentHeight = map.heights[current.y * map.width + current.x] ?? 1;
+        if (Math.abs((map.heights[i] ?? 1) - currentHeight) > 1) continue;
+        seen[i] = 1;
+        queue.push({ x, y });
+      }
+    }
+  }
+  return false;
+}
 
 describe("mission footprints", () => {
   it("starting buildings do not overlap", () => {
@@ -44,5 +109,112 @@ describe("mission footprints", () => {
         }
       }
     }
+  });
+});
+
+describe("map skirt scenery", () => {
+  it("generates deterministic mountains and water outside the playable map", () => {
+    const map = generateMap(42, { index: 0, win: { kind: "annihilate" }, mapSize: 24 });
+    const world = { ...map, seed: 42 };
+    const a = skirtSample(42, map.biome, -3, 8, map.width, map.height);
+    const b = skirtSample(42, map.biome, -3, 8, map.width, map.height);
+    expect(a).toEqual(b);
+    let water = 0;
+    let mountain = 0;
+    for (let y = -8; y < map.height + 8; y++) {
+      for (let x = -8; x < map.width + 8; x++) {
+        if (x >= 0 && y >= 0 && x < map.width && y < map.height) continue;
+        const sample = sceneryAt(world, x, y);
+        if (sample.kind === TILE_WATER) water += 1;
+        if (sample.kind === TILE_BLOCKED || sample.elev >= 2) mountain += 1;
+      }
+    }
+    expect(water).toBeGreaterThan(0);
+    expect(mountain).toBeGreaterThan(0);
+    expect(sceneryAt(world, map.playerStart.x, map.playerStart.y).kind).toBe(map.tiles[map.playerStart.y * map.width + map.playerStart.x]);
+  });
+
+  it("marks river banks and mountain ridges on region edges", () => {
+    const map = generateMap(42, { index: 0, win: { kind: "annihilate" }, mapSize: 24 });
+    const world = { ...map, seed: 42 };
+    let banked = 0;
+    let ridged = 0;
+    let interiorWater = 0;
+    let interiorMountain = 0;
+    for (let y = -6; y < map.height + 6; y++) {
+      for (let x = -6; x < map.width + 6; x++) {
+        const sample = sceneryAt(world, x, y);
+        const mask = featureEdgeMask(world, x, y);
+        if (sample.kind === TILE_WATER) {
+          if (mask.bank) banked += 1;
+          else interiorWater += 1;
+        }
+        if (isMountainScenery(sample)) {
+          if (mask.ridge) ridged += 1;
+          else interiorMountain += 1;
+        }
+      }
+    }
+    expect(banked).toBeGreaterThan(0);
+    expect(ridged).toBeGreaterThan(0);
+    expect(interiorWater + interiorMountain).toBeGreaterThan(0);
+  });
+});
+
+describe("minimap camera view", () => {
+  it("projects screen corners around the focused isometric tile", () => {
+    const cam = createCamera();
+    cam.zoom = 1;
+    const w = 640;
+    const h = 480;
+    const tx = 10;
+    const ty = 12;
+    const anchor = tileToScreen(tx, ty, { x: 0, y: 0, zoom: 1 }, 0);
+    cam.x = w / 2 - anchor.x;
+    cam.y = h / 2 - anchor.y - TILE_H / 2;
+    const quad = cameraViewQuad(cam, w, h);
+    const cx = (quad[0].x + quad[1].x + quad[2].x + quad[3].x) / 4;
+    const cy = (quad[0].y + quad[1].y + quad[2].y + quad[3].y) / 4;
+    expect(cx).toBeCloseTo(tx, 5);
+    expect(cy).toBeCloseTo(ty, 5);
+    const xs = quad.map((p) => p.x);
+    const ys = quad.map((p) => p.y);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(8);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(8);
+  });
+});
+
+describe("camera pan bounds", () => {
+  it("hides further panning once the camera sits on a bound", () => {
+    const cam = createCamera();
+    cam.zoom = 1;
+    const bounds = cameraPanBounds(cam, 48, 48, 640, 480);
+    expect(bounds.minX).toBeLessThan(bounds.maxX);
+    expect(bounds.minY).toBeLessThan(bounds.maxY);
+    cam.x = bounds.maxX;
+    cam.y = bounds.maxY;
+    clampCamera(cam, bounds);
+    expect(canPan(cam, bounds, "left")).toBe(false);
+    expect(canPan(cam, bounds, "up")).toBe(false);
+    expect(canPan(cam, bounds, "right")).toBe(true);
+    expect(canPan(cam, bounds, "down")).toBe(true);
+    cam.x = bounds.minX;
+    cam.y = bounds.minY;
+    expect(canPan(cam, bounds, "right")).toBe(false);
+    expect(canPan(cam, bounds, "down")).toBe(false);
+    expect(canPan(cam, bounds, "left")).toBe(true);
+    expect(canPan(cam, bounds, "up")).toBe(true);
+  });
+
+  it("locks all directions when the map already fits the view", () => {
+    const cam = createCamera();
+    cam.zoom = 1;
+    const bounds = cameraPanBounds(cam, 4, 4, 2000, 1600, 0);
+    clampCamera(cam, bounds);
+    const avail = panAvailability(cam, bounds);
+    expect(avail.left).toBe(false);
+    expect(avail.right).toBe(false);
+    expect(avail.up).toBe(false);
+    expect(avail.down).toBe(false);
   });
 });

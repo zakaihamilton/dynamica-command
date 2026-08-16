@@ -8,7 +8,7 @@ import type {
   UnitKind,
   Vec2,
 } from "../types";
-import { TILE_WATER } from "../types";
+import { TILE_BLOCKED, TILE_WATER } from "../types";
 
 export function at(state: SimState, x: number, y: number): number {
   return y * state.width + x;
@@ -37,14 +37,21 @@ export function occupies(e: Entity, x: number, y: number): boolean {
   return x >= e.x && x < e.x + fp.w && y >= e.y && y < e.y + fp.h;
 }
 
+export function unitAt(state: SimState, x: number, y: number): Entity | undefined {
+  return state.entities.find(
+    (e) => e.hp > 0 && e.class === "unit" && Math.round(e.x) === x && Math.round(e.y) === y,
+  );
+}
+
 export function buildingAt(state: SimState, x: number, y: number): Entity | undefined {
   return state.entities.find((e) => e.class === "building" && occupies(e, x, y));
 }
 
 export function isWalkable(state: SimState, x: number, y: number): boolean {
   if (!inBounds(state, x, y)) return false;
-  if (tileAt(state, x, y) === TILE_WATER) return false;
+  if (tileAt(state, x, y) === TILE_WATER || tileAt(state, x, y) === TILE_BLOCKED) return false;
   if (buildingAt(state, x, y)) return false;
+  if (unitAt(state, x, y)) return false;
   return true;
 }
 
@@ -74,7 +81,7 @@ export function canPlaceBuilding(state: SimState, kind: BuildingKind, x: number,
       const tx = x + ox;
       const ty = y + oy;
       if (!inBounds(state, tx, ty)) return false;
-      if (tileAt(state, tx, ty) === TILE_WATER) return false;
+      if (tileAt(state, tx, ty) === TILE_WATER || tileAt(state, tx, ty) === TILE_BLOCKED) return false;
       if (buildingAt(state, tx, ty)) return false;
     }
   }
@@ -131,6 +138,64 @@ export function openTileNear(
     }
   }
   return { x, y };
+}
+
+function spawnCandidateOk(state: SimState, x: number, y: number, originH: number): boolean {
+  if (!isWalkable(state, x, y)) return false;
+  return Math.abs(heightAt(state, x, y) - originH) <= 1;
+}
+
+export function frontTileNear(state: SimState, e: Entity): Vec2 {
+  const fp = footprintOf(e.kind as BuildingKind);
+  const x0 = Math.round(e.x);
+  const y0 = Math.round(e.y);
+  const originH = heightAt(state, x0, y0);
+  const seen = new Set<string>();
+  const front: Vec2[] = [];
+  const behind: Vec2[] = [];
+  const push = (list: Vec2[], x: number, y: number) => {
+    const key = `${x},${y}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    list.push({ x, y });
+  };
+
+  const midX = Math.floor(fp.w / 2);
+  const midY = Math.floor(fp.h / 2);
+  push(front, x0 + midX, y0 + fp.h);
+  for (let ox = 0; ox < fp.w; ox++) push(front, x0 + ox, y0 + fp.h);
+  push(front, x0 + fp.w, y0 + fp.h);
+  push(front, x0 + fp.w, y0 + midY);
+  for (let oy = fp.h - 1; oy >= 0; oy--) push(front, x0 + fp.w, y0 + oy);
+  for (let ox = 0; ox < fp.w; ox++) push(behind, x0 + ox, y0 - 1);
+  for (let oy = 0; oy < fp.h; oy++) push(behind, x0 - 1, y0 + oy);
+  push(behind, x0 - 1, y0 + fp.h);
+  push(behind, x0 + fp.w, y0 - 1);
+  push(behind, x0 - 1, y0 - 1);
+
+  for (const candidate of front) {
+    if (spawnCandidateOk(state, candidate.x, candidate.y, originH)) return candidate;
+  }
+  for (const candidate of behind) {
+    if (spawnCandidateOk(state, candidate.x, candidate.y, originH)) return candidate;
+  }
+  return openTileNear(state, e.x, e.y, fp.w, fp.h);
+}
+
+function unitSite(state: SimState, x: number, y: number, maxR = 12): Vec2 | undefined {
+  const cx = Math.round(x);
+  const cy = Math.round(y);
+  for (let r = 0; r <= maxR; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (r > 0 && Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (isWalkable(state, nx, ny)) return { x: nx, y: ny };
+      }
+    }
+  }
+  return undefined;
 }
 
 export function distToEntity(from: Vec2, e: Entity): number {
@@ -208,8 +273,10 @@ export function makeUnit(
     path: [],
     carry: 0,
     constructing: 0,
+    queue: [],
     marked: false,
     idle: true,
+    facing: owner === 0 ? 0 : 4,
   };
 }
 
@@ -236,8 +303,10 @@ export function makeBuilding(
     path: [],
     carry: 0,
     constructing,
+    queue: [],
     marked,
     idle: true,
+    facing: owner === 0 ? 0 : 4,
   };
 }
 
@@ -279,7 +348,11 @@ export function spawnUnit(
   x: number,
   y: number,
 ): Entity {
+  const site = unitSite(state, x, y);
+  if (!site) throw new Error("No free square available for unit spawn");
   const e = makeUnit(state, owner, kind, x, y);
+  e.x = site.x;
+  e.y = site.y;
   state.entities.push(e);
   return e;
 }

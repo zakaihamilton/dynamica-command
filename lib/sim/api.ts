@@ -17,10 +17,29 @@ import type { Command } from "../types";
 export { issue, inspect };
 
 function tickMovement(state: SimState): void {
+  const occupied = new Set<string>();
+  const reserved = new Map<string, number>();
+  const key = (x: number, y: number) => `${x},${y}`;
+  for (const e of state.entities) {
+    if (e.hp > 0 && e.class === "unit") occupied.add(key(Math.round(e.x), Math.round(e.y)));
+  }
   for (const e of state.entities) {
     if (e.hp <= 0 || e.class !== "unit") continue;
     const speed = UNIT_STATS[e.kind as UnitKind].speed;
+    const currentKey = key(Math.round(e.x), Math.round(e.y));
+    const next = e.path[0];
+    const targetKey = next ? key(Math.round(next.x), Math.round(next.y)) : currentKey;
+    const claim = reserved.get(targetKey);
+    if (next && targetKey !== currentKey && (occupied.has(targetKey) || (claim !== undefined && claim !== e.id))) continue;
+    if (next && targetKey !== currentKey) reserved.set(targetKey, e.id);
+    const beforeKey = currentKey;
     stepAlongPath(e, speed);
+    const afterKey = key(Math.round(e.x), Math.round(e.y));
+    if (afterKey !== beforeKey) {
+      occupied.delete(beforeKey);
+      occupied.add(afterKey);
+    }
+    if (!e.path.length && next && reserved.get(targetKey) === e.id) reserved.delete(targetKey);
   }
 }
 
@@ -39,6 +58,8 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     height: map.height,
     tiles: map.tiles,
     heights: map.heights,
+    surfaces: map.surfaces,
+    biome: map.biome,
     resourceAmount: map.resourceAmount,
     fog: new Array(map.width * map.height).fill(0),
     entities: [],

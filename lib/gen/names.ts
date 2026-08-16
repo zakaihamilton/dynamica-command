@@ -1,3 +1,4 @@
+import type { BiomeName } from "../types";
 import type { Rng } from "../seed/rng";
 
 const PREFIX = [
@@ -30,7 +31,7 @@ const ERA = [
   "late reconstruction", "second expansion", "post-collapse", "high mandate",
   "silent years", "open war decade",
 ];
-const BIOME = [
+export const BIOMES: BiomeName[] = [
   "ash plains", "crystal flats", "rust canyons", "salt marshes", "glass desert",
   "tundra grid", "jungle wreckage", "volcanic shelf",
 ];
@@ -62,8 +63,8 @@ export function genEra(rng: Rng): string {
   return rng.pick(ERA);
 }
 
-export function genBiome(rng: Rng): string {
-  return rng.pick(BIOME);
+export function genBiome(rng: Rng): BiomeName {
+  return rng.pick(BIOMES);
 }
 
 export function genRank(rng: Rng): string {

@@ -1,6 +1,6 @@
 import { mixSeed } from "../seed/rng";
 import type { BuildingKind, SimState, UnitKind, WinCategory } from "../types";
-import { TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../types";
+import { SURFACE_NONE, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../types";
 import { emptyRoleCounts, spawnBuilding, spawnUnit } from "./world";
 
 export type FixtureOpts = {
@@ -23,6 +23,8 @@ export function makeFixture(opts: FixtureOpts): SimState {
     height,
     tiles,
     heights: new Array(width * height).fill(1),
+    surfaces: new Array(width * height).fill(SURFACE_NONE),
+    biome: "ash plains",
     resourceAmount,
     fog: new Array(width * height).fill(2),
     entities: [],
@@ -95,4 +97,4 @@ export function addBuilding(
   return spawnBuilding(state, owner, kind, x, y, constructing, marked);
 }
 
-export { TILE_CLEAR, TILE_RESOURCE, TILE_WATER };
+export { TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER };

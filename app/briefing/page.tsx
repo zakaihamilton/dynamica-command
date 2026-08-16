@@ -9,7 +9,8 @@ function Inner() {
   const sp = useSearchParams();
   const seed = parseSeed(sp.get("seed") ?? "0000") ?? 0;
   const mission = Number(sp.get("mission") ?? "0") || 0;
-  return <BriefingScreen seed={seed} mission={mission} />;
+  const returnToGame = sp.get("return") === "game";
+  return <BriefingScreen key={`${seed}:${mission}:${returnToGame}`} seed={seed} mission={mission} returnToGame={returnToGame} />;
 }
 
 export default function BriefingPage() {

@@ -15,7 +15,7 @@ function Inner() {
   const seed = parseSeed(sp.get("seed") ?? "0000") ?? 0;
   const mission = Number(sp.get("mission") ?? "0") || 0;
   const resume = sp.get("resume") === "1";
-  return <GameClient seed={seed} mission={mission} resume={resume} />;
+  return <GameClient key={`${seed}:${mission}:${resume}`} seed={seed} mission={mission} resume={resume} />;
 }
 
 export default function PlayPage() {

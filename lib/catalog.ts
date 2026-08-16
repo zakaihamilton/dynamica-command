@@ -1,6 +1,14 @@
 import type { BuildingKind, UnitKind } from "./types";
 
 export const TICKS_PER_SECOND = 12;
+export const MAX_PRODUCTION_QUEUE = 10;
+
+export function productionQueueSize(entity: {
+  producing?: { kind: UnitKind; remaining: number };
+  queue?: UnitKind[];
+}): number {
+  return (entity.producing ? 1 : 0) + (entity.queue?.length ?? 0);
+}
 
 export const UNIT_KINDS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank"];
 export const BUILDING_KINDS: BuildingKind[] = [
@@ -89,7 +97,7 @@ export const BUILDING_STATS: Record<BuildingKind, BuildingStats> = {
   refinery: { hp: 1100, cost: 1000, buildTicks: 240, power: -10, sight: 5, footprint: { w: 3, h: 2 } },
   barracks: { hp: 900, cost: 750, buildTicks: 216, power: -10, sight: 5, footprint: { w: 2, h: 2 } },
   factory: { hp: 1300, cost: 1600, buildTicks: 360, power: -15, sight: 5, footprint: { w: 3, h: 2 } },
-  turret: { hp: 480, cost: 550, buildTicks: 168, power: -8, sight: 7, footprint: { w: 2, h: 1 } },
+  turret: { hp: 480, cost: 550, buildTicks: 168, power: -8, sight: 7, footprint: { w: 1, h: 1 } },
   objective: { hp: 1800, cost: 0, buildTicks: 0, power: 0, sight: 3, footprint: { w: 2, h: 2 } },
 };
 
@@ -128,6 +136,71 @@ export function producerFor(unit: UnitKind): BuildingKind {
 
 export function powerOf(kind: BuildingKind): number {
   return BUILDING_STATS[kind].power;
+}
+
+export type CameoPhase = "idle" | "progress" | "waiting";
+
+export type CameoStatus = {
+  ratio: number;
+  queued: number;
+  phase: CameoPhase;
+};
+
+type CameoEntity = {
+  hp: number;
+  owner: number;
+  class: string;
+  kind: string;
+  constructing: number;
+  producing?: { kind: UnitKind; remaining: number };
+  queue?: UnitKind[];
+};
+
+export function buildingCameoStatus(
+  entities: ReadonlyArray<CameoEntity>,
+  owner: number,
+  kind: BuildingKind,
+): CameoStatus {
+  let queued = 0;
+  let bestRatio = 0;
+  for (const e of entities) {
+    if (e.hp <= 0 || e.owner !== owner || e.class !== "building" || e.kind !== kind) continue;
+    if (e.constructing <= 0) continue;
+    queued += 1;
+    const total = BUILDING_STATS[kind].buildTicks || 1;
+    const ratio = Math.max(0, Math.min(1, 1 - e.constructing / total));
+    if (ratio > bestRatio) bestRatio = ratio;
+  }
+  if (queued === 0) return { ratio: 0, queued: 0, phase: "idle" };
+  return { ratio: bestRatio, queued, phase: "progress" };
+}
+
+export function unitCameoStatus(
+  entities: ReadonlyArray<CameoEntity>,
+  owner: number,
+  kind: UnitKind,
+): CameoStatus {
+  let queued = 0;
+  let bestRatio = 0;
+  let producing = false;
+  for (const e of entities) {
+    if (e.hp <= 0 || e.owner !== owner || e.class !== "building" || e.constructing > 0) continue;
+    if (e.producing?.kind === kind) {
+      queued += 1;
+      producing = true;
+      const total = UNIT_STATS[kind].buildTicks || 1;
+      const ratio = Math.max(0, Math.min(1, 1 - e.producing.remaining / total));
+      if (ratio > bestRatio) bestRatio = ratio;
+    }
+    if (e.queue) {
+      for (const item of e.queue) {
+        if (item === kind) queued += 1;
+      }
+    }
+  }
+  if (queued === 0) return { ratio: 0, queued: 0, phase: "idle" };
+  if (producing) return { ratio: bestRatio, queued, phase: "progress" };
+  return { ratio: 0, queued, phase: "waiting" };
 }
 
 export const WIN_KIND_ORDER: import("./types").WinCategoryKind[] = [

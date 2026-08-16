@@ -93,13 +93,18 @@ function reconstruct(came: Map<number, Node>, end: Node, w: number): Vec2[] {
   return path;
 }
 
-export function stepAlongPath(e: { x: number; y: number; path: Vec2[] }, speed: number): void {
+export function stepAlongPath(
+  e: { x: number; y: number; path: Vec2[] },
+  speed: number,
+  canEnter?: (x: number, y: number) => boolean,
+): void {
   if (!e.path.length) return;
   const target = e.path[0]!;
   const dx = target.x - e.x;
   const dy = target.y - e.y;
   const d = Math.hypot(dx, dy);
   if (d <= speed || d < 0.05) {
+    if (canEnter && !canEnter(target.x, target.y)) return;
     e.x = target.x;
     e.y = target.y;
     e.path.shift();

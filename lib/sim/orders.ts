@@ -1,4 +1,4 @@
-import { BUILDING_STATS, UNIT_STATS, producerFor } from "../catalog";
+import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, producerFor, productionQueueSize } from "../catalog";
 import type { BuildingKind, Command, Entity, SimEvent, SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
 import { byId, canPlaceBuilding, closestApproach, powerFor, spawnBuilding } from "./world";
@@ -89,12 +89,17 @@ function startProduce(state: SimState, fromId: number, unit: UnitKind): SimEvent
   const b = byId(state, fromId);
   if (!b || b.class !== "building" || b.owner !== 0 || b.constructing > 0) return [];
   if (b.kind !== producerFor(unit)) return [];
-  if (b.producing) return [];
+  if (!b.queue) b.queue = [];
+  if (productionQueueSize(b) >= MAX_PRODUCTION_QUEUE) return [];
   const stats = UNIT_STATS[unit];
   if (state.credits[0] < stats.cost) return [];
   if (powerFor(state, 0) < 0) return [];
   state.credits[0] -= stats.cost;
-  b.producing = { kind: unit, remaining: stats.buildTicks };
+  if (!b.producing) {
+    b.producing = { kind: unit, remaining: stats.buildTicks };
+  } else {
+    b.queue.push(unit);
+  }
   return [];
 }
 

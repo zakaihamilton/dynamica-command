@@ -4,9 +4,9 @@ import { useEffect, useRef } from "react";
 import { buildingSprite, tileSprite, unitSprite } from "@/lib/gen/assets";
 import { generateFactions } from "@/lib/gen/factions";
 import { generateMap } from "@/lib/gen/map";
-import { TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
+import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
 import { rasterize } from "@/lib/render/sprites";
-import { TILE_RESOURCE, TILE_WATER } from "@/lib/types";
+import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
 import type { BuildingKind, UnitKind } from "@/lib/types";
 import { BUILDING_STATS } from "@/lib/catalog";
 
@@ -143,9 +143,10 @@ export function MenuBackdrop() {
     resize();
     window.addEventListener("resize", resize);
 
-    const tileKind = (tile: number): "clear" | "water" | "resource" => {
+    const tileKind = (tile: number): "clear" | "water" | "resource" | "blocked" => {
       if (tile === TILE_WATER) return "water";
       if (tile === TILE_RESOURCE) return "resource";
+      if (tile === TILE_BLOCKED) return "blocked";
       return "clear";
     };
 
@@ -162,6 +163,7 @@ export function MenuBackdrop() {
       t += 1;
       const w = canvas.width;
       const h = canvas.height;
+      ctx.imageSmoothingEnabled = false;
       const cam: Camera = {
         zoom: 0.92,
         x: w * 0.52 + Math.sin(t * 0.004) * 140,
@@ -182,7 +184,38 @@ export function MenuBackdrop() {
           const s = tileToScreen(x, y, cam, elev);
           if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
           const kind = tileKind(map.tiles[y * map.width + x]!);
-          const img = rasterize(tileSprite(kind, elev, (x * 13 + y * 7) % 8));
+          const east = x + 1 < map.width ? map.heights[y * map.width + x + 1] ?? 0 : 0;
+          const south = y + 1 < map.height ? map.heights[(y + 1) * map.width + x] ?? 0 : 0;
+          const dropE = Math.max(0, elev - east) * HEIGHT_STEP * cam.zoom;
+          const dropS = Math.max(0, elev - south) * HEIGHT_STEP * cam.zoom;
+          const tw = TILE_W * cam.zoom;
+          const th = TILE_H * cam.zoom;
+          if (dropS > 0) {
+            ctx.fillStyle = elev >= 3 ? "#332d27" : "#262d23";
+            ctx.beginPath();
+            ctx.moveTo(s.x - tw / 2, s.y + th / 2);
+            ctx.lineTo(s.x, s.y + th);
+            ctx.lineTo(s.x, s.y + th + dropS);
+            ctx.lineTo(s.x - tw / 2, s.y + th / 2 + dropS);
+            ctx.closePath();
+            ctx.fill();
+          }
+          if (dropE > 0) {
+            ctx.fillStyle = elev >= 3 ? "#51483d" : "#394334";
+            ctx.beginPath();
+            ctx.moveTo(s.x + tw / 2, s.y + th / 2);
+            ctx.lineTo(s.x, s.y + th);
+            ctx.lineTo(s.x, s.y + th + dropE);
+            ctx.lineTo(s.x + tw / 2, s.y + th / 2 + dropE);
+            ctx.closePath();
+            ctx.fill();
+          }
+          const img = rasterize(tileSprite(kind, elev, {
+            biome: map.biome,
+            variant: (x * 13 + y * 7) % 16,
+            surface: map.surfaces[y * map.width + x],
+            resourceLevel: 4,
+          }));
           if (kind === "resource") {
             ctx.globalAlpha = 0.85 + Math.sin(t * 0.08 + x + y) * 0.15;
           }
@@ -222,8 +255,21 @@ export function MenuBackdrop() {
         const pal = item.owner === 0 ? us.palette : them.palette;
         const spec =
           item.class === "unit"
-            ? unitSprite(item.kind as UnitKind, pal)
-            : buildingSprite(item.kind as BuildingKind, pal);
+            ? unitSprite(item.kind as UnitKind, pal, {
+                variant: Math.round(item.x * 31 + item.y * 17),
+                facing: (() => {
+                  const actor = item as Actor;
+                  const dest = actor.waypoints?.[actor.wi];
+                  if (!dest) return item.owner === 0 ? 0 : 4;
+                  const angle = Math.atan2(dest.y - item.y, dest.x - item.x);
+                  return ((Math.round(angle / (Math.PI * 2) * 8) + 8) % 8) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+                })(),
+                animationFrame: Math.floor(t / 8) % 2 as 0 | 1,
+              })
+            : buildingSprite(item.kind as BuildingKind, pal, {
+                variant: Math.round(item.x * 31 + item.y * 17),
+                animationFrame: Math.floor(t / 12) % 2 as 0 | 1,
+              });
         const img = rasterize(spec);
         let cx = item.x;
         let cy = item.y;

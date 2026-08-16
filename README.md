@@ -61,7 +61,7 @@ Lose if your construction yard falls (or the timer expires on a hold). Briefings
 
 Harvest resource fields → spend credits and power → place buildings → produce units → fight. Enemy AI expands and sends waves. Maps grow from ~48×48 early to ~96×96 late, with **valleys, plains, hills, and mountains**. Units can climb one elevation step; a two-level drop is a cliff. Buildings need a flat footprint (no water, no overlap, one height).
 
-Yards, power plants, and barracks are **2×2**; refineries and factories **3×2**; turrets **2×1**. Hover a unit or building for a tooltip (kind, faction, HP, and extras such as harvester cargo or a marked target).
+Yards, power plants, and barracks are **2×2**; refineries and factories **3×2**; turrets are **1×1**. Hover a unit or building for a tooltip (kind, faction, HP, and extras such as harvester cargo or a marked target).
 
 ### Controls
 
@@ -69,10 +69,10 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 | --- | --- |
 | Left click / drag | Select |
 | Right click | Move, attack, or harvest |
-| Wheel | Zoom |
+| Minimap click / drag | Move camera focus |
 | WASD | Pan |
 | Hover | Tooltip on the unit or building under the cursor |
-| Sidebar | Place buildings; produce from a selected barracks or factory |
+| Sidebar | Place buildings and produce units from the command tabs |
 
 ## Architecture
 
@@ -90,7 +90,7 @@ scripts/       inspect + headless sim
 tests/         Vitest
 ```
 
-Sprites, tiles, portraits, and SFX are **generated** (shape specs + faction palettes + Web Audio). There is no stock unit art.
+Sprites, biome tiles, roads, cliffs, portraits, and SFX are **generated** (native-resolution shape specs + seeded palettes + Web Audio). The generated art is deterministic per seed, rendered on a minimum 640×480 surface, and uses no stock unit art.
 
 ### Headless API
 

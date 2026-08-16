@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { inspect } from "../lib/sim/objectives";
+import { createCampaign } from "../lib/gen/campaign";
+import { missionObjectives } from "../lib/gen/story";
 
 describe("win categories", () => {
   it("harvestQuota wins after a deposit", () => {
@@ -95,5 +97,24 @@ describe("win categories", () => {
     cy.hp = 0;
     tick(s);
     expect(inspect(s).result).toBe("lost");
+  });
+});
+
+describe("mission briefing objectives", () => {
+  it("derives real objectives from the campaign win condition and standing orders", () => {
+    const campaign = createCampaign(421);
+    for (const mission of campaign.missions) {
+      const objectives = missionObjectives(mission, campaign);
+      expect(objectives.length).toBeGreaterThanOrEqual(2);
+      expect(objectives.some((item) => item.primary)).toBe(true);
+      expect(objectives.some((item) => /construction yard/i.test(item.text))).toBe(true);
+      expect(objectives[0]!.text.toLowerCase()).not.toContain("lorem");
+      if (mission.win.kind === "harvestQuota") {
+        expect(objectives[0]!.text).toContain(String(mission.win.target));
+      }
+      if (mission.win.kind === "forceQuota" && mission.win.role) {
+        expect(objectives[0]!.text.toLowerCase()).toContain(mission.win.role === "antiArmor" ? "anti-armor" : mission.win.role);
+      }
+    }
   });
 });

@@ -32,11 +32,29 @@ export type WinCategory = {
   ticks?: number;
 };
 
-export type TileKind = 0 | 1 | 2;
+export type TileKind = 0 | 1 | 2 | 3;
 
 export const TILE_CLEAR = 0 as const;
 export const TILE_WATER = 1 as const;
 export const TILE_RESOURCE = 2 as const;
+export const TILE_BLOCKED = 3 as const;
+
+export type SurfaceKind = 0 | 1 | 2;
+export const SURFACE_NONE = 0 as const;
+export const SURFACE_ROAD = 1 as const;
+export const SURFACE_CONCRETE = 2 as const;
+
+export type BiomeName =
+  | "ash plains"
+  | "crystal flats"
+  | "rust canyons"
+  | "salt marshes"
+  | "glass desert"
+  | "tundra grid"
+  | "jungle wreckage"
+  | "volcanic shelf";
+
+export type Facing = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type Vec2 = { x: number; y: number };
 
@@ -55,10 +73,12 @@ export type Entity = {
   carry: number;
   constructing: number;
   producing?: { kind: UnitKind; remaining: number };
+  queue: UnitKind[];
   marked: boolean;
   gatherX?: number;
   gatherY?: number;
   idle: boolean;
+  facing?: Facing;
 };
 
 export type Palette = {
@@ -86,6 +106,10 @@ export type FaceDna = {
   jaw: number;
   mouthWidth: number;
   nose: number;
+  uniform: string;
+  headgear: 0 | 1 | 2 | 3;
+  insignia: 0 | 1 | 2 | 3;
+  scar: boolean;
 };
 
 export type Character = {
@@ -100,7 +124,7 @@ export type WorldSetting = {
   tone: string;
   conflict: string;
   era: string;
-  biome: string;
+  biome: BiomeName;
 };
 
 export type MissionDef = {
@@ -146,6 +170,35 @@ export type SpriteSpec = {
   shapes: ShapeSpec[];
   anchorX?: number;
   anchorY?: number;
+  pixelScale?: number;
+};
+
+export type TileContour = "none" | "bank" | "ridge";
+
+export type TileSpriteOptions = {
+  biome?: BiomeName;
+  variant?: number;
+  edgeMask?: number;
+  surface?: SurfaceKind;
+  resourceLevel?: number;
+  contour?: TileContour;
+};
+
+export type AnimFrame = 0 | 1 | 2 | 3;
+
+export type UnitSpriteOptions = {
+  variant?: number;
+  facing?: Facing;
+  animationFrame?: AnimFrame;
+  damageStage?: 0 | 1 | 2;
+};
+
+export type BuildingSpriteOptions = {
+  variant?: number;
+  facing?: Facing;
+  animationFrame?: AnimFrame;
+  damageStage?: 0 | 1 | 2;
+  constructionStage?: 0 | 1 | 2 | 3;
 };
 
 export type SimState = {
@@ -156,6 +209,8 @@ export type SimState = {
   height: number;
   tiles: number[];
   heights: number[];
+  surfaces: SurfaceKind[];
+  biome: BiomeName;
   resourceAmount: number[];
   fog: number[];
   entities: Entity[];

@@ -27,6 +27,19 @@ export function screenToTile(sx: number, sy: number, cam: Camera): { x: number; 
   return { x: (tx + ty) / 2, y: (ty - tx) / 2 };
 }
 
-export function clampZoom(z: number): number {
-  return Math.max(0.5, Math.min(2.5, z));
+export function screenToGroundTile(sx: number, sy: number, cam: Camera): { x: number; y: number } {
+  return screenToTile(sx, sy - (TILE_H / 2) * cam.zoom, cam);
+}
+
+export function cameraViewQuad(
+  cam: Camera,
+  screenW: number,
+  screenH: number,
+): [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }] {
+  return [
+    screenToGroundTile(0, 0, cam),
+    screenToGroundTile(screenW, 0, cam),
+    screenToGroundTile(screenW, screenH, cam),
+    screenToGroundTile(0, screenH, cam),
+  ];
 }

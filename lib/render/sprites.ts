@@ -48,12 +48,25 @@ export function rasterize(spec: SpriteSpec): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = spec.w;
   c.height = spec.h;
+  const pixelScale = Math.max(1, spec.pixelScale ?? 1);
+  const source = document.createElement("canvas");
+  source.width = Math.max(1, Math.ceil(spec.w / pixelScale));
+  source.height = Math.max(1, Math.ceil(spec.h / pixelScale));
+  const sourceCtx = source.getContext("2d")!;
+  sourceCtx.imageSmoothingEnabled = false;
+  sourceCtx.lineJoin = "miter";
+  sourceCtx.lineCap = "square";
+  sourceCtx.scale(1 / pixelScale, 1 / pixelScale);
+  paintShapes(sourceCtx, spec.shapes);
   const ctx = c.getContext("2d")!;
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  paintShapes(ctx, spec.shapes);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(source, 0, 0, source.width, source.height, 0, 0, spec.w, spec.h);
   cache.set(spec.id, c);
   return c;
+}
+
+export function cachedSprite(id: string): HTMLCanvasElement | undefined {
+  return cache.get(id);
 }
 
 export function clearSpriteCache(): void {

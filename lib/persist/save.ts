@@ -1,5 +1,7 @@
 import { formatSeed } from "../seed/rng";
+import { generateWorld } from "../gen/world";
 import type { SimState } from "../types";
+import { SURFACE_NONE } from "../types";
 
 export type StorageAdapter = {
   getItem: (key: string) => string | null;
@@ -30,6 +32,15 @@ export function deserializeState(raw: string): SimState {
   const s = JSON.parse(raw) as SimState;
   if (!s.heights || s.heights.length !== s.width * s.height) {
     s.heights = new Array(s.width * s.height).fill(1);
+  }
+  if (!s.surfaces || s.surfaces.length !== s.width * s.height) {
+    s.surfaces = new Array(s.width * s.height).fill(SURFACE_NONE);
+  }
+  if (!s.biome) s.biome = generateWorld(s.seed).biome;
+  if (!Array.isArray(s.entities)) s.entities = [];
+  for (const e of s.entities) {
+    if (!e.queue) e.queue = [];
+    if (e.facing === undefined) e.facing = e.owner === 0 ? 0 : 4;
   }
   return s;
 }

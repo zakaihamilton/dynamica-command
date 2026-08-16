@@ -1,6 +1,11 @@
 export type BeepKind = "select" | "ack" | "build" | "alert" | "win" | "lose";
 
 let ctx: AudioContext | null = null;
+let muted = false;
+
+export function setMuted(value: boolean): void {
+  muted = value;
+}
 
 function ac(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -13,6 +18,7 @@ function ac(): AudioContext | null {
 }
 
 export function beep(kind: BeepKind): void {
+  if (muted) return;
   const audio = ac();
   if (!audio) return;
   void audio.resume();
