@@ -12,6 +12,7 @@ export type GeneratedMap = {
   width: number;
   height: number;
   tiles: number[];
+  heights: number[];
   resourceAmount: number[];
   playerStart: Vec2;
   enemyStart: Vec2;
@@ -65,18 +66,63 @@ function neighbors8(x: number, y: number): Vec2[] {
   return out;
 }
 
-function carvePath(tiles: number[], w: number, h: number, a: Vec2, b: Vec2): void {
+function carvePath(tiles: number[], heights: number[], w: number, h: number, a: Vec2, b: Vec2): void {
   let x = a.x;
   let y = a.y;
   while (x !== b.x || y !== b.y) {
     tiles[idx(x, y, w)] = TILE_CLEAR;
-    if (inBounds(x + 1, y, w, h)) tiles[idx(x + 1, y, w)] = TILE_CLEAR;
+    heights[idx(x, y, w)] = 1;
+    if (inBounds(x + 1, y, w, h)) {
+      tiles[idx(x + 1, y, w)] = TILE_CLEAR;
+      if (heights[idx(x + 1, y, w)]! > 1) heights[idx(x + 1, y, w)] = 1;
+    }
+    if (inBounds(x, y + 1, w, h)) {
+      tiles[idx(x, y + 1, w)] = TILE_CLEAR;
+      if (heights[idx(x, y + 1, w)]! > 1) heights[idx(x, y + 1, w)] = 1;
+    }
     if (x < b.x) x++;
     else if (x > b.x) x--;
     else if (y < b.y) y++;
     else y--;
   }
   tiles[idx(b.x, b.y, w)] = TILE_CLEAR;
+  heights[idx(b.x, b.y, w)] = 1;
+}
+
+function flattenArea(
+  tiles: number[],
+  heights: number[],
+  w: number,
+  h: number,
+  cx: number,
+  cy: number,
+  r: number,
+  level: number,
+): void {
+  for (let y = cy - r; y <= cy + r; y++) {
+    for (let x = cx - r; x <= cx + r; x++) {
+      if (!inBounds(x, y, w, h)) continue;
+      if (Math.hypot(x - cx, y - cy) > r) continue;
+      const i = idx(x, y, w);
+      if (tiles[i] === TILE_WATER) {
+        tiles[i] = TILE_CLEAR;
+      }
+      heights[i] = level;
+    }
+  }
+}
+
+function isNearWater(tiles: number[], x: number, y: number, w: number, h: number): boolean {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (!inBounds(nx, ny, w, h)) continue;
+      if (tiles[idx(nx, ny, w)] === TILE_WATER) return true;
+    }
+  }
+  return false;
 }
 
 function reachable(tiles: number[], w: number, h: number, start: Vec2, goal: Vec2): boolean {
@@ -112,20 +158,22 @@ export function generateMap(
   const width = mission.mapSize;
   const height = mission.mapSize;
   const tiles = new Array<number>(width * height).fill(TILE_CLEAR);
+  const heights = new Array<number>(width * height).fill(1);
   const resourceAmount = new Array<number>(width * height).fill(0);
   const salt = mixSalt(rng);
 
   const playerStart: Vec2 = {
-    x: 4 + rng.int(3),
-    y: 4 + rng.int(3),
+    x: 6 + rng.int(3),
+    y: 6 + rng.int(3),
   };
   const enemyStart: Vec2 = {
-    x: width - 6 - rng.int(3),
-    y: height - 6 - rng.int(3),
+    x: width - 9 - rng.int(3),
+    y: height - 9 - rng.int(3),
   };
 
   const harvestBoost = mission.win.kind === "harvestQuota" ? 0.08 : 0;
   const waterThresh = 0.3;
+  const startClear = 8;
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -133,7 +181,7 @@ export function generateMap(
       const n = fbm(x, y, salt);
       const distP = Math.hypot(x - playerStart.x, y - playerStart.y);
       const distE = Math.hypot(x - enemyStart.x, y - enemyStart.y);
-      if (distP < 6 || distE < 6) {
+      if (distP < startClear || distE < startClear) {
         tiles[i] = TILE_CLEAR;
         continue;
       }
@@ -141,9 +189,30 @@ export function generateMap(
     }
   }
 
-  carvePath(tiles, width, height, playerStart, enemyStart);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = idx(x, y, width);
+      if (tiles[i] === TILE_WATER) {
+        heights[i] = 0;
+        continue;
+      }
+      if (isNearWater(tiles, x, y, width, height)) {
+        heights[i] = 0;
+        continue;
+      }
+      const hn = fbm(x * 0.85, y * 0.85, salt + 91);
+      if (hn > 0.74) heights[i] = 3;
+      else if (hn > 0.54) heights[i] = 2;
+      else heights[i] = 1;
+    }
+  }
+
+  flattenArea(tiles, heights, width, height, playerStart.x, playerStart.y, startClear, 1);
+  flattenArea(tiles, heights, width, height, enemyStart.x, enemyStart.y, startClear, 1);
+
+  carvePath(tiles, heights, width, height, playerStart, enemyStart);
   if (!reachable(tiles, width, height, playerStart, enemyStart)) {
-    carvePath(tiles, width, height, playerStart, enemyStart);
+    carvePath(tiles, heights, width, height, playerStart, enemyStart);
   }
 
   const veinCount = 6 + mission.index + (harvestBoost ? 4 : 0);
@@ -174,8 +243,8 @@ export function generateMap(
     mission.win.kind === "destroyMarked" ? mission.win.targetCount ?? 1 : 0;
   for (let m = 0; m < markCount; m++) {
     markedSpots.push({
-      x: Math.max(2, enemyStart.x - 3 - m),
-      y: Math.max(2, enemyStart.y - 1 + (m % 2)),
+      x: Math.max(2, enemyStart.x - 4 - m * 3),
+      y: Math.max(2, enemyStart.y - 6 + (m % 2) * 2),
     });
   }
 
@@ -183,6 +252,7 @@ export function generateMap(
     width,
     height,
     tiles,
+    heights,
     resourceAmount,
     playerStart,
     enemyStart,
@@ -199,14 +269,28 @@ export function describeMap(map: GeneratedMap): {
   height: number;
   water: number;
   resources: number;
+  valley: number;
+  plains: number;
+  hills: number;
+  mountain: number;
 } {
   let water = 0;
   let resources = 0;
-  for (const t of map.tiles) {
+  let valley = 0;
+  let plains = 0;
+  let hills = 0;
+  let mountain = 0;
+  for (let i = 0; i < map.tiles.length; i++) {
+    const t = map.tiles[i]!;
     if (t === TILE_WATER) water++;
     if (t === TILE_RESOURCE) resources++;
+    const el = map.heights[i] ?? 1;
+    if (el <= 0) valley++;
+    else if (el === 1) plains++;
+    else if (el === 2) hills++;
+    else mountain++;
   }
-  return { width: map.width, height: map.height, water, resources };
+  return { width: map.width, height: map.height, water, resources, valley, plains, hills, mountain };
 }
 
 export function winNeedsMarked(win: WinCategory): boolean {

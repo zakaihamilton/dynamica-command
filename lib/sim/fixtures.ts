@@ -22,6 +22,7 @@ export function makeFixture(opts: FixtureOpts): SimState {
     width,
     height,
     tiles,
+    heights: new Array(width * height).fill(1),
     resourceAmount,
     fog: new Array(width * height).fill(2),
     entities: [],
@@ -72,6 +73,10 @@ export function setTile(state: SimState, x: number, y: number, kind: number, amo
   const i = y * state.width + x;
   state.tiles[i] = kind;
   state.resourceAmount[i] = amount;
+}
+
+export function setHeight(state: SimState, x: number, y: number, elev: number): void {
+  state.heights[y * state.width + x] = elev;
 }
 
 export function addUnit(state: SimState, owner: 0 | 1, kind: UnitKind, x: number, y: number) {

@@ -1,23 +1,6 @@
+import { footprintOf } from "../catalog";
 import type { BuildingKind, SimEvent, SimState, UnitKind } from "../types";
-import { powerFor, spawnUnit } from "./world";
-
-function openTileNear(state: SimState, x: number, y: number): { x: number; y: number } {
-  for (let r = 1; r <= 4; r++) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= state.width || ny >= state.height) continue;
-        const blocked = state.entities.some(
-          (e) => e.hp > 0 && e.class === "building" && e.x === nx && e.y === ny,
-        );
-        const water = state.tiles[ny * state.width + nx] === 1;
-        if (!blocked && !water) return { x: nx, y: ny };
-      }
-    }
-  }
-  return { x, y };
-}
+import { openTileNear, powerFor, spawnUnit } from "./world";
 
 export function tickProduction(state: SimState): SimEvent[] {
   const events: SimEvent[] = [];
@@ -43,7 +26,8 @@ export function tickProduction(state: SimState): SimEvent[] {
       e.producing.remaining -= 1;
       if (e.producing.remaining <= 0) {
         const kind = e.producing.kind as UnitKind;
-        const spot = openTileNear(state, e.x, e.y);
+        const fp = e.class === "building" ? footprintOf(e.kind as BuildingKind) : { w: 1, h: 1 };
+        const spot = openTileNear(state, e.x, e.y, fp.w, fp.h);
         spawnUnit(state, e.owner, kind, spot.x, spot.y);
         state.unitsProduced[e.owner] += 1;
         if (e.owner === 0) state.unitsProducedByRole[kind] += 1;

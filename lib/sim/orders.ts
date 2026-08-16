@@ -1,7 +1,7 @@
 import { BUILDING_STATS, UNIT_STATS, producerFor } from "../catalog";
 import type { BuildingKind, Command, Entity, SimEvent, SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
-import { buildingAt, byId, inBounds, isWalkable, powerFor, spawnBuilding } from "./world";
+import { byId, canPlaceBuilding, closestApproach, powerFor, spawnBuilding } from "./world";
 
 export function issue(state: SimState, command: Command): SimEvent[] {
   if (state.result !== "playing") return [];
@@ -48,8 +48,9 @@ function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent
     e.gatherY = undefined;
     e.idle = false;
     const range = UNIT_STATS[e.kind as UnitKind].range;
-    if (Math.hypot(e.x - target.x, e.y - target.y) > range) {
-      e.path = findPath(state, e, target);
+    const dest = target.class === "building" ? closestApproach(state, e, target) : target;
+    if (Math.hypot(e.x - dest.x, e.y - dest.y) > range) {
+      e.path = findPath(state, e, dest);
     }
   }
   return [];
@@ -72,7 +73,7 @@ function startBuild(state: SimState, kind: BuildingKind, x: number, y: number): 
   if (kind === "constructionYard" || kind === "objective") return [];
   const tx = Math.round(x);
   const ty = Math.round(y);
-  if (!inBounds(state, tx, ty) || !isWalkable(state, tx, ty) || buildingAt(state, tx, ty)) return [];
+  if (!canPlaceBuilding(state, kind, tx, ty)) return [];
   const yard = state.entities.find(
     (e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0 && e.constructing === 0,
   );

@@ -38,10 +38,10 @@ describe("win categories", () => {
   it("destroyMarked wins when tagged buildings die", () => {
     const s = makeFixture({ win: { kind: "destroyMarked", targetIds: [] } });
     addBuilding(s, 0, "constructionYard", 0, 0);
-    const t = addBuilding(s, 1, "objective", 4, 2, 0, true);
+    const t = addBuilding(s, 1, "objective", 5, 4, 0, true);
     t.hp = 5;
     s.win.targetIds = [t.id];
-    const tank = addUnit(s, 0, "tank", 4, 3);
+    const tank = addUnit(s, 0, "tank", 4, 6);
     tank.attackTarget = t.id;
     tick(s);
     expect(inspect(s).result).toBe("won");
@@ -52,7 +52,7 @@ describe("win categories", () => {
     addBuilding(s, 0, "constructionYard", 0, 0);
     const b = addBuilding(s, 1, "power", 5, 5);
     b.hp = 5;
-    const tank = addUnit(s, 0, "tank", 5, 6);
+    const tank = addUnit(s, 0, "tank", 4, 5);
     tank.attackTarget = b.id;
     tick(s);
     expect(inspect(s).result).toBe("won");
@@ -63,7 +63,7 @@ describe("win categories", () => {
     addBuilding(s, 0, "constructionYard", 0, 0);
     const cy = addBuilding(s, 1, "constructionYard", 6, 6);
     cy.hp = 5;
-    const tank = addUnit(s, 0, "tank", 6, 7);
+    const tank = addUnit(s, 0, "tank", 5, 8);
     tank.attackTarget = cy.id;
     tick(s);
     expect(inspect(s).result).toBe("won");

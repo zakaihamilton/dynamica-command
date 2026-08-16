@@ -1,7 +1,7 @@
 import { BUILDING_STATS, UNIT_STATS } from "../catalog";
 import type { BuildingKind, Entity, SimEvent, SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
-import { byId, dist, living } from "./world";
+import { byId, closestApproach, distToEntity, living } from "./world";
 import { rngFromState } from "../seed/rng";
 
 function statsFor(e: Entity): { damage: number; range: number; cooldown: number } {
@@ -19,7 +19,7 @@ function acquire(state: SimState, e: Entity): Entity | undefined {
   let bestD = Infinity;
   for (const o of living(state)) {
     if (o.owner === e.owner) continue;
-    const d = dist(e, o);
+    const d = distToEntity(e, o);
     if (d < bestD && d <= Math.max(range + 4, sight)) {
       bestD = d;
       best = o;
@@ -44,10 +44,11 @@ export function tickCombat(state: SimState): SimEvent[] {
       if (target) e.attackTarget = target.id;
     }
     if (!target) continue;
-    const d = dist(e, target);
+    const d = distToEntity(e, target);
     if (d > st.range) {
       if (e.class === "unit" && !e.path.length) {
-        e.path = findPath(state, e, target);
+        const dest = target.class === "building" ? closestApproach(state, e, target) : target;
+        e.path = findPath(state, e, dest);
       }
       continue;
     }

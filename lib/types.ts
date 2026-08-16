@@ -125,12 +125,15 @@ export type Campaign = {
 };
 
 export type ShapeSpec = {
-  type: "rect" | "ellipse" | "poly" | "diamond";
+  type: "rect" | "ellipse" | "poly" | "diamond" | "line";
   x: number;
   y: number;
   w: number;
   h: number;
   fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+  alpha?: number;
   points?: number[];
 };
 
@@ -141,6 +144,8 @@ export type SpriteSpec = {
   h: number;
   palette: Palette;
   shapes: ShapeSpec[];
+  anchorX?: number;
+  anchorY?: number;
 };
 
 export type SimState = {
@@ -150,6 +155,7 @@ export type SimState = {
   width: number;
   height: number;
   tiles: number[];
+  heights: number[];
   resourceAmount: number[];
   fog: number[];
   entities: Entity[];

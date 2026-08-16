@@ -17,8 +17,19 @@ export function renderMinimap(
       const fog = state.fog[y * state.width + x] ?? 0;
       if (fog === 0) continue;
       const t = state.tiles[y * state.width + x]!;
+      const elev = state.heights[y * state.width + x] ?? 1;
       ctx.fillStyle =
-        t === TILE_WATER ? "#1a3a55" : t === TILE_RESOURCE ? "#2f8a3a" : "#2a3324";
+        t === TILE_WATER
+          ? "#1a3a55"
+          : t === TILE_RESOURCE
+            ? "#2f8a3a"
+            : elev >= 3
+              ? "#6a5a48"
+              : elev === 2
+                ? "#3d4a30"
+                : elev <= 0
+                  ? "#1e2a1c"
+                  : "#2a3324";
       ctx.fillRect(x * sx, y * sy, sx + 0.5, sy + 0.5);
     }
   }
@@ -27,7 +38,9 @@ export function renderMinimap(
     const fog = state.fog[Math.round(e.y) * state.width + Math.round(e.x)] ?? 0;
     if (e.owner === 1 && fog !== 2) continue;
     ctx.fillStyle = e.marked ? "#ffe066" : e.owner === 0 ? "#7ec8ff" : "#e35";
-    ctx.fillRect(e.x * sx - 1, e.y * sy - 1, 3, 3);
+    const bw = e.class === "building" ? 5 : 3;
+    const bh = e.class === "building" ? 5 : 3;
+    ctx.fillRect(e.x * sx - 1, e.y * sy - 1, bw, bh);
   }
   ctx.strokeStyle = "#fff8";
   ctx.strokeRect(view.x0 * sx, view.y0 * sy, (view.x1 - view.x0) * sx, (view.y1 - view.y0) * sy);

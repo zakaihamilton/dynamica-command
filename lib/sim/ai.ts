@@ -1,7 +1,7 @@
-import { BUILDING_STATS, UNIT_STATS } from "../catalog";
+import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
 import type { SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
-import { living, nearest, powerFor, spawnBuilding, spawnUnit } from "./world";
+import { closestApproach, findBuildSite, living, nearest, powerFor, spawnBuilding, spawnUnit } from "./world";
 import { rngFromState } from "../seed/rng";
 
 export function tickAi(state: SimState): void {
@@ -26,25 +26,29 @@ export function tickAi(state: SimState): void {
       state.credits[1] -= cost;
       producer.producing = { kind: want, remaining: UNIT_STATS[want].buildTicks };
     } else if (state.credits[1] >= BUILDING_STATS.barracks.cost && !barracks) {
-      const spot = { x: yard.x - 2, y: yard.y };
-      if (!living(state).some((e) => e.class === "building" && e.x === spot.x && e.y === spot.y)) {
+      const spot = findBuildSite(state, "barracks", yard.x - 3, yard.y);
+      if (spot) {
         state.credits[1] -= BUILDING_STATS.barracks.cost;
         spawnBuilding(state, 1, "barracks", spot.x, spot.y, BUILDING_STATS.barracks.buildTicks);
       }
     } else if (state.credits[1] >= BUILDING_STATS.factory.cost && !factory) {
-      const spot = { x: yard.x, y: yard.y - 2 };
-      if (!living(state).some((e) => e.class === "building" && e.x === spot.x && e.y === spot.y)) {
+      const spot = findBuildSite(state, "factory", yard.x, yard.y - 3);
+      if (spot) {
         state.credits[1] -= BUILDING_STATS.factory.cost;
         spawnBuilding(state, 1, "factory", spot.x, spot.y, BUILDING_STATS.factory.buildTicks);
       }
     } else if (state.credits[1] >= BUILDING_STATS.power.cost && powerFor(state, 1) < 20) {
-      spawnBuilding(state, 1, "power", yard.x + 2, yard.y, BUILDING_STATS.power.buildTicks);
-      state.credits[1] -= BUILDING_STATS.power.cost;
+      const spot = findBuildSite(state, "power", yard.x + 3, yard.y);
+      if (spot) {
+        spawnBuilding(state, 1, "power", spot.x, spot.y, BUILDING_STATS.power.buildTicks);
+        state.credits[1] -= BUILDING_STATS.power.cost;
+      }
     }
   }
 
   if (state.win.kind === "holdTheLine" && state.tick > 0 && state.tick % Math.max(240, 420 - state.missionIndex * 24) === 0) {
-    const spot = { x: yard.x - 1, y: yard.y - 1 };
+    const fp = footprintOf("constructionYard");
+    const spot = { x: yard.x - 1, y: yard.y + fp.h };
     spawnUnit(state, 1, rng.chance(0.45) ? "tank" : "infantry", spot.x, spot.y);
     if (state.missionIndex >= 4) {
       spawnUnit(state, 1, "infantry", spot.x, spot.y + 1);
@@ -62,7 +66,7 @@ export function tickAi(state: SimState): void {
       if (u.owner !== 1 || u.class !== "unit" || u.kind === "harvester") continue;
       if (u.attackTarget) continue;
       u.attackTarget = playerYard.id;
-      u.path = findPath(state, u, playerYard);
+      u.path = findPath(state, u, closestApproach(state, u, playerYard));
     }
   }
   state.rngState = rng.state;

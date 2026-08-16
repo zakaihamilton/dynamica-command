@@ -1,5 +1,5 @@
 import type { SimState, Vec2 } from "../types";
-import { inBounds, isWalkable } from "./world";
+import { canClimb, inBounds, isWalkable } from "./world";
 
 type Node = { x: number; y: number; g: number; f: number; px: number; py: number };
 
@@ -55,7 +55,9 @@ export function findPath(
       const ny = current.y + d.y;
       if (!inBounds(state, nx, ny)) continue;
       const isGoal = nx === gx && ny === gy;
-      if (!isWalkable(state, nx, ny) && !(isGoal && !walkableGoal)) continue;
+      const goalOverride = isGoal && !walkableGoal;
+      if (!isWalkable(state, nx, ny) && !goalOverride) continue;
+      if (!canClimb(state, current.x, current.y, nx, ny) && !goalOverride) continue;
       const step = d.x !== 0 && d.y !== 0 ? 1.414 : 1;
       const tentative = current.g + step;
       const k = key(nx, ny);

@@ -1,4 +1,4 @@
-import { BUILDING_STATS, UNIT_STATS } from "../catalog";
+import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
 import type { BuildingKind, SimState, UnitKind } from "../types";
 import { at, inBounds, living } from "./world";
 
@@ -13,12 +13,19 @@ export function tickFog(state: SimState): void {
         ? UNIT_STATS[e.kind as UnitKind].sight
         : BUILDING_STATS[e.kind as BuildingKind].sight;
     const r = Math.ceil(sight);
-    const cx = Math.round(e.x);
-    const cy = Math.round(e.y);
-    for (let y = cy - r; y <= cy + r; y++) {
-      for (let x = cx - r; x <= cx + r; x++) {
+    let cx = e.x;
+    let cy = e.y;
+    if (e.class === "building") {
+      const fp = footprintOf(e.kind as BuildingKind);
+      cx = e.x + (fp.w - 1) / 2;
+      cy = e.y + (fp.h - 1) / 2;
+    }
+    const ox = Math.round(cx);
+    const oy = Math.round(cy);
+    for (let y = oy - r; y <= oy + r; y++) {
+      for (let x = ox - r; x <= ox + r; x++) {
         if (!inBounds(state, x, y)) continue;
-        if (Math.hypot(x - e.x, y - e.y) <= sight) {
+        if (Math.hypot(x - cx, y - cy) <= sight) {
           state.fog[at(state, x, y)] = 2;
         }
       }

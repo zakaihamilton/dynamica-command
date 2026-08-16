@@ -25,12 +25,15 @@ export type UnitStats = {
   carryMax: number;
 };
 
+export type Footprint = { w: number; h: number };
+
 export type BuildingStats = {
   hp: number;
   cost: number;
   buildTicks: number;
   power: number;
   sight: number;
+  footprint: Footprint;
 };
 
 export const UNIT_STATS: Record<UnitKind, UnitStats> = {
@@ -81,14 +84,40 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
 };
 
 export const BUILDING_STATS: Record<BuildingKind, BuildingStats> = {
-  constructionYard: { hp: 3200, cost: 0, buildTicks: 0, power: 20, sight: 8 },
-  power: { hp: 520, cost: 600, buildTicks: 180, power: 100, sight: 4 },
-  refinery: { hp: 1100, cost: 1000, buildTicks: 240, power: -10, sight: 5 },
-  barracks: { hp: 900, cost: 750, buildTicks: 216, power: -10, sight: 5 },
-  factory: { hp: 1300, cost: 1600, buildTicks: 360, power: -15, sight: 5 },
-  turret: { hp: 480, cost: 550, buildTicks: 168, power: -8, sight: 7 },
-  objective: { hp: 1800, cost: 0, buildTicks: 0, power: 0, sight: 3 },
+  constructionYard: { hp: 3200, cost: 0, buildTicks: 0, power: 20, sight: 8, footprint: { w: 2, h: 2 } },
+  power: { hp: 520, cost: 600, buildTicks: 180, power: 100, sight: 4, footprint: { w: 2, h: 2 } },
+  refinery: { hp: 1100, cost: 1000, buildTicks: 240, power: -10, sight: 5, footprint: { w: 3, h: 2 } },
+  barracks: { hp: 900, cost: 750, buildTicks: 216, power: -10, sight: 5, footprint: { w: 2, h: 2 } },
+  factory: { hp: 1300, cost: 1600, buildTicks: 360, power: -15, sight: 5, footprint: { w: 3, h: 2 } },
+  turret: { hp: 480, cost: 550, buildTicks: 168, power: -8, sight: 7, footprint: { w: 2, h: 1 } },
+  objective: { hp: 1800, cost: 0, buildTicks: 0, power: 0, sight: 3, footprint: { w: 2, h: 2 } },
 };
+
+export const UNIT_LABELS: Record<UnitKind, string> = {
+  harvester: "Harvester",
+  infantry: "Infantry",
+  antiArmor: "Anti-armor",
+  tank: "Tank",
+};
+
+export const BUILDING_LABELS: Record<BuildingKind, string> = {
+  constructionYard: "Construction Yard",
+  power: "Power Plant",
+  refinery: "Refinery",
+  barracks: "Barracks",
+  factory: "War Factory",
+  turret: "Gun Turret",
+  objective: "Marked Structure",
+};
+
+export function footprintOf(kind: BuildingKind): Footprint {
+  return BUILDING_STATS[kind].footprint;
+}
+
+export function labelFor(kind: UnitKind | BuildingKind): string {
+  if (kind in UNIT_LABELS) return UNIT_LABELS[kind as UnitKind];
+  return BUILDING_LABELS[kind as BuildingKind];
+}
 
 export const HARVEST_PER_TICK = 2;
 

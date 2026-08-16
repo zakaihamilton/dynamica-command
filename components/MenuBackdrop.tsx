@@ -8,6 +8,7 @@ import { TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
 import { rasterize } from "@/lib/render/sprites";
 import { TILE_RESOURCE, TILE_WATER } from "@/lib/types";
 import type { BuildingKind, UnitKind } from "@/lib/types";
+import { BUILDING_STATS } from "@/lib/catalog";
 
 const CINEMA_SEED = 1847;
 
@@ -39,17 +40,19 @@ export function MenuBackdrop() {
     });
     const [us, them] = generateFactions(CINEMA_SEED);
 
+    const p0 = map.playerStart;
+    const e0 = map.enemyStart;
     const buildings: { x: number; y: number; kind: BuildingKind; owner: 0 | 1 }[] = [
-      { x: map.playerStart.x, y: map.playerStart.y, kind: "constructionYard", owner: 0 },
-      { x: map.playerStart.x + 2, y: map.playerStart.y, kind: "power", owner: 0 },
-      { x: map.playerStart.x, y: map.playerStart.y + 2, kind: "refinery", owner: 0 },
-      { x: map.playerStart.x + 2, y: map.playerStart.y + 2, kind: "factory", owner: 0 },
-      { x: map.playerStart.x + 3, y: map.playerStart.y + 1, kind: "turret", owner: 0 },
-      { x: map.enemyStart.x, y: map.enemyStart.y, kind: "constructionYard", owner: 1 },
-      { x: map.enemyStart.x - 2, y: map.enemyStart.y, kind: "power", owner: 1 },
-      { x: map.enemyStart.x, y: map.enemyStart.y - 2, kind: "barracks", owner: 1 },
-      { x: map.enemyStart.x - 2, y: map.enemyStart.y - 2, kind: "factory", owner: 1 },
-      { x: map.enemyStart.x - 3, y: map.enemyStart.y - 1, kind: "turret", owner: 1 },
+      { x: p0.x, y: p0.y, kind: "constructionYard", owner: 0 },
+      { x: p0.x + 3, y: p0.y, kind: "power", owner: 0 },
+      { x: p0.x, y: p0.y + 3, kind: "refinery", owner: 0 },
+      { x: p0.x + 4, y: p0.y + 3, kind: "factory", owner: 0 },
+      { x: p0.x + 7, y: p0.y + 1, kind: "turret", owner: 0 },
+      { x: e0.x, y: e0.y, kind: "constructionYard", owner: 1 },
+      { x: e0.x - 3, y: e0.y, kind: "power", owner: 1 },
+      { x: e0.x - 5, y: e0.y - 3, kind: "barracks", owner: 1 },
+      { x: e0.x, y: e0.y - 6, kind: "factory", owner: 1 },
+      { x: e0.x - 5, y: e0.y, kind: "turret", owner: 1 },
     ];
 
     const p = map.playerStart;
@@ -175,10 +178,11 @@ export function MenuBackdrop() {
       const margin = TILE_W * cam.zoom;
       for (let y = 0; y < map.height; y++) {
         for (let x = 0; x < map.width; x++) {
-          const s = tileToScreen(x, y, cam);
+          const elev = map.heights[y * map.width + x] ?? 1;
+          const s = tileToScreen(x, y, cam, elev);
           if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
           const kind = tileKind(map.tiles[y * map.width + x]!);
-          const img = rasterize(tileSprite(kind));
+          const img = rasterize(tileSprite(kind, elev, (x * 13 + y * 7) % 8));
           if (kind === "resource") {
             ctx.globalAlpha = 0.85 + Math.sin(t * 0.08 + x + y) * 0.15;
           }
@@ -221,10 +225,19 @@ export function MenuBackdrop() {
             ? unitSprite(item.kind as UnitKind, pal)
             : buildingSprite(item.kind as BuildingKind, pal);
         const img = rasterize(spec);
-        const s = tileToScreen(item.x, item.y, cam);
-        const dw = spec.w * cam.zoom * 0.78;
-        const dh = spec.h * cam.zoom * 0.78;
-        ctx.drawImage(img, s.x - dw / 2, s.y - dh + 8 * cam.zoom, dw, dh);
+        let cx = item.x;
+        let cy = item.y;
+        if (item.class === "building") {
+          const fp = BUILDING_STATS[item.kind as BuildingKind].footprint;
+          cx = item.x + (fp.w - 1) / 2;
+          cy = item.y + (fp.h - 1) / 2;
+        }
+        const elev = map.heights[Math.round(item.y) * map.width + Math.round(item.x)] ?? 1;
+        const s = tileToScreen(cx, cy, cam, elev);
+        const z = cam.zoom;
+        const ax = (spec.anchorX ?? spec.w / 2) * z;
+        const ay = (spec.anchorY ?? spec.h) * z;
+        ctx.drawImage(img, s.x - ax, s.y + (TILE_H / 2) * z - ay, spec.w * z, spec.h * z);
       }
 
       for (const shot of shots) {

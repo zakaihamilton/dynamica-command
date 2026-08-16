@@ -27,7 +27,11 @@ export function serializeState(state: SimState): string {
 }
 
 export function deserializeState(raw: string): SimState {
-  return JSON.parse(raw) as SimState;
+  const s = JSON.parse(raw) as SimState;
+  if (!s.heights || s.heights.length !== s.width * s.height) {
+    s.heights = new Array(s.width * s.height).fill(1);
+  }
+  return s;
 }
 
 export function writeSave(storage: StorageAdapter, state: SimState): void {

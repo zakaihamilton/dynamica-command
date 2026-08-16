@@ -10,11 +10,11 @@ import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
 import { panCamera, zoomAt } from "@/lib/render/camera";
 import { createCamera, screenToTile, tileToScreen } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
-import { renderWorld } from "@/lib/render/renderer";
+import { renderWorld, pickTile } from "@/lib/render/renderer";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission, tick } from "@/lib/sim/api";
 import { objectiveProgress } from "@/lib/sim/objectives";
-import { powerFor } from "@/lib/sim/world";
+import { powerFor, buildingAt, heightAt } from "@/lib/sim/world";
 import type { BuildingKind, Command, SimState, UnitKind } from "@/lib/types";
 
 const PLACEABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
@@ -39,6 +39,7 @@ export function GameClient({
   const [, bump] = useState(0);
   const keys = useRef<Record<string, boolean>>({});
   const hover = useRef<{ x: number; y: number } | null>(null);
+  const cursor = useRef<{ x: number; y: number } | null>(null);
   const box = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const place = useRef<BuildingKind | null>(null);
   const cmdQ = useRef<Command[]>([]);
@@ -59,7 +60,8 @@ export function GameClient({
     window.addEventListener("resize", resize);
     const cy = s.entities.find((e) => e.owner === 0 && e.kind === "constructionYard");
     if (cy) {
-      const p = tileToScreen(cy.x, cy.y, { x: 0, y: 0, zoom: 1 });
+      const elev = heightAt(s, cy.x, cy.y);
+      const p = tileToScreen(cy.x, cy.y, { x: 0, y: 0, zoom: 1 }, elev);
       camRef.current.x = window.innerWidth / 2 - p.x;
       camRef.current.y = window.innerHeight / 3 - p.y;
     }
@@ -76,7 +78,10 @@ export function GameClient({
     }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    renderWorld(ctx, s, camRef.current, selected.current, hover.current);
+    renderWorld(ctx, s, camRef.current, selected.current, hover.current, {
+      cursor: cursor.current,
+      placeKind: place.current,
+    });
     const mini = miniRef.current;
     if (mini) {
       const mctx = mini.getContext("2d");
@@ -154,9 +159,11 @@ export function GameClient({
   }
 
   function entityAt(s: SimState, tx: number, ty: number) {
-    return s.entities.find(
-      (en) => en.hp > 0 && Math.round(en.x) === tx && Math.round(en.y) === ty,
+    const unit = s.entities.find(
+      (en) => en.hp > 0 && en.class === "unit" && Math.round(en.x) === tx && Math.round(en.y) === ty,
     );
+    if (unit) return unit;
+    return buildingAt(s, tx, ty);
   }
 
   const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -173,19 +180,28 @@ export function GameClient({
 
   const onMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const p = canvasPos(e);
-    const t = screenToTile(p.x, p.y, camRef.current);
-    hover.current = { x: Math.round(t.x), y: Math.round(t.y) };
+    cursor.current = p;
+    const s = stateRef.current;
+    if (s) {
+      hover.current = pickTile(s, p.x, p.y, camRef.current);
+    }
     if (box.current && e.buttons === 1) {
       box.current.x1 = p.x;
       box.current.y1 = p.y;
     }
   };
 
+  const onLeave = () => {
+    cursor.current = null;
+    hover.current = null;
+  };
+
   const onUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const s = stateRef.current;
     if (!s) return;
     const p = canvasPos(e);
-    const t = screenToTile(p.x, p.y, camRef.current);
+    const picked = pickTile(s, p.x, p.y, camRef.current);
+    const t = picked ?? screenToTile(p.x, p.y, camRef.current);
     const tx = Math.round(t.x);
     const ty = Math.round(t.y);
     if (e.button === 2) {
@@ -220,7 +236,8 @@ export function GameClient({
       const y1 = Math.max(b.y0, b.y1);
       for (const en of s.entities) {
         if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit") continue;
-        const sp = tileToScreen(en.x, en.y, camRef.current);
+        const elev = heightAt(s, Math.round(en.x), Math.round(en.y));
+        const sp = tileToScreen(en.x, en.y, camRef.current, elev);
         if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) selected.current.add(en.id);
       }
     } else {
@@ -258,6 +275,7 @@ export function GameClient({
         onWheel={onWheel}
         onMouseDown={onDown}
         onMouseMove={onMove}
+        onMouseLeave={onLeave}
         onMouseUp={onUp}
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-between bg-gradient-to-b from-black/70 to-transparent p-3 text-sm">

@@ -11,7 +11,7 @@ import { applyCommands, issue } from "./orders";
 import { evaluateObjectives, inspect } from "./objectives";
 import { stepAlongPath } from "./pathfinding";
 import { tickProduction } from "./production";
-import { emptyRoleCounts, spawnBuilding, spawnUnit } from "./world";
+import { emptyRoleCounts, spawnBuildingAt, spawnUnit } from "./world";
 import type { Command } from "../types";
 
 export { issue, inspect };
@@ -38,6 +38,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     width: map.width,
     height: map.height,
     tiles: map.tiles,
+    heights: map.heights,
     resourceAmount: map.resourceAmount,
     fog: new Array(map.width * map.height).fill(0),
     entities: [],
@@ -57,28 +58,28 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
 
   const p = map.playerStart;
   const e = map.enemyStart;
-  spawnBuilding(state, 0, "constructionYard", p.x, p.y);
-  spawnBuilding(state, 0, "power", p.x + 2, p.y);
-  spawnBuilding(state, 0, "refinery", p.x, p.y + 2);
-  spawnUnit(state, 0, "harvester", p.x + 1, p.y + 2);
-  spawnUnit(state, 0, "infantry", p.x + 3, p.y);
+  spawnBuildingAt(state, 0, "constructionYard", p.x, p.y);
+  spawnBuildingAt(state, 0, "power", p.x + 3, p.y);
+  spawnBuildingAt(state, 0, "refinery", p.x, p.y + 3);
+  spawnUnit(state, 0, "harvester", p.x + 3, p.y + 3);
+  spawnUnit(state, 0, "infantry", p.x + 5, p.y + 2);
 
-  spawnBuilding(state, 1, "constructionYard", e.x, e.y);
-  spawnBuilding(state, 1, "power", e.x - 2, e.y);
-  spawnBuilding(state, 1, "refinery", e.x, e.y - 2);
-  spawnBuilding(state, 1, "barracks", e.x - 2, e.y - 2);
-  spawnBuilding(state, 1, "turret", e.x - 3, e.y - 1);
-  spawnUnit(state, 1, "harvester", e.x - 1, e.y - 2);
-  spawnUnit(state, 1, "infantry", e.x - 3, e.y);
-  spawnUnit(state, 1, "tank", e.x - 3, e.y - 1);
+  spawnBuildingAt(state, 1, "constructionYard", e.x, e.y);
+  spawnBuildingAt(state, 1, "power", e.x - 3, e.y);
+  spawnBuildingAt(state, 1, "refinery", e.x - 2, e.y - 3);
+  spawnBuildingAt(state, 1, "barracks", e.x - 5, e.y - 3);
+  spawnBuildingAt(state, 1, "turret", e.x - 5, e.y);
+  spawnUnit(state, 1, "harvester", e.x + 1, e.y - 3);
+  spawnUnit(state, 1, "infantry", e.x - 1, e.y + 2);
+  spawnUnit(state, 1, "tank", e.x - 4, e.y + 1);
 
   const extraGuards = Math.floor(mission.index / 2);
   for (let i = 0; i < extraGuards; i++) {
-    spawnUnit(state, 1, i % 2 === 0 ? "infantry" : "antiArmor", e.x - 4 - (i % 2), e.y - i);
+    spawnUnit(state, 1, i % 2 === 0 ? "infantry" : "antiArmor", e.x - 6 - (i % 2), e.y + 1 + i);
   }
   if (mission.index >= 3) {
-    spawnBuilding(state, 1, "factory", e.x - 4, e.y - 2);
-    spawnBuilding(state, 1, "turret", e.x - 1, e.y - 4);
+    spawnBuildingAt(state, 1, "factory", e.x, e.y - 6);
+    spawnBuildingAt(state, 1, "turret", e.x + 3, e.y - 3);
   }
 
   const assault =
@@ -87,14 +88,14 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     mission.win.kind === "annihilate" ||
     mission.win.kind === "destroyMarked";
   if (assault) {
-    spawnBuilding(state, 1, "turret", e.x + 1, e.y - 2);
-    spawnUnit(state, 1, "tank", e.x - 2, e.y + 1);
+    spawnBuildingAt(state, 1, "turret", e.x + 2, e.y);
+    spawnUnit(state, 1, "tank", e.x - 2, e.y + 2);
   }
 
   if (mission.win.kind === "holdTheLine") {
-    spawnUnit(state, 1, "infantry", e.x - 4, e.y);
-    spawnUnit(state, 1, "antiArmor", e.x - 4, e.y - 1);
-    spawnUnit(state, 1, "tank", e.x - 5, e.y);
+    spawnUnit(state, 1, "infantry", e.x - 6, e.y);
+    spawnUnit(state, 1, "antiArmor", e.x - 6, e.y - 1);
+    spawnUnit(state, 1, "tank", e.x - 7, e.y);
   }
 
   if (mission.win.kind === "destroyMarked") {
@@ -102,15 +103,23 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     const spots = map.markedSpots.length
       ? map.markedSpots
       : [
-          { x: e.x - 3, y: e.y - 3 },
-          { x: e.x - 4, y: e.y - 2 },
+          { x: e.x - 4, y: e.y - 6 },
+          { x: e.x + 2, y: e.y - 6 },
         ];
     const count = mission.win.targetCount ?? 1;
     for (let i = 0; i < count; i++) {
-      const spot = spots[i] ?? { x: e.x - 3 - i, y: e.y - 3 };
-      const kind = (rng.pick(["refinery", "factory", "objective"]) as BuildingKind);
-      const b = spawnBuilding(state, 1, kind === "refinery" ? "objective" : kind, spot.x, spot.y, 0, true);
-      ids.push(b.id);
+      const spot = spots[i] ?? { x: e.x - 4 - i * 3, y: e.y - 6 };
+      const kind = rng.pick(["refinery", "factory", "objective"]) as BuildingKind;
+      const placed = spawnBuildingAt(
+        state,
+        1,
+        kind === "refinery" ? "objective" : kind,
+        spot.x,
+        spot.y,
+        0,
+        true,
+      );
+      if (placed) ids.push(placed.id);
     }
     state.win.targetIds = ids;
   }

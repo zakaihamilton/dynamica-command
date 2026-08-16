@@ -6,15 +6,16 @@ export type Camera = {
 
 export const TILE_W = 64;
 export const TILE_H = 32;
+export const HEIGHT_STEP = 16;
 
 export function createCamera(): Camera {
   return { x: 400, y: 80, zoom: 1 };
 }
 
-export function tileToScreen(tx: number, ty: number, cam: Camera): { x: number; y: number } {
+export function tileToScreen(tx: number, ty: number, cam: Camera, elev = 0): { x: number; y: number } {
   return {
     x: (tx - ty) * (TILE_W / 2) * cam.zoom + cam.x,
-    y: (tx + ty) * (TILE_H / 2) * cam.zoom + cam.y,
+    y: (tx + ty) * (TILE_H / 2) * cam.zoom + cam.y - elev * HEIGHT_STEP * cam.zoom,
   };
 }
 

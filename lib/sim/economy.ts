@@ -2,7 +2,7 @@ import { HARVEST_PER_TICK, UNIT_STATS } from "../catalog";
 import { TILE_RESOURCE } from "../types";
 import type { Entity, SimEvent, SimState } from "../types";
 import { findPath } from "./pathfinding";
-import { at, dist, living, nearest, tileAt } from "./world";
+import { at, closestApproach, dist, distToEntity, living, nearest, tileAt } from "./world";
 
 const CARRY_MAX = UNIT_STATS.harvester.carryMax;
 
@@ -38,7 +38,7 @@ export function tickEconomy(state: SimState): SimEvent[] {
           b.constructing === 0,
       );
       if (!ref) continue;
-      if (dist(e, ref) <= 1.6) {
+      if (distToEntity(e, ref) <= 1.6) {
         const amount = e.carry;
         e.carry = 0;
         state.credits[e.owner] += amount;
@@ -46,7 +46,7 @@ export function tickEconomy(state: SimState): SimEvent[] {
         events.push({ type: "credits", owner: e.owner, amount });
         e.path = [];
       } else if (!e.path.length) {
-        e.path = findPath(state, e, ref);
+        e.path = findPath(state, e, closestApproach(state, e, ref));
       }
       continue;
     }
