@@ -51,6 +51,43 @@ describe("retro procedural assets", () => {
     expect(dirt.shapes.length).toBeGreaterThan(4);
   });
 
+  it("scatters floor mottling so neighboring tiles do not share a highlight lattice", () => {
+    const tiles = [0, 1, 2, 3, 4, 5].map((variant) =>
+      tileSprite("clear", 1, { biome: "jungle wreckage", variant, contour: "none" }),
+    );
+    const fingerprints = tiles.map((spec) =>
+      spec.shapes
+        .filter((shape) => shape.type === "ellipse" && shape.w >= 10)
+        .map((shape) => `${Math.round(shape.x)},${Math.round(shape.y)},${Math.round(shape.w)}`)
+        .join("|"),
+    );
+    expect(new Set(fingerprints).size).toBeGreaterThan(3);
+    expect(tiles[0]!.shapes).not.toEqual(tiles[1]!.shapes);
+  });
+
+  it("varies tree size and placement across blocked tiles", () => {
+    const specs = [0, 1, 2, 3, 4, 5, 6, 7].map((variant) =>
+      tileSprite("blocked", 1, { biome: "jungle wreckage", variant, contour: "none" }),
+    );
+    const trunkHs = specs.map((spec) =>
+      spec.shapes.filter((shape) => shape.type === "ellipse" && shape.h >= 10).map((shape) => Math.round(shape.h)).join(","),
+    );
+    expect(new Set(trunkHs).size).toBeGreaterThan(1);
+    expect(new Set(specs.map((spec) => spec.shapes.length)).size).toBeGreaterThan(1);
+  });
+
+  it("paints ore fields as gold nugget beds that thin out when depleted", () => {
+    const rich = tileSprite("resource", 1, { biome: "ash plains", variant: 4, resourceLevel: 4, contour: "none" });
+    const poor = tileSprite("resource", 1, { biome: "ash plains", variant: 4, resourceLevel: 1, contour: "none" });
+    const other = tileSprite("resource", 1, { biome: "ash plains", variant: 11, resourceLevel: 4, contour: "none" });
+    validateSpec(rich);
+    validateSpec(poor);
+    expect(rich.shapes.length).toBeGreaterThan(poor.shapes.length);
+    expect(rich.shapes).not.toEqual(other.shapes);
+    expect(rich.shapes.some((shape) => shape.fill === "#e8c45a")).toBe(true);
+    expect(rich.shapes.filter((shape) => shape.type === "poly").length).toBeGreaterThan(8);
+  });
+
   it("provides unique valid frames for every unit facing", () => {
     for (const kind of UNIT_KINDS) {
       const ids = new Set<string>();
@@ -134,6 +171,15 @@ describe("retro procedural assets", () => {
     const rubbleIds = new Set(BUILDING_KINDS.map((kind) => rubbleSprite(kind, palette).id));
     expect(wreckIds.size).toBe(UNIT_KINDS.length);
     expect(rubbleIds.size).toBe(BUILDING_KINDS.length);
+  });
+
+  it("plants unit sprites on a contact shadow at the feet", () => {
+    for (const kind of UNIT_KINDS) {
+      const spec = unitSprite(kind, palette, { facing: 0, variant: 11 });
+      const shadowY = Number(spec.svg.match(/<ellipse cx="[\d.]+" cy="([\d.]+)"/)?.[1]);
+      expect(shadowY).toBeCloseTo(spec.anchorY ?? spec.h, 0);
+      expect(spec.anchorY ?? spec.h).toBeGreaterThan(spec.h * 0.8);
+    }
   });
 
   it("draws organic terrain and SVG military silhouettes", () => {

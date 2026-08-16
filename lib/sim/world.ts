@@ -28,6 +28,25 @@ export function heightAt(state: SimState, x: number, y: number): number {
   return state.heights[at(state, x, y)] ?? 1;
 }
 
+function heightAtClamped(state: SimState, x: number, y: number): number {
+  const cx = Math.max(0, Math.min(state.width - 1, Math.floor(x)));
+  const cy = Math.max(0, Math.min(state.height - 1, Math.floor(y)));
+  return state.heights[cy * state.width + cx] ?? 1;
+}
+
+/** Bilinear sample so moving units ride slopes instead of snapping tile to tile. */
+export function groundHeight(state: SimState, x: number, y: number): number {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = x - x0;
+  const fy = y - y0;
+  const h00 = heightAtClamped(state, x0, y0);
+  const h10 = heightAtClamped(state, x0 + 1, y0);
+  const h01 = heightAtClamped(state, x0, y0 + 1);
+  const h11 = heightAtClamped(state, x0 + 1, y0 + 1);
+  return h00 * (1 - fx) * (1 - fy) + h10 * fx * (1 - fy) + h01 * (1 - fx) * fy + h11 * fx * fy;
+}
+
 export function occupies(e: Entity, x: number, y: number): boolean {
   if (e.hp <= 0) return false;
   if (e.class !== "building") {
@@ -332,13 +351,20 @@ export function nearest(
   return best;
 }
 
-export function powerFor(state: SimState, owner: Owner): number {
-  let p = 0;
+export function powerBreakdown(state: SimState, owner: Owner): { produced: number; used: number; surplus: number } {
+  let produced = 0;
+  let used = 0;
   for (const e of living(state)) {
     if (e.class !== "building" || e.owner !== owner || e.constructing > 0) continue;
-    p += BUILDING_STATS[e.kind as BuildingKind].power;
+    const watt = BUILDING_STATS[e.kind as BuildingKind].power;
+    if (watt >= 0) produced += watt;
+    else used -= watt;
   }
-  return p;
+  return { produced, used, surplus: produced - used };
+}
+
+export function powerFor(state: SimState, owner: Owner): number {
+  return powerBreakdown(state, owner).surplus;
 }
 
 export function spawnUnit(

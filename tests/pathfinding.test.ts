@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { findPath } from "../lib/sim/pathfinding";
 import { TILE_BLOCKED, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
 import { issue, tick } from "../lib/sim/api";
-import { buildingAt, canPlaceBuilding, occupies, unitAt } from "../lib/sim/world";
+import { buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
@@ -224,5 +224,19 @@ describe("cancel production and construction", () => {
     expect(second?.hp).toBe(0);
     expect(first?.hp).toBeGreaterThan(0);
     expect(first?.constructing).toBeGreaterThan(0);
+  });
+});
+
+describe("power grid", () => {
+  it("splits generated power from drain", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "power", 3, 0);
+    addBuilding(s, 0, "barracks", 6, 0);
+    const grid = powerBreakdown(s, 0);
+    expect(grid.produced).toBe(BUILDING_STATS.constructionYard.power + BUILDING_STATS.power.power);
+    expect(grid.used).toBe(-BUILDING_STATS.barracks.power);
+    expect(grid.surplus).toBe(grid.produced - grid.used);
+    expect(powerFor(s, 0)).toBe(grid.surplus);
   });
 });

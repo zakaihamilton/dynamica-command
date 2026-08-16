@@ -17,10 +17,14 @@ import {
 } from "./anim";
 import { HEIGHT_STEP, TILE_H, TILE_W, screenToGroundTile, tileToScreen, type Camera } from "./iso";
 import { cachedSprite, drawSprite, rasterize } from "./sprites";
-import { buildingAt, canPlaceBuilding, heightAt } from "../sim/world";
+import { buildingAt, canPlaceBuilding, groundHeight, heightAt } from "../sim/world";
 import { fogAt } from "../sim/fog";
 import { canRepair } from "../sim/repair";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
+
+function entityElev(state: SimState, e: Entity): number {
+  return e.class === "unit" ? groundHeight(state, e.x, e.y) : heightAt(state, Math.round(e.x), Math.round(e.y));
+}
 
 function tileKind(t: number): "clear" | "water" | "resource" | "blocked" {
   if (t === TILE_WATER) return "water";
@@ -86,7 +90,7 @@ export function entityAtPointer(state: SimState, sx: number, sy: number, cam: Ca
   let bestD = 28 * cam.zoom;
   for (const e of state.entities) {
     if (e.hp <= 0 || e.class !== "unit" || !entityVisible(state, e)) continue;
-    const elev = heightAt(state, Math.round(e.x), Math.round(e.y));
+    const elev = groundHeight(state, e.x, e.y);
     const s = tileToScreen(e.x, e.y, cam, elev);
     const d = Math.hypot(sx - s.x, sy - (s.y + (TILE_H / 2) * cam.zoom - 12 * cam.zoom));
     if (d < bestD) {
@@ -325,7 +329,7 @@ export function renderWorld(
       cx = e.x + (fp.w - 1) / 2;
       cy = e.y + (fp.h - 1) / 2;
     }
-    const elev = heightAt(state, Math.round(e.x), Math.round(e.y));
+    const elev = entityElev(state, e);
     const s = tileToScreen(cx, cy, cam, elev);
     if (s.x < -cullPad || s.y < -cullPad || s.x > w + cullPad || s.y > h + cullPad) continue;
     const img = rasterize(spec);
@@ -359,7 +363,7 @@ export function renderWorld(
         strokeFootprint(ctx, state, cam, e.x, e.y, fp.w, fp.h);
       } else {
         ctx.beginPath();
-        ctx.ellipse(s.x, s.y + 13 * z, (18 + pulse * 4) * z, (7 + pulse * 2) * z, 0, 0, Math.PI * 2);
+        ctx.ellipse(s.x, s.y + (TILE_H / 2) * z, (16 + pulse * 3) * z, (6 + pulse * 1.5) * z, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
@@ -467,8 +471,8 @@ function drawCombatEffects(ctx: CanvasRenderingContext2D, state: SimState, cam: 
     if (maxCooldown <= 0 || e.cooldown < maxCooldown - 3) continue;
     const facing = facingFor(state, e);
     const dir = facingVector(facing);
-    const a = tileToScreen(e.x, e.y, cam, heightAt(state, Math.round(e.x), Math.round(e.y)));
-    const b = tileToScreen(target.x, target.y, cam, heightAt(state, Math.round(target.x), Math.round(target.y)));
+    const a = tileToScreen(e.x, e.y, cam, entityElev(state, e));
+    const b = tileToScreen(target.x, target.y, cam, entityElev(state, target));
     const age = maxCooldown - e.cooldown;
     const u = Math.max(0, Math.min(1, (age + (t % 80) / 80) / 2.4));
     const muzzle = e.class === "building" ? 18 : e.kind === "infantry" ? 14 : 20;
@@ -596,7 +600,7 @@ function drawTile(
   const amount = inMap ? (state.resourceAmount[y * state.width + x] ?? 0) : 0;
   const opts = {
     biome: state.biome,
-    variant: tileVariant(x, y) % 16,
+    variant: tileVariant(x, y) % 64,
     edgeMask,
     surface: inMap ? (state.surfaces[y * state.width + x] ?? SURFACE_NONE) : SURFACE_NONE,
     resourceLevel: amount > 700 ? 4 : amount > 450 ? 3 : amount > 200 ? 2 : 1,
@@ -848,14 +852,14 @@ function drawHarvestFx(
   if (e.gatherX === undefined || e.gatherY === undefined) return;
   const z = cam.zoom;
   const a = tileToScreen(e.gatherX, e.gatherY, cam, heightAt(state, e.gatherX, e.gatherY));
-  const b = tileToScreen(e.x, e.y, cam, heightAt(state, Math.round(e.x), Math.round(e.y)));
+  const b = tileToScreen(e.x, e.y, cam, groundHeight(state, e.x, e.y));
   ctx.save();
   for (let i = 0; i < 3; i++) {
     const u = (((timeMs * 0.0018 + e.id * 0.2 + i * 0.33) % 1) + 1) % 1;
     const x = a.x + (b.x - a.x) * u;
     const y = a.y + (b.y - a.y) * u - 10 * z * Math.sin(u * Math.PI);
     ctx.globalAlpha = 0.75 * (1 - u);
-    ctx.fillStyle = i % 2 ? "#e2ed72" : "#b3d33f";
+    ctx.fillStyle = i % 2 ? "#f6de7a" : "#c4a040";
     ctx.fillRect(Math.round(x - 1), Math.round(y - 2), Math.max(2, 2 * z), Math.max(3, 3 * z));
   }
   ctx.restore();

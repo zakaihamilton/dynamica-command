@@ -59,7 +59,7 @@ export function renderMinimap(
         t === TILE_WATER
           ? "#1a3a55"
           : t === TILE_RESOURCE
-            ? "#a6c83b"
+            ? "#c4a040"
             : t === TILE_BLOCKED
               ? "#171b17"
             : elev >= 3

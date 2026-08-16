@@ -18,7 +18,7 @@ import { drawSprite, rasterize } from "@/lib/render/sprites";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission, tick } from "@/lib/sim/api";
 import { objectiveProgress } from "@/lib/sim/objectives";
-import { powerFor, buildingAt, heightAt } from "@/lib/sim/world";
+import { powerBreakdown, buildingAt, heightAt } from "@/lib/sim/world";
 import type { BuildingKind, Command, SimState, UnitKind } from "@/lib/types";
 import { AssetsBrowser } from "@/components/AssetsBrowser";
 import { gameCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
@@ -180,13 +180,32 @@ function CommandTabIcon({ type }: { type: "construction" | "production" | "repai
   );
 }
 
+function CreditsIcon() {
+  return (
+    <svg className="credits-icon" viewBox="0 0 18 14" width="18" height="14" aria-hidden="true" focusable="false">
+      <path d="M2 10.5h9.5l1.8 2.2H3.8z" fill="#8a6a24" />
+      <path d="M2 10.5 3.8 8.4h9.5L11.5 10.5z" fill="#e8c45a" />
+      <path d="M13.3 8.4 15.1 10.5v2.2l-1.8-2.2z" fill="#6e5418" />
+      <path d="M4.2 6.6h9.5l1.8 2.2H6z" fill="#a07a28" />
+      <path d="M4.2 6.6 6 4.5h9.5l-1.8 2.1z" fill="#f3d56a" />
+      <path d="M15.5 4.5 17.3 6.6v2.2l-1.8-2.2z" fill="#7a5e1c" />
+      <path d="M6 4.4h8.2" stroke="#fff4c4" strokeWidth="0.7" />
+    </svg>
+  );
+}
+
 function CreditsCounter({ value }: { value: number }) {
   const [shown, setShown] = useState(value);
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const shownRef = useRef(value);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | 0>(0);
   useEffect(() => {
     const from = shownRef.current;
     const to = value;
     if (from === to) return;
+    setFlash(to > from ? "up" : "down");
+    window.clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setFlash(null), 480);
     let raf = 0;
     const t0 = performance.now();
     const dur = Math.min(700, 160 + Math.abs(to - from) * 4);
@@ -199,15 +218,56 @@ function CreditsCounter({ value }: { value: number }) {
       if (t < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(flashTimer.current);
+    };
   }, [value]);
+  const tone = flash === "up" ? " credits-up" : flash === "down" ? " credits-down" : "";
   return (
-    <div className="credits-counter" aria-label={`${value} credits`}>
+    <div className={`credits-counter${tone}`} aria-label={`${value} credits`}>
+      <CreditsIcon />
       <span className="credits-label">Credits</span>
-      <strong data-testid="credits" className="credits-digits">
+      <div className="credits-lcd">
         <span className="credits-currency">$</span>
-        {shown.toLocaleString("en-US")}
-      </strong>
+        <span className="credits-readout">
+          <span className="credits-ghost" aria-hidden="true">8,888,888</span>
+          <strong data-testid="credits" className="credits-digits">
+            {shown.toLocaleString("en-US")}
+          </strong>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PowerIcon() {
+  return (
+    <svg className="power-icon" viewBox="0 0 14 16" width="14" height="16" aria-hidden="true" focusable="false">
+      <path d="M8.2 1 3 8.6h3.4L4.6 15 12 6.8H8.4z" fill="#5ce1e6" stroke="#123038" strokeWidth="0.8" strokeLinejoin="miter" />
+      <path d="M7.6 3.2 5.2 8.1h2.2" fill="none" stroke="#e8f2f6" strokeWidth="0.7" />
+    </svg>
+  );
+}
+
+function PowerMeter({ produced, used }: { produced: number; used: number }) {
+  const surplus = produced - used;
+  const ratio = produced <= 0 ? (used > 0 ? 1 : 0) : Math.min(1, used / produced);
+  const deficit = surplus < 0;
+  const tight = !deficit && ratio >= 0.82;
+  const tone = deficit ? " power-low" : tight ? " power-tight" : "";
+  const label = deficit ? "Power deficit" : tight ? "Power grid near capacity" : "Base power surplus";
+  const signed = surplus > 0 ? `+${surplus}` : String(surplus);
+  return (
+    <div className={`power-meter${tone}`} aria-label={`${label}: ${signed}, drain ${used} of ${produced}`}>
+      <PowerIcon />
+      <span className="power-label">Power</span>
+      <div className="power-lcd">
+        <strong data-testid="power" className="power-digits">{signed}</strong>
+        <span className="power-bar" aria-hidden="true">
+          <span className="power-bar-fill" style={{ width: `${Math.round(ratio * 100)}%` }} />
+        </span>
+      </div>
     </div>
   );
 }
@@ -863,7 +923,8 @@ export function GameClient({
 
   const s = state;
   const obj = objectiveProgress(s);
-  const power = powerFor(s, 0);
+  const grid = powerBreakdown(s, 0);
+  const power = grid.surplus;
   const selectedEnt = s.entities.find((e) => selectedIds.includes(e.id) && e.hp > 0);
   const pal = s.factions[0].palette;
 
@@ -962,9 +1023,11 @@ export function GameClient({
           <div className="has-tooltip" data-tooltip="Available credits">
             <CreditsCounter value={s.credits[0]} />
           </div>
-          <div className={`power-chip has-tooltip ${power < 0 ? "text-[var(--chrome-alert)]" : ""}`} data-tooltip={power < 0 ? "Power deficit" : "Base power surplus"}>
-            <span>Power</span>
-            <strong className={power < 0 ? "text-[var(--chrome-alert)]" : "text-[var(--chrome-cyan)]"}>{power}</strong>
+          <div
+            className="has-tooltip"
+            data-tooltip={`${grid.surplus < 0 ? "Power deficit" : grid.used / Math.max(1, grid.produced) >= 0.82 ? "Power grid near capacity" : "Base power surplus"} · Drain ${grid.used} / ${grid.produced} generated`}
+          >
+            <PowerMeter produced={grid.produced} used={grid.used} />
           </div>
         </div>
 

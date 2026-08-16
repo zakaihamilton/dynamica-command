@@ -56,11 +56,11 @@ export function unitPose(e: Entity): UnitPose {
 
 export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
   const t = animClock(tick, clockMs);
-  const phase = t * 0.001 + e.id * 0.37;
   const pose = unitPose(e);
   if (pose === "move") {
     const frame = animFrame(t, 90, 4, e.id);
-    return { pose, frame, bobY: frame % 2 === 0 ? 0 : 1, swayX: 0, recoil: 0 };
+    const infantry = e.kind === "infantry" || e.kind === "antiArmor";
+    return { pose, frame, bobY: infantry && frame % 2 !== 0 ? 1 : 0, swayX: 0, recoil: 0 };
   }
   if (pose === "attack") {
     const recoil = attackRecoil(e);
@@ -74,13 +74,13 @@ export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
   }
   if (pose === "work") {
     const frame = animFrame(t, 140, 4, e.id);
-    return { pose, frame, bobY: Math.sin(phase * 9) * 0.5, swayX: 0, recoil: 0 };
+    return { pose, frame, bobY: 0, swayX: 0, recoil: 0 };
   }
   return {
     pose: "idle",
     frame: 0,
-    bobY: Math.sin(phase * 2.15) * 0.85,
-    swayX: Math.sin(phase * 1.05) * 0.35,
+    bobY: 0,
+    swayX: 0,
     recoil: 0,
   };
 }

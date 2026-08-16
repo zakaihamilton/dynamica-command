@@ -206,7 +206,7 @@ export function MenuBackdrop() {
           }
           const img = rasterize(tileSprite(kind, elev, {
             biome: map.biome,
-            variant: (x * 13 + y * 7) % 16,
+            variant: (x * 13 + y * 7) % 64,
             surface: map.surfaces[y * map.width + x],
             resourceLevel: 4,
           }));

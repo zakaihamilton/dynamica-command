@@ -93,6 +93,14 @@ function hash(n: number): number {
   return (x ^ (x >>> 16)) >>> 0;
 }
 
+function pick(v: number, lane: number, mod: number): number {
+  return hash(v + lane * 374761) % Math.max(1, mod);
+}
+
+function signed(v: number, lane: number, span: number): number {
+  return pick(v, lane, span * 2 + 1) - span;
+}
+
 const TERRAIN: Record<BiomeName, [string, string, string, string]> = {
   "ash plains": ["#4f5a43", "#3e4736", "#6a7558", "#2c3328"],
   "crystal flats": ["#5a6a58", "#465448", "#7a8a72", "#313c34"],
@@ -104,14 +112,19 @@ const TERRAIN: Record<BiomeName, [string, string, string, string]> = {
   "volcanic shelf": ["#4c4440", "#372f2c", "#6a5a50", "#221c1c"],
 };
 
-const RESOURCE_PALETTE: Palette = {
-  primary: "#4a5c38",
-  secondary: "#2a3824",
-  accent: "#b3d33f",
-  outline: "#182015",
-  light: "#e2ed72",
-  dark: "#24301c",
-};
+const ORE = {
+  stainLo: "#4a3c18",
+  stain: "#6e5a28",
+  stainHi: "#9a7a34",
+  south: "#8a6a24",
+  east: "#c4a040",
+  top: "#e8c45a",
+  lit: "#f6de7a",
+  glint: "#fff4c4",
+  crystal: "#d8c24c",
+  crystalLit: "#f3e89a",
+  ink: "#2a220e",
+} as const;
 
 function terrainPalette(biome: BiomeName, elev: number): Palette {
   const [base, dark, light, outline] = TERRAIN[biome];
@@ -306,7 +319,7 @@ export function tileSprite(
   const v = hash(variant + elev * 17);
   const contour = opts.contour ?? defaultContour(kind, elev);
   const floorElev = contour === "ridge" ? Math.min(elev, 1) : contour === "bank" || kind === "water" ? 0 : elev;
-  const p = kind === "resource" ? RESOURCE_PALETTE : terrainPalette(biome, floorElev);
+  const p = terrainPalette(biome, floorElev);
   const cx = tileCx();
   const cy = tileCy();
   const mask = opts.edgeMask ?? 0;
@@ -315,16 +328,16 @@ export function tileSprite(
   paintFloor(shapes, biome, p, v, kind, contour);
   if (opts.surface === SURFACE_ROAD) paintRoad(shapes, biome, v);
   else if (opts.surface === SURFACE_CONCRETE) paintConcrete(shapes, v);
-  else if (kind !== "water") paintGroundCover(shapes, biome, p, v, contour);
+  else if (kind !== "water" && kind !== "resource") paintGroundCover(shapes, biome, p, v, contour);
 
   if (kind === "water") {
     paintWater(shapes, biome, v, mask);
   } else if (contour === "none" && mask) {
-    paintSoftBlend(shapes, mask, p);
+    paintSoftBlend(shapes, mask, p, v);
   }
 
   if (contour === "ridge") paintRidge(shapes, biome, p, v, mask);
-  if (kind === "resource") paintCrystals(shapes, p, opts.resourceLevel ?? 4);
+  if (kind === "resource") paintOreField(shapes, v, opts.resourceLevel ?? 4);
   else if (kind === "blocked" && contour !== "ridge") paintBlocker(shapes, biome, p, v, cx, cy);
 
   return {
@@ -360,67 +373,88 @@ function paintFloor(
   const cx = tileCx();
   const cy = tileCy();
   const base = kind === "water" || contour === "bank" ? wetGround(biome) : p.primary;
-  shapes.push(poly(irregularIso(cx, cy, TW + 8, TH + 6, v, 4), base));
-  shapes.push(poly(irregularIso(cx, cy, 60, 28, v >> 1, 3), base));
+  shapes.push(poly(irregularIso(cx, cy, TW + 8, TH + 6, v, 5), base));
+  shapes.push(poly(irregularIso(cx + signed(v, 1, 4), cy + signed(v, 2, 2), 58, 26, v >> 1, 4), base));
   if (kind !== "water" && contour !== "bank") {
-    shapes.push(poly(irregularIso(cx - 4, cy - 2, 36, 16, v >> 2, 3), p.light));
-    shapes.push(poly(irregularIso(cx + 6, cy + 3, 34, 14, v >> 5, 2), p.dark));
-    shapes.push(poly(irregularIso(cx + 1, cy, 24, 12, v >> 8, 2), p.secondary));
-    shapes.push(ell(cx - 14, cy - 8, 28, 12, p.light));
-    shapes.push(ell(cx + 2, cy + 1, 26, 12, p.dark));
-    shapes.push(ell(cx - 6, cy - 1, 18, 8, p.primary));
-    for (let i = 0; i < 7; i++) {
-      const ox = ((v >> (i * 3)) % 23) - 11;
-      const oy = ((v >> (i * 2 + 1)) % 9) - 4;
-      const ew = 7 + (i % 3) * 3;
-      const eh = 3 + (i % 2) * 2;
-      shapes.push(ell(cx + ox - ew / 2, cy + oy - eh / 2, ew, eh, i % 2 ? p.light : p.secondary));
+    const patches = 5 + pick(v, 3, 4);
+    for (let i = 0; i < patches; i++) {
+      const ox = signed(v, 10 + i, 12);
+      const oy = signed(v, 40 + i, 5);
+      const ew = 9 + pick(v, 70 + i, 18);
+      const eh = 4 + pick(v, 90 + i, 6);
+      const fill = [p.light, p.dark, p.secondary, p.primary][pick(v, 110 + i, 4)]!;
+      if (pick(v, 130 + i, 3) === 0) {
+        shapes.push(poly(irregularIso(cx + ox, cy + oy, ew + 6, eh + 5, v + i * 19, 2), fill));
+      } else {
+        shapes.push(ell(cx + ox - ew / 2, cy + oy - eh / 2, ew, eh, fill));
+      }
     }
-    for (let i = 0; i < 4; i++) {
-      const ox = ((v >> (i * 4)) % 21) - 10;
-      const oy = ((v >> (i * 3 + 1)) % 7) - 3;
-      shapes.push(ell(cx + ox, cy + oy, 2 + (i % 2), 1 + (i % 2), i % 2 ? p.light : p.dark));
+    for (let i = 0; i < 6; i++) {
+      const ox = signed(v, 150 + i, 11);
+      const oy = signed(v, 170 + i, 4);
+      shapes.push(ell(cx + ox, cy + oy, 2 + pick(v, 190 + i, 3), 1 + pick(v, 200 + i, 2), i % 2 ? p.light : p.dark));
     }
   }
   if (kind === "water" || contour === "bank") {
-    shapes.push(poly(irregularIso(cx, cy + 1, 54, 24, v, 3), shoreSand(biome)));
-    shapes.push(ell(cx - 16, cy - 2, 22, 10, shoreSand(biome)));
-    shapes.push(ell(cx + 6, cy + 2, 20, 9, wetGround(biome)));
-    shapes.push(poly(irregularIso(cx - 1, cy + 2, 40, 16, v >> 4, 2), wetGround(biome)));
+    shapes.push(poly(irregularIso(cx + signed(v, 4, 3), cy + 1, 54, 24, v, 3), shoreSand(biome)));
+    shapes.push(ell(cx - 12 + signed(v, 5, 6), cy - 2 + signed(v, 6, 2), 18 + pick(v, 7, 8), 8 + pick(v, 8, 4), shoreSand(biome)));
+    shapes.push(ell(cx + 4 + signed(v, 9, 6), cy + 2 + signed(v, 10, 2), 16 + pick(v, 11, 8), 7 + pick(v, 12, 4), wetGround(biome)));
+    shapes.push(poly(irregularIso(cx + signed(v, 13, 3), cy + 2, 40, 16, v >> 4, 2), wetGround(biome)));
   }
-  if ((v & 3) === 0) shapes.push(ell(cx - 10 + (v % 7), cy - 2, 11, 5, p.dark));
+  if (pick(v, 14, 4) === 0) shapes.push(ell(cx + signed(v, 15, 10), cy + signed(v, 16, 3), 8 + pick(v, 17, 6), 4, p.dark));
 }
 
 function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number, contour: TileContour): void {
   const cx = tileCx();
   const cy = tileCy();
-  const clumps = lush(biome) ? 6 : arid(biome) ? 4 : 5;
+  const dense = lush(biome);
+  const dry = arid(biome);
+  const clumps = (dense ? 4 : dry ? 2 : 3) + pick(v, 1, dense ? 5 : 4);
   for (let i = 0; i < clumps; i++) {
-    const ox = ((v >> (i * 3)) % 25) - 12;
-    const oy = ((v >> (i * 2 + 2)) % 9) - 4;
-    if (arid(biome)) {
-      shapes.push(ell(cx + ox - 3, cy + oy, 8, 3, i % 2 ? p.light : p.dark));
-      shapes.push(line(cx + ox - 4, cy + oy + 1, cx + ox + 5, cy + oy + 2, i % 2 ? p.light : p.dark, 1));
+    const ox = signed(v, 20 + i, 12);
+    const oy = signed(v, 50 + i, 4);
+    if (dry) {
+      shapes.push(ell(cx + ox - 3, cy + oy, 6 + pick(v, 80 + i, 5), 3, i % 2 ? p.light : p.dark));
+      shapes.push(line(cx + ox - 4, cy + oy + 1, cx + ox + 4 + pick(v, 90 + i, 3), cy + oy + 2, i % 2 ? p.light : p.dark, 1));
     } else {
-      shapes.push(ell(cx + ox - 2, cy + oy, 8 + (i % 2) * 3, 4, i % 2 ? p.accent : p.dark));
-      shapes.push(ell(cx + ox, cy + oy - 1, 5, 2, p.light));
+      shapes.push(ell(cx + ox - 2, cy + oy, 6 + pick(v, 80 + i, 6), 3 + pick(v, 90 + i, 2), i % 2 ? p.accent : p.dark));
+      if (pick(v, 100 + i, 3) !== 0) shapes.push(ell(cx + ox, cy + oy - 1, 4 + pick(v, 110 + i, 3), 2, p.light));
     }
   }
-  const blades = lush(biome) ? 8 : contour === "ridge" ? 3 : 5;
+  const blades = (dense ? 5 : contour === "ridge" ? 2 : 3) + pick(v, 3, 5);
   for (let i = 0; i < blades; i++) {
-    const ox = ((v >> (i * 2 + 1)) % 23) - 11;
-    const oy = ((v >> (i + 4)) % 7) - 3;
-    shapes.push(line(cx + ox, cy + oy + 2, cx + ox + (i % 2 ? 2 : -2), cy + oy - 3, i % 3 ? p.accent : p.light, 1));
+    const ox = signed(v, 120 + i, 11);
+    const oy = signed(v, 150 + i, 3);
+    const lean = pick(v, 180 + i, 2) === 0 ? 2 : -2;
+    shapes.push(line(cx + ox, cy + oy + 2, cx + ox + lean + signed(v, 190 + i, 1), cy + oy - 2 - pick(v, 200 + i, 3), i % 3 ? p.accent : p.light, 1));
   }
-  if (contour === "ridge" || (v % 5) === 0) {
-    shapes.push(ell(cx + ((v % 9) - 4), cy + 2, 8, 4, p.dark));
-    shapes.push(ell(cx + ((v % 9) - 3), cy + 1, 4, 2, p.light));
+  if (dense && pick(v, 4, 3) !== 2) {
+    pushBush(shapes, cx + signed(v, 5, 8), cy + signed(v, 6, 3), v, biome);
   }
-  for (let i = 0; i < 3; i++) {
-    const ox = ((v >> (i * 5 + 2)) % 19) - 9;
-    const oy = ((v >> (i * 4 + 3)) % 6) - 2;
-    shapes.push(ell(cx + ox, cy + oy + 1, 4, 2, i % 2 ? p.secondary : p.dark));
+  if (pick(v, 7, 6) === 0) {
+    const lx = cx + signed(v, 8, 8);
+    const ly = cy + signed(v, 9, 2);
+    shapes.push(line(lx - 5, ly, lx + 6, ly + 2, p.dark, 2));
+    shapes.push(line(lx - 4, ly - 1, lx + 4, ly + 1, p.secondary, 1));
   }
+  if (contour === "ridge" || pick(v, 10, 5) === 0) {
+    shapes.push(ell(cx + signed(v, 11, 6), cy + 2, 6 + pick(v, 12, 4), 3, p.dark));
+    shapes.push(ell(cx + signed(v, 13, 6), cy + 1, 3 + pick(v, 14, 3), 2, p.light));
+  }
+  for (let i = 0; i < 2 + pick(v, 15, 3); i++) {
+    const ox = signed(v, 210 + i, 10);
+    const oy = signed(v, 230 + i, 3);
+    shapes.push(ell(cx + ox, cy + oy + 1, 3 + pick(v, 250 + i, 3), 2, i % 2 ? p.secondary : p.dark));
+  }
+}
+
+function pushBush(shapes: ShapeSpec[], x: number, y: number, v: number, biome: BiomeName): void {
+  const canopy = canopyColors(biome);
+  const w = 9 + pick(v, 16, 6);
+  shapes.push(ell(x - w / 2, y + 1, w, 4, "rgba(10,12,8,0.32)"));
+  shapes.push(ell(x - w / 2 - 1, y - 5, w * 0.7, 6, canopy.dark, INK));
+  shapes.push(ell(x - w / 2 + 3, y - 6, w * 0.55, 5, canopy.mid));
+  if (pick(v, 17, 2) === 0) shapes.push(ell(x + 1, y - 4, 4, 3, canopy.hi));
 }
 
 function paintRoad(shapes: ShapeSpec[], biome: BiomeName, v: number): void {
@@ -447,29 +481,29 @@ function paintConcrete(shapes: ShapeSpec[], v: number): void {
   shapes.push(line(14, 10, 22, 14, "#8a8c82", 1));
 }
 
-function paintSoftBlend(shapes: ShapeSpec[], mask: number, p: Palette): void {
+function paintSoftBlend(shapes: ShapeSpec[], mask: number, p: Palette, v: number): void {
   const cx = tileCx();
   const cy = tileCy();
   if (mask & 1) {
-    shapes.push(ell(cx - 16, cy - 14, 22, 11, p.dark));
-    shapes.push(ell(cx - 2, cy - 12, 16, 8, p.secondary));
+    shapes.push(ell(cx - 16 + signed(v, 1, 3), cy - 14 + signed(v, 2, 2), 18 + pick(v, 3, 8), 9 + pick(v, 4, 4), p.dark));
+    shapes.push(ell(cx - 2 + signed(v, 5, 3), cy - 12 + signed(v, 6, 2), 14 + pick(v, 7, 6), 7 + pick(v, 8, 3), p.secondary));
   }
   if (mask & 2) {
-    shapes.push(ell(cx + 2, cy - 12, 22, 11, p.dark));
-    shapes.push(ell(cx + 8, cy - 4, 14, 8, p.secondary));
+    shapes.push(ell(cx + 2 + signed(v, 9, 3), cy - 12 + signed(v, 10, 2), 18 + pick(v, 11, 8), 9 + pick(v, 12, 4), p.dark));
+    shapes.push(ell(cx + 8 + signed(v, 13, 3), cy - 4 + signed(v, 14, 2), 12 + pick(v, 15, 6), 7 + pick(v, 16, 3), p.secondary));
   }
   if (mask & 4) {
-    shapes.push(ell(cx + 2, cy + 4, 22, 11, p.secondary));
-    shapes.push(ell(cx + 6, cy + 2, 14, 7, p.dark));
+    shapes.push(ell(cx + 2 + signed(v, 17, 3), cy + 4 + signed(v, 18, 2), 18 + pick(v, 19, 8), 9 + pick(v, 20, 4), p.secondary));
+    shapes.push(ell(cx + 6 + signed(v, 21, 3), cy + 2, 12 + pick(v, 22, 6), 6 + pick(v, 23, 3), p.dark));
   }
   if (mask & 8) {
-    shapes.push(ell(cx - 20, cy + 2, 22, 11, p.secondary));
-    shapes.push(ell(cx - 14, cy - 2, 14, 7, p.dark));
+    shapes.push(ell(cx - 20 + signed(v, 24, 3), cy + 2 + signed(v, 25, 2), 18 + pick(v, 26, 8), 9 + pick(v, 27, 4), p.secondary));
+    shapes.push(ell(cx - 14 + signed(v, 28, 3), cy - 2, 12 + pick(v, 29, 6), 6 + pick(v, 30, 3), p.dark));
   }
-  if (mask & 16) shapes.push(ell(cx + 8, cy - 12, 12, 7, p.dark));
-  if (mask & 32) shapes.push(ell(cx + 10, cy + 4, 12, 7, p.secondary));
-  if (mask & 64) shapes.push(ell(cx - 18, cy + 4, 12, 7, p.secondary));
-  if (mask & 128) shapes.push(ell(cx - 16, cy - 12, 12, 7, p.dark));
+  if (mask & 16) shapes.push(ell(cx + 8 + signed(v, 31, 2), cy - 12, 10 + pick(v, 32, 5), 6 + pick(v, 33, 3), p.dark));
+  if (mask & 32) shapes.push(ell(cx + 10 + signed(v, 34, 2), cy + 4, 10 + pick(v, 35, 5), 6 + pick(v, 36, 3), p.secondary));
+  if (mask & 64) shapes.push(ell(cx - 18 + signed(v, 37, 2), cy + 4, 10 + pick(v, 38, 5), 6 + pick(v, 39, 3), p.secondary));
+  if (mask & 128) shapes.push(ell(cx - 16 + signed(v, 40, 2), cy - 12, 10 + pick(v, 41, 5), 6 + pick(v, 42, 3), p.dark));
 }
 
 function paintWater(shapes: ShapeSpec[], biome: BiomeName, v: number, mask: number): void {
@@ -549,17 +583,93 @@ function paintRidge(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number
   }
 }
 
-function paintCrystals(shapes: ShapeSpec[], p: Palette, level: number): void {
+function paintOreField(shapes: ShapeSpec[], v: number, level: number): void {
+  const cx = tileCx();
+  const cy = tileCy();
   const n = Math.max(1, Math.min(4, level));
-  const ox = TILE_SPRITE_PAD_X;
-  const oy = TILE_SPRITE_PAD_Y;
-  const crystals = [[18 + ox, 18 + oy, 8, 12], [28 + ox, 10 + oy, 8, 18], [38 + ox, 16 + oy, 7, 13], [24 + ox, 20 + oy, 6, 9]].slice(0, n);
-  shapes.push(ell(26 + ox, 18 + oy, 16, 7, p.dark));
-  for (const [x, y, w, h] of crystals) {
-    shapes.push(poly([x!, y! + h!, x! + w! / 2, y!, x! + w!, y! + h!], p.accent, p.outline, 1));
-    shapes.push(poly([x! + w! / 2, y!, x! + w!, y! + h!, x! + w! * 0.62, y! + h! - 2], p.light));
-    shapes.push(line(x! + w! * 0.45, y! + 2, x! + w! * 0.45, y! + h! - 2, "#f6f4a8", 1));
+  shapes.push(poly(irregularIso(cx, cy + 1, 52, 24, v, 3), ORE.stainLo));
+  shapes.push(poly(irregularIso(cx - 2, cy, 42, 18, v >> 3, 2), ORE.stain));
+  shapes.push(ell(cx - 13, cy - 3, 26, 11, ORE.stainHi));
+  shapes.push(ell(cx + 7, cy + 2, 20, 9, ORE.stainLo));
+  for (let i = 0; i < 4 + n; i++) {
+    const ox = ((v >> (i * 3)) % 23) - 11;
+    const oy = ((v >> (i * 2 + 2)) % 9) - 4;
+    shapes.push(ell(cx + ox - 3, cy + oy, 8, 3, i % 2 ? ORE.stainHi : ORE.stainLo));
   }
+
+  const slots: Array<[number, number, number, number]> = [
+    [-11, 2, 8, 5],
+    [8, -4, 9, 6],
+    [1, 5, 7, 4],
+    [14, 3, 6, 5],
+    [-7, -5, 7, 5],
+    [5, 1, 8, 6],
+    [-15, 4, 5, 4],
+  ];
+  const picked = slots
+    .map((slot, i) => ({ slot, order: slot[1]! * 8 + slot[0]!, mix: hash(v + i * 19) }))
+    .sort((a, b) => a.mix - b.mix)
+    .slice(0, 2 + n)
+    .sort((a, b) => a.order - b.order);
+
+  for (let i = 0; i < picked.length; i++) {
+    const [ox, oy, rw, zh] = picked[i]!.slot;
+    const seed = hash(v + i * 31);
+    const width = rw + (seed % 3) - 1;
+    const z = zh + (seed % 3);
+    pushOreChunk(shapes, cx + ox, cy + oy, width, Math.max(3, Math.round(width * 0.48)), z, seed);
+    if (n >= 2 && i >= picked.length - Math.min(2, n - 1)) {
+      pushOreSpike(shapes, cx + ox + ((seed >> 3) % 3) - 1, cy + oy - z + 1, 3 + (seed % 2), 6 + (seed % 5), seed);
+    }
+  }
+
+  for (let i = 0; i < 3 + n; i++) {
+    const ox = ((v >> (i * 4 + 1)) % 23) - 11;
+    const oy = ((v >> (i * 3 + 2)) % 9) - 4;
+    shapes.push(ell(cx + ox, cy + oy + 1, 2 + (i % 2), 1 + (i % 2), i % 2 ? ORE.glint : ORE.south));
+  }
+}
+
+function pushOreChunk(shapes: ShapeSpec[], x: number, y: number, rw: number, rh: number, zh: number, seed: number): void {
+  const w = Math.max(4, rw);
+  const h = Math.max(2, rh);
+  const z = Math.max(3, zh);
+  const jx = ((seed >> 3) % 3) - 1;
+  const jy = ((seed >> 5) % 3) - 1;
+  shapes.push(ell(x - w, y - 1, w * 2, h + 3, "rgba(18,14,8,0.42)"));
+  shapes.push(poly([
+    x - w, y,
+    x, y + h,
+    x, y + h - z,
+    x - w, y - z,
+  ], ORE.south, ORE.ink, 1));
+  shapes.push(poly([
+    x + w, y,
+    x, y + h,
+    x, y + h - z,
+    x + w, y - z,
+  ], ORE.east, ORE.ink, 1));
+  shapes.push(poly([
+    x + jx, y - h - z + jy,
+    x + w, y - z,
+    x, y + h - z,
+    x - w, y - z,
+  ], ORE.top, ORE.ink, 1));
+  shapes.push(poly([
+    x + jx, y - h - z + jy,
+    x + w * 0.4, y - z - 1,
+    x + 1, y - z + h * 0.25,
+  ], ORE.lit));
+}
+
+function pushOreSpike(shapes: ShapeSpec[], x: number, y: number, w: number, h: number, seed: number): void {
+  const lean = ((seed >> 2) % 5) - 2;
+  const tipx = x + lean;
+  const tipy = y - h;
+  shapes.push(poly([x - w * 0.45, y, tipx, tipy, x, y + 1], ORE.stainLo, ORE.ink, 1));
+  shapes.push(poly([x, y + 1, tipx, tipy, x + w * 0.55, y], ORE.crystal, ORE.ink, 1));
+  shapes.push(poly([tipx, tipy, x + w * 0.2, y - 1, x + 0.4, y - h * 0.35], ORE.crystalLit));
+  shapes.push(line(tipx, tipy + 1, x + 0.4, y - 1, ORE.glint, 1));
 }
 
 function paintBlocker(
@@ -571,20 +681,24 @@ function paintBlocker(
   cy: number,
 ): void {
   const useTrees = biome === "jungle wreckage" || biome === "salt marshes" || biome === "ash plains"
-    || biome === "crystal flats" || (biome === "tundra grid" && (v & 1) === 0);
+    || biome === "crystal flats" || (biome === "tundra grid" && pick(v, 1, 2) === 0);
   if (useTrees) {
-    const count = lush(biome) ? 2 : 1;
+    const count = lush(biome) ? 1 + pick(v, 2, 3) : 1;
     for (let i = 0; i < count; i++) {
       const ox = count === 1
-        ? ((v >> 2) % 17) - 8
-        : i === 0 ? -8 + ((v >> 3) % 6) : 7 - ((v >> 5) % 6);
+        ? (signed(v, 3, 7) || 5) * (pick(v, 19, 2) === 0 ? -1 : 1)
+        : i === 0 ? -7 + pick(v, 4, 6) : 6 - pick(v, 5, 6);
       const oy = count === 1
-        ? ((v >> 5) % 9) - 4
-        : i === 0 ? 3 - ((v >> 4) % 5) : ((v >> 6) % 5) - 3;
-      pushTree(shapes, cx + ox, cy + oy, v + i * 9, biome);
+        ? signed(v, 6, 4)
+        : i === 0 ? 2 - pick(v, 7, 5) : pick(v, 8, 5) - 3;
+      if (i === count - 1 && pick(v, 9, 6) === 0) pushStump(shapes, cx + ox, cy + oy, v + i * 13, p);
+      else pushTree(shapes, cx + ox, cy + oy, v + i * 9, biome);
+    }
+    if (pick(v, 10, 5) === 0) {
+      pushRocks(shapes, cx + signed(v, 11, 6), cy + 3 + signed(v, 12, 2), v, p);
     }
   } else {
-    pushRocks(shapes, cx + ((v >> 3) % 9) - 4, cy + ((v >> 6) % 5) - 2, v, p);
+    pushRocks(shapes, cx + signed(v, 3, 6), cy + signed(v, 4, 3), v, p);
   }
 }
 
@@ -593,25 +707,46 @@ function pushTree(shapes: ShapeSpec[], x: number, y: number, v: number, biome: B
   const trunk = biome === "tundra grid" ? "#4a4038" : "#3c2a1c";
   const trunkHi = biome === "tundra grid" ? "#6a6058" : "#6a4c32";
   const slim = biome === "tundra grid";
-  const cw = slim ? 13 : 18;
-  const ch = slim ? 11 : 10;
+  const scale = slim ? 0.92 : 0.78 + pick(v, 4, 8) / 14;
+  const flip = pick(v, 5, 2) === 0 ? -1 : 1;
+  const lean = signed(v, 6, 3);
+  const cw = (slim ? 13 : 15 + pick(v, 7, 7)) * scale;
+  const ch = (slim ? 11 : 8 + pick(v, 8, 5)) * scale;
+  const trunkH = Math.max(10, (11 + pick(v, 9, 5)) * scale);
+  const trunkW = Math.max(4, (4 + pick(v, 10, 3)) * scale);
   shapes.push(ell(x - cw / 2 + 1, y + 2, cw - 1, 5, "rgba(10,12,8,0.4)"));
-  shapes.push(ell(x - 2, y - 8, 5, 13, trunk, INK));
-  shapes.push(line(x + 1, y - 6, x + 1, y + 3, trunkHi, 1));
-  if ((v & 2) === 0) shapes.push(line(x - 1, y - 3, x - 5, y - 8, trunk, 1));
-  shapes.push(ell(x - cw / 2 - 2, y - 15, cw * 0.62, ch, canopy.dark, INK));
-  shapes.push(ell(x - cw / 2 + 4, y - 17, cw * 0.7, ch + 1, canopy.dark, INK));
-  shapes.push(ell(x - cw / 2 + 1, y - 18, cw - 4, ch - 2, canopy.mid));
-  shapes.push(ell(x - 2, y - 16, slim ? 5 : 7, 4, canopy.hi));
+  shapes.push(ell(x - trunkW / 2 + lean * 0.2, y - trunkH + 5, trunkW, trunkH, trunk, INK));
+  shapes.push(line(x + lean * 0.3, y - trunkH + 7, x + lean * 0.15, y + 2, trunkHi, 1));
+  if (pick(v, 11, 2) === 0) shapes.push(line(x - 1, y - 3, x - 4 * flip + lean, y - 8, trunk, 1));
+  shapes.push(ell(x - cw / 2 - 2 * flip + lean, y - 15 * scale, cw * 0.62, ch, canopy.dark, INK));
+  shapes.push(ell(x - cw / 2 + 4 * flip + lean, y - 17 * scale, cw * 0.7, ch + 1, canopy.dark, INK));
+  shapes.push(ell(x - cw / 2 + 1 + lean, y - 18 * scale, cw - 4, Math.max(4, ch - 2), canopy.mid));
+  shapes.push(ell(x - 2 + lean + flip, y - 16 * scale, slim ? 5 : 5 + pick(v, 12, 4), 4, canopy.hi));
+}
+
+function pushStump(shapes: ShapeSpec[], x: number, y: number, v: number, p: Palette): void {
+  shapes.push(ell(x - 5, y + 2, 10, 4, "rgba(12,10,8,0.35)"));
+  shapes.push(ell(x - 3, y - 2, 6, 7, "#3c2a1c", INK));
+  shapes.push(ell(x - 2, y - 3, 4, 3, "#6a4c32"));
+  if (pick(v, 1, 2) === 0) shapes.push(line(x + 2, y - 1, x + 6, y - 5, "#3c2a1c", 1));
+  shapes.push(ell(x + 5, y + 3, 5, 3, p.dark));
 }
 
 function pushRocks(shapes: ShapeSpec[], cx: number, cy: number, v: number, p: Palette): void {
-  shapes.push(ell(cx - 8 + (v % 4), cy + 2, 12, 6, "rgba(12,10,8,0.35)"));
-  shapes.push(poly([cx - 8, cy + 3, cx - 2, cy - 4, cx + 6, cy + 1, cx + 3, cy + 5, cx - 6, cy + 6], p.secondary, INK, 1));
-  shapes.push(poly([cx - 2, cy - 4, cx + 6, cy + 1, cx + 1, cy + 2], p.light));
-  shapes.push(ell(cx + 8, cy + 3, 8, 4, p.dark, INK));
-  shapes.push(ell(cx + 9, cy + 2, 4, 2, p.light));
-  if ((v & 3) === 0) shapes.push(ell(cx - 2, cy + 5, 5, 3, p.dark));
+  const jx = signed(v, 1, 3);
+  const jy = signed(v, 2, 2);
+  shapes.push(ell(cx - 8 + pick(v, 3, 5), cy + 2, 10 + pick(v, 4, 5), 5 + pick(v, 5, 3), "rgba(12,10,8,0.35)"));
+  shapes.push(poly([
+    cx - 8 + jx, cy + 3,
+    cx - 2, cy - 3 - pick(v, 6, 3),
+    cx + 5 + jx, cy + 1,
+    cx + 3, cy + 5 + jy,
+    cx - 6, cy + 6,
+  ], p.secondary, INK, 1));
+  shapes.push(poly([cx - 2, cy - 3 - pick(v, 6, 3), cx + 5 + jx, cy + 1, cx + 1, cy + 2], p.light));
+  shapes.push(ell(cx + 6 + signed(v, 7, 3), cy + 3, 6 + pick(v, 8, 4), 3 + pick(v, 9, 2), p.dark, INK));
+  shapes.push(ell(cx + 7, cy + 2, 3 + pick(v, 10, 3), 2, p.light));
+  if (pick(v, 11, 3) === 0) shapes.push(ell(cx - 2, cy + 5, 4 + pick(v, 12, 3), 3, p.dark));
 }
 
 type Edge = { bit: number; a: [number, number]; b: [number, number] };

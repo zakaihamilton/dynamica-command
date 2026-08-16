@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { generateMap, sceneryAt, skirtSample, featureEdgeMask, isMountainScenery, MAP_SKIRT, MAP_SKIRT_ALPHA, skirtAlpha } from "../lib/gen/map";
 import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
-import { buildingAt } from "../lib/sim/world";
+import { buildingAt, groundHeight } from "../lib/sim/world";
+import { makeFixture } from "../lib/sim/fixtures";
 import { BUILDING_STATS, footprintOf } from "../lib/catalog";
 import type { BuildingKind } from "../lib/types";
 import { TILE_BLOCKED, TILE_WATER } from "../lib/types";
@@ -10,6 +11,15 @@ import { cameraViewQuad, createCamera, TILE_H, tileToScreen } from "../lib/rende
 import { cameraPanBounds, canPan, clampCamera, panAvailability } from "../lib/render/camera";
 
 describe("terrain height", () => {
+  it("interpolates unit elevation between neighboring tiles", () => {
+    const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    s.heights[1 * s.width + 1] = 1;
+    s.heights[1 * s.width + 2] = 2;
+    expect(groundHeight(s, 1, 1)).toBe(1);
+    expect(groundHeight(s, 2, 1)).toBe(2);
+    expect(groundHeight(s, 1.5, 1)).toBeCloseTo(1.5);
+  });
+
   it("generated maps have a heightmap with varied elevation", () => {
     const map = generateMap(0, { index: 0, win: { kind: "annihilate" }, mapSize: 48 });
     expect(map.heights).toHaveLength(48 * 48);

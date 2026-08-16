@@ -121,15 +121,16 @@ function hull(cx: number, cy: number, facing: Facing, length: number, width: num
 export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSpriteOptions = {}): SpriteSpec {
   const infantry = kind === "infantry" || kind === "antiArmor";
   const w = infantry ? 50 : 56;
-  const h = infantry ? 46 : 48;
+  const h = infantry ? 48 : 54;
   const facing = options.facing ?? 0;
   const frame = options.animationFrame ?? 0;
   const variant = options.variant ?? 0;
   const dmg = options.damageStage ?? 0;
   const svg = new Svg();
   const cx = w / 2;
-  const cy = infantry ? 22 : 23;
-  svg.ellipse(cx, h - 8, 16, 4.5, "rgba(0,0,0,0.42)");
+  const ground = h - 5;
+  const cy = infantry ? ground - 21 : ground - 13;
+  svg.ellipse(cx, ground, infantry ? 7.5 : 15, infantry ? 2.8 : 4.2, "rgba(8,10,12,0.55)");
   if (kind === "harvester") paintHarvester(svg, cx, cy, facing, frame, palette);
   else if (kind === "tank") paintTank(svg, cx, cy, facing, frame, palette);
   else paintInfantry(svg, kind, cx, cy, facing, frame, variant, palette);
@@ -148,21 +149,22 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
     shapes: [],
     svg: svg.toString(w, h),
     anchorX: w / 2,
-    anchorY: h - 8,
+    anchorY: ground,
     pixelScale: 1,
   };
 }
 
 function paintTreads(svg: Svg, cx: number, cy: number, facing: Facing, frame: number, length: number, width: number): void {
   const tread = [0, 1, 0, -1][frame] ?? 0;
-  const pad = hull(cx, cy + 5, facing, length + 6, width + 7, 1, -1);
+  const gy = cy + 9;
+  const pad = hull(cx, gy, facing, length + 6, width + 7, 1, -1);
   svg.path(d(pad), STEEL_DARK, INK, 1);
-  const inner = hull(cx, cy + 5, facing, length + 2, width + 4, 0.5, 0);
+  const inner = hull(cx, gy, facing, length + 2, width + 4, 0.5, 0);
   svg.path(d(inner), "#1e221f", INK, 1);
   for (let i = 0; i < 7; i++) {
     const t = (i - 3) / 3.2;
-    const a = veh(cx, cy + 5, t * length * 0.42, -width * 0.28, ((i + tread) & 1) * 0.6, facing);
-    const b = veh(cx, cy + 5, t * length * 0.42, width * 0.28, ((i + tread) & 1) * 0.6, facing);
+    const a = veh(cx, gy, t * length * 0.42, -width * 0.28, ((i + tread) & 1) * 0.6, facing);
+    const b = veh(cx, gy, t * length * 0.42, width * 0.28, ((i + tread) & 1) * 0.6, facing);
     svg.line(a[0], a[1], b[0], b[1], i % 2 ? STEEL : "#1a1e1a", 1);
   }
 }
@@ -857,9 +859,10 @@ export function wreckSprite(kind: UnitKind, palette: Palette): SpriteSpec {
   const w = infantry ? 50 : 56;
   const h = infantry ? 36 : 38;
   const cx = w / 2;
-  const cy = h - 16;
+  const ground = h - 4;
+  const cy = ground - 8;
   const svg = new Svg();
-  svg.ellipse(cx, h - 8, 15, 4, "rgba(12,10,8,0.55)");
+  svg.ellipse(cx, ground, infantry ? 8 : 14, infantry ? 2.6 : 3.6, "rgba(12,10,8,0.55)");
   if (infantry) {
     svg.path(d([[cx - 8, cy + 6], [cx + 6, cy + 6], [cx + 4, cy + 10], [cx - 6, cy + 10]]), STEEL_DARK, INK, 1);
     svg.path(d([[cx - 10, cy + 6], [cx - 2, cy - 2], [cx + 8, cy + 4], [cx + 4, cy + 8]]), "#3a322c", INK, 1);
@@ -883,7 +886,7 @@ export function wreckSprite(kind: UnitKind, palette: Palette): SpriteSpec {
     shapes: [],
     svg: svg.toString(w, h),
     anchorX: w / 2,
-    anchorY: h - 6,
+    anchorY: ground,
     pixelScale: 1,
   };
 }

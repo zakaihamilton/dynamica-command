@@ -100,9 +100,9 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
           clearInterval(id);
           return n;
         }
-        return n + 2;
+        return n + 1;
       });
-    }, 16);
+    }, 40);
     return () => clearInterval(id);
   }, [totalChars]);
 

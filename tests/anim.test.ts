@@ -55,7 +55,12 @@ describe("animation helpers", () => {
     harvester.gatherY = 5;
     harvester.carry = 10;
     expect(unitPose(harvester)).toBe("work");
-    expect(unitAnim(harvester, 8).bobY).toBeTypeOf("number");
+    expect(unitAnim(harvester, 8).bobY).toBe(0);
+
+    const idle = addUnit(s, 0, "tank", 6, 6);
+    expect(unitAnim(idle, 12).bobY).toBe(0);
+    idle.path = [{ x: 7, y: 6 }];
+    expect(unitAnim(idle, 12).bobY).toBe(0);
   });
 
   it("derives building activity from construction and production", () => {

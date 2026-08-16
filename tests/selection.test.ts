@@ -11,7 +11,7 @@ describe("harvester selection", () => {
     const h = addUnit(s, 0, "harvester", 5, 5);
     const cam = createCamera();
     const pos = tileToScreen(h.x, h.y, cam, heightAt(s, 5, 5));
-    const onBody = pickEntity(s, pos.x, pos.y - 18, cam);
+    const onBody = pickEntity(s, pos.x, pos.y - 12, cam);
     expect(onBody?.id).toBe(h.id);
     expect(onBody?.kind).toBe("harvester");
   });
