@@ -1,5 +1,5 @@
 import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor } from "../catalog";
-import { buildingSprite, tileSprite, tileSpriteId, unitSprite } from "../gen/assets";
+import { cliffFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, unitSprite, wreckSprite } from "../gen/assets";
 import { MAP_SKIRT, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import type { BuildingKind, Entity, Facing, SimState, TileContour, UnitKind } from "../types";
 import { SURFACE_NONE, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
@@ -18,6 +18,7 @@ import {
 import { HEIGHT_STEP, TILE_H, TILE_W, screenToGroundTile, tileToScreen, type Camera } from "./iso";
 import { cachedSprite, rasterize } from "./sprites";
 import { buildingAt, canPlaceBuilding, heightAt } from "../sim/world";
+import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
 
 function tileKind(t: number): "clear" | "water" | "resource" | "blocked" {
   if (t === TILE_WATER) return "water";
@@ -102,6 +103,8 @@ export type RenderExtras = {
   cursor?: { x: number; y: number } | null;
   placeKind?: BuildingKind | null;
   clockMs?: number;
+  selectBox?: { x0: number; y0: number; x1: number; y1: number } | null;
+  fx?: FxBurst[];
 };
 
 const sceneryMemo = new Map<number, ScenerySample>();
@@ -252,6 +255,7 @@ export function renderWorld(
   const cullPad = 80 * z;
   const clock = extras.clockMs;
   const timeMs = animClock(state.tick, clock);
+  drawFxLayer(ctx, state, cam, extras.fx, timeMs, "ground");
   for (const e of drawList) {
     if (!entityVisible(state, e)) continue;
     const pal = state.factions[e.owner]!.palette;
@@ -289,6 +293,9 @@ export function renderWorld(
     const recoil = uAnim?.recoil ?? 0;
     const dx = Math.round(s.x - ax + (uAnim?.swayX ?? 0) * z - dir.x * recoil * 3 * z);
     const dy = Math.round(s.y + (TILE_H / 2) * z - ay - (uAnim?.bobY ?? 0) * z + dir.y * recoil * 3 * z);
+    if (e.class === "building") {
+      drawBuildingShadow(ctx, state, cam, e, z);
+    }
     ctx.globalAlpha = (e.constructing > 0 ? 0.72 : 1) * damageFlicker(timeMs, e.id, damageStage);
     ctx.drawImage(img, dx, dy, spec.w * z, spec.h * z);
     ctx.globalAlpha = 1;
@@ -303,14 +310,14 @@ export function renderWorld(
     if (selected.has(e.id)) {
       const pulse = selectionPulse(timeMs);
       ctx.strokeStyle = "#f5e6a8";
-      ctx.globalAlpha = 0.55 + pulse * 0.45;
-      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.6 + pulse * 0.4;
+      ctx.lineWidth = 3;
       if (e.class === "building") {
         const fp = footprintOf(e.kind as BuildingKind);
         strokeFootprint(ctx, state, cam, e.x, e.y, fp.w, fp.h);
       } else {
         ctx.beginPath();
-        ctx.ellipse(s.x, s.y + 13 * z, (16 + pulse * 4) * z, (6 + pulse * 2) * z, 0, 0, Math.PI * 2);
+        ctx.ellipse(s.x, s.y + 13 * z, (18 + pulse * 4) * z, (7 + pulse * 2) * z, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
@@ -341,6 +348,8 @@ export function renderWorld(
   }
 
   drawCombatEffects(ctx, state, cam, clock);
+  drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
+  drawSelectBox(ctx, extras.selectBox);
 
   if (hoverTile && !extras.placeKind) {
     const s = tileToScreen(hoverTile.x, hoverTile.y, cam, heightAt(state, hoverTile.x, hoverTile.y));
@@ -391,35 +400,53 @@ function drawCombatEffects(ctx: CanvasRenderingContext2D, state: SimState, cam: 
     if (!target || target.hp <= 0) continue;
     const maxCooldown = e.class === "unit" ? UNIT_STATS[e.kind as UnitKind].cooldown : e.kind === "turret" ? 14 : 0;
     if (maxCooldown <= 0 || e.cooldown < maxCooldown - 3) continue;
+    const facing = facingFor(state, e);
+    const dir = facingVector(facing);
     const a = tileToScreen(e.x, e.y, cam, heightAt(state, Math.round(e.x), Math.round(e.y)));
     const b = tileToScreen(target.x, target.y, cam, heightAt(state, Math.round(target.x), Math.round(target.y)));
     const age = maxCooldown - e.cooldown;
     const u = Math.max(0, Math.min(1, (age + (t % 80) / 80) / 2.4));
-    const ax = a.x;
-    const ay = a.y + 6 * z;
+    const muzzle = e.class === "building" ? 18 : e.kind === "infantry" ? 14 : 20;
+    const ax = a.x + dir.x * muzzle * z;
+    const ay = a.y + 6 * z + dir.y * muzzle * z;
     const bx = b.x;
     const by = b.y + 9 * z;
     const px = ax + (bx - ax) * u;
     const py = ay + (by - ay) * u;
+    const anti = e.kind === "antiArmor";
+    const heavy = e.kind === "tank" || e.kind === "turret";
     ctx.save();
     ctx.globalAlpha = 0.55 + (1 - u) * 0.35;
-    ctx.strokeStyle = e.kind === "antiArmor" ? "#ff8b3d" : "#f6d06c";
-    ctx.lineWidth = Math.max(1, Math.round(z * 2));
+    ctx.strokeStyle = anti ? "#ff8b3d" : heavy ? "#ffe08a" : "#f6d06c";
+    ctx.lineWidth = Math.max(1, Math.round(z * (heavy ? 3 : anti ? 2 : 1)));
     ctx.beginPath();
     ctx.moveTo(Math.round(ax), Math.round(ay));
     ctx.lineTo(Math.round(px), Math.round(py));
     ctx.stroke();
-    ctx.fillStyle = "#fff0a0";
-    ctx.fillRect(Math.round(px - 2), Math.round(py - 2), 4, 4);
-    if (u > 0.72) {
-      const burst = (u - 0.72) * 18 * z;
-      ctx.globalAlpha = 0.85 * (1 - (u - 0.72) / 0.28);
-      ctx.fillStyle = "#a54b25";
+    ctx.fillStyle = heavy ? "#fff4c4" : "#fff0a0";
+    const shell = heavy ? 5 : 3;
+    ctx.fillRect(Math.round(px - shell / 2), Math.round(py - shell / 2), shell, shell);
+    if (age < 1) {
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = "#fff8d0";
       ctx.beginPath();
-      ctx.arc(bx, by, Math.max(3, burst), 0, Math.PI * 2);
+      ctx.arc(ax, ay, Math.max(2, 3 * z), 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#ffe08a";
-      ctx.fillRect(Math.round(bx - 3), Math.round(by - 3), 6, 6);
+    }
+    if (u > 0.72) {
+      const burst = (u - 0.72) / 0.28;
+      ctx.globalAlpha = 0.85 * (1 - burst);
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * Math.PI * 2 + e.id;
+        const rad = (4 + burst * 10) * z;
+        ctx.fillStyle = i % 2 ? "#ffe08a" : "#a54b25";
+        ctx.fillRect(
+          Math.round(bx + Math.cos(ang) * rad - 2),
+          Math.round(by + Math.sin(ang) * rad * 0.55 - 2),
+          Math.max(2, 3 * z),
+          Math.max(2, 3 * z),
+        );
+      }
     }
     ctx.restore();
   }
@@ -459,15 +486,16 @@ function drawTile(
   const dropS = Math.max(0, elev - south);
   if (dropS > 0) {
     const drop = dropS * HEIGHT_STEP * cam.zoom;
+    const faces = cliffFaces(state.biome, elev);
     ctx.beginPath();
     ctx.moveTo(s.x - tw / 2, s.y + th / 2);
     ctx.lineTo(s.x, s.y + th);
     ctx.lineTo(s.x, s.y + th + drop);
     ctx.lineTo(s.x - tw / 2, s.y + th / 2 + drop);
     ctx.closePath();
-    ctx.fillStyle = elev >= 3 ? "#3a3228" : "#1e261c";
+    ctx.fillStyle = faces.south;
     ctx.fill();
-    ctx.strokeStyle = elev >= 3 ? "#241c16" : "#12180f";
+    ctx.strokeStyle = faces.southInk;
     ctx.lineWidth = Math.max(1, cam.zoom);
     for (let i = 1; i <= dropS; i++) {
       const yOff = i * HEIGHT_STEP * cam.zoom;
@@ -479,15 +507,16 @@ function drawTile(
   }
   if (dropE > 0) {
     const drop = dropE * HEIGHT_STEP * cam.zoom;
+    const faces = cliffFaces(state.biome, elev);
     ctx.beginPath();
     ctx.moveTo(s.x + tw / 2, s.y + th / 2);
     ctx.lineTo(s.x, s.y + th);
     ctx.lineTo(s.x, s.y + th + drop);
     ctx.lineTo(s.x + tw / 2, s.y + th / 2 + drop);
     ctx.closePath();
-    ctx.fillStyle = elev >= 3 ? "#5a4c3c" : "#33402c";
+    ctx.fillStyle = faces.east;
     ctx.fill();
-    ctx.strokeStyle = elev >= 3 ? "#3a3228" : "#1c2618";
+    ctx.strokeStyle = faces.eastInk;
     ctx.lineWidth = Math.max(1, cam.zoom);
     for (let i = 1; i <= dropE; i++) {
       const yOff = i * HEIGHT_STEP * cam.zoom;
@@ -549,6 +578,19 @@ function strokeFootprint(
   fw: number,
   fh: number,
 ): void {
+  footprintPath(ctx, state, cam, x, y, fw, fh);
+  ctx.stroke();
+}
+
+function footprintPath(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  x: number,
+  y: number,
+  fw: number,
+  fh: number,
+): void {
   const elev = heightAt(state, x, y);
   const n = tileToScreen(x, y, cam, elev);
   const e = tileToScreen(x + fw - 1, y, cam, elev);
@@ -562,7 +604,6 @@ function strokeFootprint(
   ctx.lineTo(s.x, s.y + th);
   ctx.lineTo(ww.x - tw / 2, ww.y + th / 2);
   ctx.closePath();
-  ctx.stroke();
 }
 
 function tooltipLines(state: SimState, e: Entity): string[] {
@@ -638,6 +679,7 @@ function drawWaterFx(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera
       const s = tileToScreen(x, y, cam, elev);
       if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
       const sh = waterShimmer(t, x, y);
+      const sh2 = waterShimmer(t * 1.35 + 90, x + 1, y);
       ctx.save();
       ctx.globalAlpha = sh.alpha * (fog === 1 ? 0.45 : 1);
       ctx.strokeStyle = "#d7eef2";
@@ -646,6 +688,24 @@ function drawWaterFx(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera
       ctx.moveTo(s.x - tw * 0.28, s.y + th * 0.42 + sh.offset);
       ctx.lineTo(s.x + tw * 0.22, s.y + th * 0.28 + sh.offset);
       ctx.stroke();
+      ctx.globalAlpha = sh2.alpha * 0.7 * (fog === 1 ? 0.45 : 1);
+      ctx.beginPath();
+      ctx.moveTo(s.x - tw * 0.18, s.y + th * 0.52 + sh2.offset);
+      ctx.lineTo(s.x + tw * 0.3, s.y + th * 0.38 + sh2.offset);
+      ctx.stroke();
+      const bank =
+        (x > 0 && state.tiles[y * state.width + (x - 1)] !== TILE_WATER)
+        || (x + 1 < state.width && state.tiles[y * state.width + (x + 1)] !== TILE_WATER)
+        || (y > 0 && state.tiles[(y - 1) * state.width + x] !== TILE_WATER)
+        || (y + 1 < state.height && state.tiles[(y + 1) * state.width + x] !== TILE_WATER);
+      if (bank) {
+        ctx.globalAlpha = (0.18 + sh.alpha) * (fog === 1 ? 0.45 : 1);
+        ctx.strokeStyle = "#e8e0c8";
+        ctx.beginPath();
+        ctx.moveTo(s.x - tw * 0.32, s.y + th * 0.55);
+        ctx.lineTo(s.x + tw * 0.12, s.y + th * 0.72);
+        ctx.stroke();
+      }
       ctx.restore();
     }
   }
@@ -669,11 +729,23 @@ function drawBuildingFx(
   }
   if (kind === "refinery" || kind === "power" || kind === "factory" || anim.damageStage > 0) {
     const puff = anim.smoke;
-    ctx.globalAlpha = 0.22 + puff * 0.18;
-    ctx.fillStyle = anim.damageStage > 0 ? "rgba(40,36,32,0.7)" : "rgba(190,190,180,0.55)";
-    ctx.beginPath();
-    ctx.ellipse(s.x - 8 * z, s.y - (12 + puff * 12) * z, (4 + puff * 4) * z, (3 + puff * 3) * z, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const columns = anim.damageStage > 1 ? 3 : anim.damageStage > 0 ? 2 : 1;
+    for (let i = 0; i < columns; i++) {
+      const rise = (12 + puff * (14 + anim.damageStage * 6) + i * 7) * z;
+      ctx.globalAlpha = (0.2 + puff * 0.22) * (1 - i * 0.18);
+      ctx.fillStyle = anim.damageStage > 0 ? "rgba(40,36,32,0.78)" : "rgba(190,190,180,0.55)";
+      ctx.beginPath();
+      ctx.ellipse(
+        s.x - (8 - i * 6) * z,
+        s.y - rise,
+        (4 + puff * 4 + i * 2) * z,
+        (3 + puff * 3 + i) * z,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
   }
   if (anim.spark > 0.55 && (anim.constructing || anim.producing)) {
     ctx.globalAlpha = anim.spark;
@@ -752,4 +824,115 @@ function drawDiamondStroke(
   ctx.lineTo(x - w / 2, y + h / 2);
   ctx.closePath();
   ctx.stroke();
+}
+
+function drawBuildingShadow(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  e: Entity,
+  z: number,
+): void {
+  const fp = footprintOf(e.kind as BuildingKind);
+  ctx.save();
+  ctx.translate(5 * z, 4 * z);
+  ctx.globalAlpha = 0.32;
+  ctx.fillStyle = "#000";
+  footprintPath(ctx, state, cam, e.x, e.y, fp.w, fp.h);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSelectBox(
+  ctx: CanvasRenderingContext2D,
+  box?: { x0: number; y0: number; x1: number; y1: number } | null,
+): void {
+  if (!box) return;
+  if (Math.hypot(box.x1 - box.x0, box.y1 - box.y0) <= 8) return;
+  const x = Math.min(box.x0, box.x1);
+  const y = Math.min(box.y0, box.y1);
+  const w = Math.abs(box.x1 - box.x0);
+  const h = Math.abs(box.y1 - box.y0);
+  ctx.save();
+  ctx.fillStyle = "rgba(212, 191, 106, 0.12)";
+  ctx.strokeStyle = "rgba(245, 230, 168, 0.95)";
+  ctx.lineWidth = 1;
+  ctx.fillRect(x + 0.5, y + 0.5, w, h);
+  ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+  ctx.restore();
+}
+
+function drawFxLayer(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  fx: FxBurst[] | undefined,
+  nowMs: number,
+  layer: "ground" | "burst",
+): void {
+  if (!fx?.length) return;
+  const z = cam.zoom;
+  for (const burst of fx) {
+    if (layer === "ground" && burst.kind !== "rubble") continue;
+    if (layer === "burst" && burst.kind === "rubble") continue;
+    const p = fxProgress(burst, nowMs);
+    let cx = burst.x;
+    let cy = burst.y;
+    if (burst.entityClass === "building" && isBuildingKind(burst.entityKind)) {
+      const fp = footprintOf(burst.entityKind);
+      cx = burst.x + (fp.w - 1) / 2;
+      cy = burst.y + (fp.h - 1) / 2;
+    }
+    const s = tileToScreen(cx, cy, cam, burst.elev);
+    if (burst.kind === "rubble") {
+      const pal = state.factions[burst.owner]?.palette ?? state.factions[0]!.palette;
+      const spec = isBuildingKind(burst.entityKind)
+        ? rubbleSprite(burst.entityKind, pal)
+        : isUnitKind(burst.entityKind)
+          ? wreckSprite(burst.entityKind, pal)
+          : rubbleSprite("turret", pal);
+      const img = rasterize(spec);
+      const ax = (spec.anchorX ?? spec.w / 2) * z;
+      const ay = (spec.anchorY ?? spec.h) * z;
+      ctx.globalAlpha = p > 0.7 ? 1 - (p - 0.7) / 0.3 : 1;
+      ctx.drawImage(img, Math.round(s.x - ax), Math.round(s.y + (TILE_H / 2) * z - ay), spec.w * z, spec.h * z);
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    if (burst.kind === "explosion") {
+      const pal = state.factions[burst.owner]?.palette ?? state.factions[0]!.palette;
+      if (burst.entityClass === "unit" && isUnitKind(burst.entityKind) && p < 0.65) {
+        const wreck = wreckSprite(burst.entityKind, pal);
+        const img = rasterize(wreck);
+        const ax = (wreck.anchorX ?? wreck.w / 2) * z;
+        const ay = (wreck.anchorY ?? wreck.h) * z;
+        ctx.globalAlpha = 1 - p;
+        ctx.drawImage(img, Math.round(s.x - ax), Math.round(s.y + (TILE_H / 2) * z - ay), wreck.w * z, wreck.h * z);
+        ctx.globalAlpha = 1;
+      }
+      const radius = (6 + p * 22) * z;
+      ctx.save();
+      ctx.globalAlpha = 0.9 * (1 - p);
+      ctx.fillStyle = "#a54b25";
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y + 6 * z, radius, radius * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ffe08a";
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y + 4 * z, radius * 0.45, radius * 0.28, 0, 0, Math.PI * 2);
+      ctx.fill();
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * Math.PI * 2 + burst.id;
+        const rad = radius * (0.7 + (i % 2) * 0.25);
+        ctx.fillStyle = i % 2 ? "#ff9a3a" : "#3a322c";
+        ctx.fillRect(
+          Math.round(s.x + Math.cos(ang) * rad - 2),
+          Math.round(s.y + Math.sin(ang) * rad * 0.5 - 2),
+          Math.max(2, 3 * z),
+          Math.max(2, 3 * z),
+        );
+      }
+      ctx.restore();
+    }
+  }
 }

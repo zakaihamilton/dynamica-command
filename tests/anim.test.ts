@@ -11,6 +11,7 @@ import {
   unitPose,
   waterShimmer,
 } from "../lib/render/anim";
+import { UNIT_STATS } from "../lib/catalog";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 
 describe("animation helpers", () => {
@@ -43,6 +44,11 @@ describe("animation helpers", () => {
     infantry.path = [];
     infantry.attackTarget = 9;
     expect(unitPose(infantry)).toBe("attack");
+    infantry.cooldown = UNIT_STATS.infantry.cooldown;
+    expect(unitAnim(infantry, 12).frame).toBe(2);
+    expect(unitAnim(infantry, 12).recoil).toBeGreaterThan(0);
+    infantry.cooldown = 0;
+    expect(unitAnim(infantry, 12).frame).toBe(0);
 
     const harvester = addUnit(s, 0, "harvester", 4, 4);
     harvester.gatherX = 5;

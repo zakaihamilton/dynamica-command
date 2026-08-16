@@ -12,7 +12,8 @@ import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, ty
 import { cameraViewQuad, createCamera, screenToTile, tileToScreen, TILE_H } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { pickEntity } from "@/lib/render/pick";
-import { renderWorld, pickTile } from "@/lib/render/renderer";
+import { renderWorld, pickTile, type RenderExtras } from "@/lib/render/renderer";
+import { burstsFromDestroyed, cullFx, type FxBurst } from "@/lib/render/fx";
 import { rasterize } from "@/lib/render/sprites";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission, tick } from "@/lib/sim/api";
@@ -272,10 +273,12 @@ export function GameClient({
   const cmdQ = useRef<Command[]>([]);
   const minimapDragging = useRef(false);
   const panHold = useRef<PanDir | null>(null);
-  const extrasRef = useRef<{ cursor: { x: number; y: number } | null; placeKind: BuildingKind | null; clockMs?: number }>({
+  const extrasRef = useRef<RenderExtras>({
     cursor: null,
     placeKind: null,
   });
+  const fxRef = useRef<FxBurst[]>([]);
+  const fxSeq = useRef(1);
   const panAvailRef = useRef<PanAvailability>({ left: false, right: false, up: false, down: false });
   const [panAvail, setPanAvail] = useState<PanAvailability>(panAvailRef.current);
 
@@ -326,7 +329,11 @@ export function GameClient({
     if (!ctx) return;
     extrasRef.current.cursor = cursor.current;
     extrasRef.current.placeKind = place.current;
-    extrasRef.current.clockMs = performance.now();
+    const now = performance.now();
+    extrasRef.current.clockMs = now;
+    extrasRef.current.selectBox = box.current;
+    fxRef.current = cullFx(fxRef.current, now);
+    extrasRef.current.fx = fxRef.current;
     renderWorld(ctx, s, camRef.current, selected.current, hover.current, extrasRef.current);
     const mini = miniRef.current;
     if (mini) {
@@ -391,6 +398,11 @@ export function GameClient({
         if (out.state.tick % 6 === 0) setState({ ...out.state, entities: [...out.state.entities] });
         if (out.events.some((e) => e.type === "won")) beep("win");
         if (out.events.some((e) => e.type === "lost")) beep("lose");
+        if (out.events.some((e) => e.type === "destroyed")) {
+          const spawned = burstsFromDestroyed(out.events, out.state, now, fxSeq.current);
+          fxSeq.current = spawned.nextId;
+          fxRef.current.push(...spawned.bursts);
+        }
         acc -= TICK_MS;
       }
       if (stateRef.current && stateRef.current.result !== "playing") {

@@ -96,6 +96,22 @@ function terrainPalette(biome: BiomeName, elev: number): Palette {
   };
 }
 
+export function cliffFaces(biome: BiomeName, elev: number): {
+  south: string;
+  east: string;
+  southInk: string;
+  eastInk: string;
+} {
+  const [base, dark, , outline] = TERRAIN[biome];
+  const high = elev >= 3;
+  return {
+    south: high ? dark : outline,
+    east: high ? base : dark,
+    southInk: outline,
+    eastInk: high ? dark : outline,
+  };
+}
+
 function defaultContour(kind: "clear" | "water" | "resource" | "blocked", elev: number): TileContour {
   if (kind === "water") return "bank";
   if (kind === "blocked" && elev >= 2) return "ridge";
@@ -180,6 +196,12 @@ function paintFloor(
   if (kind !== "water" && contour !== "bank") {
     shapes.push(poly([8, 14, 32, 2, 32, 6, 12, 16], p.light));
     shapes.push(poly([32, 26, 56, 16, 52, 14, 32, 22], p.dark));
+    shapes.push(poly([28, 20, 58, 18, 32, 30, 10, 24], "rgba(12,14,10,0.28)"));
+    for (let i = 0; i < 4; i++) {
+      const ox = ((v >> (i * 4)) % 21) - 10;
+      const oy = ((v >> (i * 3 + 1)) % 7) - 3;
+      shapes.push(ell(cx + ox, cy + oy, 2 + (i % 2), 1 + (i % 2), i % 2 ? p.light : p.dark));
+    }
   }
   if (kind === "water" || contour === "bank") {
     shapes.push(poly(diamondPts(cx, cy + 1, 58, 26), shoreSand(biome)));
@@ -210,6 +232,11 @@ function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: 
   if (contour === "ridge" || (v % 5) === 0) {
     shapes.push(ell(cx + ((v % 9) - 4), cy + 2, 6, 3, p.dark));
     shapes.push(ell(cx + ((v % 9) - 3), cy + 1, 3, 2, p.light));
+  }
+  for (let i = 0; i < 3; i++) {
+    const ox = ((v >> (i * 5 + 2)) % 19) - 9;
+    const oy = ((v >> (i * 4 + 3)) % 6) - 2;
+    shapes.push(ell(cx + ox, cy + oy + 1, 3, 2, i % 2 ? p.secondary : p.dark));
   }
 }
 
@@ -252,11 +279,13 @@ function paintWater(shapes: ShapeSpec[], biome: BiomeName, v: number, mask: numb
   const hi = waterHi(biome);
   shapes.push(poly(diamondPts(cx, cy, 50, 20), deep));
   shapes.push(poly(diamondPts(cx + 1, cy - 1, 36, 12), mid));
+  shapes.push(poly(diamondPts(cx - 1, cy + 2, 24, 8), mid));
   const flow = (v % 5) - 2;
   shapes.push(line(16 + flow, 13, 30 + flow, 18, hi, 1));
   shapes.push(line(28 - flow, 12, 46 - flow, 19, hi, 1));
   shapes.push(line(20, 17, 34, 22, deep, 1));
   if ((v & 2) === 0) shapes.push(ell(cx - 6 + (v % 4), cy, 10, 3, hi));
+  shapes.push(ell(cx + 4 - (v % 5), cy + 2, 7, 2, hi));
   if (mask) paintBanks(shapes, biome, mask, v);
   else {
     shapes.push(line(12, 16, 22, 12, foam(biome), 1));
@@ -639,6 +668,9 @@ function pushHarvester(
   pushIsoBox(shapes, hx, hy, 7, 5, 9, STEEL_LIGHT, STEEL, STEEL_DARK);
   shapes.push(rec(hx - 3, hy - 2, 7, 4, "#83a6a0", INK));
   shapes.push(rec(hx - 2, hy - 1, 4, 2, teamLight));
+  shapes.push(rec(cx - 6, cy - 3, 2, 2, STEEL_DARK));
+  shapes.push(rec(cx + 4, cy - 2, 2, 2, STEEL_DARK));
+  shapes.push(rec(cx - 2, cy + 2, 3, 2, team));
   const scoop = 7 + ([0, 2, 4, 2][frame] ?? 0);
   const sx = cx + dir.x * 16;
   const sy = cy + dir.y * 16 + 2;
@@ -681,8 +713,12 @@ function pushTank(
   const by = ty + 3;
   shapes.push(line(bx, by, bx + dir.x * 22, by + dir.y * 22, STEEL_DARK, 5));
   shapes.push(line(bx, by - 1, bx + dir.x * 21, by - 1 + dir.y * 21, STEEL_LIGHT, 2));
+  shapes.push(ell(bx + dir.x * 10 - 2, by + dir.y * 10 - 1, 4, 3, STEEL, INK));
+  shapes.push(ell(bx + dir.x * 16 - 2, by + dir.y * 16 - 1, 4, 3, STEEL_DARK, INK));
   shapes.push(ell(bx + dir.x * 21 - 2, by + dir.y * 21 - 2, 5, 4, STEEL, INK));
   shapes.push(rec(tx + 4, ty - 1, 3, 2, teamLight));
+  shapes.push(ell(tx - 3, ty - 5, 6, 4, STEEL_DARK, INK));
+  shapes.push(rec(cx - 5, cy + 1, 8, 2, team));
 }
 
 function pushInfantry(
@@ -728,6 +764,8 @@ function pushInfantry(
   shapes.push(rec(cx - bw / 2 + 1 + leanX, y + 2, 4, 10, team));
   shapes.push(line(cx - 4 + leanX, y + 4, cx + 4 + leanX, y + 4, STEEL_DARK, 1));
   shapes.push(line(cx - 4 + leanX, y + 8, cx + 4 + leanX, y + 8, STEEL_DARK, 1));
+  shapes.push(line(cx - 3 + leanX, y + 3, cx + 2 + leanX, y + 11, "#2a322c", 1));
+  shapes.push(rec(cx + bw / 2 - 6 + leanX, y + 6, 4, 4, STEEL_DARK, INK));
   shapes.push(rec(cx + bw / 2 - 5 + leanX, y + 1, 5, 7, STEEL_DARK, INK));
   if (heavy) shapes.push(rec(cx - bw / 2 - 2 + leanX, y + 3, 5, 9, RUST, INK));
   shapes.push(ell(cx - 6 + leanX, y - 11, 12, 12, skin, INK));
@@ -773,6 +811,12 @@ function isoStructure(fw: number, fh: number, rise: number, team: string): {
   const left = "#6a7268";
   const right = "#3a403c";
   const foundation = [
+    poly([
+      wg[0]! - 3, wg[1]! + 2,
+      sg[0]!, sg[1]! + 5,
+      eg[0]! + 3, eg[1]! + 2,
+      ng[0]!, ng[1]! + 2,
+    ], "#4a4e48", INK, 1),
     poly([ng[0]!, ng[1]!, eg[0]!, eg[1]!, sg[0]!, sg[1]!, wg[0]!, wg[1]!], "#2a2e2a", INK, 1),
   ];
   const walls = [
@@ -788,8 +832,10 @@ function isoStructure(fw: number, fh: number, rise: number, team: string): {
   const roofShapes = [
     poly([n[0]!, n[1]!, e[0]!, e[1]!, s[0]!, s[1]!, west[0]!, west[1]!], CONCRETE, INK, 1),
     poly(insetDiamond(n, e, s, west, 0.72), CONCRETE_LIGHT, INK, 1),
+    poly(insetDiamond(n, e, s, west, 0.42), "#5a5e56", INK, 1),
     line(west[0]! + 6, west[1]! + 3, n[0]! - 4, n[1]! + 4, "rgba(220,224,202,0.28)", 1),
     line(n[0]! + 4, n[1]! + 3, e[0]! - 6, e[1]! + 3, "rgba(22,25,21,0.45)", 1),
+    line(n[0]!, n[1]! + 2, s[0]!, s[1]! - 2, "rgba(22,25,21,0.28)", 1),
     poly([
       west[0]!, west[1]!,
       s[0]!, s[1]!,
@@ -850,7 +896,12 @@ export function buildingSprite(kind: BuildingKind, palette: Palette, options: Bu
   if (construction >= 2) {
     pushBuildingDetails(shapes, kind, mx, my, rise, team, palette.light, facing, lit, construction >= 3);
   }
-  if (construction < 3) pushScaffold(shapes, w, h, construction);
+  if (construction < 3) {
+    pushScaffold(shapes, w, h, construction);
+    shapes.push(line(mx - 10, my - 4, mx - 10, my + rise * 0.55, RUST, 3));
+    shapes.push(line(mx - 10, my - 4, mx + 18, my + 2, RUST, 3));
+    shapes.push(ell(mx + 16, my, 6, 4, STEEL_DARK, INK));
+  }
   if (construction === 0) {
     shapes.push(line(mx - 16, my + rise * 0.2, mx - 16, my + rise, STEEL_DARK, 2));
     shapes.push(line(mx + 12, my + rise * 0.15, mx + 12, my + rise, STEEL_DARK, 2));
@@ -926,6 +977,8 @@ function pushBuildingDetails(
     pushTower(shapes, mx - 10, my - 14, 16, 34, STEEL_DARK, INK, STEEL, complete ? RUST_LIGHT : undefined);
     shapes.push(line(mx - 18, my - 8, mx + 18, my - 12, STEEL_LIGHT, 3));
     shapes.push(line(mx - 12, my - 2, mx + 20, my + 2, STEEL, 2));
+    shapes.push(line(mx - 20, my + 2, mx + 8, my + 6, STEEL_DARK, 2));
+    shapes.push(ell(mx + 6, my + 4, 5, 3, RUST, INK));
     pushIsoBox(shapes, mx + 18, my + 6, 16, 9, 8, "#444943", STEEL_DARK, "#2c302c");
     shapes.push(rec(mx + 10, my + 6, 18, 10, INK));
     shapes.push(rec(mx + 12, my + 8, 14, 7, complete && lit ? "#1e2a22" : "#151814"));
@@ -996,3 +1049,88 @@ function pushBuildingDetails(
     for (let i = 0; i < 3; i++) shapes.push(rec(mx + 10, my + i * 5, 6, 3, STEEL));
   }
 }
+
+export function wreckSprite(kind: UnitKind, palette: Palette): SpriteSpec {
+  const infantry = kind === "infantry" || kind === "antiArmor";
+  const w = infantry ? 50 : 56;
+  const h = infantry ? 36 : 38;
+  const cx = w / 2;
+  const cy = h - 16;
+  const shapes: ShapeSpec[] = [
+    ell(cx - 16, h - 12, 32, 8, "rgba(12,10,8,0.55)"),
+    ell(cx - 12, h - 10, 22, 6, "rgba(34,24,16,0.72)"),
+  ];
+  if (infantry) {
+    shapes.push(rec(cx - 8, cy, 16, 8, STEEL_DARK, INK));
+    shapes.push(poly([cx - 10, cy + 6, cx - 2, cy - 2, cx + 8, cy + 4, cx + 4, cy + 8], "#3a322c", INK, 1));
+    shapes.push(ell(cx - 4, cy - 4, 8, 6, "#6a4a32", INK));
+    shapes.push(line(cx + 4, cy, cx + 14, cy + 4, STEEL, 2));
+  } else {
+    shapes.push(poly(isoQuad(cx, cy + 4, 28, 14, 1), "#2a2e2a", INK, 1));
+    shapes.push(poly(isoQuad(cx + 2, cy + 2, 20, 10, 7), STEEL_DARK, INK, 1));
+    shapes.push(poly([cx - 8, cy, cx + 4, cy - 6, cx + 12, cy + 2, cx + 2, cy + 6], "#3a322c", INK, 1));
+    shapes.push(ell(cx - 6, cy - 2, 10, 5, RUST, INK));
+    if (kind === "harvester") {
+      shapes.push(poly([cx + 8, cy, cx + 18, cy + 6, cx + 10, cy + 8], "#474b46", INK, 1));
+    } else {
+      shapes.push(line(cx, cy, cx + 12, cy + 4, STEEL_DARK, 3));
+    }
+  }
+  shapes.push(fade(ell(cx - 2, cy - 8, 12, 10, "#3a3a36"), 0.4));
+  return {
+    id: `wreck:${kind}:${palette.primary}`,
+    kind: "unit",
+    w,
+    h,
+    palette,
+    shapes,
+    anchorX: w / 2,
+    anchorY: h - 6,
+    pixelScale: ART_PIXEL_SCALE,
+  };
+}
+
+export function rubbleSprite(kind: BuildingKind, palette: Palette): SpriteSpec {
+  const fp = BUILDING_STATS[kind].footprint;
+  const gw = (fp.w + fp.h) * (TW / 2);
+  const gh = (fp.w + fp.h) * (TH / 2);
+  const w = gw + 8;
+  const h = Math.max(28, gh + 16);
+  const mx = w / 2;
+  const my = h - gh / 2 - 6;
+  const shapes: ShapeSpec[] = [
+    ell(mx - gw * 0.28, h - 14, gw * 0.55, 10, "rgba(12,10,8,0.5)"),
+    poly([
+      mx - gw * 0.32, my + 6,
+      mx, my - 4,
+      mx + gw * 0.28, my + 8,
+      mx + 8, my + 14,
+      mx - 10, my + 12,
+    ], "#3a322c", INK, 1),
+    poly([mx - 14, my + 4, mx - 2, my - 8, mx + 10, my + 2], STEEL_DARK, INK, 1),
+    poly([mx + 4, my + 2, mx + 18, my - 2, mx + 22, my + 8, mx + 8, my + 10], "#2c2824", INK, 1),
+    ell(mx - 8, my + 2, 14, 6, "rgba(34,24,19,0.7)"),
+    rec(mx + 6, my + 4, 8, 4, STEEL_DARK, INK),
+    rec(mx - 18, my + 8, 6, 3, RUST, INK),
+  ];
+  if (kind === "turret") {
+    shapes.push(ell(mx - 10, my, 20, 10, STEEL_DARK, INK));
+    shapes.push(line(mx, my + 2, mx + 14, my + 6, STEEL, 3));
+  } else if (kind === "power") {
+    shapes.push(ell(mx - 12, my - 6, 10, 16, STEEL_DARK, INK));
+    shapes.push(ell(mx + 4, my - 4, 8, 12, "#2a2e2a", INK));
+  }
+  shapes.push(fade(ell(mx + 2, my - 10, 16, 12, "#3a3c38"), 0.35));
+  return {
+    id: `rubble:${kind}:${palette.primary}`,
+    kind: "building",
+    w,
+    h,
+    palette,
+    shapes,
+    anchorX: w / 2,
+    anchorY: h - 2 - gh / 2,
+    pixelScale: ART_PIXEL_SCALE,
+  };
+}
+

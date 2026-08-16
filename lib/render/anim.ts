@@ -62,12 +62,13 @@ export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
     return { pose, frame, bobY: frame % 2 === 0 ? 0 : 1, swayX: 0, recoil: 0 };
   }
   if (pose === "attack") {
+    const recoil = attackRecoil(e);
     return {
       pose,
-      frame: 0,
+      frame: recoil > 0 ? 2 : 0,
       bobY: 0,
       swayX: 0,
-      recoil: attackRecoil(e),
+      recoil,
     };
   }
   if (pose === "work") {

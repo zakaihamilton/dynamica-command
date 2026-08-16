@@ -44,12 +44,12 @@ button:disabled { cursor: not-allowed; }
 .command-sidebar {
   position: relative;
   z-index: 20;
-  border-left: 3px solid #0e110d;
+  border-left: 3px solid color-mix(in srgb, var(--p, #4a5044) 40%, #0e110d);
   background:
     repeating-linear-gradient(90deg, rgba(255,255,255,0.028) 0 1px, transparent 1px 10px),
     linear-gradient(90deg, #4a5044 0, #383e36 7px, #2a3028 12px, #1f241d 100%);
   box-shadow:
-    inset 3px 0 #6d7464,
+    inset 3px 0 color-mix(in srgb, var(--p, #6d7464) 45%, #6d7464),
     inset 4px 0 #161a14,
     -10px 0 26px rgba(0,0,0,0.62);
   scrollbar-color: #6f765f #171b17;
@@ -62,8 +62,8 @@ button:disabled { cursor: not-allowed; }
   bottom: 0;
   left: 0;
   width: 8px;
-  background: linear-gradient(90deg, #61685a, #2c312a);
-  box-shadow: inset 1px 0 #8a917f, inset -1px 0 #10140e;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--p, #61685a) 55%, #61685a), #2c312a);
+  box-shadow: inset 1px 0 color-mix(in srgb, var(--a, #8a917f) 40%, #8a917f), inset -1px 0 #10140e;
 }
 
 .console-header,
@@ -116,7 +116,7 @@ button.console-header { cursor: pointer; text-align: center; }
   overflow: hidden;
   border: 2px solid #11150f;
   background: #060806;
-  box-shadow: inset 2px 2px #080a08, inset -2px -2px #525849, 2px 2px 0 #11140f;
+  box-shadow: inset 2px 2px #080a08, inset -2px -2px color-mix(in srgb, var(--p, #525849) 45%, #525849), 2px 2px 0 #11140f;
 }
 
 .radar-frame::after {
@@ -212,7 +212,7 @@ button.console-header { cursor: pointer; text-align: center; }
   letter-spacing: 0.1em;
   line-height: 1;
   text-shadow:
-    0 0 10px rgba(232, 190, 70, 0.55),
+    0 0 10px color-mix(in srgb, var(--a, #e8be46) 55%, transparent),
     0 1px 0 #3a2a08;
 }
 
@@ -259,7 +259,7 @@ button.console-header { cursor: pointer; text-align: center; }
 .icon-tab[aria-selected="true"] {
   color: #f0e6b8;
   background: linear-gradient(#6a7158, #3a4032);
-  box-shadow: inset 1px 1px #9aa07e, inset -1px -1px #1a1e16, 0 0 0 1px #c9b65f;
+  box-shadow: inset 1px 1px #9aa07e, inset -1px -1px #1a1e16, 0 0 0 1px var(--a, #c9b65f);
 }
 
 .cameo-grid {
@@ -286,11 +286,11 @@ button.console-header { cursor: pointer; text-align: center; }
 
 .command-card:hover:not(:disabled),
 .command-card-active {
-  border-color: #b6a55e;
+  border-color: var(--a, #b6a55e);
   background: linear-gradient(#454b3c, #252b22);
 }
 
-.command-card-active { box-shadow: inset 0 0 0 1px #d4bf6a, inset 1px 1px #656c59; }
+.command-card-active { box-shadow: inset 0 0 0 1px var(--a, #d4bf6a), inset 1px 1px #656c59; }
 .command-card:disabled { filter: grayscale(0.8) brightness(0.55); opacity: 0.72; }
 .command-card:disabled.cameo-busy {
   filter: none;

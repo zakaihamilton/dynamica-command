@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
-import { buildingSprite, tileSprite, unitSprite } from "../lib/gen/assets";
+import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
 import { BIOMES } from "../lib/gen/names";
 
@@ -113,6 +113,25 @@ describe("retro procedural assets", () => {
       expect(framed.shapes.length).toBeLessThan(roofed.shapes.length);
       expect(roofed.shapes).not.toEqual(finished.shapes);
     }
+  });
+
+  it("paints wreckage and rubble as distinct deterministic sprites", () => {
+    for (const kind of UNIT_KINDS) {
+      const a = wreckSprite(kind, palette);
+      const b = wreckSprite(kind, palette);
+      expect(a).toEqual(b);
+      validateSpec(a);
+    }
+    for (const kind of BUILDING_KINDS) {
+      const a = rubbleSprite(kind, palette);
+      const b = rubbleSprite(kind, palette);
+      expect(a).toEqual(b);
+      validateSpec(a);
+    }
+    const wreckIds = new Set(UNIT_KINDS.map((kind) => wreckSprite(kind, palette).id));
+    const rubbleIds = new Set(BUILDING_KINDS.map((kind) => rubbleSprite(kind, palette).id));
+    expect(wreckIds.size).toBe(UNIT_KINDS.length);
+    expect(rubbleIds.size).toBe(BUILDING_KINDS.length);
   });
 });
 

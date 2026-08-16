@@ -1,46 +1,27 @@
-import type { BuildingKind, Entity, Owner, SimState, UnitKind } from "../types";
+import type { Entity, SimState } from "../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 
-const BUILDING_SHADES: Record<Owner, Record<BuildingKind, string>> = {
-  0: {
-    constructionYard: "#b9f3ff",
-    power: "#63d8c3",
-    refinery: "#80b7ff",
-    barracks: "#b39aff",
-    factory: "#64e68a",
-    turret: "#ffe07a",
-    objective: "#ffe066",
-  },
-  1: {
-    constructionYard: "#ffb0a7",
-    power: "#ff806f",
-    refinery: "#ff9b73",
-    barracks: "#e889b8",
-    factory: "#ffbd68",
-    turret: "#ff6f61",
-    objective: "#ffe066",
-  },
-};
+function shade(hex: string, amount: number): string {
+  const raw = hex.replace("#", "");
+  if (raw.length < 6) return hex;
+  const n = parseInt(raw.slice(0, 6), 16);
+  const r = Math.max(0, Math.min(255, ((n >> 16) & 255) + amount));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amount));
+  const b = Math.max(0, Math.min(255, (n & 255) + amount));
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
 
-const UNIT_SHADES: Record<Owner, Record<UnitKind, string>> = {
-  0: {
-    harvester: "#b8f5bd",
-    infantry: "#7ec8ff",
-    antiArmor: "#59aaff",
-    tank: "#c8b5ff",
-  },
-  1: {
-    harvester: "#ffb8a5",
-    infantry: "#ff7770",
-    antiArmor: "#ff9c64",
-    tank: "#f18bc4",
-  },
-};
-
-function entityColor(e: Entity): string {
+function entityColor(e: Entity, state: SimState): string {
   if (e.marked) return "#ffe066";
-  if (e.class === "building") return BUILDING_SHADES[e.owner][e.kind as BuildingKind];
-  return UNIT_SHADES[e.owner][e.kind as UnitKind];
+  const pal = state.factions[e.owner]?.palette;
+  if (!pal) return "#888";
+  if (e.class === "building") {
+    if (e.kind === "turret") return pal.accent;
+    if (e.kind === "constructionYard" || e.kind === "objective") return pal.light;
+    return pal.primary;
+  }
+  if (e.kind === "harvester") return pal.accent;
+  return shade(pal.light, e.kind === "tank" ? -12 : 8);
 }
 
 let lastMinimapKey = "";
@@ -59,7 +40,8 @@ export function renderMinimap(
   const viewKey = view.length
     ? `${view[0]!.x.toFixed(2)},${view[0]!.y.toFixed(2)}:${view[2] ? `${view[2].x.toFixed(2)},${view[2].y.toFixed(2)}` : ""}`
     : "";
-  const key = `${state.seed}:${state.tick}:${state.result}:${w}x${h}:${viewKey}:${state.entities.length}`;
+  const palKey = `${state.factions[0]?.palette.primary ?? ""}:${state.factions[1]?.palette.primary ?? ""}`;
+  const key = `${state.seed}:${state.tick}:${state.result}:${w}x${h}:${viewKey}:${state.entities.length}:${palKey}`;
   if (key === lastMinimapKey) return;
   lastMinimapKey = key;
   ctx.fillStyle = "#0b0d10";
@@ -93,9 +75,9 @@ export function renderMinimap(
     if (e.hp <= 0) continue;
     const fog = state.fog[Math.round(e.y) * state.width + Math.round(e.x)] ?? 0;
     if (e.owner === 1 && fog !== 2) continue;
-    ctx.fillStyle = entityColor(e);
-    const bw = e.class === "building" ? 5 : 3;
-    const bh = e.class === "building" ? 5 : 3;
+    ctx.fillStyle = entityColor(e, state);
+    const bw = e.class === "building" ? 6 : 3;
+    const bh = e.class === "building" ? 6 : 3;
     ctx.fillRect(e.x * sx - 1, e.y * sy - 1, bw, bh);
   }
   if (view.length >= 2) {
