@@ -1,0 +1,266 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { buildingSprite, tileSprite, unitSprite } from "@/lib/gen/assets";
+import { generateFactions } from "@/lib/gen/factions";
+import { generateMap } from "@/lib/gen/map";
+import { TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
+import { rasterize } from "@/lib/render/sprites";
+import { TILE_RESOURCE, TILE_WATER } from "@/lib/types";
+import type { BuildingKind, UnitKind } from "@/lib/types";
+
+const CINEMA_SEED = 1847;
+
+type Actor = {
+  x: number;
+  y: number;
+  kind: UnitKind;
+  owner: 0 | 1;
+  waypoints: { x: number; y: number }[];
+  wi: number;
+  speed: number;
+};
+
+type Shot = { ax: number; ay: number; bx: number; by: number; life: number };
+
+export function MenuBackdrop() {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const map = generateMap(CINEMA_SEED, {
+      index: 0,
+      win: { kind: "razeAll" },
+      mapSize: 28,
+    });
+    const [us, them] = generateFactions(CINEMA_SEED);
+
+    const buildings: { x: number; y: number; kind: BuildingKind; owner: 0 | 1 }[] = [
+      { x: map.playerStart.x, y: map.playerStart.y, kind: "constructionYard", owner: 0 },
+      { x: map.playerStart.x + 2, y: map.playerStart.y, kind: "power", owner: 0 },
+      { x: map.playerStart.x, y: map.playerStart.y + 2, kind: "refinery", owner: 0 },
+      { x: map.playerStart.x + 2, y: map.playerStart.y + 2, kind: "factory", owner: 0 },
+      { x: map.playerStart.x + 3, y: map.playerStart.y + 1, kind: "turret", owner: 0 },
+      { x: map.enemyStart.x, y: map.enemyStart.y, kind: "constructionYard", owner: 1 },
+      { x: map.enemyStart.x - 2, y: map.enemyStart.y, kind: "power", owner: 1 },
+      { x: map.enemyStart.x, y: map.enemyStart.y - 2, kind: "barracks", owner: 1 },
+      { x: map.enemyStart.x - 2, y: map.enemyStart.y - 2, kind: "factory", owner: 1 },
+      { x: map.enemyStart.x - 3, y: map.enemyStart.y - 1, kind: "turret", owner: 1 },
+    ];
+
+    const p = map.playerStart;
+    const e = map.enemyStart;
+    const actors: Actor[] = [
+      {
+        x: p.x + 1,
+        y: p.y + 3,
+        kind: "harvester",
+        owner: 0,
+        waypoints: [
+          { x: p.x + 4, y: p.y + 5 },
+          { x: p.x + 1, y: p.y + 2 },
+        ],
+        wi: 0,
+        speed: 0.018,
+      },
+      {
+        x: p.x + 4,
+        y: p.y,
+        kind: "tank",
+        owner: 0,
+        waypoints: [
+          { x: (p.x + e.x) / 2, y: (p.y + e.y) / 2 - 2 },
+          { x: p.x + 5, y: p.y + 1 },
+        ],
+        wi: 0,
+        speed: 0.014,
+      },
+      {
+        x: p.x + 5,
+        y: p.y + 2,
+        kind: "infantry",
+        owner: 0,
+        waypoints: [
+          { x: p.x + 8, y: p.y + 4 },
+          { x: p.x + 5, y: p.y + 2 },
+        ],
+        wi: 0,
+        speed: 0.022,
+      },
+      {
+        x: e.x - 4,
+        y: e.y,
+        kind: "tank",
+        owner: 1,
+        waypoints: [
+          { x: (p.x + e.x) / 2 + 1, y: (p.y + e.y) / 2 },
+          { x: e.x - 3, y: e.y - 1 },
+        ],
+        wi: 0,
+        speed: 0.013,
+      },
+      {
+        x: e.x - 1,
+        y: e.y - 3,
+        kind: "antiArmor",
+        owner: 1,
+        waypoints: [
+          { x: e.x - 6, y: e.y - 4 },
+          { x: e.x - 1, y: e.y - 3 },
+        ],
+        wi: 0,
+        speed: 0.02,
+      },
+      {
+        x: e.x - 2,
+        y: e.y + 1,
+        kind: "harvester",
+        owner: 1,
+        waypoints: [
+          { x: e.x - 5, y: e.y - 5 },
+          { x: e.x, y: e.y - 2 },
+        ],
+        wi: 0,
+        speed: 0.016,
+      },
+    ];
+
+    const shots: Shot[] = [];
+    let raf = 0;
+    let t = 0;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const tileKind = (tile: number): "clear" | "water" | "resource" => {
+      if (tile === TILE_WATER) return "water";
+      if (tile === TILE_RESOURCE) return "resource";
+      return "clear";
+    };
+
+    const drawDiamond = (x: number, y: number, w: number, h: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + w / 2, y + h / 2);
+      ctx.lineTo(x, y + h);
+      ctx.lineTo(x - w / 2, y + h / 2);
+      ctx.closePath();
+    };
+
+    const frame = () => {
+      t += 1;
+      const w = canvas.width;
+      const h = canvas.height;
+      const cam: Camera = {
+        zoom: 0.92,
+        x: w * 0.52 + Math.sin(t * 0.004) * 140,
+        y: h * 0.08 + Math.cos(t * 0.0032) * 70,
+      };
+
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, "#0a1018");
+      sky.addColorStop(0.45, "#12180f");
+      sky.addColorStop(1, "#1a140c");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h);
+
+      const margin = TILE_W * cam.zoom;
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          const s = tileToScreen(x, y, cam);
+          if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
+          const kind = tileKind(map.tiles[y * map.width + x]!);
+          const img = rasterize(tileSprite(kind));
+          if (kind === "resource") {
+            ctx.globalAlpha = 0.85 + Math.sin(t * 0.08 + x + y) * 0.15;
+          }
+          ctx.drawImage(img, s.x - (TILE_W / 2) * cam.zoom, s.y, TILE_W * cam.zoom, TILE_H * cam.zoom);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      for (const a of actors) {
+        const dest = a.waypoints[a.wi]!;
+        const dx = dest.x - a.x;
+        const dy = dest.y - a.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 0.05) a.wi = (a.wi + 1) % a.waypoints.length;
+        else {
+          a.x += (dx / d) * a.speed;
+          a.y += (dy / d) * a.speed;
+        }
+      }
+
+      if (t % 48 === 0) {
+        const attacker = actors[1 + (t % 2)]!;
+        const target = attacker.owner === 0 ? actors[3]! : actors[1]!;
+        shots.push({ ax: attacker.x, ay: attacker.y, bx: target.x, by: target.y, life: 18 });
+      }
+      for (let i = shots.length - 1; i >= 0; i--) {
+        shots[i]!.life -= 1;
+        if (shots[i]!.life <= 0) shots.splice(i, 1);
+      }
+
+      const sprites = [
+        ...buildings.map((b) => ({ ...b, class: "building" as const, sort: b.x + b.y })),
+        ...actors.map((a) => ({ ...a, class: "unit" as const, sort: a.x + a.y })),
+      ].sort((a, b) => a.sort - b.sort);
+
+      for (const item of sprites) {
+        const pal = item.owner === 0 ? us.palette : them.palette;
+        const spec =
+          item.class === "unit"
+            ? unitSprite(item.kind as UnitKind, pal)
+            : buildingSprite(item.kind as BuildingKind, pal);
+        const img = rasterize(spec);
+        const s = tileToScreen(item.x, item.y, cam);
+        const dw = spec.w * cam.zoom * 0.78;
+        const dh = spec.h * cam.zoom * 0.78;
+        ctx.drawImage(img, s.x - dw / 2, s.y - dh + 8 * cam.zoom, dw, dh);
+      }
+
+      for (const shot of shots) {
+        const a = tileToScreen(shot.ax, shot.ay, cam);
+        const b = tileToScreen(shot.bx, shot.by, cam);
+        ctx.strokeStyle = `rgba(255, 210, 90, ${shot.life / 22})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y - 12);
+        ctx.lineTo(b.x, b.y - 12);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "rgba(243, 230, 196, 0.04)";
+      for (let i = 0; i < 18; i++) {
+        const px = ((t * 0.4 + i * 90) % (w + 80)) - 40;
+        const py = 40 + i * (h / 18);
+        drawDiamond(px, py, 18, 9);
+        ctx.fill();
+      }
+
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={ref}
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      aria-hidden
+    />
+  );
+}

@@ -1,0 +1,86 @@
+import { formatSeed } from "../seed/rng";
+import type { SimState } from "../types";
+
+export type StorageAdapter = {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+  keys: () => string[];
+};
+
+export const SAVE_PREFIX = "genesis-protocol:save:";
+
+export function saveKey(seed: number): string {
+  return `${SAVE_PREFIX}${formatSeed(seed)}`;
+}
+
+export type SaveMeta = {
+  seed: string;
+  missionIndex: number;
+  tick: number;
+  result: SimState["result"];
+  missionName: string;
+};
+
+export function serializeState(state: SimState): string {
+  return JSON.stringify(state);
+}
+
+export function deserializeState(raw: string): SimState {
+  return JSON.parse(raw) as SimState;
+}
+
+export function writeSave(storage: StorageAdapter, state: SimState): void {
+  storage.setItem(saveKey(state.seed), serializeState(state));
+}
+
+export function readSave(storage: StorageAdapter, seed: number): SimState | null {
+  const raw = storage.getItem(saveKey(seed));
+  if (!raw) return null;
+  return deserializeState(raw);
+}
+
+export function listSaves(storage: StorageAdapter): SaveMeta[] {
+  const out: SaveMeta[] = [];
+  for (const key of storage.keys()) {
+    if (!key.startsWith(SAVE_PREFIX)) continue;
+    const raw = storage.getItem(key);
+    if (!raw) continue;
+    try {
+      const s = deserializeState(raw);
+      out.push({
+        seed: formatSeed(s.seed),
+        missionIndex: s.missionIndex,
+        tick: s.tick,
+        result: s.result,
+        missionName: s.missionName,
+      });
+    } catch {
+      /* skip */
+    }
+  }
+  return out.sort((a, b) => a.seed.localeCompare(b.seed));
+}
+
+export function memoryStorage(initial: Record<string, string> = {}): StorageAdapter {
+  const map = new Map(Object.entries(initial));
+  return {
+    getItem: (k) => map.get(k) ?? null,
+    setItem: (k, v) => {
+      map.set(k, v);
+    },
+    removeItem: (k) => {
+      map.delete(k);
+    },
+    keys: () => [...map.keys()],
+  };
+}
+
+export function localStorageAdapter(): StorageAdapter {
+  return {
+    getItem: (k) => window.localStorage.getItem(k),
+    setItem: (k, v) => window.localStorage.setItem(k, v),
+    removeItem: (k) => window.localStorage.removeItem(k),
+    keys: () => Object.keys(window.localStorage),
+  };
+}
