@@ -168,6 +168,7 @@ export type SpriteSpec = {
   h: number;
   palette: Palette;
   shapes: ShapeSpec[];
+  svg?: string;
   anchorX?: number;
   anchorY?: number;
   pixelScale?: number;

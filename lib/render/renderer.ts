@@ -2,7 +2,7 @@ import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor } f
 import { cliffFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, unitSprite, wreckSprite } from "../gen/assets";
 import { MAP_SKIRT, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import type { BuildingKind, Entity, Facing, SimState, TileContour, UnitKind } from "../types";
-import { SURFACE_NONE, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
+import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import {
   animClock,
   buildingAnim,
@@ -368,6 +368,7 @@ export function renderWorld(
   if (cursor) {
     const ent = entityAtPointer(state, cursor.x, cursor.y, cam);
     if (ent) drawTooltip(ctx, cursor.x, cursor.y, tooltipLines(state, ent), w, h);
+    else if (hoverTile) drawTooltip(ctx, cursor.x, cursor.y, tileTooltipLines(state, hoverTile.x, hoverTile.y), w, h);
   }
 }
 
@@ -604,6 +605,25 @@ function footprintPath(
   ctx.lineTo(s.x, s.y + th);
   ctx.lineTo(ww.x - tw / 2, ww.y + th / 2);
   ctx.closePath();
+}
+
+function tileTooltipLines(state: SimState, x: number, y: number): string[] {
+  if (x < 0 || y < 0 || x >= state.width || y >= state.height) return ["Map edge"];
+  const fog = state.fog[y * state.width + x] ?? 0;
+  if (fog === 0) return ["Unexplored"];
+  const scenery = memoScenery(state, x, y);
+  const surface = state.surfaces[y * state.width + x] ?? SURFACE_NONE;
+  let terrain = "Open ground";
+  if (scenery.kind === TILE_WATER) terrain = "Water";
+  else if (scenery.kind === TILE_RESOURCE) terrain = "Ore field";
+  else if (isMountainScenery(scenery)) terrain = "Ridge";
+  else if (scenery.kind === TILE_BLOCKED) terrain = "Impassable";
+  if (surface === SURFACE_ROAD) terrain = "Dirt road";
+  else if (surface === SURFACE_CONCRETE) terrain = "Concrete pad";
+  const lines = [terrain, state.biome, `Elevation ${scenery.elev}`];
+  if (scenery.kind === TILE_RESOURCE) lines.push(`Ore ${state.resourceAmount[y * state.width + x] ?? 0}`);
+  if (fog === 1) lines.push("Shrouded");
+  return lines;
 }
 
 function tooltipLines(state: SimState, e: Entity): string[] {

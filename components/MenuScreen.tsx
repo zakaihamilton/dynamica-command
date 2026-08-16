@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MenuBackdrop } from "@/components/MenuBackdrop";
+import { AssetsBrowser } from "@/components/AssetsBrowser";
 import { createCampaign } from "@/lib/gen/campaign";
+import { generateFactions } from "@/lib/gen/factions";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { listSaves, localStorageAdapter } from "@/lib/persist/save";
 
@@ -12,7 +14,9 @@ export function MenuScreen() {
   const [code, setCode] = useState("");
   const [saves, setSaves] = useState(() => [] as ReturnType<typeof listSaves>);
   const [error, setError] = useState("");
+  const [showAssets, setShowAssets] = useState(false);
   const seedInput = useRef<HTMLInputElement>(null);
+  const menuPalette = useMemo(() => generateFactions(1847)[0].palette, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setSaves(listSaves(localStorageAdapter())));
@@ -71,9 +75,19 @@ export function MenuScreen() {
           <button
             type="button"
             onClick={newGame}
-            className="console-button w-full text-left"
+            className="console-button has-tooltip w-full text-left"
+            data-tooltip="Begin a random campaign"
           >
             NEW GAME
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowAssets(true)}
+            className="console-button has-tooltip mt-3 w-full text-left"
+            data-tooltip="Inspect generated sprites and animations"
+          >
+            Assets
           </button>
 
           <div className="mt-5">
@@ -110,7 +124,8 @@ export function MenuScreen() {
               <button
                 type="button"
                 onClick={enterSeed}
-                className="console-button h-16 shrink-0 px-4"
+                className="console-button has-tooltip h-16 shrink-0 px-4"
+                data-tooltip="Deploy this seed"
               >
                 Deploy
               </button>
@@ -134,7 +149,8 @@ export function MenuScreen() {
                     <li key={s.seed}>
                       <button
                         type="button"
-                        className="console-button console-button-muted w-full px-3 py-2 text-left text-xs"
+                        className="console-button console-button-muted has-tooltip w-full px-3 py-2 text-left text-xs"
+                        data-tooltip={`Resume seed ${s.seed}`}
                         onClick={() => router.push(`/play?seed=${s.seed}&resume=1`)}
                       >
                         Seed {s.seed} · Mission {s.missionIndex + 1} · tick {s.tick}
@@ -147,6 +163,12 @@ export function MenuScreen() {
           </div>
         </div>
       </div>
+
+      {showAssets ? (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 p-4">
+          <AssetsBrowser palette={menuPalette} onClose={() => setShowAssets(false)} />
+        </div>
+      ) : null}
     </div>
   );
 }

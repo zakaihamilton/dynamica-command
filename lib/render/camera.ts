@@ -118,4 +118,26 @@ export function panCamera(cam: Camera, dx: number, dy: number, bounds?: CameraBo
   if (bounds) clampCamera(cam, bounds);
 }
 
+export const EDGE_PAN_BAND = 36;
+
+export function panDirFromPointer(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  band = EDGE_PAN_BAND,
+  avail?: PanAvailability,
+): PanDir | null {
+  if (x < 0 || y < 0 || x > width || y > height) return null;
+  const candidates: { dir: PanDir; dist: number }[] = [];
+  if (x <= band) candidates.push({ dir: "left", dist: x });
+  if (width - x <= band) candidates.push({ dir: "right", dist: width - x });
+  if (y <= band) candidates.push({ dir: "up", dist: y });
+  if (height - y <= band) candidates.push({ dir: "down", dist: height - y });
+  const allowed = avail ? candidates.filter((c) => avail[c.dir]) : candidates;
+  if (!allowed.length) return null;
+  allowed.sort((a, b) => a.dist - b.dist);
+  return allowed[0].dir;
+}
+
 export { cameraViewQuad, screenToGroundTile };

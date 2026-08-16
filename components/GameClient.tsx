@@ -8,7 +8,7 @@ import { TICK_MS } from "@/lib/game/loop";
 import { createCampaign } from "@/lib/gen/campaign";
 import { buildingSprite, unitSprite } from "@/lib/gen/assets";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
-import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, type PanAvailability, type PanDir } from "@/lib/render/camera";
+import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { cameraViewQuad, createCamera, screenToTile, tileToScreen, TILE_H } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { pickEntity } from "@/lib/render/pick";
@@ -20,6 +20,7 @@ import { createMission, tick } from "@/lib/sim/api";
 import { objectiveProgress } from "@/lib/sim/objectives";
 import { powerFor, buildingAt, heightAt } from "@/lib/sim/world";
 import type { BuildingKind, Command, SimState, UnitKind } from "@/lib/types";
+import { AssetsBrowser } from "@/components/AssetsBrowser";
 
 const PLACEABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
 const MIN_RENDER_WIDTH = 640;
@@ -108,38 +109,48 @@ function ProgressMeter({
   );
 }
 
+function ScrollArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false" className="scroll-arrow-icon">
+      <path
+        d="M5 16 L12 7 L19 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const SCROLL_ROTATION: Record<PanDir, number> = { up: 0, right: 90, down: 180, left: 270 };
+
 function ScrollArrow({
   dir,
   available,
-  onHold,
+  hot,
 }: {
   dir: PanDir;
   available: boolean;
-  onHold: (dir: PanDir | null) => void;
+  hot: boolean;
 }) {
   const label = dir === "up" ? "north" : dir === "down" ? "south" : dir;
+  const tooltipPos = dir === "up" ? "below" : dir === "left" ? "right" : dir === "right" ? "left" : "above";
+  const showTip = hot && available;
   return (
-    <button
-      type="button"
-      className={`scroll-arrow scroll-arrow-${dir} ${available ? "" : "scroll-arrow-off"}`}
+    <div
+      className={`scroll-arrow scroll-arrow-${dir} ${available ? "" : "scroll-arrow-off"} ${showTip ? "scroll-arrow-hot" : ""}`}
       data-testid={`scroll-arrow-${dir}`}
-      aria-label={`Scroll map ${label}`}
-      aria-hidden={!available}
-      tabIndex={available ? 0 : -1}
-      disabled={!available}
-      onPointerDown={(e) => {
-        if (!available) return;
-        e.preventDefault();
-        e.currentTarget.setPointerCapture(e.pointerId);
-        onHold(dir);
-      }}
-      onPointerUp={() => onHold(null)}
-      onPointerCancel={() => onHold(null)}
+      data-tooltip={`Scroll ${label}`}
+      data-tooltip-pos={tooltipPos}
+      {...(showTip ? { "data-tooltip-open": "" } : {})}
+      aria-hidden
     >
-      <span aria-hidden>
-        {dir === "left" ? "‹" : dir === "right" ? "›" : dir === "up" ? "▲" : "▼"}
+      <span className="scroll-arrow-glyph" style={{ transform: `rotate(${SCROLL_ROTATION[dir]}deg)` }}>
+        <ScrollArrowIcon />
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -210,7 +221,9 @@ function CommandCameo({
 }) {
   const busy = cameo.phase !== "idle";
   const showCount = cameo.queued > 1 || cameo.phase === "waiting";
+  const tooltip = `${labelFor(kind)} · ${cost} credits${busy ? (cameo.phase === "waiting" ? ` · ${cameo.queued} queued` : ` · ${Math.round(cameo.ratio * 100)}%`) : ""}`;
   return (
+    <span className="command-cameo-wrap has-tooltip" data-tooltip={tooltip}>
     <button
       type="button"
       disabled={disabled}
@@ -236,6 +249,7 @@ function CommandCameo({
         <b>{cost}</b>
       </span>
     </button>
+    </span>
   );
 }
 
@@ -267,7 +281,7 @@ export function GameClient({
   const [activeTab, setActiveTab] = useState<"construction" | "production">("construction");
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
-  const [pauseView, setPauseView] = useState<"main" | "options">("main");
+  const [pauseView, setPauseView] = useState<"main" | "options" | "assets">("main");
   const [pauseNotice, setPauseNotice] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const cmdQ = useRef<Command[]>([]);
@@ -281,9 +295,11 @@ export function GameClient({
   const fxSeq = useRef(1);
   const panAvailRef = useRef<PanAvailability>({ left: false, right: false, up: false, down: false });
   const [panAvail, setPanAvail] = useState<PanAvailability>(panAvailRef.current);
+  const [hotPan, setHotPan] = useState<PanDir | null>(null);
 
-  const holdPan = useCallback((dir: PanDir | null) => {
+  const applyEdgePan = useCallback((dir: PanDir | null) => {
     panHold.current = dir;
+    setHotPan((prev) => (prev === dir ? prev : dir));
   }, []);
 
   useEffect(() => {
@@ -372,7 +388,7 @@ export function GameClient({
       if (keys.current.d || keys.current.ArrowRight) panCamera(cam, -10, 0, bounds);
       const hold = panHold.current;
       if (hold && bounds) {
-        if (!panAvailability(cam, bounds)[hold]) panHold.current = null;
+        if (!panAvailability(cam, bounds)[hold]) applyEdgePan(null);
         else {
           const off = panOffset(hold);
           panCamera(cam, off.dx, off.dy, bounds);
@@ -414,7 +430,7 @@ export function GameClient({
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [redraw]);
+  }, [redraw, applyEdgePan]);
 
   const commitSelection = useCallback((ids: number[]) => {
     selected.current = new Set(ids);
@@ -524,11 +540,18 @@ export function GameClient({
       box.current.x1 = p.x;
       box.current.y1 = p.y;
     }
+    const r = e.currentTarget.getBoundingClientRect();
+    applyEdgePan(
+      pausedRef.current
+        ? null
+        : panDirFromPointer(e.clientX - r.left, e.clientY - r.top, r.width, r.height, EDGE_PAN_BAND, panAvailRef.current),
+    );
   };
 
   const onLeave = () => {
     cursor.current = null;
     hover.current = null;
+    applyEdgePan(null);
   };
 
   function minimapPos(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -667,10 +690,10 @@ export function GameClient({
           onMouseLeave={onLeave}
           onMouseUp={onUp}
         />
-        <ScrollArrow dir="left" available={panAvail.left} onHold={holdPan} />
-        <ScrollArrow dir="right" available={panAvail.right} onHold={holdPan} />
-        <ScrollArrow dir="up" available={panAvail.up} onHold={holdPan} />
-        <ScrollArrow dir="down" available={panAvail.down} onHold={holdPan} />
+        <ScrollArrow dir="left" available={panAvail.left} hot={hotPan === "left"} />
+        <ScrollArrow dir="right" available={panAvail.right} hot={hotPan === "right"} />
+        <ScrollArrow dir="up" available={panAvail.up} hot={hotPan === "up"} />
+        <ScrollArrow dir="down" available={panAvail.down} hot={hotPan === "down"} />
         <div className="battlefield-status pointer-events-none absolute inset-x-0 top-0 flex justify-between p-3 text-xs uppercase">
           <div>
             <div className="tracking-[0.3em] text-[#d3ba67]" data-testid="seed">Seed {formatSeed(s.seed)}</div>
@@ -689,15 +712,15 @@ export function GameClient({
               </h2>
               <div className="mt-6 flex flex-wrap justify-center gap-3">
                 {s.result === "won" && s.missionIndex < 7 ? (
-                  <button type="button" className="console-button" onClick={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex + 1}`)}>Next briefing</button>
+                  <button type="button" className="console-button has-tooltip" data-tooltip="Advance to the next briefing" onClick={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex + 1}`)}>Next briefing</button>
                 ) : null}
                 {s.result === "won" && s.missionIndex >= 7 ? (
-                  <button type="button" className="console-button" onClick={() => router.push("/")}>Campaign victory</button>
+                  <button type="button" className="console-button has-tooltip" data-tooltip="Return to the main menu" onClick={() => router.push("/")}>Campaign victory</button>
                 ) : null}
                 {s.result === "lost" ? (
-                  <button type="button" className="console-button" onClick={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex}`)}>Retry</button>
+                  <button type="button" className="console-button has-tooltip" data-tooltip="Retry this mission" onClick={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex}`)}>Retry</button>
                 ) : null}
-                <button type="button" className="console-button console-button-muted" onClick={() => router.push("/")}>Menu</button>
+                <button type="button" className="console-button console-button-muted has-tooltip" data-tooltip="Return to the main menu" onClick={() => router.push("/")}>Menu</button>
               </div>
             </div>
           </div>
@@ -708,7 +731,8 @@ export function GameClient({
         <span className="sidebar-rail" aria-hidden />
         <button
           type="button"
-          className="console-header w-full px-2 py-3 text-center text-inherit"
+          className="console-header has-tooltip w-full px-2 py-3 text-center text-inherit"
+          data-tooltip="Open pause menu"
           onClick={openPauseMenu}
           aria-label="Open Genesis Command pause menu"
         >
@@ -716,7 +740,8 @@ export function GameClient({
           <p className="mt-1 text-[10px] tracking-[0.2em] text-[#89907a]">{campaign.factions[0].name}</p>
         </button>
 
-        <div className="radar-frame mt-2 p-1">
+        <div className="has-tooltip mt-2" data-tooltip="Tactical radar. Click or drag to pan.">
+        <div className="radar-frame p-1">
           <canvas
             ref={miniRef}
             width={224}
@@ -730,10 +755,13 @@ export function GameClient({
           />
           <span className="radar-sweep" aria-hidden />
         </div>
+        </div>
 
         <div className="resource-dock mt-2">
-          <CreditsCounter value={s.credits[0]} />
-          <div className="power-chip">
+          <div className="has-tooltip" data-tooltip="Available credits">
+            <CreditsCounter value={s.credits[0]} />
+          </div>
+          <div className={`power-chip has-tooltip ${power < 0 ? "text-[#d7684f]" : ""}`} data-tooltip={power < 0 ? "Power deficit" : "Base power surplus"}>
             <span>Power</span>
             <strong className={power < 0 ? "text-[#d7684f]" : "text-[#a8bd68]"}>{power}</strong>
           </div>
@@ -747,7 +775,7 @@ export function GameClient({
               aria-selected={activeTab === "construction"}
               aria-label="Construction"
               data-tooltip="Construction"
-              className={`icon-tab console-button ${activeTab === "construction" ? "" : "console-button-muted"}`}
+              className={`icon-tab console-button has-tooltip ${activeTab === "construction" ? "" : "console-button-muted"}`}
               onClick={() => setActiveTab("construction")}
             >
               <CommandTabIcon type="construction" />
@@ -758,7 +786,7 @@ export function GameClient({
               aria-selected={activeTab === "production"}
               aria-label="Production"
               data-tooltip="Production"
-              className={`icon-tab console-button ${activeTab === "production" ? "" : "console-button-muted"}`}
+              className={`icon-tab console-button has-tooltip ${activeTab === "production" ? "" : "console-button-muted"}`}
               onClick={() => setActiveTab("production")}
             >
               <CommandTabIcon type="production" />
@@ -822,7 +850,7 @@ export function GameClient({
                   <SpritePreview kind={selectedEnt.kind as BuildingKind | UnitKind} palette={pal} />
                 </div>
                 <div>
-                  <strong className="block uppercase text-[#d9d2b3]" data-testid="selected-kind">
+                  <strong className="block uppercase text-[#d9d2b3] has-tooltip" data-testid="selected-kind" data-tooltip={labelFor(selectedEnt.kind as BuildingKind | UnitKind)}>
                     {labelFor(selectedEnt.kind as BuildingKind | UnitKind)}
                   </strong>
                   <span className="text-[#89907a]">HP {Math.ceil(selectedEnt.hp)} / {selectedEnt.maxHp}</span>
@@ -859,18 +887,22 @@ export function GameClient({
 
       {paused ? (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 p-4" data-testid="pause-menu">
+          {pauseView === "assets" ? (
+            <AssetsBrowser palette={pal} onClose={() => setPauseView("main")} />
+          ) : (
           <div className="metal-panel w-full max-w-sm p-6" role="dialog" aria-modal="true" aria-labelledby="pause-title">
             {pauseView === "main" ? (
               <>
                 <p className="console-label">Genesis Command</p>
                 <h2 id="pause-title" className="mt-2 text-2xl font-black uppercase tracking-[0.12em] text-[#e3d6a5]">Game paused</h2>
                 <div className="mt-6 grid gap-2">
-                  <button type="button" className="console-button w-full text-left" onClick={resumeMission}>Resume Mission</button>
-                  <button type="button" className="console-button w-full text-left" onClick={saveMission}>Save Mission</button>
-                  <button type="button" className="console-button w-full text-left" onClick={loadMission}>Load Mission</button>
-                  <button type="button" className="console-button w-full text-left" onClick={viewMissionBriefing}>Mission Briefing</button>
-                  <button type="button" className="console-button w-full text-left" onClick={() => { setPauseView("options"); setPauseNotice(""); }}>Options</button>
-                  <button type="button" className="console-button console-button-muted w-full text-left" onClick={() => router.push("/")}>Escape to Menu</button>
+                  <button type="button" className="console-button has-tooltip w-full text-left" data-tooltip="Return to the battlefield" onClick={resumeMission}>Resume Mission</button>
+                  <button type="button" className="console-button has-tooltip w-full text-left" data-tooltip="Write the current mission to disk" onClick={saveMission}>Save Mission</button>
+                  <button type="button" className="console-button has-tooltip w-full text-left" data-tooltip="Restore the last save for this seed" onClick={loadMission}>Load Mission</button>
+                  <button type="button" className="console-button has-tooltip w-full text-left" data-tooltip="Open the mission briefing" onClick={viewMissionBriefing}>Mission Briefing</button>
+                  <button type="button" className="console-button has-tooltip w-full text-left" data-tooltip="Inspect generated sprites and animations" onClick={() => { setPauseView("assets"); setPauseNotice(""); }}>Assets</button>
+                  <button type="button" className="console-button has-tooltip w-full text-left" data-tooltip="Audio and game options" onClick={() => { setPauseView("options"); setPauseNotice(""); }}>Options</button>
+                  <button type="button" className="console-button console-button-muted has-tooltip w-full text-left" data-tooltip="Leave the theater" onClick={() => router.push("/")}>Escape to Menu</button>
                 </div>
               </>
             ) : (
@@ -878,14 +910,15 @@ export function GameClient({
                 <p className="console-label">Options</p>
                 <h2 id="pause-title" className="mt-2 text-2xl font-black uppercase tracking-[0.12em] text-[#e3d6a5]">Game options</h2>
                 <div className="mt-6 grid gap-2">
-                  <button type="button" className="console-button w-full text-left" onClick={toggleSound}>Audio feedback: {soundEnabled ? "On" : "Off"}</button>
-                  <button type="button" className="console-button console-button-muted w-full text-left" onClick={() => setPauseView("main")}>Back</button>
+                  <button type="button" className="console-button has-tooltip w-full text-left" data-tooltip="Toggle synthesized audio cues" onClick={toggleSound}>Audio feedback: {soundEnabled ? "On" : "Off"}</button>
+                  <button type="button" className="console-button console-button-muted has-tooltip w-full text-left" data-tooltip="Return to the pause menu" onClick={() => setPauseView("main")}>Back</button>
                 </div>
               </>
             )}
             {pauseNotice ? <p className="mt-4 text-xs uppercase tracking-wide text-[#c9b65f]" role="status">{pauseNotice}</p> : null}
             <p className="mt-4 text-[10px] uppercase tracking-wide text-[#656b60]">Escape resumes the mission</p>
           </div>
+          )}
         </div>
       ) : null}
     </div>

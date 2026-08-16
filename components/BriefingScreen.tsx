@@ -160,7 +160,8 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                className="console-button"
+                className="console-button has-tooltip"
+                data-tooltip={returnToGame ? "Return to the battlefield" : "Launch this mission"}
                 onClick={() => router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`)}
               >
                 {returnToGame ? "Return to mission" : "Launch"}

@@ -1,0 +1,62 @@
+import { describe, expect, it } from "vitest";
+import { EDGE_PAN_BAND, panDirFromPointer } from "../lib/render/camera";
+import { parseTooltipPos, placeTooltip } from "../lib/ui/tooltip";
+
+describe("edge pan from pointer", () => {
+  it("returns null away from the rim so map clicks stay selectable", () => {
+    expect(panDirFromPointer(200, 200, 800, 600)).toBeNull();
+    expect(panDirFromPointer(EDGE_PAN_BAND + 1, 200, 800, 600)).toBeNull();
+  });
+
+  it("picks the nearest edge inside the hover band", () => {
+    expect(panDirFromPointer(4, 200, 800, 600)).toBe("left");
+    expect(panDirFromPointer(796, 200, 800, 600)).toBe("right");
+    expect(panDirFromPointer(400, 3, 800, 600)).toBe("up");
+    expect(panDirFromPointer(400, 597, 800, 600)).toBe("down");
+  });
+
+  it("prefers the closer edge in a corner", () => {
+    expect(panDirFromPointer(2, 10, 800, 600)).toBe("left");
+    expect(panDirFromPointer(10, 2, 800, 600)).toBe("up");
+  });
+
+  it("skips unavailable directions", () => {
+    expect(panDirFromPointer(4, 200, 800, 600, EDGE_PAN_BAND, {
+      left: false,
+      right: true,
+      up: true,
+      down: true,
+    })).toBeNull();
+  });
+});
+
+describe("floating tooltips", () => {
+  it("parses placement attributes", () => {
+    expect(parseTooltipPos("below")).toBe("below");
+    expect(parseTooltipPos("left")).toBe("left");
+    expect(parseTooltipPos(null)).toBe("above");
+  });
+
+  it("stays inside the viewport when the anchor is scrolled near a clip edge", () => {
+    const placed = placeTooltip(
+      { top: 8, left: 20, width: 80, height: 40 },
+      { width: 140, height: 28 },
+      "above",
+      { width: 400, height: 300 },
+    );
+    expect(placed.top).toBeGreaterThanOrEqual(8);
+    expect(placed.left).toBeGreaterThanOrEqual(8);
+    expect(placed.top + 28).toBeLessThanOrEqual(300 - 8);
+    expect(placed.left + 140).toBeLessThanOrEqual(400 - 8);
+  });
+
+  it("flips a left tooltip to the right when it would overflow", () => {
+    const placed = placeTooltip(
+      { top: 80, left: 10, width: 40, height: 20 },
+      { width: 120, height: 24 },
+      "left",
+      { width: 400, height: 300 },
+    );
+    expect(placed.left).toBeGreaterThan(50);
+  });
+});

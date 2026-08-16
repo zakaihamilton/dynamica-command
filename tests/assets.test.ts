@@ -89,9 +89,9 @@ describe("retro procedural assets", () => {
   });
 
   it("gives each unit and building kind a distinct silhouette", () => {
-    const unitFingerprints = UNIT_KINDS.map((kind) => JSON.stringify(unitSprite(kind, palette, { facing: 0, variant: 11 }).shapes));
+    const unitFingerprints = UNIT_KINDS.map((kind) => unitSprite(kind, palette, { facing: 0, variant: 11 }).svg);
     expect(new Set(unitFingerprints).size).toBe(UNIT_KINDS.length);
-    const buildingFingerprints = BUILDING_KINDS.map((kind) => JSON.stringify(buildingSprite(kind, palette, { variant: 13 }).shapes));
+    const buildingFingerprints = BUILDING_KINDS.map((kind) => buildingSprite(kind, palette, { variant: 13 }).svg);
     expect(new Set(buildingFingerprints).size).toBe(BUILDING_KINDS.length);
   });
 
@@ -99,7 +99,7 @@ describe("retro procedural assets", () => {
     for (const kind of UNIT_KINDS) {
       const a = unitSprite(kind, palette, { facing: 2, animationFrame: 0, variant: 11 });
       const b = unitSprite(kind, palette, { facing: 2, animationFrame: 1, variant: 11 });
-      expect(a.shapes).not.toEqual(b.shapes);
+      expect(a.svg).not.toEqual(b.svg);
     }
   });
 
@@ -109,9 +109,9 @@ describe("retro procedural assets", () => {
       const framed = buildingSprite(kind, palette, { constructionStage: 1, variant: 13 });
       const roofed = buildingSprite(kind, palette, { constructionStage: 2, variant: 13 });
       const finished = buildingSprite(kind, palette, { constructionStage: 3, variant: 13 });
-      expect(foundation.shapes.length).toBeLessThan(framed.shapes.length);
-      expect(framed.shapes.length).toBeLessThan(roofed.shapes.length);
-      expect(roofed.shapes).not.toEqual(finished.shapes);
+      expect(svgMarks(foundation.svg)).toBeLessThan(svgMarks(framed.svg));
+      expect(svgMarks(framed.svg)).toBeLessThan(svgMarks(roofed.svg));
+      expect(roofed.svg).not.toEqual(finished.svg);
     }
   });
 
@@ -133,7 +133,24 @@ describe("retro procedural assets", () => {
     expect(wreckIds.size).toBe(UNIT_KINDS.length);
     expect(rubbleIds.size).toBe(BUILDING_KINDS.length);
   });
+
+  it("draws organic terrain and SVG military silhouettes", () => {
+    const grass = tileSprite("clear", 1, { biome: "ash plains", variant: 4, contour: "none" });
+    expect(grass.shapes.filter((shape) => shape.type === "ellipse").length).toBeGreaterThan(8);
+    const infantry = unitSprite("infantry", palette, { facing: 0, variant: 11 });
+    expect(infantry.svg).toContain("<path");
+    expect(infantry.svg).toContain("<ellipse");
+    const barracks = buildingSprite("barracks", palette, { variant: 13 });
+    expect(barracks.svg).toContain("<path");
+    expect(barracks.svg).toContain("linearGradient");
+    const tank = unitSprite("tank", palette, { facing: 3, animationFrame: 2, variant: 4 });
+    expect(tank.svg).toContain("linearGradient");
+  });
 });
+
+function svgMarks(svg: string | undefined): number {
+  return (svg?.match(/<(path|ellipse|line|polygon)\b/g) ?? []).length;
+}
 
 function validateSpec(spec: ReturnType<typeof tileSprite>): void {
   expect(spec.w).toBeGreaterThan(0);
@@ -141,6 +158,10 @@ function validateSpec(spec: ReturnType<typeof tileSprite>): void {
   expect(spec.pixelScale).toBe(1);
   expect(spec.anchorX ?? spec.w / 2).toBeGreaterThanOrEqual(0);
   expect(spec.anchorY ?? spec.h).toBeGreaterThanOrEqual(0);
+  if (spec.kind === "unit" || spec.kind === "building") {
+    expect(spec.svg).toMatch(/<svg /);
+    expect(svgMarks(spec.svg)).toBeGreaterThan(2);
+  }
   for (const shape of spec.shapes) {
     for (const value of [shape.x, shape.y, shape.w, shape.h, ...(shape.points ?? [])]) {
       expect(Number.isFinite(value)).toBe(true);

@@ -1,4 +1,5 @@
 import type { ShapeSpec, SpriteSpec } from "../types";
+import { paintSvg } from "./svgPaint";
 
 export function paintShapes(ctx: CanvasRenderingContext2D, shapes: ShapeSpec[]): void {
   for (const s of shapes) {
@@ -48,14 +49,24 @@ export function rasterize(spec: SpriteSpec): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = spec.w;
   c.height = spec.h;
+  if (spec.svg) {
+    const ctx = c.getContext("2d")!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    paintSvg(ctx, spec.svg);
+    cache.set(spec.id, c);
+    return c;
+  }
   const pixelScale = Math.max(1, spec.pixelScale ?? 1);
   const source = document.createElement("canvas");
   source.width = Math.max(1, Math.ceil(spec.w / pixelScale));
   source.height = Math.max(1, Math.ceil(spec.h / pixelScale));
   const sourceCtx = source.getContext("2d")!;
   sourceCtx.imageSmoothingEnabled = false;
-  sourceCtx.lineJoin = "miter";
-  sourceCtx.lineCap = "square";
+  sourceCtx.lineJoin = "round";
+  sourceCtx.lineCap = "round";
   sourceCtx.scale(1 / pixelScale, 1 / pixelScale);
   paintShapes(sourceCtx, spec.shapes);
   const ctx = c.getContext("2d")!;
