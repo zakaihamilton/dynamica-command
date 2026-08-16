@@ -121,7 +121,6 @@ export function AssetsBrowser({
           ? unitSprite(selected.kind as UnitKind, palette, { facing, animationFrame: frame, variant: 11 })
           : selected.category === "building"
             ? buildingSprite(selected.kind as BuildingKind, palette, {
-                facing,
                 constructionStage: construction,
                 damageStage: damage,
                 variant: 13,
@@ -162,7 +161,7 @@ export function AssetsBrowser({
   }, [construction, damage, facing, palette, playing, selected, variant]);
 
   if (!selected) return null;
-  const showFacing = selected.category === "unit" || selected.category === "building";
+  const showFacing = selected.category === "unit";
   const showAnim = selected.category === "unit" || selected.category === "building";
 
   return (

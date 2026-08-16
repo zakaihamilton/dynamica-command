@@ -272,7 +272,6 @@ export function renderWorld(
         })
       : buildingSprite(e.kind as BuildingKind, pal, {
           variant: entityVariant(state, e),
-          facing,
           damageStage,
           constructionStage: constructionStage(e),
         });

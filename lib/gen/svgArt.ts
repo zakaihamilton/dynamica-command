@@ -292,269 +292,405 @@ function paintInfantry(
   if (dir.y >= -0.05) gun();
 }
 
-function isoBox(fw: number, fh: number, rise: number): {
-  w: number;
-  h: number;
-  gh: number;
-  n: [number, number];
-  e: [number, number];
-  s: [number, number];
-  west: [number, number];
-  ng: [number, number];
-  eg: [number, number];
-  sg: [number, number];
-  wg: [number, number];
-  mx: number;
-  my: number;
-} {
+type Iso = { ox: number; oy: number; w: number; h: number; fw: number; fh: number };
+
+function makeIso(fw: number, fh: number, sky: number): Iso {
+  const pad = 10;
   const gw = (fw + fh) * (TW / 2);
   const gh = (fw + fh) * (TH / 2);
-  const pad = 4;
-  const extra = 10;
-  const w = gw + pad * 2;
-  const h = rise + gh + pad * 2 + extra;
-  const n: [number, number] = [w / 2, pad + extra];
-  const e: [number, number] = [w - pad, pad + extra + gh / 2];
-  const s: [number, number] = [w / 2, pad + extra + gh];
-  const west: [number, number] = [pad, pad + extra + gh / 2];
-  const ng: [number, number] = [n[0], n[1] + rise];
-  const eg: [number, number] = [e[0], e[1] + rise];
-  const sg: [number, number] = [s[0], s[1] + rise];
-  const wg: [number, number] = [west[0], west[1] + rise];
-  return {
-    w,
-    h,
-    gh,
-    n,
-    e,
-    s,
-    west,
-    ng,
-    eg,
-    sg,
-    wg,
-    mx: (n[0] + s[0]) / 2,
-    my: (n[1] + s[1]) / 2,
-  };
+  return { ox: pad + fh * (TW / 2), oy: pad + sky, w: gw + pad * 2, h: sky + gh + pad * 2, fw, fh };
 }
 
-function buildingRise(kind: BuildingKind, fpw: number): number {
+function pt(iso: Iso, lx: number, ly: number, z: number): [number, number] {
+  return [iso.ox + (lx - ly) * (TW / 2), iso.oy + (lx + ly) * (TH / 2) - z];
+}
+
+function buildingSky(kind: BuildingKind): number {
   switch (kind) {
-    case "turret": return 16;
-    case "barracks": return 24;
-    case "power": return 26;
-    case "refinery": return 28;
-    case "factory": return 30;
-    case "constructionYard": return 32;
-    case "objective": return 34;
-    default: return 28 + fpw * 6;
+    case "turret": return 28;
+    case "barracks": return 38;
+    case "power": return 52;
+    case "refinery": return 54;
+    case "factory": return 46;
+    case "constructionYard": return 48;
+    case "objective": return 50;
+    default: return 40;
   }
 }
 
 export function buildingSprite(kind: BuildingKind, palette: Palette, options: BuildingSpriteOptions = {}): SpriteSpec {
   const fp = BUILDING_STATS[kind].footprint;
-  const rise = buildingRise(kind, fp.w);
-  const box = isoBox(fp.w, fp.h, rise);
-  const { w, h, gh, n, e, s, west, ng, eg, sg, wg, mx, my } = box;
+  const iso = makeIso(fp.w, fp.h, buildingSky(kind));
   const construction = options.constructionStage ?? 3;
   const dmg = options.damageStage ?? 0;
   const variant = options.variant ?? 0;
-  const facing = options.facing ?? 0;
   const lit = construction >= 3 && dmg < 2;
+  const complete = construction >= 3;
   const svg = new Svg();
-  const slab = svg.grad(wg[0], wg[1], eg[0], eg[1], [[0, "#5a6058"], [1, "#2a2e2a"]]);
-  svg.ellipse((wg[0] + eg[0]) / 2, sg[1] + 2, (eg[0] - wg[0]) * 0.42, 6, "rgba(8,10,8,0.4)");
-  svg.path(d([
-    [wg[0] - 3, wg[1] + 2],
-    [sg[0], sg[1] + 5],
-    [eg[0] + 3, eg[1] + 2],
-    [ng[0], ng[1] + 2],
-  ]), slab, INK, 1);
-  svg.path(d([ng, eg, sg, wg]), "#242824", INK, 1);
+  const ground = pt(iso, fp.w / 2, fp.h / 2, 0);
 
-  if (construction >= 1) {
-    const left = svg.grad(west[0], west[1], s[0], s[1] + rise, [[0, "#8a9286"], [1, "#4a5248"]]);
-    const right = svg.grad(e[0], e[1], s[0], s[1] + rise, [[0, "#5a6058"], [1, "#2c322e"]]);
-    svg.path(d([west, s, sg, wg]), left, INK, 1.1);
-    svg.path(d([e, s, sg, eg]), right, INK, 1.1);
-    svg.path(d([
-      [west[0], west[1] + rise * 0.55],
-      [s[0], s[1] + rise * 0.55],
-      [s[0], s[1] + rise * 0.55 + 4],
-      [west[0], west[1] + rise * 0.55 + 4],
-    ]), palette.primary, INK, 1);
-    if (kind !== "turret") {
-      paintWindow(svg, mx - 24, my + rise * 0.28, lit, false);
-      paintWindow(svg, mx - 16, my + rise * 0.3, lit, true);
-      paintWindow(svg, mx + 16, my + rise * 0.3, lit, false);
-    }
-  }
-
-  if (construction >= 2) {
-    const peak = Math.max(8, rise * 0.32);
-    const ridgeN: [number, number] = [n[0], n[1] - peak];
-    const ridgeS: [number, number] = [s[0], s[1] - peak * 0.35];
-    svg.path(d([west, n, ridgeN, ridgeS]), svg.grad(west[0], west[1], ridgeN[0], ridgeN[1], [[0, "#c4c6ba"], [1, "#7a7e74"]]), INK, 1.1);
-    svg.path(d([e, s, ridgeS, ridgeN]), svg.grad(e[0], e[1], ridgeS[0], ridgeS[1], [[0, "#6a6e66"], [1, "#3a3e38"]]), INK, 1.1);
-    svg.line(ridgeN[0], ridgeN[1], ridgeS[0], ridgeS[1], "#9aa090", 1.2);
-    paintBuildingKit(svg, kind, mx, my, rise, palette, facing, lit, construction >= 3);
-  }
-
-  if (construction < 3) {
-    const top = Math.max(6, h - 20 - construction * 12);
-    svg.line(8, top, w - 8, top, "#b0814d", 2);
-    for (let x = 10; x < w - 8; x += 16) {
-      svg.line(x, top, x, h - 10, "#8b623a", 1.6);
-      svg.line(x + 6, top, x, h - 16, "#b0814d", 1);
-    }
-    svg.line(mx - 10, my - 4, mx - 10, my + rise * 0.5, RUST, 3);
-    svg.line(mx - 10, my - 4, mx + 16, my + 2, RUST, 2.4);
-    svg.ellipse(mx + 16, my, 3, 2, STEEL_DARK, INK, 0.8);
-  }
-  if (construction === 0) {
-    svg.line(mx - 16, my + rise * 0.2, mx - 16, my + rise, STEEL_DARK, 2);
-    svg.line(mx + 12, my + rise * 0.15, mx + 12, my + rise, STEEL_DARK, 2);
-  }
-
+  paintYard(svg, iso, kind);
+  if (construction >= 1) paintBuildingMass(svg, iso, kind, palette, construction, lit, complete);
+  if (construction < 3) paintScaffold(svg, iso, construction);
   if (dmg > 0) {
-    svg.ellipse(mx - 10, my + 4, 9, 4, "rgba(34,24,19,0.72)");
-    svg.path(`M${mx + 2} ${my - 2} L${mx + 13} ${my + 8}`, "none", "#211b18", 2);
+    svg.ellipse(ground[0] - 8, ground[1] - 2, 10, 4.5, "rgba(34,24,19,0.72)");
+    svg.path(`M${fmt(ground[0] - 2)} ${fmt(ground[1] - 10)} Q${fmt(ground[0] + 6)} ${fmt(ground[1] - 2)} ${fmt(ground[0] + 12)} ${fmt(ground[1] + 4)}`, "none", "#211b18", 2);
   }
   if (dmg > 1) {
-    svg.ellipse(mx + 10, 8 + (variant % 4), 8, 9, "rgba(26,27,25,0.55)");
-    svg.path(d([[mx - 8, h - 14], [mx, h - 22], [mx + 10, h - 12], [mx + 2, h - 8]]), "#3a322c", INK, 1);
+    svg.ellipse(ground[0] + 10, ground[1] - 18, 8, 10, "rgba(26,27,25,0.5)");
+    svg.path(curve([
+      [ground[0] - 10, ground[1] + 6],
+      [ground[0], ground[1] - 4],
+      [ground[0] + 14, ground[1] + 8],
+      [ground[0] + 2, ground[1] + 10],
+    ]), "#3a322c", INK, 1);
   }
 
   return {
-    id: `bld:${kind}:${palette.primary}:${variant}:${facing}:${dmg}:${construction}`,
+    id: `bld:${kind}:${palette.primary}:${variant}:${dmg}:${construction}`,
     kind: "building",
-    w,
-    h,
+    w: iso.w,
+    h: iso.h,
     palette,
     shapes: [],
-    svg: svg.toString(w, h),
-    anchorX: w / 2,
-    anchorY: h - 2 - gh / 2,
+    svg: svg.toString(iso.w, iso.h),
+    anchorX: ground[0],
+    anchorY: ground[1],
     pixelScale: 1,
   };
 }
 
-function paintWindow(svg: Svg, x: number, y: number, lit: boolean, wide: boolean): void {
-  const w = wide ? 7 : 5;
-  const h = wide ? 6 : 7;
-  svg.path(`M${x} ${y} h${w} v${h} h${-w}Z`, INK, INK, 0.6);
-  svg.path(`M${x + 1} ${y + 1} h${w - 2} v${h - 2} h${2 - w}Z`, lit ? GLASS_LIT : GLASS);
-  if (lit) svg.ellipse(x + 2, y + 2, 1.2, 1, "#eef6c4");
+function paintYard(svg: Svg, iso: Iso, kind: BuildingKind): void {
+  const c = pt(iso, iso.fw / 2, iso.fh / 2, 0);
+  svg.ellipse(c[0], c[1] + 4, 18 + iso.fw * 10, 7 + iso.fh * 2, "rgba(8,10,8,0.38)");
+  const blob: Array<[number, number]> = kind === "turret"
+    ? [
+        pt(iso, 0.15, 0.45, 0),
+        pt(iso, 0.5, 0.05, 0),
+        pt(iso, 0.9, 0.4, 0),
+        pt(iso, 0.55, 0.95, 0),
+      ]
+    : [
+        pt(iso, -0.05, iso.fh * 0.42, 0),
+        pt(iso, 0.22, -0.08, 0),
+        pt(iso, iso.fw * 0.62, -0.06, 0),
+        pt(iso, iso.fw + 0.08, iso.fh * 0.38, 0),
+        pt(iso, iso.fw * 0.78, iso.fh + 0.1, 0),
+        pt(iso, 0.28, iso.fh + 0.08, 0),
+      ];
+  const fill = svg.grad(blob[0]![0], blob[0]![1], blob[3]![0], blob[3]![1], [[0, "#5a6058"], [1, "#2a2e2a"]]);
+  svg.path(curve(blob), fill, INK, 1);
 }
 
-function silo(svg: Svg, x: number, y: number, rw: number, h: number, body: string, cap: string, core?: string): void {
-  svg.ellipse(x, y + h - 4, rw, rw * 0.42, STEEL_DARK, INK, 1);
+function paintScaffold(svg: Svg, iso: Iso, construction: number): void {
+  const a = pt(iso, 0.15, 0.2, 8 + construction * 6);
+  const b = pt(iso, iso.fw - 0.1, 0.35, 10 + construction * 5);
+  const c = pt(iso, 0.4, iso.fh - 0.15, 0);
+  svg.line(a[0], a[1], c[0], c[1], "#8b623a", 1.6);
+  svg.line(a[0], a[1], b[0], b[1], "#b0814d", 2);
+  svg.line(b[0], b[1], b[0] + 6, b[1] + 14, RUST, 2.2);
+  svg.ellipse(b[0] + 6, b[1] + 14, 2.4, 1.6, STEEL_DARK, INK, 0.8);
+}
+
+function coolingTower(
+  svg: Svg,
+  iso: Iso,
+  lx: number,
+  ly: number,
+  z: number,
+  rBase: number,
+  rWaist: number,
+  rTop: number,
+  body: string,
+  cap: string,
+  withCap: boolean,
+): void {
+  const base = pt(iso, lx, ly, 0);
+  const mid = pt(iso, lx, ly, z * 0.42);
+  const top = pt(iso, lx, ly, z);
+  svg.ellipse(base[0], base[1], rBase, rBase * 0.42, STEEL_DARK, INK, 1);
   svg.path(
-    `M${fmt(x - rw)} ${fmt(y + 6)} Q${fmt(x - rw)} ${fmt(y + h - 4)} ${fmt(x)} ${fmt(y + h - 2)} Q${fmt(x + rw)} ${fmt(y + h - 4)} ${fmt(x + rw)} ${fmt(y + 6)} Q${fmt(x)} ${fmt(y)} ${fmt(x - rw)} ${fmt(y + 6)}Z`,
+    `M${fmt(base[0] - rBase)} ${fmt(base[1])} C${fmt(base[0] - rWaist)} ${fmt(mid[1])} ${fmt(top[0] - rTop)} ${fmt(top[1] + 10)} ${fmt(top[0] - rTop * 0.72)} ${fmt(top[1])} L${fmt(top[0] + rTop * 0.72)} ${fmt(top[1])} C${fmt(top[0] + rTop)} ${fmt(top[1] + 10)} ${fmt(base[0] + rWaist)} ${fmt(mid[1])} ${fmt(base[0] + rBase)} ${fmt(base[1])}Z`,
     body,
     INK,
-    1.1,
+    1.15,
   );
-  if (core) svg.ellipse(x, y + h * 0.45, rw * 0.35, h * 0.18, core);
-  svg.ellipse(x, y + 4, rw * 0.95, rw * 0.4, cap, INK, 1);
-  svg.ellipse(x - rw * 0.25, y + 3, rw * 0.35, rw * 0.16, STEEL_LIGHT);
+  if (withCap) {
+    svg.ellipse(top[0], top[1], rTop * 0.9, rTop * 0.38, cap, INK, 1);
+    svg.ellipse(top[0] - rTop * 0.2, top[1] - 1, rTop * 0.35, rTop * 0.14, STEEL_LIGHT);
+  }
 }
 
-function paintBuildingKit(
+function aFrame(
   svg: Svg,
+  iso: Iso,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  z: number,
+  roofL: string,
+  roofR: string,
+  gable: string,
+  withRoof: boolean,
+): void {
+  const ym = (y0 + y1) / 2;
+  const ridge0 = pt(iso, x0, ym, z);
+  const ridge1 = pt(iso, x1, ym, z);
+  const l0 = pt(iso, x0, y0, 3);
+  const l1 = pt(iso, x1, y0, 3);
+  const r0 = pt(iso, x0, y1, 3);
+  const r1 = pt(iso, x1, y1, 3);
+  const gl = pt(iso, x0, y0, 0);
+  const gr = pt(iso, x0, y1, 0);
+  svg.path(d([gl, l0, r0, gr]), STEEL_DARK, INK, 1);
+  if (withRoof) {
+    svg.path(`M${fmt(l0[0])} ${fmt(l0[1])} Q${fmt((l0[0] + ridge0[0]) / 2)} ${fmt(ridge0[1] + 4)} ${fmt(ridge0[0])} ${fmt(ridge0[1])} L${fmt(ridge1[0])} ${fmt(ridge1[1])} Q${fmt((l1[0] + ridge1[0]) / 2)} ${fmt(ridge1[1] + 4)} ${fmt(l1[0])} ${fmt(l1[1])}Z`, roofL, INK, 1.1);
+    svg.path(`M${fmt(r0[0])} ${fmt(r0[1])} Q${fmt((r0[0] + ridge0[0]) / 2)} ${fmt(ridge0[1] + 6)} ${fmt(ridge0[0])} ${fmt(ridge0[1])} L${fmt(ridge1[0])} ${fmt(ridge1[1])} Q${fmt((r1[0] + ridge1[0]) / 2)} ${fmt(ridge1[1] + 6)} ${fmt(r1[0])} ${fmt(r1[1])}Z`, roofR, INK, 1.1);
+    svg.path(d([gl, ridge0, gr]), gable, INK, 1);
+  } else {
+    svg.line(l0[0], l0[1], ridge0[0], ridge0[1], STEEL, 1.6);
+    svg.line(r0[0], r0[1], ridge0[0], ridge0[1], STEEL_DARK, 1.6);
+    svg.line(ridge0[0], ridge0[1], ridge1[0], ridge1[1], STEEL_LIGHT, 1.4);
+  }
+}
+
+function hangar(
+  svg: Svg,
+  iso: Iso,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  z: number,
+  skin: string,
+  dark: string,
+  withRoof: boolean,
+): void {
+  const ym = (y0 + y1) / 2;
+  const fl = pt(iso, x1, y0, 2);
+  const fr = pt(iso, x1, y1, 2);
+  const bl = pt(iso, x0, y0, 2);
+  const br = pt(iso, x0, y1, 2);
+  const ft = pt(iso, x1, ym, z);
+  const bt = pt(iso, x0, ym, z);
+  svg.path(d([bl, br, fr, fl]), STEEL_DARK, INK, 1);
+  if (withRoof) {
+    svg.path(
+      `M${fmt(bl[0])} ${fmt(bl[1])} Q${fmt(bt[0])} ${fmt(bt[1])} ${fmt(br[0])} ${fmt(br[1])} L${fmt(fr[0])} ${fmt(fr[1])} Q${fmt(ft[0])} ${fmt(ft[1])} ${fmt(fl[0])} ${fmt(fl[1])}Z`,
+      skin,
+      INK,
+      1.15,
+    );
+    svg.path(
+      `M${fmt(fl[0])} ${fmt(fl[1])} Q${fmt(ft[0])} ${fmt(ft[1])} ${fmt(fr[0])} ${fmt(fr[1])} Q${fmt((fl[0] + fr[0]) / 2)} ${fmt(fr[1] + 6)} ${fmt(fl[0])} ${fmt(fl[1])}Z`,
+      dark,
+      INK,
+      1,
+    );
+  } else {
+    svg.line(fl[0], fl[1], ft[0], ft[1], STEEL, 1.8);
+    svg.line(fr[0], fr[1], ft[0], ft[1], STEEL_DARK, 1.8);
+    svg.line(bt[0], bt[1], ft[0], ft[1], STEEL_LIGHT, 1.4);
+  }
+}
+
+function lowHall(
+  svg: Svg,
+  iso: Iso,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  z: number,
+  fill: string,
+  withRoof: boolean,
+): void {
+  const nw = pt(iso, x0, y0, z);
+  const ne = pt(iso, x1, y0, z);
+  const se = pt(iso, x1, y1, z);
+  const sw = pt(iso, x0, y1, z);
+  const nwg = pt(iso, x0, y0, 0);
+  const neg = pt(iso, x1, y0, 0);
+  const seg = pt(iso, x1, y1, 0);
+  const swg = pt(iso, x0, y1, 0);
+  const bump = pt(iso, (x0 + x1) / 2, (y0 + y1) * 0.48, z + 5);
+  svg.path(d([sw, swg, seg, se]), STEEL_DARK, INK, 1);
+  svg.path(d([se, seg, neg, ne]), "#3a403c", INK, 1);
+  if (withRoof) {
+    svg.path(
+      `M${fmt(nw[0])} ${fmt(nw[1])} Q${fmt(bump[0])} ${fmt(bump[1])} ${fmt(ne[0])} ${fmt(ne[1])} L${fmt(se[0])} ${fmt(se[1])} Q${fmt(bump[0] + 4)} ${fmt(se[1] - z * 0.2)} ${fmt(sw[0])} ${fmt(sw[1])}Z`,
+      fill,
+      INK,
+      1.1,
+    );
+  }
+}
+
+function paintWindow(svg: Svg, x: number, y: number, lit: boolean, wide: boolean): void {
+  const w = wide ? 6 : 4.5;
+  const h = wide ? 5 : 6;
+  svg.path(`M${fmt(x)} ${fmt(y)} q${fmt(w / 2)} ${fmt(-1.2)} ${fmt(w)} 0 v${fmt(h)} q${fmt(-w / 2)} ${fmt(1.2)} ${fmt(-w)} 0Z`, INK, INK, 0.6);
+  svg.path(`M${fmt(x + 0.8)} ${fmt(y + 0.8)} q${fmt((w - 1.6) / 2)} ${fmt(-0.8)} ${fmt(w - 1.6)} 0 v${fmt(h - 1.6)} q${fmt(-(w - 1.6) / 2)} ${fmt(0.8)} ${fmt(1.6 - w)} 0Z`, lit ? GLASS_LIT : GLASS);
+}
+
+function paintBuildingMass(
+  svg: Svg,
+  iso: Iso,
   kind: BuildingKind,
-  mx: number,
-  my: number,
-  rise: number,
   pal: Palette,
-  facing: Facing,
+  construction: number,
   lit: boolean,
   complete: boolean,
 ): void {
+  const roofed = construction >= 2;
   const team = pal.primary;
   if (kind === "constructionYard") {
-    svg.path(d([[mx - 28, my + 8], [mx + 4, my - 12], [mx + 22, my + 2], [mx - 10, my + 18]]), STEEL_DARK, INK, 1);
-    svg.path(d([[mx - 20, my + 4], [mx + 2, my - 8], [mx + 14, my + 2], [mx - 8, my + 12]]), STEEL, INK, 1);
-    svg.ellipse(mx + 1, my + 5, 9, 5, team, INK, 1);
-    if (complete) {
-      svg.ellipse(mx, my + 5, 4, 2.4, lit ? GLASS_LIT : GLASS);
-      svg.ellipse(mx + 8, my + 6, 3, 2, lit ? GLASS_LIT : GLASS);
+    lowHall(svg, iso, 0.05, 1.2, 0.12, 0.95, 14, svg.grad(pt(iso, 0.1, 0.2, 14)[0], pt(iso, 0.1, 0.2, 14)[1], pt(iso, 1.1, 0.8, 0)[0], pt(iso, 1.1, 0.8, 0)[1], [[0, STEEL_LIGHT], [1, STEEL_DARK]]), roofed);
+    coolingTower(svg, iso, 1.45, 1.15, 26, 11, 6.5, 8, STEEL, team, roofed);
+    const crane = pt(iso, 0.35, 0.35, 30);
+    const hook = pt(iso, 1.7, 0.2, 18);
+    const base = pt(iso, 0.35, 0.35, 0);
+    svg.path(`M${fmt(base[0])} ${fmt(base[1])} Q${fmt(crane[0] - 4)} ${fmt(crane[1] + 8)} ${fmt(crane[0])} ${fmt(crane[1])}`, "none", RUST, 3.2);
+    if (roofed) {
+      svg.line(crane[0], crane[1], hook[0], hook[1], RUST, 2.6);
+      svg.line(hook[0], hook[1], hook[0] - 2, hook[1] + 10, BRASS, 1.6);
+      svg.ellipse(crane[0], crane[1], 4.5, 3, STEEL_LIGHT, INK, 1);
+      const dish = pt(iso, 1.45, 1.15, 30);
+      svg.ellipse(dish[0], dish[1], 7, 4, STEEL_DARK, INK, 1);
+      svg.ellipse(dish[0], dish[1] - 1, 5, 2.6, complete && lit ? GLASS_LIT : STEEL);
     }
-    svg.path(`M${mx - 8} ${my + 8} Q${mx - 10} ${my - 18} ${mx - 6} ${my - 22} Q${mx - 2} ${my - 16} ${mx - 4} ${my + 6}Z`, RUST, INK, 1);
-    svg.line(mx - 6, my - 20, mx + 24, my - 14, RUST, 3.4);
-    svg.line(mx + 22, my - 14, mx + 16, my + 4, BRASS, 1.8);
-    svg.ellipse(mx + 22, my - 16, 4.5, 3.2, STEEL_LIGHT, INK, 1);
-    svg.ellipse(mx + 14, my - 4, 7, 4.5, STEEL_DARK, INK, 1);
-    if (complete) svg.ellipse(mx + 14, my - 4, 3.2, 2, lit ? GLASS_LIT : GLASS);
-    svg.path(d([[mx + 18, my + 4], [mx + 28, my + 2], [mx + 28, my + 12], [mx + 18, my + 10]]), team, INK, 1);
-  } else if (kind === "power") {
-    silo(svg, mx - 14, my - 16, 10, 32, STEEL, STEEL_DARK, complete ? team : undefined);
-    silo(svg, mx + 12, my - 18, 10, 36, STEEL_DARK, team, complete ? (lit ? GLASS_LIT : pal.light) : undefined);
-    svg.ellipse(mx, my + 12, 12, 6, STEEL, INK, 1);
-    svg.line(mx - 10, my - 4, mx + 8, my - 8, "#c7d8cf", 2);
     if (complete) {
-      svg.ellipse(mx - 14, my - 6, 4, 5, lit ? "#d8f0a8" : team);
-      svg.ellipse(mx + 12, my - 8, 5, 6, svg.radial(mx + 12, my - 8, 8, [[0, pal.light], [1, "rgba(180,200,120,0.05)"]]));
+      const win = pt(iso, 0.55, 0.55, 10);
+      paintWindow(svg, win[0] - 4, win[1] - 3, lit, true);
+      paintWindow(svg, win[0] + 6, win[1] - 1, lit, false);
+    }
+  } else if (kind === "power") {
+    coolingTower(svg, iso, 0.55, 0.7, 40, 13, 7, 9, STEEL, STEEL_DARK, roofed);
+    coolingTower(svg, iso, 1.4, 1.2, 46, 12, 6.5, 8.5, STEEL_DARK, team, roofed);
+    lowHall(svg, iso, 0.7, 1.75, 0.85, 1.75, 11, STEEL, roofed);
+    if (roofed) {
+      const pipeA = pt(iso, 0.55, 0.7, 22);
+      const pipeB = pt(iso, 1.4, 1.2, 24);
+      svg.path(`M${fmt(pipeA[0])} ${fmt(pipeA[1])} Q${fmt((pipeA[0] + pipeB[0]) / 2)} ${fmt(Math.min(pipeA[1], pipeB[1]) - 8)} ${fmt(pipeB[0])} ${fmt(pipeB[1])}`, "none", "#c7d8cf", 2.4);
+    }
+    if (complete) {
+      const glow = pt(iso, 1.4, 1.2, 48);
+      svg.ellipse(glow[0], glow[1], 6, 5, svg.radial(glow[0], glow[1], 8, [[0, lit ? pal.light : team], [1, "rgba(180,200,120,0.02)"]]));
     }
   } else if (kind === "refinery") {
-    silo(svg, mx - 22, my - 12, 9, 34, RUST, RUST_LIGHT);
-    silo(svg, mx - 4, my - 16, 9, 38, STEEL_DARK, STEEL, complete ? RUST_LIGHT : undefined);
-    svg.line(mx - 18, my - 8, mx + 18, my - 12, STEEL_LIGHT, 3);
-    svg.line(mx - 12, my - 2, mx + 20, my + 2, STEEL, 2);
-    svg.ellipse(mx + 18, my + 8, 13, 7, "#444943", INK, 1);
-    svg.ellipse(mx + 18, my + 8, 9, 4.5, complete && lit ? "#1e2a22" : "#151814");
-    svg.ellipse(mx + 16, my + 4, 7, 2.6, team);
-    if (complete) for (let i = 0; i < 4; i++) svg.ellipse(mx - 28 + i * 5, my + 16, 2, 1.5, STEEL);
-  } else if (kind === "barracks") {
-    svg.path(d([[mx - 26, my + 6], [mx, my - 16], [mx + 26, my + 6], [mx, my + 18]]), "#4a5248", INK, 1.1);
-    svg.path(d([[mx - 16, my + 4], [mx, my - 8], [mx + 16, my + 4], [mx, my + 12]]), "#5a6258", INK, 1);
-    svg.line(mx, my - 16, mx, my + 18, STEEL_DARK, 2);
-    svg.ellipse(mx, my + 8, 8, 8, STEEL_DARK, INK, 1);
-    svg.ellipse(mx, my + 9, 5, 6, INK);
-    if (complete) svg.ellipse(mx - 1, my + 10, 2.4, 4.5, team);
-    for (let i = 0; i < 5; i++) svg.ellipse(mx - 24 + i * 12, my + 16, 5, 2.4, SAND, INK, 0.8);
-    svg.line(mx + 16, my - 4, mx + 16, my - 18, STEEL_DARK, 2);
+    coolingTower(svg, iso, 0.55, 0.75, 36, 10, 7.5, 9, RUST, RUST_LIGHT, roofed);
+    coolingTower(svg, iso, 1.15, 0.45, 42, 10, 7, 8.5, STEEL_DARK, STEEL, roofed);
+    const stackB = pt(iso, 1.7, 0.35, 0);
+    const stackT = pt(iso, 1.7, 0.35, 48);
+    svg.ellipse(stackB[0], stackB[1], 3.4, 1.6, STEEL_DARK, INK, 0.8);
+    svg.path(`M${fmt(stackB[0] - 3)} ${fmt(stackB[1])} Q${fmt(stackB[0] - 2.2)} ${fmt((stackB[1] + stackT[1]) / 2)} ${fmt(stackT[0] - 2)} ${fmt(stackT[1])} L${fmt(stackT[0] + 2)} ${fmt(stackT[1])} Q${fmt(stackB[0] + 2.2)} ${fmt((stackB[1] + stackT[1]) / 2)} ${fmt(stackB[0] + 3)} ${fmt(stackB[1])}Z`, STEEL, INK, 1);
+    if (roofed) svg.ellipse(stackT[0], stackT[1], 2.6, 1.3, RUST, INK, 0.8);
+    lowHall(svg, iso, 1.55, 2.85, 0.75, 1.8, 13, svg.grad(pt(iso, 1.6, 0.8, 13)[0], pt(iso, 1.6, 0.8, 13)[1], pt(iso, 2.6, 1.6, 0)[0], pt(iso, 2.6, 1.6, 0)[1], [[0, STEEL_LIGHT], [1, "#3a403c"]]), roofed);
+    if (roofed) {
+      const belt0 = pt(iso, 1.15, 0.7, 18);
+      const belt1 = pt(iso, 2.1, 1.2, 10);
+      svg.path(`M${fmt(belt0[0])} ${fmt(belt0[1])} Q${fmt((belt0[0] + belt1[0]) / 2)} ${fmt(belt0[1] + 4)} ${fmt(belt1[0])} ${fmt(belt1[1])}`, "none", STEEL_LIGHT, 2.4);
+    }
     if (complete) {
-      svg.path(d([[mx + 16, my - 18], [mx + 26, my - 16], [mx + 26, my - 10], [mx + 16, my - 12]]), team, INK, 1);
-      svg.ellipse(mx - 18, my - 2, 4, 3, lit ? GLASS_LIT : GLASS, INK, 0.8);
-      svg.ellipse(mx + 8, my - 2, 4, 3, lit ? GLASS_LIT : GLASS, INK, 0.8);
+      const door = pt(iso, 2.4, 1.5, 6);
+      svg.ellipse(door[0], door[1], 7, 4.5, lit ? "#1e2a22" : "#151814", INK, 0.8);
+      svg.ellipse(door[0], door[1] - 3, 6, 2, team);
+    }
+  } else if (kind === "barracks") {
+    aFrame(
+      svg,
+      iso,
+      0.1,
+      1.85,
+      0.18,
+      1.55,
+      28,
+      svg.grad(pt(iso, 0.2, 0.2, 20)[0], pt(iso, 0.2, 0.2, 20)[1], pt(iso, 1, 0.9, 0)[0], pt(iso, 1, 0.9, 0)[1], [[0, "#c4c6ba"], [1, "#6a7268"]]),
+      svg.grad(pt(iso, 0.2, 1.4, 20)[0], pt(iso, 0.2, 1.4, 20)[1], pt(iso, 1.6, 0.9, 0)[0], pt(iso, 1.6, 0.9, 0)[1], [[0, "#7a8278"], [1, "#3a403c"]]),
+      STEEL,
+      roofed,
+    );
+    for (let i = 0; i < 5; i++) {
+      const bag = pt(iso, 0.2 + i * 0.35, 1.55, 2);
+      svg.ellipse(bag[0], bag[1], 5.5, 2.6, SAND, INK, 0.8);
+    }
+    if (roofed) {
+      const door = pt(iso, 0.15, 0.85, 6);
+      svg.ellipse(door[0], door[1], 5, 8, STEEL_DARK, INK, 1);
+      svg.ellipse(door[0], door[1] + 1, 3.2, 6, INK);
+      if (complete) svg.ellipse(door[0] - 0.6, door[1] + 1.5, 1.8, 4.2, team);
+      const pole = pt(iso, 1.65, 0.35, 0);
+      const top = pt(iso, 1.65, 0.35, 34);
+      svg.line(pole[0], pole[1], top[0], top[1], STEEL_DARK, 1.8);
+      if (complete) {
+        svg.path(`M${fmt(top[0])} ${fmt(top[1])} Q${fmt(top[0] + 12)} ${fmt(top[1] + 3)} ${fmt(top[0] + 11)} ${fmt(top[1] + 9)} L${fmt(top[0])} ${fmt(top[1] + 7)}Z`, team, INK, 0.8);
+        paintWindow(svg, pt(iso, 0.7, 0.35, 14)[0], pt(iso, 0.7, 0.35, 14)[1], lit, true);
+        paintWindow(svg, pt(iso, 1.2, 0.4, 14)[0], pt(iso, 1.2, 0.4, 14)[1], lit, false);
+      }
     }
   } else if (kind === "factory") {
-    svg.path(d([[mx - 36, my + 6], [mx + 8, my - 16], [mx + 4, my + 16], [mx - 30, my + 22]]), "#3e4440", INK, 1.1);
-    svg.ellipse(mx - 10, my + 6, 16, 10, INK, STEEL_DARK, 1.2);
-    svg.ellipse(mx - 10, my + 7, 12, 7, complete && lit ? "#1a221c" : "#121614");
-    if (complete) {
-      svg.ellipse(mx - 16, my + 8, 3, 4.5, STEEL);
-      svg.ellipse(mx - 6, my + 8, 3, 4.5, STEEL);
+    hangar(
+      svg,
+      iso,
+      0.05,
+      2.05,
+      0.15,
+      1.55,
+      30,
+      svg.grad(pt(iso, 0.2, 0.3, 24)[0], pt(iso, 0.2, 0.3, 24)[1], pt(iso, 2, 1.4, 0)[0], pt(iso, 2, 1.4, 0)[1], [[0, STEEL_LIGHT], [1, "#3a403c"]]),
+      "#121614",
+      roofed,
+    );
+    coolingTower(svg, iso, 2.45, 0.55, 28, 6, 3.8, 4.5, STEEL_DARK, STEEL, roofed);
+    coolingTower(svg, iso, 2.7, 1.15, 24, 5.5, 3.4, 4.2, RUST, RUST_LIGHT, roofed);
+    if (roofed) {
+      const boom = pt(iso, 2.2, 0.2, 34);
+      const tip = pt(iso, 2.85, 0.9, 16);
+      svg.line(boom[0], boom[1], tip[0], tip[1], STEEL, 2.6);
+      svg.ellipse(boom[0], boom[1], 3, 2.2, BRASS, INK, 0.8);
     }
-    svg.ellipse(mx - 10, my - 1, 14, 3, team);
-    silo(svg, mx + 16, my - 16, 5, 26, STEEL_DARK, STEEL);
-    silo(svg, mx + 28, my - 14, 5, 24, RUST, RUST_LIGHT);
-    svg.line(mx + 16, my - 20, mx + 30, my - 8, STEEL, 3);
-    svg.ellipse(mx + 14, my - 22, 3, 2.4, BRASS, INK, 0.8);
+    if (complete) {
+      const mouth = pt(iso, 2.05, 0.85, 8);
+      svg.ellipse(mouth[0], mouth[1], 11, 7, lit ? "#1a221c" : "#121614", STEEL_DARK, 1.1);
+      svg.ellipse(mouth[0] - 4, mouth[1], 2.4, 4, STEEL);
+      svg.ellipse(mouth[0] + 3, mouth[1], 2.4, 4, STEEL);
+      svg.ellipse(mouth[0], mouth[1] - 8, 10, 2.2, team);
+    }
   } else if (kind === "turret") {
-    const dir = facingVector(facing);
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      svg.ellipse(mx + Math.cos(a) * 14, my + Math.sin(a) * 7 + 6, 5, 2.4, SAND, INK, 0.8);
+    const dir = facingVector(0);
+    const c = pt(iso, 0.5, 0.5, 0);
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + 0.2;
+      svg.ellipse(c[0] + Math.cos(a) * 13, c[1] + Math.sin(a) * 6.5 + 3, 5.2, 2.5, SAND, INK, 0.8);
     }
-    svg.ellipse(mx, my + 2, 16, 9, STEEL_DARK, INK, 1.1);
-    svg.ellipse(mx, my + 1, 12, 7, STEEL, INK, 1);
-    svg.ellipse(mx, my + 1, 8, 5, team, INK, 0.9);
-    svg.line(mx, my + 2, mx + dir.x * 26, my + 2 + dir.y * 26, STEEL_DARK, 6);
-    svg.line(mx, my + 1, mx + dir.x * 24, my + 1 + dir.y * 24, STEEL_LIGHT, 1.8);
-    svg.ellipse(mx + dir.x * 24, my + 1 + dir.y * 24, 2.6, 2, STEEL, INK, 0.8);
-    if (complete) svg.ellipse(mx + 8, my - 6, 2.6, 2, lit ? GLASS_LIT : STEEL_DARK, INK, 0.8);
+    svg.ellipse(c[0], c[1] + 1, 12, 6.5, STEEL_DARK, INK, 1.1);
+    if (roofed) {
+      svg.ellipse(c[0], c[1] - 2, 9, 6, STEEL, INK, 1);
+      svg.ellipse(c[0], c[1] - 3, 6.5, 4.2, team, INK, 0.9);
+      svg.path(`M${fmt(c[0])} ${fmt(c[1] - 2)} Q${fmt(c[0] + dir.x * 12)} ${fmt(c[1] - 4 + dir.y * 10)} ${fmt(c[0] + dir.x * 24)} ${fmt(c[1] + dir.y * 24)}`, "none", STEEL_DARK, 5);
+      svg.line(c[0], c[1] - 3, c[0] + dir.x * 22, c[1] - 3 + dir.y * 22, STEEL_LIGHT, 1.6);
+      svg.ellipse(c[0] + dir.x * 23, c[1] - 2 + dir.y * 23, 2.6, 2, STEEL, INK, 0.8);
+    }
+    if (complete) svg.ellipse(c[0] + 6, c[1] - 8, 2.4, 1.8, lit ? GLASS_LIT : STEEL_DARK, INK, 0.8);
   } else {
-    svg.ellipse(mx, my + 4, 16, 8, STEEL_DARK, INK, 1);
-    svg.line(mx, my + 6, mx, my - 24, team, 3.4);
-    svg.ellipse(mx, my - 24, 14, 8, GOLD, INK, 1.1);
-    svg.ellipse(mx, my - 24, 10, 5.5, STEEL_DARK, INK, 1);
-    if (complete) {
-      svg.ellipse(mx, my - 24, 6, 3, lit ? "#f3dc79" : "#8a7428");
-      svg.ellipse(mx, my - 24, 10, 8, svg.radial(mx, my - 24, 12, [[0, "#f3dc79"], [1, "rgba(243,220,121,0.02)"]]));
+    const c = pt(iso, 1, 1, 0);
+    svg.ellipse(c[0], c[1] + 2, 14, 7, STEEL_DARK, INK, 1);
+    const shaft = pt(iso, 1, 1, 36);
+    svg.path(
+      `M${fmt(c[0] - 5)} ${fmt(c[1])} Q${fmt(c[0] - 3)} ${fmt((c[1] + shaft[1]) / 2)} ${fmt(shaft[0] - 2.4)} ${fmt(shaft[1])} L${fmt(shaft[0] + 2.4)} ${fmt(shaft[1])} Q${fmt(c[0] + 3)} ${fmt((c[1] + shaft[1]) / 2)} ${fmt(c[0] + 5)} ${fmt(c[1])}Z`,
+      team,
+      INK,
+      1.1,
+    );
+    if (roofed) {
+      svg.ellipse(shaft[0], shaft[1], 11, 6.5, GOLD, INK, 1.1);
+      svg.ellipse(shaft[0], shaft[1], 7.5, 4.2, STEEL_DARK, INK, 1);
     }
-    svg.ellipse(mx - 10, my + 8, 5, 3, team, INK, 0.8);
+    if (complete) {
+      svg.ellipse(shaft[0], shaft[1], 5, 3, lit ? "#f3dc79" : "#8a7428");
+      svg.ellipse(shaft[0], shaft[1], 12, 9, svg.radial(shaft[0], shaft[1], 14, [[0, "#f3dc79"], [1, "rgba(243,220,121,0.02)"]]));
+    }
   }
 }
 

@@ -196,7 +196,6 @@ export type UnitSpriteOptions = {
 
 export type BuildingSpriteOptions = {
   variant?: number;
-  facing?: Facing;
   animationFrame?: AnimFrame;
   damageStage?: 0 | 1 | 2;
   constructionStage?: 0 | 1 | 2 | 3;

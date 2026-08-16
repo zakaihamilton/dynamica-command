@@ -70,6 +70,8 @@ describe("retro procedural assets", () => {
       const a = buildingSprite(kind, palette, { animationFrame: 0, variant: 13 });
       const b = buildingSprite(kind, palette, { animationFrame: 3, variant: 13 });
       expect(a.id).toBe(b.id);
+      expect(a.id).not.toMatch(/:facing:/);
+      expect(a.svg).toBe(b.svg);
       validateSpec(a);
     }
   });
@@ -145,6 +147,13 @@ describe("retro procedural assets", () => {
     expect(barracks.svg).toContain("linearGradient");
     const tank = unitSprite("tank", palette, { facing: 3, animationFrame: 2, variant: 4 });
     expect(tank.svg).toContain("linearGradient");
+  });
+
+  it("gives finished buildings curved industrial silhouettes instead of cubic shells", () => {
+    for (const kind of BUILDING_KINDS) {
+      const spec = buildingSprite(kind, palette, { variant: 13 });
+      expect(spec.svg).toMatch(/[QC]/);
+    }
   });
 });
 
