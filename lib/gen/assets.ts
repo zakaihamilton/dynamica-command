@@ -19,6 +19,7 @@ const SPRITE_W = TW + TILE_SPRITE_PAD_X * 2;
 const SPRITE_H = TH + TILE_SPRITE_PAD_Y * 2;
 const INK = "#11130f";
 const ART_PIXEL_SCALE = 1;
+const TERRAIN_ART_REV = "cinematic3";
 
 function tileCx(): number {
   return TILE_SPRITE_PAD_X + TW / 2;
@@ -327,7 +328,7 @@ export function tileSprite(
 
   paintFloor(shapes, biome, p, v, kind, contour);
   if (opts.surface === SURFACE_ROAD) paintRoad(shapes, biome, v);
-  else if (opts.surface === SURFACE_CONCRETE) paintConcrete(shapes, v);
+  else if (opts.surface === SURFACE_CONCRETE) paintConcrete(shapes, biome, p, v);
   else if (kind !== "water" && kind !== "resource") paintGroundCover(shapes, biome, p, v, contour);
 
   if (kind === "water") {
@@ -337,7 +338,7 @@ export function tileSprite(
   }
 
   if (contour === "ridge") paintRidge(shapes, biome, p, v, mask);
-  if (kind === "resource") paintOreField(shapes, v, opts.resourceLevel ?? 4);
+  if (kind === "resource") paintOreField(shapes, biome, v, opts.resourceLevel ?? 4);
   else if (kind === "blocked" && contour !== "ridge") paintBlocker(shapes, biome, p, v, cx, cy);
 
   return {
@@ -359,7 +360,7 @@ export function tileSpriteId(
   const biome = opts.biome ?? "ash plains";
   const variant = opts.variant ?? 0;
   const contour = opts.contour ?? defaultContour(kind, elev);
-  return `tile:${kind}:${biome}:${elev}:${variant}:${opts.edgeMask ?? 0}:${opts.surface ?? 0}:${opts.resourceLevel ?? 0}:${contour}`;
+  return `tile:${TERRAIN_ART_REV}:${kind}:${biome}:${elev}:${variant}:${opts.edgeMask ?? 0}:${opts.surface ?? 0}:${opts.resourceLevel ?? 0}:${contour}`;
 }
 
 function paintFloor(
@@ -376,7 +377,8 @@ function paintFloor(
   shapes.push(poly(irregularIso(cx, cy, TW + 8, TH + 6, v, 5), base));
   shapes.push(poly(irregularIso(cx + signed(v, 1, 4), cy + signed(v, 2, 2), 58, 26, v >> 1, 4), base));
   if (kind !== "water" && contour !== "bank") {
-    const patches = 5 + pick(v, 3, 4);
+    const macroDensity = pick(v, 18, 6);
+    const patches = macroDensity < 2 ? 0 : macroDensity === 2 ? 2 : 3 + pick(v, 3, 5);
     for (let i = 0; i < patches; i++) {
       const ox = signed(v, 10 + i, 12);
       const oy = signed(v, 40 + i, 5);
@@ -389,7 +391,8 @@ function paintFloor(
         shapes.push(ell(cx + ox - ew / 2, cy + oy - eh / 2, ew, eh, fill));
       }
     }
-    for (let i = 0; i < 6; i++) {
+    const specks = macroDensity < 3 ? 0 : 2 + pick(v, 149, 5);
+    for (let i = 0; i < specks; i++) {
       const ox = signed(v, 150 + i, 11);
       const oy = signed(v, 170 + i, 4);
       shapes.push(ell(cx + ox, cy + oy, 2 + pick(v, 190 + i, 3), 1 + pick(v, 200 + i, 2), i % 2 ? p.light : p.dark));
@@ -409,7 +412,8 @@ function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: 
   const cy = tileCy();
   const dense = lush(biome);
   const dry = arid(biome);
-  const clumps = (dense ? 4 : dry ? 2 : 3) + pick(v, 1, dense ? 5 : 4);
+  const density = pick(v, 260, 6);
+  const clumps = density < 2 ? 0 : density === 2 ? 1 : (dense ? 2 : dry ? 1 : 2) + pick(v, 1, dense ? 5 : 3);
   for (let i = 0; i < clumps; i++) {
     const ox = signed(v, 20 + i, 12);
     const oy = signed(v, 50 + i, 4);
@@ -421,14 +425,14 @@ function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: 
       if (pick(v, 100 + i, 3) !== 0) shapes.push(ell(cx + ox, cy + oy - 1, 4 + pick(v, 110 + i, 3), 2, p.light));
     }
   }
-  const blades = (dense ? 5 : contour === "ridge" ? 2 : 3) + pick(v, 3, 5);
+  const blades = density < 3 ? 0 : (dense ? 2 : contour === "ridge" ? 1 : 2) + pick(v, 3, 4);
   for (let i = 0; i < blades; i++) {
     const ox = signed(v, 120 + i, 11);
     const oy = signed(v, 150 + i, 3);
     const lean = pick(v, 180 + i, 2) === 0 ? 2 : -2;
     shapes.push(line(cx + ox, cy + oy + 2, cx + ox + lean + signed(v, 190 + i, 1), cy + oy - 2 - pick(v, 200 + i, 3), i % 3 ? p.accent : p.light, 1));
   }
-  if (dense && pick(v, 4, 3) !== 2) {
+  if (dense && density >= 4 && pick(v, 4, 3) !== 2) {
     pushBush(shapes, cx + signed(v, 5, 8), cy + signed(v, 6, 3), v, biome);
   }
   if (pick(v, 7, 6) === 0) {
@@ -441,12 +445,14 @@ function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: 
     shapes.push(ell(cx + signed(v, 11, 6), cy + 2, 6 + pick(v, 12, 4), 3, p.dark));
     shapes.push(ell(cx + signed(v, 13, 6), cy + 1, 3 + pick(v, 14, 3), 2, p.light));
   }
-  for (let i = 0; i < 2 + pick(v, 15, 3); i++) {
-    const ox = signed(v, 210 + i, 10);
-    const oy = signed(v, 230 + i, 3);
-    shapes.push(ell(cx + ox, cy + oy + 1, 3 + pick(v, 250 + i, 3), 2, i % 2 ? p.secondary : p.dark));
+  if (density >= 4) {
+    for (let i = 0; i < 1 + pick(v, 15, 3); i++) {
+      const ox = signed(v, 210 + i, 10);
+      const oy = signed(v, 230 + i, 3);
+      shapes.push(ell(cx + ox, cy + oy + 1, 3 + pick(v, 250 + i, 3), 2, i % 2 ? p.secondary : p.dark));
+    }
   }
-  paintBiomeSignature(shapes, biome, p, v, cx, cy);
+  if (density === 5 || pick(v, 261, 7) === 0) paintBiomeSignature(shapes, biome, p, v, cx, cy);
 }
 
 function paintBiomeSignature(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number, cx: number, cy: number): void {
@@ -495,23 +501,85 @@ function paintRoad(shapes: ShapeSpec[], biome: BiomeName, v: number): void {
   const cy = tileCy();
   const dirt = biome === "tundra grid" ? "#5a605e" : biome === "volcanic shelf" ? "#4a4038" : "#6a5844";
   const worn = biome === "tundra grid" ? "#747a76" : "#8a7354";
-  shapes.push(poly(irregularIso(cx, cy, 54, 22, v, 2), dirt));
-  shapes.push(poly(irregularIso(cx + 2, cy + 1, 40, 14, v >> 3, 2), worn));
-  shapes.push(line(18, 12 + (v % 3), 46, 20 - (v % 2), "#4a3c30", 2));
-  shapes.push(line(20, 14 + (v % 2), 44, 18, "#3a3028", 1));
-  shapes.push(ell(cx - 8 + (v % 5), cy + 3, 4, 2, "#5a4a38"));
-  shapes.push(ell(cx + 10, cy - 1, 3, 2, "#4a3c30"));
+  // Oversized fills overlap neighboring cells so a road reads as one field,
+  // with ruts and repairs appearing in clusters rather than on every tile.
+  shapes.push(poly(irregularIso(cx, cy, 68, 32, v, 3), dirt));
+  const detail = pick(v, 295, 5);
+  if (detail <= 1) {
+    shapes.push(poly(irregularIso(cx + signed(v, 296, 5), cy + signed(v, 297, 2), 34 + pick(v, 298, 18), 10, v >> 3, 2), worn));
+    shapes.push(line(14 + signed(v, 299, 5), 13, 54 + signed(v, 300, 4), 20, "#4a3c30", 2));
+  } else if (detail === 2) {
+    shapes.push(line(cx - 22, cy - 4, cx + 18, cy + 6, worn, 3));
+    shapes.push(line(cx - 20, cy - 2, cx + 16, cy + 7, "#3a3028", 1));
+  }
+  if (pick(v, 301, 7) === 0) shapes.push(ell(cx + signed(v, 302, 14), cy + signed(v, 303, 4), 7, 3, "#4a3c30"));
 }
 
-function paintConcrete(shapes: ShapeSpec[], v: number): void {
+function paintConcrete(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number): void {
   const cx = tileCx();
   const cy = tileCy();
-  shapes.push(poly(irregularIso(cx, cy, 56, 24, v, 1), "#6a6c64", "#3a3c38", 1));
-  shapes.push(poly(irregularIso(cx, cy - 1, 44, 16, v >> 2, 2), "#7a7c74"));
-  shapes.push(line(30 + (v % 3), 5, 34 - (v % 2), 27, "#50534c", 1));
-  shapes.push(line(10, 15 + (v % 2), 54, 17, "#7c8076", 1));
-  if (v % 2 === 0) shapes.push(ell(cx + 8, cy + 4, 6, 3, "#5a5c54"));
-  shapes.push(line(14, 10, 22, 14, "#8a8c82", 1));
+  const materials: Record<BiomeName, [string, string, string, string]> = {
+    "ash plains": ["#59605d", "#747d78", "#303735", "#9aa39c"],
+    "crystal flats": ["#435d5d", "#63817c", "#223b3d", "#8fc9bd"],
+    "rust canyons": ["#70503e", "#96684b", "#3e2d27", "#c58a5b"],
+    "salt marshes": ["#45594e", "#657266", "#263a32", "#91a67d"],
+    "glass desert": ["#83785f", "#aaa080", "#49463d", "#d1c49c"],
+    "tundra grid": ["#63757c", "#8d9da0", "#344850", "#c4d8d7"],
+    "jungle wreckage": ["#34483d", "#536256", "#1d3028", "#77916a"],
+    "volcanic shelf": ["#373535", "#5a5250", "#1c1b1d", "#d36a3d"],
+  };
+  const [base, hi, lo, accent] = materials[biome];
+  shapes.push(poly(irregularIso(cx, cy, 68, 32, v, 2), lo));
+
+  // Large slab fields replace the old repeated grey lozenge. Their seams remain
+  // readable at gameplay zoom and inherit the theater's local material language.
+  const split = 2 + pick(v, 301, 3);
+  const detail = pick(v, 310, 6);
+  const pattern = pick(v, 304, 3);
+  if (detail === 0 && pattern === 0) {
+    shapes.push(poly([cx, cy - 13, cx + 28, cy, cx + 2, cy + 3, cx - 12, cy - 4], base, lo, 1));
+    shapes.push(poly([cx - 12, cy - 4, cx + 2, cy + 3, cx, cy + 13, cx - 28, cy], hi, lo, 1));
+    shapes.push(poly([cx + 2, cy + 3, cx + 28, cy, cx, cy + 13], base, lo, 1));
+    if (pick(v, 305, 3) === 0) shapes.push(line(cx - 27, cy, cx, cy - 13, accent, 1));
+  } else if (detail === 0 && pattern === 1) {
+    shapes.push(poly(irregularIso(cx, cy, 48, 19, v >> 3, 1), base, lo, 1));
+    shapes.push(poly([cx - 24, cy, cx, cy - 10, cx + 6, cy - 6, cx - 17, cy + 3], hi, lo, 1));
+    shapes.push(line(cx - 17, cy + 3, cx + 18, cy - 6, lo, 1));
+    if (pick(v, 306, 4) === 0) shapes.push(line(cx - 7, cy - 7, cx + 18, cy, accent, 1));
+  } else if (detail === 0) {
+    shapes.push(poly([cx, cy - 13, cx + 28, cy, cx + 9, cy + 7, cx - 6, cy], hi, lo, 1));
+    shapes.push(poly([cx - 6, cy, cx + 9, cy + 7, cx, cy + 13, cx - 28, cy], base, lo, 1));
+    shapes.push(poly([cx - 22, cy - 3, cx - 7, cy - 10, cx + 5, cy - 5, cx - 6, cy], base, lo, 1));
+    if (pick(v, 307, 3) === 0) shapes.push(ell(cx + signed(v, 308, 12), cy + signed(v, 309, 4), 5, 3, accent, lo));
+  } else if (detail === 1) {
+    shapes.push(poly(irregularIso(cx + signed(v, 311, 7), cy + signed(v, 312, 3), 32 + pick(v, 313, 17), 12, v >> 4, 2), base));
+  }
+
+  if (pick(v, 314, 5) !== 0) return;
+  if (biome === "crystal flats") {
+    shapes.push(poly([cx - 7, cy + 4, cx - 2, cy - 7, cx + 2, cy + 2], "#8fcfc4", "#1c3435", 1));
+    shapes.push(poly([cx + 5, cy + 5, cx + 10, cy - 3, cx + 13, cy + 4], "#5e9e94", "#1c3435", 1));
+  } else if (biome === "rust canyons") {
+    shapes.push(line(cx - 17, cy - 4, cx + 17, cy + 5, "#35231d", 3));
+    for (let i = 0; i < 4; i++) shapes.push(ell(cx - 13 + i * 9, cy - 4 + i * 2, 3, 2, "#d0935d", "#35231d"));
+  } else if (biome === "salt marshes" || biome === "jungle wreckage") {
+    shapes.push(line(cx - 18, cy + 5, cx + 5, cy - 4, "#203b2c", 2));
+    shapes.push(line(cx - 12, cy + 5, cx - 8, cy - 7, biome === "jungle wreckage" ? "#6f9b5c" : "#82936b", 2));
+    shapes.push(ell(cx + 8, cy - 4, 10, 4, "rgba(32,62,40,0.72)"));
+  } else if (biome === "glass desert") {
+    shapes.push(poly([cx - 18, cy + 2, cx - 5, cy - 7, cx + 18, cy + 1, cx + 2, cy + 7], "#303739", "#d0c7aa", 1));
+    shapes.push(line(cx - 5, cy - 6, cx + 10, cy, "#e8ddba", 1));
+  } else if (biome === "tundra grid") {
+    shapes.push(line(cx - 22, cy - 3, cx + 18, cy + 6, "#c8e4e3", 2));
+    shapes.push(line(cx - 18, cy - 1, cx + 13, cy + 6, "#3b5660", 1));
+  } else if (biome === "volcanic shelf") {
+    shapes.push(line(cx - 18, cy - 5, cx - 3, cy + 1, "#151417", 3));
+    shapes.push(line(cx - 3, cy + 1, cx + 17, cy - 2, "#b8442b", 3));
+    shapes.push(line(cx - 2, cy, cx + 15, cy - 2, "#ff9a46", 1));
+  } else {
+    shapes.push(ell(cx + signed(v, 302, 10), cy + signed(v, 303, 3), 8 + split, 3, "#343c39"));
+    shapes.push(line(cx - 14, cy + 5, cx + 11, cy - 5, "#818b84", 1));
+  }
 }
 
 function paintSoftBlend(shapes: ShapeSpec[], mask: number, p: Palette, v: number): void {
@@ -616,15 +684,22 @@ function paintRidge(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number
   }
 }
 
-function paintOreField(shapes: ShapeSpec[], v: number, level: number): void {
+function paintOreField(shapes: ShapeSpec[], biome: BiomeName, v: number, level: number): void {
   const cx = tileCx();
   const cy = tileCy();
   const n = Math.max(1, Math.min(4, level));
-  shapes.push(poly(irregularIso(cx, cy + 1, 52, 24, v, 3), ORE.stainLo));
-  shapes.push(poly(irregularIso(cx - 2, cy, 42, 18, v >> 3, 2), ORE.stain));
-  shapes.push(ell(cx - 13, cy - 3, 26, 11, ORE.stainHi));
-  shapes.push(ell(cx + 7, cy + 2, 20, 9, ORE.stainLo));
-  for (let i = 0; i < 4 + n; i++) {
+  const fieldTint = biome === "crystal flats" ? "#34594f"
+    : biome === "rust canyons" ? "#5f321d"
+      : biome === "tundra grid" ? "#465b5c"
+        : biome === "volcanic shelf" ? "#2c1e1a"
+          : biome === "jungle wreckage" ? "#2a3c22"
+            : ORE.stainLo;
+  const density = pick(v, 401, 5);
+  shapes.push(poly(irregularIso(cx, cy + 1, 68, 32, v, 3), fieldTint));
+  if (density >= 2) shapes.push(poly(irregularIso(cx - 2, cy, 38 + density * 3, 14 + density, v >> 3, 2), ORE.stain));
+  if (density >= 3) shapes.push(ell(cx - 13, cy - 3, 20 + density * 2, 8 + density, ORE.stainHi));
+  if (density === 4) shapes.push(ell(cx + 7, cy + 2, 20, 9, ORE.stainLo));
+  for (let i = 0; i < 1 + density; i++) {
     const ox = ((v >> (i * 3)) % 23) - 11;
     const oy = ((v >> (i * 2 + 2)) % 9) - 4;
     shapes.push(ell(cx + ox - 3, cy + oy, 8, 3, i % 2 ? ORE.stainHi : ORE.stainLo));
@@ -642,7 +717,7 @@ function paintOreField(shapes: ShapeSpec[], v: number, level: number): void {
   const picked = slots
     .map((slot, i) => ({ slot, order: slot[1]! * 8 + slot[0]!, mix: hash(v + i * 19) }))
     .sort((a, b) => a.mix - b.mix)
-    .slice(0, 2 + n)
+    .slice(0, 1 + Math.floor(n / 2) + Math.floor(density / 2))
     .sort((a, b) => a.order - b.order);
 
   for (let i = 0; i < picked.length; i++) {
@@ -656,10 +731,25 @@ function paintOreField(shapes: ShapeSpec[], v: number, level: number): void {
     }
   }
 
-  for (let i = 0; i < 3 + n; i++) {
+  for (let i = 0; i < 1 + n; i++) {
     const ox = ((v >> (i * 4 + 1)) % 23) - 11;
     const oy = ((v >> (i * 3 + 2)) % 9) - 4;
     shapes.push(ell(cx + ox, cy + oy + 1, 2 + (i % 2), 1 + (i % 2), i % 2 ? ORE.glint : ORE.south));
+  }
+  if (pick(v, 402, 4) !== 0) return;
+  if (biome === "crystal flats") {
+    pushOreSpike(shapes, cx - 13, cy + 1, 4, 13, v ^ 0x51f15e);
+    shapes.push(line(cx - 12, cy - 10, cx - 9, cy - 3, "#a9fff0", 1));
+  } else if (biome === "rust canyons") {
+    shapes.push(line(cx - 21, cy + 4, cx + 20, cy - 5, "#b65d2e", 3));
+    shapes.push(line(cx - 18, cy + 3, cx + 17, cy - 4, ORE.glint, 1));
+  } else if (biome === "jungle wreckage" || biome === "salt marshes") {
+    shapes.push(line(cx - 22, cy + 2, cx + 19, cy - 4, "#37562e", 2));
+    shapes.push(ell(cx - 19, cy - 5, 10, 5, "#557747", INK));
+  } else if (biome === "tundra grid") {
+    shapes.push(poly([cx - 19, cy + 4, cx - 12, cy - 9, cx - 7, cy + 2], "#8cc7c8", "#283c42", 1));
+  } else if (biome === "volcanic shelf") {
+    shapes.push(line(cx - 20, cy - 2, cx + 18, cy + 3, "#e05b2f", 2));
   }
 }
 

@@ -12,6 +12,7 @@ import type {
 
 const TW = 64;
 const TH = 32;
+const ART_REV = "cinematic2";
 const INK = "#11130f";
 const STEEL = "#6a7168";
 const STEEL_LIGHT = "#8b9288";
@@ -38,6 +39,16 @@ const DEFAULT_PROFILE: FactionVisualProfile = {
 
 function visualKey(profile: FactionVisualProfile): string {
   return `${profile.designFamily}:${profile.material}:${profile.trimPattern}:${profile.insignia}:${profile.weathering}:${profile.lightRig}`;
+}
+
+function profileMetal(profile: FactionVisualProfile): { body: string; light: string; dark: string; trim: string } {
+  if (profile.material === "armored") {
+    return { body: "#56616a", light: "#82909a", dark: "#28323a", trim: "#aebbc0" };
+  }
+  if (profile.material === "industrial") {
+    return { body: "#62584b", light: "#91806a", dark: "#332f2b", trim: "#c49a5b" };
+  }
+  return { body: "#626d68", light: "#929e98", dark: "#2b3532", trim: "#c6d0ca" };
 }
 
 class Svg {
@@ -134,8 +145,8 @@ function hull(cx: number, cy: number, facing: Facing, length: number, width: num
 
 export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSpriteOptions = {}): SpriteSpec {
   const infantry = kind === "infantry" || kind === "antiArmor";
-  const w = infantry ? 50 : 56;
-  const h = infantry ? 48 : 54;
+  const w = infantry ? 54 : 64;
+  const h = infantry ? 54 : 60;
   const facing = options.facing ?? 0;
   const frame = options.animationFrame ?? 0;
   const variant = options.variant ?? 0;
@@ -146,9 +157,9 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
   const ground = h - 5;
   const cy = infantry ? ground - 21 : ground - 13;
   svg.ellipse(cx, ground, infantry ? 7.5 : 15, infantry ? 2.8 : 4.2, "rgba(8,10,12,0.55)");
-  if (kind === "harvester") paintHarvester(svg, cx, cy, facing, frame, palette);
-  else if (kind === "tank") paintTank(svg, cx, cy, facing, frame, palette);
-  else paintInfantry(svg, kind, cx, cy, facing, frame, variant, palette);
+  if (kind === "harvester") paintHarvester(svg, cx, cy, facing, frame, palette, profile);
+  else if (kind === "tank") paintTank(svg, cx, cy, facing, frame, palette, profile);
+  else paintInfantry(svg, kind, cx, cy, facing, frame, variant, palette, profile);
   paintUnitIdentity(svg, kind, cx, cy, facing, variant, palette, profile);
   if (variant % 3 === 1) svg.ellipse(cx - 14, cy, 2, 1.2, GOLD);
   if (dmg > 0) svg.ellipse(cx - 4, cy, 8, 3.5, "rgba(30,24,18,0.7)");
@@ -157,7 +168,7 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
     svg.ellipse(cx + 6, cy - 8, 6, 7, "rgba(58,58,54,0.45)");
   }
   return {
-    id: `unit:${kind}:${palette.primary}:${visualKey(profile)}:${variant}:${facing}:${frame}:${dmg}`,
+    id: `unit:${ART_REV}:${kind}:${palette.primary}:${visualKey(profile)}:${variant}:${facing}:${frame}:${dmg}`,
     kind: "unit",
     w,
     h,
@@ -182,6 +193,7 @@ function paintUnitIdentity(
 ): void {
   const dir = facingVector(facing);
   const infantry = kind === "infantry" || kind === "antiArmor";
+  const metal = profileMetal(profile);
   const light = profile.lightRig === "amber" ? "#ffd27a" : profile.lightRig === "red" ? "#ff8068" : "#8eeff1";
   if (infantry) {
     const shoulder = veh(cx, cy, -1, profile.designFamily === 1 ? 7 : 5, 17, facing);
@@ -202,9 +214,28 @@ function paintUnitIdentity(
       svg.path(d(octagon(pod[0], pod[1] - 1, 3.2, 2)), pal.primary, INK, 1);
     }
   } else {
-    const mast = veh(cx, cy, -9, -4, 13, facing);
-    svg.line(mast[0], mast[1], mast[0], mast[1] - 7, STEEL_DARK, 1);
-    svg.ellipse(mast[0], mast[1] - 8, 2.3, 1.6, light, INK, 1);
+    const drum = veh(cx, cy, -10, 0, 13, facing);
+    svg.path(d(octagon(drum[0], drum[1], 8, 5)), RUST, INK, 1.2);
+    svg.path(d(octagon(drum[0], drum[1] - 2, 6, 3.1)), RUST_LIGHT, INK, 1);
+    for (const side of [-1, 1]) {
+      const stack = veh(cx, cy, -12, side * 6, 15, facing);
+      svg.line(stack[0], stack[1] + 3, stack[0], stack[1] - 8 - (side + 1), metal.dark, 2.2);
+      svg.ellipse(stack[0], stack[1] - 9 - (side + 1), 2.8, 1.6, side > 0 ? light : metal.trim, INK, 1);
+    }
+    const railA = veh(cx, cy, -6, -9, 16, facing);
+    const railB = veh(cx, cy, -6, 9, 16, facing);
+    svg.line(railA[0], railA[1], railB[0], railB[1], metal.trim, 2);
+    svg.line(railA[0], railA[1], railA[0], railA[1] + 7, metal.dark, 1.5);
+    svg.line(railB[0], railB[1], railB[0], railB[1] + 7, metal.dark, 1.5);
+    svg.line(cx - 14, cy - 18, cx + 12, cy - 18, metal.trim, 3);
+    svg.line(cx - 14, cy - 18, cx - 14, cy + 1, metal.dark, 2);
+    svg.line(cx + 12, cy - 18, cx + 12, cy - 2, metal.dark, 2);
+    svg.path(d(octagon(cx - 13, cy - 8, 7, 4)), RUST, INK, 1.2);
+    svg.path(d(octagon(cx - 13, cy - 10, 5, 2.5)), RUST_LIGHT, INK, 1);
+    for (let i = 0; i < 4; i++) {
+      const x = cx - 10 + i * 6;
+      svg.line(x, cy - 20, x + 3, cy - 17, i % 2 ? "#1c201d" : pal.accent, 2);
+    }
   }
   const mark = veh(cx, cy, infantry ? 0 : 2, 0, infantry ? 19 : 11, facing);
   if (profile.insignia % 2 === 0) svg.path(d(diamond(mark[0], mark[1], 4, 2.8)), pal.accent, INK, 0.7);
@@ -230,12 +261,41 @@ function paintTreads(svg: Svg, cx: number, cy: number, facing: Facing, frame: nu
   }
 }
 
-function paintHarvester(svg: Svg, cx: number, cy: number, facing: Facing, frame: number, pal: Palette): void {
+function paintHarvester(
+  svg: Svg,
+  cx: number,
+  cy: number,
+  facing: Facing,
+  frame: number,
+  pal: Palette,
+  profile: FactionVisualProfile,
+): void {
   const dir = facingVector(facing);
-  paintTreads(svg, cx, cy, facing, frame, 34, 15);
-  svg.path(d(hull(cx, cy + 1, facing, 30, 16, 4, 3)), STEEL, INK, 1);
-  svg.path(d(hull(cx, cy, facing, 24, 12, 3, 5)), STEEL_LIGHT, INK, 1);
-  svg.path(d(hull(cx, cy - 1, facing, 18, 6, 1, 6)), pal.primary, INK, 1);
+  const metal = profileMetal(profile);
+  const family = profile.designFamily;
+  const length = family === 0 ? 40 : family === 1 ? 34 : 37;
+  const width = family === 1 ? 21 : family === 2 ? 17 : 14;
+  paintTreads(svg, cx, cy, facing, frame, length, width);
+  svg.path(d(hull(cx, cy + 1, facing, length - 3, width + 1, family === 1 ? 7 : 5, 3)), metal.dark, INK, 1.2);
+  svg.path(d(hull(cx + dir.x * 2, cy - 1, facing, length - 9, width - 3, 4, 6)), metal.body, INK, 1);
+  svg.path(d(hull(cx + dir.x * (family === 0 ? 7 : 0), cy - 3, facing, family === 0 ? 23 : 18, family === 1 ? 10 : 7, 2, 8)), pal.primary, INK, 1.2);
+  if (family === 0) {
+    const prow = veh(cx, cy, 18, 0, 8, facing);
+    svg.path(d(hull(prow[0], prow[1], facing, 15, 17, 3, 3)), metal.light, INK, 1.2);
+    svg.line(prow[0] - dir.y * 8, prow[1] + dir.x * 4, prow[0] + dir.y * 8, prow[1] - dir.x * 4, pal.light, 2);
+  } else if (family === 1) {
+    for (const side of [-1, 1]) {
+      const bin = veh(cx, cy, -4, side * 10, 9, facing);
+      svg.path(d(octagon(bin[0], bin[1], 8, 5)), metal.dark, INK, 1.2);
+      svg.path(d(octagon(bin[0], bin[1] - 2, 6, 3.2)), pal.primary, INK, 1);
+    }
+  } else {
+    const gantryA = veh(cx, cy, -12, -8, 15, facing);
+    const gantryB = veh(cx, cy, -12, 8, 15, facing);
+    svg.line(gantryA[0], gantryA[1], gantryB[0], gantryB[1], metal.trim, 2);
+    svg.line(gantryA[0], gantryA[1], gantryA[0], gantryA[1] - 7, metal.dark, 2);
+    svg.line(gantryB[0], gantryB[1], gantryB[0], gantryB[1] - 7, metal.dark, 2);
+  }
   const grate = hull(cx - dir.x * 5, cy - 4 - dir.y * 3, facing, 10, 6, 1, 11);
   svg.line(grate[0]![0], grate[0]![1], grate[2]![0], grate[2]![1], SOFT, 1);
   svg.line(grate[1]![0], grate[1]![1], grate[4]![0], grate[4]![1], SOFT, 1);
@@ -278,12 +338,39 @@ function paintHarvester(svg: Svg, cx: number, cy: number, facing: Facing, frame:
   svg.path(d([[cx - 1, cy - 13], [cx + 1, cy - 13], [cx + 1, cy - 11], [cx - 1, cy - 11]]), STEEL_LIGHT);
 }
 
-function paintTank(svg: Svg, cx: number, cy: number, facing: Facing, frame: number, pal: Palette): void {
+function paintTank(
+  svg: Svg,
+  cx: number,
+  cy: number,
+  facing: Facing,
+  frame: number,
+  pal: Palette,
+  profile: FactionVisualProfile,
+): void {
   const dir = facingVector(facing);
-  paintTreads(svg, cx, cy, facing, frame, 32, 14);
-  svg.path(d(hull(cx, cy, facing, 28, 15, 5, 3)), STEEL, INK, 1);
-  svg.path(d(hull(cx, cy - 1, facing, 22, 11, 3, 5)), STEEL_LIGHT, INK, 1);
-  svg.path(d(hull(cx, cy - 1, facing, 18, 6, 1, 6)), pal.primary, INK, 1);
+  const metal = profileMetal(profile);
+  const family = profile.designFamily;
+  const length = family === 0 ? 38 : family === 1 ? 31 : 35;
+  const width = family === 1 ? 21 : family === 2 ? 16 : 13;
+  paintTreads(svg, cx, cy, facing, frame, length, width);
+  svg.path(d(hull(cx, cy, facing, length - 3, width, family === 1 ? 7 : 5, 3)), metal.dark, INK, 1.2);
+  svg.path(d(hull(cx + dir.x * (family === 0 ? 3 : 0), cy - 2, facing, length - 9, width - 4, 4, 6)), metal.body, INK, 1);
+  svg.path(d(hull(cx + dir.x * 5, cy - 3, facing, family === 0 ? 23 : 18, family === 1 ? 11 : 7, 2, 8)), pal.primary, INK, 1.2);
+  if (family === 0) {
+    const nose = veh(cx, cy, 18, 0, 7, facing);
+    svg.path(d(hull(nose[0], nose[1], facing, 13, 16, 2, 3)), metal.light, INK, 1);
+    svg.line(nose[0] - dir.y * 7, nose[1] + dir.x * 4, nose[0] + dir.y * 7, nose[1] - dir.x * 4, pal.light, 2);
+  } else if (family === 1) {
+    for (const side of [-1, 1]) {
+      const sponson = veh(cx, cy, 1, side * 10, 9, facing);
+      svg.path(d(octagon(sponson[0], sponson[1], 7, 4.5)), metal.dark, INK, 1.2);
+      svg.ellipse(sponson[0], sponson[1] - 2, 3.5, 2, pal.accent, INK, 1);
+    }
+  } else {
+    const engine = veh(cx, cy, -13, 0, 12, facing);
+    svg.path(d(octagon(engine[0], engine[1], 8, 5)), RUST, INK, 1.2);
+    for (let i = -1; i <= 1; i++) svg.line(engine[0] - 5, engine[1] + i * 2, engine[0] + 5, engine[1] + i * 2, metal.trim, 1);
+  }
   const seam = hull(cx, cy - 1, facing, 20, 9, 2, 5);
   svg.line(seam[0]![0], seam[0]![1], seam[3]![0], seam[3]![1], SOFT, 1);
   svg.line(seam[1]![0], seam[1]![1], seam[4]![0], seam[4]![1], SOFT, 1);
@@ -293,9 +380,11 @@ function paintTank(svg: Svg, cx: number, cy: number, facing: Facing, frame: numb
   svg.line(ant[0], ant[1], ant[0], ant[1] - 6, STEEL_DARK, 1);
   const tx = cx + dir.x;
   const ty = cy - 7;
-  svg.path(d(octagon(tx, ty + 1, 11, 7)), STEEL_DARK, INK, 1);
-  svg.path(d(octagon(tx, ty - 1, 8.5, 5)), STEEL_LIGHT, INK, 1);
-  svg.path(d(octagon(tx, ty, 5.5, 3.2)), pal.primary, INK, 1);
+  const turretW = family === 0 ? 12 : family === 1 ? 10 : 8.5;
+  const turretH = family === 1 ? 8 : family === 2 ? 6 : 5.5;
+  svg.path(d(octagon(tx, ty + 1, turretW, turretH)), metal.dark, INK, 1.2);
+  svg.path(d(octagon(tx + dir.x * (family === 0 ? 2 : 0), ty - 1, turretW - 2.5, turretH - 2)), metal.light, INK, 1);
+  svg.path(d(octagon(tx + dir.x * 2, ty, family === 1 ? 6.5 : 5.5, family === 1 ? 4 : 3.2)), pal.primary, INK, 1);
   const bx = tx;
   const by = ty + 2;
   svg.line(bx, by, bx + dir.x * 22, by + dir.y * 22, STEEL_DARK, 3);
@@ -328,6 +417,7 @@ function paintInfantry(
   frame: number,
   variant: number,
   pal: Palette,
+  profile: FactionVisualProfile,
 ): void {
   const dir = facingVector(facing);
   const heavy = kind === "antiArmor";
@@ -337,6 +427,8 @@ function paintInfantry(
   const lean = dir.x * 2;
   const y = cy + bob;
   const skin = SKINS[variant % SKINS.length]!;
+  const metal = profileMetal(profile);
+  const family = profile.designFamily;
   const gx = cx + lean + 1;
   const gy = y + 4;
   const gun = () => {
@@ -392,10 +484,21 @@ function paintInfantry(
       [cx + bw - 1 + lean, y + 2],
       [cx - bw + 1 + lean, y + 2],
     ]),
-    heavy ? "#3a403c" : STEEL,
+    heavy ? metal.dark : metal.body,
     INK,
     1,
   );
+  if (family === 0) {
+    svg.path(d([[cx - bw - 3 + lean, y + 2], [cx - bw + 1 + lean, y - 2], [cx - bw + 2 + lean, y + 5], [cx - bw - 2 + lean, y + 7]]), pal.primary, INK, 1);
+    svg.path(d([[cx + bw + 3 + lean, y + 2], [cx + bw - 1 + lean, y - 2], [cx + bw - 2 + lean, y + 5], [cx + bw + 2 + lean, y + 7]]), pal.primary, INK, 1);
+  } else if (family === 1) {
+    svg.path(d(octagon(cx - 8 + lean, y + 4, 5, 4)), metal.dark, INK, 1.2);
+    svg.path(d(octagon(cx + 8 + lean, y + 4, 5, 4)), metal.dark, INK, 1.2);
+  } else {
+    svg.path(d([[cx - 7 + lean, y + 12], [cx - 4 + lean, y - 1], [cx + 4 + lean, y - 1], [cx + 7 + lean, y + 12]]), RUST, INK, 1);
+    svg.line(cx - 5 + lean, y + 3, cx + 5 + lean, y + 3, metal.trim, 1);
+    svg.line(cx - 5 + lean, y + 7, cx + 5 + lean, y + 7, metal.trim, 1);
+  }
   svg.path(
     d([
       [cx - bw + 1 + lean, y + 2],
@@ -416,7 +519,7 @@ function paintInfantry(
       [cx + 4 + lean, y - 14],
       [cx - 4 + lean, y - 14],
     ]),
-    heavy ? "#3a403c" : STEEL_DARK,
+    heavy ? metal.dark : family === 0 ? pal.primary : metal.dark,
     INK,
     1,
   );
@@ -674,8 +777,9 @@ export function buildingSprite(kind: BuildingKind, palette: Palette, options: Bu
   const svg = new Svg();
   const ground = pt(iso, fp.w / 2, fp.h / 2, 0);
 
-  paintYard(svg, iso, kind);
+  paintYard(svg, iso, kind, profile);
   if (construction >= 1) paintBuildingMass(svg, iso, kind, palette, construction, lit, complete);
+  if (construction >= 2) paintFactionBuildingSilhouette(svg, iso, kind, palette, variant, profile);
   if (construction >= 2) paintBuildingIdentity(svg, iso, kind, palette, variant, profile);
   if (construction < 3) paintScaffold(svg, iso, construction);
   if (dmg > 0) {
@@ -693,7 +797,7 @@ export function buildingSprite(kind: BuildingKind, palette: Palette, options: Bu
   }
 
   return {
-    id: `bld:${kind}:${palette.primary}:${visualKey(profile)}:${variant}:${dmg}:${construction}`,
+    id: `bld:${ART_REV}:${kind}:${palette.primary}:${visualKey(profile)}:${variant}:${dmg}:${construction}`,
     kind: "building",
     w: iso.w,
     h: iso.h,
@@ -744,18 +848,89 @@ function paintBuildingIdentity(
   }
 }
 
-function paintYard(svg: Svg, iso: Iso, kind: BuildingKind): void {
+function paintFactionBuildingSilhouette(
+  svg: Svg,
+  iso: Iso,
+  kind: BuildingKind,
+  pal: Palette,
+  variant: number,
+  profile: FactionVisualProfile,
+): void {
+  const metal = profileMetal(profile);
+  const sky = buildingSky(kind);
+  const crown = Math.max(12, sky * 0.52);
+  const pad = Math.min(0.14, iso.fw * 0.08, iso.fh * 0.08);
+  if (profile.designFamily === 0) {
+    const y0 = pad;
+    const y1 = Math.min(iso.fh - pad, pad + Math.max(0.24, iso.fh * 0.2));
+    isoBox(svg, iso, pad, y0, iso.fw - pad, y1, crown, crown + 6, pal.primary, metal.body, metal.dark);
+    const left = pt(iso, pad, iso.fh - pad, crown * 0.62);
+    const mid = pt(iso, iso.fw * 0.5, iso.fh + 0.08, crown * 0.42);
+    const right = pt(iso, iso.fw - pad, iso.fh - pad, crown * 0.62);
+    const ridge = pt(iso, iso.fw * 0.5, iso.fh - pad, crown * 0.88);
+    svg.path(d([left, ridge, right, mid]), metal.light, INK, 1.4);
+    svg.line(left[0], left[1], right[0], right[1], pal.light, 2.2);
+    for (let i = 0; i < 3; i++) {
+      const t = 0.28 + i * 0.22;
+      const a = pt(iso, iso.fw * t, y0, crown + 6.5);
+      const b = pt(iso, iso.fw * t, y1, crown + 6.5);
+      svg.line(a[0], a[1], b[0], b[1], metal.trim, 1);
+    }
+  } else if (profile.designFamily === 1) {
+    const block = Math.max(0.2, Math.min(0.46, iso.fw * 0.25, iso.fh * 0.25));
+    const corners: Array<[number, number]> = [
+      [pad, pad],
+      [Math.max(pad, iso.fw - pad - block), Math.max(pad, iso.fh - pad - block)],
+    ];
+    for (const [x, y] of corners) {
+      isoBox(svg, iso, x, y, x + block, y + block, 0, crown + 4, metal.light, metal.body, metal.dark);
+      const cap = pt(iso, x + block / 2, y + block / 2, crown + 5);
+      svg.path(d(octagon(cap[0], cap[1], 7 + block * 5, 4 + block * 2)), pal.primary, INK, 1.3);
+    }
+    const center = pt(iso, iso.fw * 0.5, iso.fh * 0.5, crown + 8);
+    svg.path(d(octagon(center[0], center[1], 15, 8)), metal.dark, INK, 1.4);
+    svg.path(d(octagon(center[0], center[1] - 2, 10, 5)), pal.primary, INK, 1.2);
+  } else {
+    const tankX = Math.min(iso.fw - 0.16, Math.max(0.16, iso.fw * 0.18));
+    const tankY = Math.min(iso.fh - 0.16, Math.max(0.16, iso.fh * 0.72));
+    isoCyl(svg, iso, tankX, tankY, 0, crown + 7, 7, 3.4, RUST_LIGHT, metal.body, metal.dark);
+    const stackX = Math.min(iso.fw - 0.12, Math.max(0.12, iso.fw * 0.78));
+    const stackY = Math.min(iso.fh - 0.12, Math.max(0.12, iso.fh * 0.22));
+    isoCyl(svg, iso, stackX, stackY, 0, crown + 16 + (variant % 5), 4.5, 2.2, metal.trim, RUST, metal.dark);
+    const a = pt(iso, tankX, tankY, crown + 5);
+    const b = pt(iso, stackX, stackY, crown + 11);
+    svg.line(a[0], a[1], b[0], b[1], metal.trim, 3);
+    svg.line(a[0], a[1] - 2, b[0], b[1] - 2, metal.dark, 1);
+    const gantryL = pt(iso, pad, pad, crown + 10);
+    const gantryR = pt(iso, iso.fw - pad, iso.fh - pad, crown + 10);
+    svg.line(gantryL[0], gantryL[1], gantryR[0], gantryR[1], metal.light, 2);
+    svg.line(gantryL[0], gantryL[1], gantryL[0], gantryL[1] + crown * 0.7, metal.dark, 2);
+    svg.line(gantryR[0], gantryR[1], gantryR[0], gantryR[1] + crown * 0.7, metal.dark, 2);
+    svg.ellipse(b[0], b[1] - 2, 3.5, 2.2, pal.light, INK, 1);
+  }
+}
+
+function paintYard(svg: Svg, iso: Iso, kind: BuildingKind, profile: FactionVisualProfile): void {
   const c = pt(iso, iso.fw / 2, iso.fh / 2, 0);
+  const metal = profileMetal(profile);
   svg.ellipse(c[0], c[1] + 4, 18 + iso.fw * 10, 7 + iso.fh * 2, "rgba(8,10,8,0.38)");
   const pad = kind === "turret"
     ? [pt(iso, 0.05, 0.05, 0), pt(iso, 0.95, 0.05, 0), pt(iso, 0.95, 0.95, 0), pt(iso, 0.05, 0.95, 0)]
     : [pt(iso, 0, 0, 0), pt(iso, iso.fw, 0, 0), pt(iso, iso.fw, iso.fh, 0), pt(iso, 0, iso.fh, 0)];
-  const fill = svg.grad(pad[0]![0], pad[0]![1], pad[2]![0], pad[2]![1], [[0, "#6a7068"], [1, "#3a403c"]]);
+  const fill = svg.grad(pad[0]![0], pad[0]![1], pad[2]![0], pad[2]![1], [[0, metal.light], [1, metal.dark]]);
   svg.path(d(pad), fill, INK, 1);
   svg.line(pad[0]![0], pad[0]![1], pad[2]![0], pad[2]![1], STEEL_DARK, 1);
   const mid = pt(iso, iso.fw * 0.5, iso.fh * 0.5, 0);
   svg.line((pad[1]![0] + pad[0]![0]) / 2, (pad[1]![1] + pad[0]![1]) / 2, mid[0], mid[1], STEEL, 1);
   svg.line((pad[3]![0] + pad[0]![0]) / 2, (pad[3]![1] + pad[0]![1]) / 2, mid[0], mid[1], STEEL_DARK, 1);
+  if (profile.designFamily === 0) {
+    svg.line(pad[0]![0], pad[0]![1], pad[1]![0], pad[1]![1], profile.trimPattern % 2 ? "#d7e2dc" : "#91fff0", 2);
+  } else if (profile.designFamily === 1) {
+    for (const corner of pad) svg.path(d(octagon(corner[0], corner[1], 3.5, 2)), metal.dark, INK, 1);
+  } else {
+    svg.line(pad[3]![0], pad[3]![1], pad[1]![0], pad[1]![1], RUST_LIGHT, 2);
+    svg.line(pad[0]![0], pad[0]![1], pad[2]![0], pad[2]![1], metal.trim, 1);
+  }
 }
 
 function paintScaffold(svg: Svg, iso: Iso, construction: number): void {

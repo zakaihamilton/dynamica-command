@@ -31,6 +31,10 @@ describe("cinematic visual profiles", () => {
     expect(new Set(units.map((spec) => spec.svg)).size).toBe(3);
     expect(new Set(buildings.map((spec) => spec.id)).size).toBe(3);
     expect(new Set(buildings.map((spec) => spec.svg)).size).toBe(3);
+    const unitMarkCounts = units.map((spec) => (spec.svg?.match(/<(path|ellipse|line)\b/g) ?? []).length);
+    const buildingMarkCounts = buildings.map((spec) => (spec.svg?.match(/<(path|ellipse|line)\b/g) ?? []).length);
+    expect(new Set(unitMarkCounts).size).toBeGreaterThan(1);
+    expect(new Set(buildingMarkCounts).size).toBe(3);
   });
 
   it("bundles every declared raster plate and texture locally", () => {

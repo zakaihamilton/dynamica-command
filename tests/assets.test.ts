@@ -3,6 +3,7 @@ import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
 import { buildingSprite, elevationFace, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
 import { BIOMES } from "../lib/gen/names";
+import { SURFACE_CONCRETE } from "../lib/types";
 
 describe("retro procedural assets", () => {
   const palette = generateFactions(421)[0].palette;
@@ -45,7 +46,7 @@ describe("retro procedural assets", () => {
     validateSpec(trees);
     validateSpec(rocks);
     validateSpec(dirt);
-    expect(grass.shapes.length).toBeGreaterThan(8);
+    expect(grass.shapes.length).toBeGreaterThan(3);
     expect(trees.shapes.length).toBeGreaterThan(grass.shapes.length);
     expect(rocks.shapes.some((shape) => shape.type === "poly")).toBe(true);
     expect(dirt.shapes.length).toBeGreaterThan(4);
@@ -63,6 +64,21 @@ describe("retro procedural assets", () => {
     );
     expect(new Set(fingerprints).size).toBeGreaterThan(3);
     expect(tiles[0]!.shapes).not.toEqual(tiles[1]!.shapes);
+  });
+
+  it("gives concrete fields biome-specific materials and multiple slab layouts", () => {
+    const theaterFingerprints = BIOMES.map((biome) =>
+      tileSprite("clear", 1, { biome, variant: 12, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
+    );
+    expect(new Set(theaterFingerprints.map((shapes) => JSON.stringify(shapes))).size).toBe(BIOMES.length);
+
+    const jungleLayouts = [0, 1, 2, 3, 4, 5, 6, 7].map((variant) =>
+      tileSprite("clear", 1, { biome: "jungle wreckage", variant, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
+    );
+    expect(new Set(jungleLayouts.map((shapes) => JSON.stringify(shapes))).size).toBeGreaterThan(5);
+    const shapeCounts = jungleLayouts.map((shapes) => shapes.length);
+    expect(Math.min(...shapeCounts)).toBeLessThanOrEqual(5);
+    expect(Math.max(...shapeCounts) - Math.min(...shapeCounts)).toBeGreaterThan(3);
   });
 
   it("varies tree size and placement across blocked tiles", () => {
@@ -183,8 +199,13 @@ describe("retro procedural assets", () => {
   });
 
   it("draws organic terrain and SVG military silhouettes", () => {
-    const grass = tileSprite("clear", 1, { biome: "ash plains", variant: 4, contour: "none" });
-    expect(grass.shapes.filter((shape) => shape.type === "ellipse").length).toBeGreaterThan(8);
+    const grassSamples = Array.from({ length: 12 }, (_, variant) =>
+      tileSprite("clear", 1, { biome: "ash plains", variant, contour: "none" }),
+    );
+    const ellipseCounts = grassSamples.map((spec) => spec.shapes.filter((shape) => shape.type === "ellipse").length);
+    const grass = grassSamples[ellipseCounts.indexOf(Math.max(...ellipseCounts))]!;
+    expect(Math.max(...ellipseCounts)).toBeGreaterThan(5);
+    expect(Math.min(...ellipseCounts)).toBeLessThan(Math.max(...ellipseCounts));
     expect(grass.shapes.some((shape) => shape.type === "poly" && (shape.points?.length ?? 0) > 8)).toBe(true);
     const infantry = unitSprite("infantry", palette, { facing: 0, variant: 11 });
     expect(infantry.svg).toContain("<path");
