@@ -33,9 +33,34 @@
   text-shadow: 1px 1px #000;
 }
 
-.seed {
+.missionMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.seed,
+.level {
   letter-spacing: 0.3em;
+  white-space: nowrap;
+}
+
+.seed {
   color: var(--chrome-cyan);
+}
+
+.level {
+  position: relative;
+  padding-left: 0.85rem;
+  color: var(--chrome-gold);
+  letter-spacing: 0.16em;
+}
+
+.level::before {
+  position: absolute;
+  left: 0;
+  color: var(--chrome-steel-hi);
+  content: "/";
 }
 
 .mission {

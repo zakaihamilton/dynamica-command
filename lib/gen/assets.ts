@@ -19,7 +19,7 @@ const SPRITE_W = TW + TILE_SPRITE_PAD_X * 2;
 const SPRITE_H = TH + TILE_SPRITE_PAD_Y * 2;
 const INK = "#11130f";
 const ART_PIXEL_SCALE = 1;
-const TERRAIN_ART_REV = "cinematic3";
+const TERRAIN_ART_REV = "cinematic5";
 
 function tileCx(): number {
   return TILE_SPRITE_PAD_X + TW / 2;
@@ -453,6 +453,61 @@ function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: 
     }
   }
   if (density === 5 || pick(v, 261, 7) === 0) paintBiomeSignature(shapes, biome, p, v, cx, cy);
+  if (pick(v, 262, 10) === 0) paintBiomeLandmark(shapes, biome, p, v, cx, cy);
+}
+
+function paintBiomeLandmark(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number, cx: number, cy: number): void {
+  const feature = pick(v, 263, 3);
+  if (biome === "jungle wreckage") {
+    if (feature === 0) {
+      shapes.push(line(cx - 23, cy + 5, cx + 20, cy - 3, "#17271b", 4));
+      shapes.push(line(cx - 8, cy + 2, cx - 2, cy - 9, "#4f7743", 2));
+      shapes.push(ell(cx + 8, cy - 8, 16, 8, "#315b35", INK));
+    } else if (feature === 1) {
+      shapes.push(ell(cx - 20, cy - 7, 40, 14, "#18372f", "#10281f"));
+      shapes.push(ell(cx - 11, cy - 5, 20, 7, "#397365"));
+      shapes.push(ell(cx + 9, cy - 1, 8, 4, "#6a8458"));
+    } else {
+      shapes.push(poly([cx - 20, cy + 4, cx - 9, cy - 7, cx + 19, cy, cx + 7, cy + 7], "#5a4939", "#1b201c", 1));
+      shapes.push(line(cx - 13, cy - 2, cx + 13, cy + 3, "#b0733d", 2));
+      shapes.push(ell(cx - 14, cy - 7, 9, 5, "#3c633a"));
+    }
+  } else if (biome === "ash plains") {
+    if (feature === 0) {
+      shapes.push(ell(cx - 23, cy - 8, 46, 17, "#292f2d", "#171b19"));
+      shapes.push(ell(cx - 12, cy - 4, 24, 8, "#111614"));
+    } else if (feature === 1) {
+      shapes.push(line(cx - 24, cy + 5, cx + 22, cy - 5, "#242a27", 5));
+      shapes.push(line(cx - 18, cy + 3, cx + 18, cy - 4, "#7b8179", 1));
+    } else {
+      shapes.push(poly(irregularIso(cx, cy, 42, 16, v >> 2, 3), "#657069", "#202623", 1));
+      shapes.push(line(cx - 12, cy + 4, cx + 9, cy - 5, "#313835", 2));
+    }
+  } else if (biome === "crystal flats") {
+    for (let i = 0; i < 3 + feature; i++) {
+      const ox = -16 + i * 8;
+      shapes.push(poly([cx + ox - 4, cy + 5, cx + ox, cy - 10 - (i % 3) * 2, cx + ox + 4, cy + 4], i % 2 ? "#79b9ad" : "#9ce4d5", "#263c38", 1));
+    }
+  } else if (biome === "rust canyons") {
+    shapes.push(line(cx - 25, cy + 5, cx + 23, cy - 5 + feature * 3, "#43281d", 5));
+    shapes.push(line(cx - 20, cy + 3, cx + 19, cy - 4 + feature * 3, feature === 2 ? "#d38345" : "#8f4c2d", 2));
+    if (feature === 1) shapes.push(poly([cx - 10, cy + 3, cx - 2, cy - 9, cx + 12, cy + 1], "#885334", "#2c1b14", 1));
+  } else if (biome === "salt marshes") {
+    shapes.push(ell(cx - 23, cy - 8, 46, 16, feature === 0 ? "#243f37" : "#586044", "#1a3029"));
+    for (let i = 0; i < 4 + feature; i++) shapes.push(line(cx - 17 + i * 7, cy + 4, cx - 16 + i * 7, cy - 8 - (i % 2) * 3, "#879064", 1));
+  } else if (biome === "glass desert") {
+    shapes.push(poly([cx - 24, cy + 4, cx - 8, cy - 10 - feature, cx + 24, cy + 2, cx + 6, cy + 9], feature === 1 ? "#292f31" : "#75664f", "#b9aa8b", 1));
+    shapes.push(line(cx - 7, cy - 9, cx + 14, cy, "#e3d4b2", 1));
+  } else if (biome === "tundra grid") {
+    shapes.push(poly(irregularIso(cx, cy, 48, 19, v >> 2, 2), feature === 0 ? "#85a4aa" : "#a6bcb9", "#39545b", 1));
+    shapes.push(line(cx - 22, cy - 4, cx + 20, cy + 6, "#d4eeee", 2));
+    if (feature === 2) shapes.push(line(cx - 13, cy + 5, cx + 4, cy - 7, "#526d72", 2));
+  } else {
+    shapes.push(line(cx - 24, cy - 4, cx - 3, cy + feature - 1, "#151313", 5));
+    shapes.push(line(cx - 3, cy + feature - 1, cx + 23, cy - 4, feature === 1 ? "#8e2c22" : "#d04b2c", 3));
+    shapes.push(line(cx - 2, cy + feature - 2, cx + 20, cy - 4, "#ff9a46", 1));
+  }
+  if (feature === 2) shapes.push(ell(cx + signed(v, 264, 12), cy + signed(v, 265, 4), 6, 3, p.dark));
 }
 
 function paintBiomeSignature(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number, cx: number, cy: number): void {
@@ -513,6 +568,27 @@ function paintRoad(shapes: ShapeSpec[], biome: BiomeName, v: number): void {
     shapes.push(line(cx - 20, cy - 2, cx + 16, cy + 7, "#3a3028", 1));
   }
   if (pick(v, 301, 7) === 0) shapes.push(ell(cx + signed(v, 302, 14), cy + signed(v, 303, 4), 7, 3, "#4a3c30"));
+  if (pick(v, 304, 7) === 0) paintRoadLandmark(shapes, biome, v, cx, cy);
+}
+
+function paintRoadLandmark(shapes: ShapeSpec[], biome: BiomeName, v: number, cx: number, cy: number): void {
+  const feature = pick(v, 305, 4);
+  if (feature === 0) {
+    shapes.push(ell(cx - 17, cy - 7, 34, 12, biome === "tundra grid" ? "#55727b" : "#353d36", "#292b27"));
+    shapes.push(line(cx - 10, cy - 5, cx + 9, cy - 2, biome === "tundra grid" ? "#accfd2" : "#788b73", 1));
+  } else if (feature === 1) {
+    for (let i = -1; i <= 1; i++) {
+      shapes.push(line(cx - 22, cy - 5 + i * 4, cx + 21, cy + 5 + i * 4, i === 0 ? "#292820" : "#544838", i === 0 ? 2 : 1));
+    }
+  } else if (feature === 2) {
+    shapes.push(poly([cx - 19, cy + 4, cx - 10, cy - 7, cx + 17, cy - 1, cx + 8, cy + 8], "#3c4441", "#202421", 1));
+    for (let i = 0; i < 5; i++) shapes.push(line(cx - 12 + i * 6, cy - 4, cx - 9 + i * 6, cy + 4, i % 2 ? "#2c322f" : "#8b744c", 2));
+  } else {
+    const green = biome === "jungle wreckage" || biome === "salt marshes";
+    shapes.push(line(cx - 23, cy + 5, cx + 18, cy - 5, green ? "#29452d" : "#3b3429", 3));
+    shapes.push(ell(cx - 8, cy - 8, 17, 7, green ? "#527344" : "#76573c"));
+    shapes.push(ell(cx + 7, cy + 1, 12, 5, green ? "#3c5f38" : "#4a3d30"));
+  }
 }
 
 function paintConcrete(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number): void {
@@ -555,30 +631,71 @@ function paintConcrete(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: num
     shapes.push(poly(irregularIso(cx + signed(v, 311, 7), cy + signed(v, 312, 3), 32 + pick(v, 313, 17), 12, v >> 4, 2), base));
   }
 
-  if (pick(v, 314, 5) !== 0) return;
-  if (biome === "crystal flats") {
-    shapes.push(poly([cx - 7, cy + 4, cx - 2, cy - 7, cx + 2, cy + 2], "#8fcfc4", "#1c3435", 1));
-    shapes.push(poly([cx + 5, cy + 5, cx + 10, cy - 3, cx + 13, cy + 4], "#5e9e94", "#1c3435", 1));
+  if (pick(v, 314, 6) === 0) paintConcreteBiomeDetail(shapes, biome, v, cx, cy, split);
+}
+
+function paintConcreteBiomeDetail(
+  shapes: ShapeSpec[],
+  biome: BiomeName,
+  v: number,
+  cx: number,
+  cy: number,
+  split: number,
+): void {
+  const feature = pick(v, 315, 4);
+  if (biome === "jungle wreckage") {
+    if (feature === 0) {
+      shapes.push(line(cx - 23, cy + 6, cx + 17, cy - 6, "#203b2c", 3));
+      shapes.push(line(cx - 12, cy + 5, cx - 8, cy - 8, "#77a563", 2));
+      shapes.push(ell(cx + 8, cy - 5, 12, 5, "#355e3d"));
+    } else if (feature === 1) {
+      shapes.push(ell(cx - 18, cy - 7, 36, 13, "#172f2d", "#294b43"));
+      shapes.push(ell(cx - 10, cy - 5, 18, 6, "#315d55"));
+      shapes.push(line(cx - 7, cy - 6, cx + 7, cy - 3, "#80a89a", 1));
+    } else if (feature === 2) {
+      shapes.push(poly([cx - 20, cy + 4, cx - 8, cy - 7, cx + 18, cy, cx + 7, cy + 8], "#66503b", "#231f1c", 1));
+      for (let i = 0; i < 4; i++) shapes.push(line(cx - 12 + i * 7, cy - 4, cx - 8 + i * 7, cy + 4, i % 2 ? "#2a302a" : "#b57b3e", 2));
+    } else {
+      shapes.push(line(cx - 20, cy + 6, cx + 5, cy - 3, "#182d20", 3));
+      shapes.push(line(cx - 5, cy - 2, cx + 18, cy + 3, "#182d20", 3));
+      shapes.push(line(cx - 4, cy - 1, cx + 2, cy - 9, "#679451", 2));
+      shapes.push(ell(cx + 11, cy - 5, 9, 5, "#4c7a45"));
+    }
+  } else if (biome === "crystal flats") {
+    const shift = feature * 3 - 5;
+    shapes.push(poly([cx - 12 + shift, cy + 5, cx - 6 + shift, cy - 10 - feature, cx - 1 + shift, cy + 3], "#8fcfc4", "#1c3435", 1));
+    shapes.push(poly([cx + 2 - shift, cy + 5, cx + 9 - shift, cy - 5, cx + 13 - shift, cy + 4], feature % 2 ? "#6f9fff" : "#5e9e94", "#1c3435", 1));
+    if (feature >= 2) shapes.push(line(cx - 20, cy + 4, cx + 20, cy - 5, "#a8f4e5", 1));
   } else if (biome === "rust canyons") {
-    shapes.push(line(cx - 17, cy - 4, cx + 17, cy + 5, "#35231d", 3));
-    for (let i = 0; i < 4; i++) shapes.push(ell(cx - 13 + i * 9, cy - 4 + i * 2, 3, 2, "#d0935d", "#35231d"));
-  } else if (biome === "salt marshes" || biome === "jungle wreckage") {
-    shapes.push(line(cx - 18, cy + 5, cx + 5, cy - 4, "#203b2c", 2));
-    shapes.push(line(cx - 12, cy + 5, cx - 8, cy - 7, biome === "jungle wreckage" ? "#6f9b5c" : "#82936b", 2));
-    shapes.push(ell(cx + 8, cy - 4, 10, 4, "rgba(32,62,40,0.72)"));
+    if (feature < 2) {
+      shapes.push(line(cx - 22, cy - 5 + feature * 4, cx + 20, cy + 6 - feature * 3, "#35231d", 4));
+      shapes.push(line(cx - 18, cy - 4 + feature * 4, cx + 17, cy + 5 - feature * 3, "#c16f3d", 1));
+    } else {
+      shapes.push(poly([cx - 18, cy + 5, cx - 11, cy - 7, cx + 16, cy - 2, cx + 10, cy + 8], "#754630", "#2b201c", 1));
+      for (let i = 0; i < 5; i++) shapes.push(ell(cx - 12 + i * 7, cy - 3 + (i % 2) * 5, 3, 2, "#d0935d", "#35231d"));
+    }
+  } else if (biome === "salt marshes") {
+    shapes.push(ell(cx - 20 + feature * 3, cy - 7, 34, 13, feature % 2 ? "#263f38" : "#625f44", "#1d302b"));
+    for (let i = 0; i < 3 + feature; i++) shapes.push(line(cx - 12 + i * 6, cy + 3, cx - 11 + i * 6, cy - 7 - (i % 3), "#8d9565", 1));
   } else if (biome === "glass desert") {
-    shapes.push(poly([cx - 18, cy + 2, cx - 5, cy - 7, cx + 18, cy + 1, cx + 2, cy + 7], "#303739", "#d0c7aa", 1));
-    shapes.push(line(cx - 5, cy - 6, cx + 10, cy, "#e8ddba", 1));
+    shapes.push(poly([cx - 22, cy + 3, cx - 7 + feature, cy - 9, cx + 22, cy + 1, cx + 5, cy + 9], feature % 2 ? "#313b3d" : "#806d52", "#d0c7aa", 1));
+    shapes.push(line(cx - 7 + feature, cy - 8, cx + 14, cy, "#f0dfb6", 1));
   } else if (biome === "tundra grid") {
-    shapes.push(line(cx - 22, cy - 3, cx + 18, cy + 6, "#c8e4e3", 2));
-    shapes.push(line(cx - 18, cy - 1, cx + 13, cy + 6, "#3b5660", 1));
+    shapes.push(poly(irregularIso(cx + feature * 2 - 3, cy, 42, 17, v >> 2, 2), feature % 2 ? "#6f8990" : "#9bb3b5", "#324c54", 1));
+    shapes.push(line(cx - 22, cy - 4, cx + 20, cy + 6, "#d2efee", 2));
+    if (feature >= 2) shapes.push(line(cx - 15, cy + 5, cx + 4, cy - 7, "#4c6970", 2));
   } else if (biome === "volcanic shelf") {
-    shapes.push(line(cx - 18, cy - 5, cx - 3, cy + 1, "#151417", 3));
-    shapes.push(line(cx - 3, cy + 1, cx + 17, cy - 2, "#b8442b", 3));
-    shapes.push(line(cx - 2, cy, cx + 15, cy - 2, "#ff9a46", 1));
+    shapes.push(line(cx - 22, cy - 4, cx - 4, cy + feature - 1, "#151417", 4));
+    shapes.push(line(cx - 4, cy + feature - 1, cx + 21, cy - 3, feature % 2 ? "#9f3024" : "#d6572f", 3));
+    shapes.push(line(cx - 3, cy + feature - 2, cx + 18, cy - 3, "#ff9a46", 1));
   } else {
-    shapes.push(ell(cx + signed(v, 302, 10), cy + signed(v, 303, 3), 8 + split, 3, "#343c39"));
-    shapes.push(line(cx - 14, cy + 5, cx + 11, cy - 5, "#818b84", 1));
+    if (feature < 2) {
+      shapes.push(ell(cx + signed(v, 302, 10), cy + signed(v, 303, 3), 10 + split * 2, 5 + feature, "#343c39"));
+      shapes.push(line(cx - 17, cy + 5, cx + 14, cy - 6, "#818b84", 1));
+    } else {
+      shapes.push(poly([cx - 19, cy + 3, cx - 6, cy - 8, cx + 19, cy, cx + 8, cy + 7], "#4a514e", "#272e2c", 1));
+      shapes.push(line(cx - 12, cy - 3, cx + 12, cy + 3, "#9aa39c", 2));
+    }
   }
 }
 

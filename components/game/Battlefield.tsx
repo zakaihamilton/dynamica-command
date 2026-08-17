@@ -14,6 +14,8 @@ export function Battlefield({
   panAvail,
   hotPan,
   seed,
+  levelNumber,
+  levelCount,
   missionName,
   objective,
   biome,
@@ -30,6 +32,8 @@ export function Battlefield({
   panAvail: PanAvailability;
   hotPan: PanDir | null;
   seed: number;
+  levelNumber: number;
+  levelCount: number;
   missionName: string;
   objective: string;
   biome: BiomeName;
@@ -61,7 +65,12 @@ export function Battlefield({
       <ScrollArrow dir="down" available={panAvail.down} hot={hotPan === "down"} />
       <div className={styles.status}>
         <div>
-          <div className={styles.seed} data-testid="seed">Seed {formatSeed(seed)}</div>
+          <div className={styles.missionMeta}>
+            <div className={styles.seed} data-testid="seed">Seed {formatSeed(seed)}</div>
+            <div className={styles.level} data-testid="level-progress">
+              Level {levelNumber} of {levelCount}
+            </div>
+          </div>
           <div className={styles.mission}>{missionName}</div>
         </div>
         <div className={styles.objective} data-testid="objective">

@@ -72,13 +72,32 @@ describe("retro procedural assets", () => {
     );
     expect(new Set(theaterFingerprints.map((shapes) => JSON.stringify(shapes))).size).toBe(BIOMES.length);
 
-    const jungleLayouts = [0, 1, 2, 3, 4, 5, 6, 7].map((variant) =>
+    const jungleLayouts = Array.from({ length: 32 }, (_, variant) =>
       tileSprite("clear", 1, { biome: "jungle wreckage", variant, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
     );
     expect(new Set(jungleLayouts.map((shapes) => JSON.stringify(shapes))).size).toBeGreaterThan(5);
     const shapeCounts = jungleLayouts.map((shapes) => shapes.length);
     expect(Math.min(...shapeCounts)).toBeLessThanOrEqual(5);
     expect(Math.max(...shapeCounts) - Math.min(...shapeCounts)).toBeGreaterThan(3);
+  });
+
+  it("scatters distinct landmark families through continuous terrain fields", () => {
+    const concreteMarks = new Set(
+      Array.from({ length: 256 }, (_, variant) =>
+        tileSprite("clear", 1, { biome: "jungle wreckage", variant, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
+      ).flatMap((shapes) => shapes.flatMap((shape) => [shape.fill, shape.stroke].filter(Boolean))),
+    );
+    expect(concreteMarks).toContain("#172f2d"); // standing water
+    expect(concreteMarks).toContain("#66503b"); // wreck plate
+    expect(concreteMarks).toContain("#77a563"); // vine growth
+
+    const openMarks = new Set(
+      Array.from({ length: 256 }, (_, variant) =>
+        tileSprite("clear", 1, { biome: "jungle wreckage", variant, contour: "none" }).shapes,
+      ).flatMap((shapes) => shapes.flatMap((shape) => [shape.fill, shape.stroke].filter(Boolean))),
+    );
+    expect(openMarks).toContain("#18372f"); // forest pool
+    expect(openMarks).toContain("#5a4939"); // buried wreckage
   });
 
   it("varies tree size and placement across blocked tiles", () => {

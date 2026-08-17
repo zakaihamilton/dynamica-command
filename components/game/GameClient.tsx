@@ -699,6 +699,8 @@ export function GameClient({
         panAvail={panAvail}
         hotPan={hotPan}
         seed={s.seed}
+        levelNumber={s.missionIndex + 1}
+        levelCount={campaign.missions.length}
         missionName={s.missionName}
         objective={obj.label}
         biome={s.biome}
