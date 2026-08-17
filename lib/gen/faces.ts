@@ -1,5 +1,6 @@
 import type { Rng } from "../seed/rng";
 import type { CharacterRole, FaceDna } from "../types";
+import { portraitCandidates } from "./portraitCatalog";
 
 const SKINS = [
   "#f3d1b0", "#e3b48a", "#d4a574", "#c68642", "#a86b3c", "#8d5524",
@@ -41,6 +42,10 @@ function pickScar(rng: Rng, role?: CharacterRole): FaceDna["scar"] {
   return (1 + rng.int(3)) as FaceDna["scar"];
 }
 
+function pickPortraitId(rng: Rng, role: CharacterRole | undefined, feminine: boolean): string {
+  return rng.pick(portraitCandidates(role, feminine)).id;
+}
+
 export function generateFace(
   rng: Rng,
   role?: CharacterRole,
@@ -50,6 +55,7 @@ export function generateFace(
   const uniforms = role === "enemyLeader" ? ENEMY_UNIFORMS : role === "commander" ? COMMAND_UNIFORMS : ALLY_UNIFORMS;
   const headgear = pickHeadgear(rng, role);
   return {
+    portraitId: pickPortraitId(rng, role, feminine),
     skin: rng.pick(SKINS),
     hair: rng.pick(HAIR),
     hairStyle: pickHair(rng, feminine),

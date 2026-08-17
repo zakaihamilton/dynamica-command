@@ -108,6 +108,7 @@ export type Faction = {
 };
 
 export type FaceDna = {
+  portraitId: string;
   skin: string;
   hair: string;
   hairStyle: 0 | 1 | 2 | 3 | 4 | 5;

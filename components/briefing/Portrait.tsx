@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { cx } from "@/lib/ui/cx";
-import type { FaceTone } from "@/lib/render/faces";
+import type { FaceTone } from "@/lib/render/portraits";
 import type { Character } from "@/lib/types";
 import { characterLabel } from "@/lib/gen/names";
 import { Face } from "./Face";
