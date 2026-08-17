@@ -61,7 +61,7 @@ export function CommandSidebar({
   availableProducer: (unit: UnitKind) => Entity | undefined;
 }) {
   return (
-    <aside className={styles.sidebar}>
+    <aside className={styles.sidebar} data-testid="command-sidebar">
       <span className={styles.rail} aria-hidden />
       <button
         type="button"

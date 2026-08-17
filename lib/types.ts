@@ -254,6 +254,10 @@ export type SimState = {
   unitsProducedByRole: Record<UnitKind, number>;
   buildingsCompleted: [number, number];
   buildingsCompletedByKind: Record<string, number>;
+  losses: {
+    units: [number, number];
+    buildings: [number, number];
+  };
   win: WinCategory;
   result: "playing" | "won" | "lost";
   rngState: number;

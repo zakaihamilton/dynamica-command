@@ -374,8 +374,20 @@ export function spawnUnit(
   x: number,
   y: number,
 ): Entity {
+  const e = trySpawnUnit(state, owner, kind, x, y);
+  if (!e) throw new Error("No free square available for unit spawn");
+  return e;
+}
+
+export function trySpawnUnit(
+  state: SimState,
+  owner: Owner,
+  kind: UnitKind,
+  x: number,
+  y: number,
+): Entity | undefined {
   const site = unitSite(state, x, y);
-  if (!site) throw new Error("No free square available for unit spawn");
+  if (!site) return undefined;
   const e = makeUnit(state, owner, kind, x, y);
   e.x = site.x;
   e.y = site.y;

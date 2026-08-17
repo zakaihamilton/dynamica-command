@@ -15,6 +15,7 @@ import { renderWorld, pickTile, type RenderExtras } from "@/lib/render/renderer"
 import { burstsFromDestroyed, cullFx, type FxBurst } from "@/lib/render/fx";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission, tick } from "@/lib/sim/api";
+import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import { objectiveProgress } from "@/lib/sim/objectives";
 import { powerBreakdown, buildingAt, heightAt } from "@/lib/sim/world";
 import type { BuildingKind, Command, SimState, UnitKind } from "@/lib/types";
@@ -76,6 +77,7 @@ export function GameClient({
   const activeTabRef = useRef(activeTab);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
+  const terminalSaveRef = useRef(false);
   const [pauseView, setPauseView] = useState<"main" | "options" | "assets">("main");
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
@@ -228,8 +230,11 @@ export function GameClient({
         acc -= TICK_MS;
       }
       if (stateRef.current && stateRef.current.result !== "playing") {
-        writeSave(localStorageAdapter(), stateRef.current);
-        setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
+        if (!terminalSaveRef.current) {
+          terminalSaveRef.current = true;
+          writeSave(localStorageAdapter(), stateRef.current);
+          setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
+        }
       }
       redraw();
       raf = requestAnimationFrame(frame);
@@ -269,6 +274,7 @@ export function GameClient({
       return;
     }
     stateRef.current = loaded;
+    terminalSaveRef.current = loaded.result !== "playing";
     setState({ ...loaded, entities: [...loaded.entities] });
     selected.current.clear();
     setSelectedIds([]);
@@ -284,6 +290,7 @@ export function GameClient({
     const world = stateRef.current;
     const fresh = createMission({ seed: world.seed, missionIndex: world.missionIndex });
     stateRef.current = fresh;
+    terminalSaveRef.current = false;
     setState({ ...fresh, entities: [...fresh.entities] });
     selected.current.clear();
     setSelectedIds([]);
@@ -710,8 +717,7 @@ export function GameClient({
         onMouseUp={onUp}
       >
         <MissionResult
-          result={s.result}
-          missionIndex={s.missionIndex}
+          state={s}
           onNextBriefing={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex + 1}`)}
           onCampaignVictory={() => router.push("/")}
           onRetry={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex}`)}
@@ -719,7 +725,7 @@ export function GameClient({
         />
       </Battlefield>
 
-      <CommandSidebar
+      {shouldShowCommandSidebar(s.result) ? <CommandSidebar
         factionName={campaign.factions[0].name}
         state={s}
         palette={pal}
@@ -742,7 +748,7 @@ export function GameClient({
         onQueueUnit={queueUnit}
         onCancelUnit={cancelUnit}
         availableProducer={availableProducer}
-      />
+      /> : null}
 
       {paused ? (
         <PauseMenu

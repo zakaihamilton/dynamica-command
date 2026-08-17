@@ -1,7 +1,7 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
 import type { SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
-import { closestApproach, findBuildSite, living, nearest, powerFor, spawnBuilding, spawnUnit } from "./world";
+import { closestApproach, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
 import { rngFromState } from "../seed/rng";
 
 export function tickAi(state: SimState): void {
@@ -49,9 +49,9 @@ export function tickAi(state: SimState): void {
   if (state.win.kind === "holdTheLine" && state.tick > 0 && state.tick % Math.max(240, 420 - state.missionIndex * 24) === 0) {
     const fp = footprintOf("constructionYard");
     const spot = { x: yard.x - 1, y: yard.y + fp.h };
-    spawnUnit(state, 1, rng.chance(0.45) ? "tank" : "infantry", spot.x, spot.y);
+    trySpawnUnit(state, 1, rng.chance(0.45) ? "tank" : "infantry", spot.x, spot.y);
     if (state.missionIndex >= 4) {
-      spawnUnit(state, 1, "infantry", spot.x, spot.y + 1);
+      trySpawnUnit(state, 1, "infantry", spot.x, spot.y + 1);
     }
   }
 

@@ -76,6 +76,8 @@ export function tickCombat(state: SimState): SimEvent[] {
       e.cooldown = st.cooldown;
       if (target.hp <= 0) {
         target.hp = 0;
+        if (target.class === "unit") state.losses.units[target.owner] += 1;
+        else state.losses.buildings[target.owner] += 1;
         events.push({ type: "destroyed", id: target.id, kind: String(target.kind) });
         e.attackTarget = undefined;
       }

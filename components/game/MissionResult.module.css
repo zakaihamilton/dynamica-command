@@ -8,11 +8,14 @@
     radial-gradient(circle at center, rgba(3, 7, 12, 0.42), rgba(3, 7, 12, 0.88) 72%),
     var(--result-art) center / cover no-repeat;
   isolation: isolate;
+  overflow-y: auto;
+  padding: 1rem;
 }
 
 .panel {
-  max-width: 32rem;
-  padding: 2rem;
+  width: min(100%, 47rem);
+  max-height: 100%;
+  padding: 1.5rem;
   text-align: center;
   backdrop-filter: blur(12px) saturate(0.7);
   border-color: color-mix(in srgb, var(--chrome-cyan) 38%, var(--chrome-inset));
@@ -29,18 +32,150 @@
 }
 
 .title {
-  margin: 0.75rem 0 0;
-  font-size: 1.875rem;
+  margin: 0.55rem 0 0;
+  font-size: clamp(1.35rem, 4vw, 1.875rem);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--chrome-text);
 }
 
+.mission {
+  margin: 0.55rem 0 0;
+  color: var(--chrome-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.outcome,
+.section {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  text-align: left;
+  border: 1px solid var(--chrome-inset);
+  background: linear-gradient(145deg, rgba(18, 24, 32, 0.94), rgba(8, 12, 18, 0.9));
+  box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -1px -1px var(--chrome-void);
+}
+
+.outcome {
+  text-align: center;
+}
+
+.outcomeText {
+  margin: 0.65rem 0 0;
+  color: var(--chrome-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.objectiveLabel {
+  margin: 0.9rem 0 0;
+  color: var(--chrome-muted);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.objectiveHeadline {
+  margin: 0.25rem 0 0;
+  color: var(--chrome-text);
+  font-size: 0.87rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.objectiveProgress {
+  margin: 0.35rem 0 0;
+  color: var(--chrome-cyan);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.metrics {
+  margin: 0.7rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.metrics div,
+.forceCard {
+  min-width: 0;
+  padding: 0.6rem;
+  border: 1px solid var(--chrome-steel);
+  background: var(--chrome-steel-lo);
+}
+
+.metrics dt,
+.forceCard dt {
+  color: var(--chrome-muted);
+  font-size: 0.59rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metrics dd,
+.forceCard dd {
+  margin: 0.35rem 0 0;
+  color: var(--chrome-text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.forceGrid {
+  margin-top: 0.7rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.forceCard h3 {
+  margin: 0;
+  color: var(--chrome-gold);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.forceCard dl {
+  margin: 0.55rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.forceCard dd {
+  font-size: 0.8rem;
+}
+
 .actions {
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .overlay {
+    align-items: flex-start;
+    padding: 0.65rem;
+  }
+
+  .panel {
+    padding: 1rem;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .forceGrid {
+    grid-template-columns: 1fr;
+  }
 }

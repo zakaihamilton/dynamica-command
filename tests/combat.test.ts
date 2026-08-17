@@ -66,4 +66,21 @@ describe("combat targeting", () => {
     expect(attacker.path).toEqual([]);
     expect(foe.hp).toBeLessThan(hp);
   });
+
+  it("records each destroyed unit and structure as one loss for its owner", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const tank = addUnit(s, 0, "tank", 4, 4);
+    const unit = addUnit(s, 1, "infantry", 5, 4);
+    unit.hp = 1;
+    tickCombat(s);
+    expect(s.losses.units).toEqual([0, 1]);
+    tickCombat(s);
+    expect(s.losses.units).toEqual([0, 1]);
+
+    tank.cooldown = 0;
+    const structure = addBuilding(s, 1, "power", 5, 4);
+    structure.hp = 1;
+    tickCombat(s);
+    expect(s.losses.buildings).toEqual([0, 1]);
+  });
 });

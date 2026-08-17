@@ -71,6 +71,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     unitsProducedByRole: emptyRoleCounts(),
     buildingsCompleted: [0, 0],
     buildingsCompletedByKind: {},
+    losses: { units: [0, 0], buildings: [0, 0] },
     win: { ...mission.win },
     result: "playing",
     rngState: mixSeed(opts.seed, `sim:${opts.missionIndex}`) || 1,

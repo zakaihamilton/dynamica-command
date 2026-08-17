@@ -36,6 +36,7 @@ export function makeFixture(opts: FixtureOpts): SimState {
     unitsProducedByRole: emptyRoleCounts(),
     buildingsCompleted: [0, 0],
     buildingsCompletedByKind: {},
+    losses: { units: [0, 0], buildings: [0, 0] },
     win: { ...opts.win },
     result: "playing",
     rngState: mixSeed(opts.seed ?? 0, "fixture") || 1,

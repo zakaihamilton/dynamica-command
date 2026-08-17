@@ -1,6 +1,6 @@
 import { footprintOf, UNIT_STATS } from "../catalog";
 import type { BuildingKind, SimEvent, SimState, UnitKind } from "../types";
-import { frontTileNear, openTileNear, powerFor, spawnUnit } from "./world";
+import { frontTileNear, openTileNear, powerFor, trySpawnUnit } from "./world";
 
 function isUnitProducer(kind: string): kind is "barracks" | "factory" {
   return kind === "barracks" || kind === "factory";
@@ -65,7 +65,12 @@ export function tickProduction(state: SimState): SimEvent[] {
         const spot = e.class === "building" && (e.kind === "barracks" || e.kind === "factory")
           ? frontTileNear(state, e)
           : openTileNear(state, e.x, e.y, fp.w, fp.h);
-        spawnUnit(state, e.owner, kind, spot.x, spot.y);
+        const spawned = trySpawnUnit(state, e.owner, kind, spot.x, spot.y);
+        if (!spawned) {
+          // Keep the completed job pending until the producer has somewhere to deploy it.
+          e.producing.remaining = 1;
+          continue;
+        }
         state.unitsProduced[e.owner] += 1;
         if (e.owner === 0) state.unitsProducedByRole[kind] += 1;
         events.push({ type: "produced", owner: e.owner, kind });
