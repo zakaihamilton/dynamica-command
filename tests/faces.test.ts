@@ -18,16 +18,27 @@ describe("procedural faces", () => {
       expect(face.eyes).toMatch(/^#[0-9a-f]{6}$/i);
       expect(face.uniform).toMatch(/^#[0-9a-f]{6}$/i);
       expect(face.hairStyle).toBeGreaterThanOrEqual(0);
-      expect(face.hairStyle).toBeLessThanOrEqual(3);
+      expect(face.hairStyle).toBeLessThanOrEqual(5);
       expect(face.headgear).toBeGreaterThanOrEqual(0);
-      expect(face.headgear).toBeLessThanOrEqual(3);
+      expect(face.headgear).toBeLessThanOrEqual(4);
       expect(face.beard).toBeGreaterThanOrEqual(0);
       expect(face.beard).toBeLessThanOrEqual(3);
-      expect(face.jaw).toBeGreaterThanOrEqual(0.8);
-      expect(face.jaw).toBeLessThanOrEqual(1.2);
-      expect(face.nose).toBeGreaterThanOrEqual(0.4);
+      expect(face.scar).toBeGreaterThanOrEqual(0);
+      expect(face.scar).toBeLessThanOrEqual(3);
+      expect(face.eyeShape).toBeGreaterThanOrEqual(0);
+      expect(face.eyeShape).toBeLessThanOrEqual(2);
+      expect(face.noseStyle).toBeGreaterThanOrEqual(0);
+      expect(face.noseStyle).toBeLessThanOrEqual(2);
+      expect(face.mouthStyle).toBeGreaterThanOrEqual(0);
+      expect(face.mouthStyle).toBeLessThanOrEqual(2);
+      expect(face.jaw).toBeGreaterThanOrEqual(0.75);
+      expect(face.jaw).toBeLessThanOrEqual(1.25);
+      expect(face.nose).toBeGreaterThanOrEqual(0.3);
       expect(face.mouthWidth).toBeGreaterThan(0.3);
-      expect(typeof face.scar).toBe("boolean");
+      expect(face.eyeSize).toBeGreaterThan(0.7);
+      expect(typeof face.glasses).toBe("boolean");
+      expect(typeof face.headset).toBe("boolean");
+      expect(typeof face.feminine).toBe("boolean");
     }
   });
 
@@ -37,6 +48,17 @@ describe("procedural faces", () => {
     expect(a).toEqual(b);
     expect(a.commander.face).not.toEqual(a.advisor.face);
     expect(a.commander.face).not.toEqual(a.enemyLeader.face);
-    expect(a.advisor.face.headgear).not.toBe(a.enemyLeader.face.headgear);
+  });
+
+  it("varies eyes, noses, and mouths across a campaign", () => {
+    const faces = [0, 42, 421, 2346, 9999].flatMap((seed) => {
+      const c = generateCharacters(seed);
+      return [c.commander.face, c.advisor.face, c.enemyLeader.face];
+    });
+    expect(new Set(faces.map((f) => f.eyeShape)).size).toBeGreaterThan(1);
+    expect(new Set(faces.map((f) => f.noseStyle)).size).toBeGreaterThan(1);
+    expect(new Set(faces.map((f) => f.mouthStyle)).size).toBeGreaterThan(1);
+    expect(new Set(faces.map((f) => f.hairStyle)).size).toBeGreaterThan(1);
+    expect(faces.some((f) => f.feminine) && faces.some((f) => !f.feminine)).toBe(true);
   });
 });

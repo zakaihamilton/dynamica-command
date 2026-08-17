@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { drawFace, type FaceTone } from "@/lib/render/faces";
 import type { Character } from "@/lib/types";
 import styles from "./Face.module.css";
 
-export function Face({
+export const Face = memo(function Face({
   who,
   talking,
   tone,
@@ -15,6 +15,13 @@ export function Face({
   tone: FaceTone;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const whoRef = useRef(who);
+  const talkingRef = useRef(talking);
+  const toneRef = useRef(tone);
+  whoRef.current = who;
+  talkingRef.current = talking;
+  toneRef.current = tone;
+
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
@@ -29,13 +36,16 @@ export function Face({
     let raf = 0;
     const loop = () => {
       t += 1;
+      const currentTone = toneRef.current;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      drawFace(ctx, who.face, w / 2, h / 2 - 2, w * 0.9, t, talking, tone);
+      ctx.fillStyle = currentTone === "enemy" ? "#1c1210" : currentTone === "command" ? "#12160f" : "#10140c";
+      ctx.fillRect(0, 0, w, h);
+      drawFace(ctx, whoRef.current.face, w / 2, h / 2 - 2, w * 0.9, t, talkingRef.current, currentTone);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [who, talking, tone]);
+  }, []);
+
   return <canvas ref={ref} width={200} height={240} className={styles.canvas} />;
-}
+});

@@ -1,5 +1,4 @@
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
-import { MetalPanel } from "@/components/ui/MetalPanel";
 import { biomeLabel } from "@/lib/gen/names";
 import { objectiveHeadline } from "@/lib/gen/story";
 import { formatSeed } from "@/lib/seed/rng";
@@ -18,7 +17,7 @@ export function BriefingMast({
   def: MissionDef;
 }) {
   return (
-    <MetalPanel as="header" className={styles.mast}>
+    <header className={styles.mast}>
       <div>
         <ConsoleLabel data-testid="seed">
           Genesis Protocol · Seed {formatSeed(seed)} · Mission {mission + 1}/8
@@ -34,6 +33,6 @@ export function BriefingMast({
           {objectiveHeadline(def.win)}
         </span>
       </p>
-    </MetalPanel>
+    </header>
   );
 }

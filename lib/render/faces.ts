@@ -253,22 +253,37 @@ function paintHair(
   const capped = dna.headgear !== 0;
   if (layer === "back") {
     ctx.fillStyle = shade;
-    ctx.beginPath();
-    ctx.moveTo(-jw * 0.7, -8);
-    ctx.quadraticCurveTo(-jw - 4, 4, -jw * 0.55, 16);
-    ctx.lineTo(-jw * 0.4, 8);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(jw * 0.7, -8);
-    ctx.quadraticCurveTo(jw + 4, 4, jw * 0.55, 16);
-    ctx.lineTo(jw * 0.4, 8);
-    ctx.closePath();
-    ctx.fill();
+    if (dna.hairStyle === 5 || dna.hairStyle === 4) {
+      ctx.beginPath();
+      ctx.moveTo(-jw * 0.72, -6);
+      ctx.quadraticCurveTo(-jw - 8, 10, -jw * 0.4, 28);
+      ctx.lineTo(-jw * 0.2, 18);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(jw * 0.72, -6);
+      ctx.quadraticCurveTo(jw + 8, 10, jw * 0.4, 28);
+      ctx.lineTo(jw * 0.2, 18);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(-jw * 0.7, -8);
+      ctx.quadraticCurveTo(-jw - 4, 4, -jw * 0.55, 16);
+      ctx.lineTo(-jw * 0.4, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(jw * 0.7, -8);
+      ctx.quadraticCurveTo(jw + 4, 4, jw * 0.55, 16);
+      ctx.lineTo(jw * 0.4, 8);
+      ctx.closePath();
+      ctx.fill();
+    }
     return;
   }
-  if (capped && dna.headgear === 3) return;
-  const hairline = dna.hairStyle === 3 ? -26 : dna.hairStyle === 1 ? -14 : -18;
+  if (capped && dna.headgear === 3 && dna.hairStyle !== 5 && dna.hairStyle !== 4) return;
+  const hairline = dna.hairStyle === 3 ? -26 : dna.hairStyle === 1 ? -14 : dna.hairStyle === 5 ? -12 : -18;
   ctx.fillStyle = hair;
   if (dna.hairStyle === 3) return;
   if (capped) {
@@ -284,6 +299,22 @@ function paintHair(
     ctx.lineTo(jw * 0.55, -12);
     ctx.closePath();
     ctx.fill();
+    if (dna.hairStyle === 4) {
+      fillEllipse(ctx, 10, -28, 7, 6, hair);
+      fillEllipse(ctx, 10, -28, 4.5, 3.8, shine);
+    }
+    if (dna.hairStyle === 5) {
+      ctx.beginPath();
+      ctx.moveTo(-jw * 0.78, -8);
+      ctx.quadraticCurveTo(-jw * 0.95, 12, -jw * 0.45, 24);
+      ctx.quadraticCurveTo(-jw * 0.55, 6, -jw * 0.6, -6);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(jw * 0.78, -8);
+      ctx.quadraticCurveTo(jw * 0.95, 12, jw * 0.45, 24);
+      ctx.quadraticCurveTo(jw * 0.55, 6, jw * 0.6, -6);
+      ctx.fill();
+    }
     return;
   }
   ctx.beginPath();
@@ -322,6 +353,44 @@ function paintHair(
     ctx.moveTo(-2, -18);
     ctx.quadraticCurveTo(8, -20, 14, -12);
     ctx.stroke();
+  } else if (dna.hairStyle === 4) {
+    ctx.moveTo(-jw * 0.78, -10);
+    ctx.bezierCurveTo(-jw * 0.7, -36, -10, -46, 0, -44);
+    ctx.bezierCurveTo(12, -46, jw * 0.72, -36, jw * 0.78, -10);
+    ctx.quadraticCurveTo(jw * 0.2, -20, 0, -16);
+    ctx.quadraticCurveTo(-jw * 0.2, -20, -jw * 0.78, -10);
+    ctx.fill();
+    fillEllipse(ctx, 11, -30, 8.5, 7.2, hair);
+    fillEllipse(ctx, 11, -30, 5.5, 4.4, shine);
+    ctx.strokeStyle = shade;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(4, -26);
+    ctx.quadraticCurveTo(10, -22, 14, -28);
+    ctx.stroke();
+  } else if (dna.hairStyle === 5) {
+    ctx.moveTo(-jw * 0.88, -8);
+    ctx.bezierCurveTo(-jw * 0.95, -34, -jw * 0.2, -48, 2, -46);
+    ctx.bezierCurveTo(jw * 0.5, -50, jw * 1.02, -30, jw * 0.9, 2);
+    ctx.quadraticCurveTo(jw * 0.7, 22, jw * 0.35, 26);
+    ctx.quadraticCurveTo(jw * 0.55, 4, jw * 0.4, hairline);
+    ctx.quadraticCurveTo(-6, -18, -jw * 0.55, 8);
+    ctx.quadraticCurveTo(-jw * 0.85, 18, -jw * 0.7, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = shine;
+    ctx.beginPath();
+    ctx.moveTo(-8, -32);
+    ctx.quadraticCurveTo(4, -40, 14, -28);
+    ctx.strokeStyle = shine;
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+    ctx.fillStyle = hair;
+    ctx.beginPath();
+    ctx.moveTo(-8, hairline + 2);
+    ctx.quadraticCurveTo(2, hairline + 8, 12, hairline);
+    ctx.quadraticCurveTo(4, hairline + 2, -8, hairline + 2);
+    ctx.fill();
   } else {
     ctx.moveTo(-jw * 0.72, -10);
     ctx.bezierCurveTo(-jw * 0.6, -36, -8, -48, 0, -42);
@@ -423,6 +492,25 @@ function paintHeadgear(
     ctx.lineTo(-jw * 0.55, -12);
     ctx.closePath();
     ctx.fill();
+  } else if (dna.headgear === 4) {
+    ctx.fillStyle = deep(cloth, 0.18);
+    ctx.beginPath();
+    ctx.ellipse(-4, -30, jw * 0.78, 16, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = cloth;
+    ctx.beginPath();
+    ctx.ellipse(-4, -31, jw * 0.7, 13.5, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = deep(cloth, 0.4);
+    ctx.beginPath();
+    ctx.ellipse(-4, -24, jw * 0.62, 5, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = brass;
+    fillEllipse(ctx, jw * 0.42, -28, 2.6, 2.6, brass);
+    ctx.fillStyle = lite(cloth, 0.16);
+    ctx.beginPath();
+    ctx.ellipse(-14, -36, 10, 4, -0.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -504,23 +592,28 @@ function paintEyes(
   browY: number,
   tone: FaceTone,
 ): void {
-  const lx = -11 + look * 0.4;
-  const rx = 11 + look * 0.4;
-  const y = -2;
+  const s = dna.eyeSize;
+  const gap = 10.2 + (1.2 - s) * 2.4;
+  const lx = -gap + look * 0.4;
+  const rx = gap + look * 0.4;
+  const y = dna.eyeShape === 2 ? -1.2 : -2;
   const drop = tone === "enemy" ? 2.4 : tone === "command" ? 1.1 : 0.2;
-  ctx.fillStyle = deep(dna.hair, 0.04);
+  const rxEye = (dna.eyeShape === 1 ? 6.4 : 7.3) * s;
+  const ryEye = (dna.eyeShape === 1 ? 4.5 : dna.eyeShape === 2 ? 2.35 : 3.45) * s;
+  const browW = rxEye + 0.8;
+  ctx.fillStyle = deep(dna.hair, dna.feminine ? 0.08 : 0.02);
   ctx.beginPath();
-  ctx.moveTo(lx - 8, browY + 0.6 + drop * 0.15);
-  ctx.quadraticCurveTo(lx, browY - 1.6 - dna.brow * 1.2, lx + 7.2, browY + 1.2 + drop);
-  ctx.lineTo(lx + 6.6, browY + 2.2 + drop);
-  ctx.quadraticCurveTo(lx, browY + 0.2 - dna.brow * 0.6, lx - 7.4, browY + 1.6);
+  ctx.moveTo(lx - browW, browY + 0.6 + drop * 0.15);
+  ctx.quadraticCurveTo(lx, browY - 1.4 - dna.brow * (dna.feminine ? 1.8 : 1.1), lx + browW - 0.6, browY + 1.2 + drop);
+  ctx.lineTo(lx + browW - 1, browY + 2.4 + drop);
+  ctx.quadraticCurveTo(lx, browY + 0.3 - dna.brow * 0.5, lx - browW + 0.6, browY + 1.6);
   ctx.closePath();
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(rx - 7.2, browY + 1.2 + drop);
-  ctx.quadraticCurveTo(rx, browY - 1.6 - dna.brow * 1.2, rx + 8, browY + 0.6 + drop * 0.15);
-  ctx.lineTo(rx + 7.4, browY + 1.6);
-  ctx.quadraticCurveTo(rx, browY + 0.2 - dna.brow * 0.6, rx - 6.6, browY + 2.2 + drop);
+  ctx.moveTo(rx - browW + 0.6, browY + 1.2 + drop);
+  ctx.quadraticCurveTo(rx, browY - 1.4 - dna.brow * (dna.feminine ? 1.8 : 1.1), rx + browW, browY + 0.6 + drop * 0.15);
+  ctx.lineTo(rx + browW - 0.6, browY + 1.6);
+  ctx.quadraticCurveTo(rx, browY + 0.3 - dna.brow * 0.5, rx - browW + 1, browY + 2.4 + drop);
   ctx.closePath();
   ctx.fill();
   if (blink) {
@@ -528,68 +621,87 @@ function paintEyes(
     ctx.lineWidth = 1.6;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(lx - 7, y);
-    ctx.quadraticCurveTo(lx, y + 1, lx + 7, y);
-    ctx.moveTo(rx - 7, y);
-    ctx.quadraticCurveTo(rx, y + 1, rx + 7, y);
+    ctx.moveTo(lx - rxEye, y);
+    ctx.quadraticCurveTo(lx, y + 1, lx + rxEye, y);
+    ctx.moveTo(rx - rxEye, y);
+    ctx.quadraticCurveTo(rx, y + 1, rx + rxEye, y);
     ctx.stroke();
     return;
   }
   for (const x of [lx, rx]) {
     ctx.fillStyle = deep(dna.skin, 0.1);
-    eyeAlmond(ctx, x, y + 0.8, 7.4, 3.2);
-    ctx.fill();
+    if (dna.eyeShape === 1) fillEllipse(ctx, x, y + 0.6, rxEye, ryEye * 0.92, deep(dna.skin, 0.1));
+    else {
+      eyeAlmond(ctx, x, y + 0.7, rxEye, ryEye * 0.92);
+      ctx.fill();
+    }
     ctx.fillStyle = "#efeae0";
-    eyeAlmond(ctx, x, y, 7.2, 3.4);
-    ctx.fill();
+    if (dna.eyeShape === 1) fillEllipse(ctx, x, y, rxEye, ryEye, "#efeae0");
+    else {
+      eyeAlmond(ctx, x, y, rxEye, ryEye);
+      ctx.fill();
+    }
     ctx.save();
-    eyeAlmond(ctx, x, y, 7.2, 3.4);
-    ctx.clip();
+    if (dna.eyeShape === 1) {
+      ellipse(ctx, x, y, rxEye, ryEye);
+      ctx.clip();
+    } else {
+      eyeAlmond(ctx, x, y, rxEye, ryEye);
+      ctx.clip();
+    }
     const ix = x + look * 1.4;
-    fillEllipse(ctx, ix, y + 0.5, 3.3, 3.6, dna.eyes);
-    fillEllipse(ctx, ix, y + 0.7, 1.7, 1.9, "#0c0c0c");
-    fillEllipse(ctx, ix - 0.9, y - 0.5, 0.95, 0.95, "#fff");
-    ctx.fillStyle = deep(dna.skin, 0.38);
+    const iris = 2.7 * s * (dna.eyeShape === 2 ? 0.85 : 1);
+    fillEllipse(ctx, ix, y + 0.4, iris, iris * 1.08, dna.eyes);
+    fillEllipse(ctx, ix, y + 0.6, iris * 0.5, iris * 0.56, "#0c0c0c");
+    fillEllipse(ctx, ix - 0.8, y - 0.5, 0.9 * s, 0.9 * s, "#fff");
+    ctx.fillStyle = deep(dna.skin, dna.eyeShape === 2 ? 0.5 : 0.38);
     ctx.beginPath();
-    ctx.moveTo(x - 7.2, y - 0.4);
-    ctx.quadraticCurveTo(x, y - 3.8, x + 7.2, y - 0.4);
-    ctx.quadraticCurveTo(x, y - 1.2, x - 7.2, y - 0.4);
+    ctx.moveTo(x - rxEye, y - 0.2);
+    ctx.quadraticCurveTo(x, y - ryEye * (dna.eyeShape === 2 ? 0.55 : 1.05), x + rxEye, y - 0.2);
+    ctx.quadraticCurveTo(x, y - ryEye * 0.25, x - rxEye, y - 0.2);
     ctx.fill();
     ctx.restore();
     ctx.strokeStyle = deep(dna.skin, 0.4);
-    ctx.lineWidth = 1.25;
+    ctx.lineWidth = dna.eyeShape === 2 ? 1.55 : 1.2;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(x - 7, y);
-    ctx.quadraticCurveTo(x, y - 3.6, x + 7, y);
+    ctx.moveTo(x - rxEye, y);
+    ctx.quadraticCurveTo(x, y - ryEye * 1.05, x + rxEye, y);
     ctx.stroke();
-    ctx.lineWidth = 0.9;
+    ctx.lineWidth = 0.85;
     ctx.beginPath();
-    ctx.moveTo(x - 6.2, y + 1.8);
-    ctx.quadraticCurveTo(x, y + 3.1, x + 6.2, y + 1.8);
+    ctx.moveTo(x - rxEye * 0.86, y + ryEye * 0.45);
+    ctx.quadraticCurveTo(x, y + ryEye * 0.85, x + rxEye * 0.86, y + ryEye * 0.45);
     ctx.stroke();
   }
 }
 
 function paintNose(ctx: CanvasRenderingContext2D, dna: FaceDna, look: number): void {
-  const w = 3.4 * dna.nose;
+  const w = (dna.noseStyle === 0 ? 2.4 : dna.noseStyle === 2 ? 4.1 : 3.4) * dna.nose;
+  const tipY = dna.noseStyle === 0 ? 14.2 : dna.noseStyle === 2 ? 18.4 : 16.6;
+  const bridge = dna.noseStyle === 2 ? 1 : 2;
   ctx.fillStyle = deep(dna.skin, 0.18);
   ctx.beginPath();
-  ctx.moveTo(-1.2 + look * 0.4, 2);
-  ctx.quadraticCurveTo(-w * 0.55, 11, -w * 0.95, 16);
-  ctx.quadraticCurveTo(look * 0.2, 19.2, w * 0.9 + look, 16);
-  ctx.quadraticCurveTo(w * 0.35, 11, 0.6 + look * 0.4, 2);
+  ctx.moveTo(-1.1 + look * 0.4, bridge);
+  if (dna.noseStyle === 2) {
+    ctx.quadraticCurveTo(-w * 0.2, 8, -w * 0.55, 12);
+    ctx.quadraticCurveTo(-w * 1.05, 16.5, -w * 0.9, tipY);
+  } else {
+    ctx.quadraticCurveTo(-w * 0.5, 10, -w * 0.95, tipY - 0.6);
+  }
+  ctx.quadraticCurveTo(look * 0.2, tipY + 2.6, w * 0.9 + look, tipY - 0.6);
+  ctx.quadraticCurveTo(w * 0.35, 11, 0.6 + look * 0.4, bridge);
   ctx.fill();
   ctx.fillStyle = lite(dna.skin, 0.16);
   ctx.beginPath();
-  ctx.moveTo(-0.2 + look * 0.2, 3);
-  ctx.quadraticCurveTo(-1.4, 11, -0.6, 15);
-  ctx.quadraticCurveTo(1.6 + look, 14.6, 0.8 + look * 0.3, 3);
+  ctx.moveTo(-0.2 + look * 0.2, bridge + 1);
+  ctx.quadraticCurveTo(-1.2, 11, -0.5, tipY - 1.6);
+  ctx.quadraticCurveTo(1.5 + look, tipY - 2, 0.7 + look * 0.3, bridge + 1);
   ctx.fill();
-  fillEllipse(ctx, look * 0.25, 16.8, w * 1.05, 3.1, mix(dna.skin, deep(dna.skin, 0.12), 0.35));
-  fillEllipse(ctx, -w * 0.72, 16.8, 2, 1.35, deep(dna.skin, 0.28), 0.25);
-  fillEllipse(ctx, w * 0.78 + look, 16.8, 2, 1.35, deep(dna.skin, 0.2), -0.25);
-  fillEllipse(ctx, -0.6, 13.5, 1.3, 2.2, lite(dna.skin, 0.2));
+  fillEllipse(ctx, look * 0.25, tipY + 0.4, w * (dna.noseStyle === 0 ? 1.2 : 1.05), dna.noseStyle === 0 ? 3.6 : 3.1, mix(dna.skin, deep(dna.skin, 0.12), 0.35));
+  fillEllipse(ctx, -w * 0.72, tipY + 0.4, dna.noseStyle === 2 ? 2.5 : 1.9, 1.35, deep(dna.skin, 0.28), 0.25);
+  fillEllipse(ctx, w * 0.78 + look, tipY + 0.4, dna.noseStyle === 2 ? 2.5 : 1.9, 1.35, deep(dna.skin, 0.2), -0.25);
+  if (dna.noseStyle !== 0) fillEllipse(ctx, -0.6, tipY - 3.2, 1.3, 2.2, lite(dna.skin, 0.2));
 }
 
 function paintMouth(
@@ -598,14 +710,15 @@ function paintMouth(
   mouth: number,
   talking: boolean,
 ): void {
-  const y = 24;
-  const w = 13.5 * dna.mouthWidth;
-  const open = talking ? mouth : 0.06;
+  const y = dna.mouthStyle === 2 ? 25.2 : 24;
+  const w = (dna.mouthStyle === 0 ? 10.2 : dna.mouthStyle === 2 ? 15.4 : 13.5) * dna.mouthWidth;
+  const open = talking ? mouth : dna.mouthStyle === 0 ? 0.02 : 0.06;
+  const dip = dna.mouthStyle === 2 ? -1.1 : dna.mouthStyle === 0 ? 0.4 : 2;
   ctx.fillStyle = "#6e3434";
   ctx.beginPath();
   ctx.moveTo(-w, y);
-  ctx.quadraticCurveTo(0, y + 2 + open * 8, w, y);
-  ctx.quadraticCurveTo(0, y - 1.4, -w, y);
+  ctx.quadraticCurveTo(0, y + dip + open * 8, w, y);
+  ctx.quadraticCurveTo(0, y - (dna.mouthStyle === 0 ? 0.6 : 1.4), -w, y);
   ctx.fill();
   if (talking && open > 0.18) {
     ctx.fillStyle = "#3a1018";
@@ -623,28 +736,81 @@ function paintMouth(
     ctx.closePath();
     ctx.fill();
   }
-  ctx.fillStyle = mix("#a35a54", dna.skin, 0.32);
+  const lip = mix(dna.mouthStyle === 1 ? "#b45a58" : "#a35a54", dna.skin, dna.mouthStyle === 0 ? 0.5 : 0.28);
+  ctx.fillStyle = lip;
   ctx.beginPath();
   ctx.moveTo(-w, y);
-  ctx.quadraticCurveTo(-w * 0.35, y - 2.8, 0, y - 1.1);
-  ctx.quadraticCurveTo(w * 0.35, y - 2.8, w, y);
+  ctx.quadraticCurveTo(-w * 0.35, y - (dna.mouthStyle === 1 ? 3.6 : dna.mouthStyle === 0 ? 1.4 : 2.2), 0, y - (dna.mouthStyle === 1 ? 1.6 : 1.0));
+  ctx.quadraticCurveTo(w * 0.35, y - (dna.mouthStyle === 1 ? 3.6 : dna.mouthStyle === 0 ? 1.4 : 2.2), w, y);
   ctx.quadraticCurveTo(0, y + 0.8, -w, y);
   ctx.fill();
   if (!talking || open < 0.2) {
-    ctx.fillStyle = mix("#c4786a", dna.skin, 0.22);
+    ctx.fillStyle = mix(dna.mouthStyle === 1 ? "#d08078" : "#c4786a", dna.skin, dna.mouthStyle === 0 ? 0.45 : 0.22);
     ctx.beginPath();
     ctx.moveTo(-w * 0.88, y + 0.4);
-    ctx.quadraticCurveTo(0, y + 3.4, w * 0.88, y + 0.4);
+    ctx.quadraticCurveTo(0, y + (dna.mouthStyle === 2 ? 1.6 : dna.mouthStyle === 1 ? 4.2 : 2.6), w * 0.88, y + 0.4);
     ctx.quadraticCurveTo(0, y + 1.2, -w * 0.88, y + 0.4);
     ctx.fill();
   }
-  ctx.strokeStyle = deep(dna.skin, 0.22);
-  ctx.lineWidth = 0.9;
+  if (dna.mouthStyle !== 1) {
+    ctx.strokeStyle = deep(dna.skin, 0.22);
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(-1.8, 19);
+    ctx.lineTo(-0.8, 22.4);
+    ctx.moveTo(1.8, 19);
+    ctx.lineTo(0.8, 22.4);
+    ctx.stroke();
+  }
+}
+
+function paintScar(ctx: CanvasRenderingContext2D, dna: FaceDna): void {
+  if (dna.scar === 0) return;
+  ctx.strokeStyle = deep(dna.skin, 0.42);
+  ctx.lineCap = "round";
+  if (dna.scar === 1) {
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(10, -2);
+    ctx.lineTo(20, 18);
+    ctx.stroke();
+  } else if (dna.scar === 2) {
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-18, -4);
+    ctx.lineTo(-8, 16);
+    ctx.stroke();
+  } else {
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-16, -10);
+    ctx.lineTo(-6, -6);
+    ctx.stroke();
+  }
+}
+
+function paintGlasses(ctx: CanvasRenderingContext2D, dna: FaceDna, look: number): void {
+  const gap = 10.2 + (1.2 - dna.eyeSize) * 2.4;
+  const y = dna.eyeShape === 2 ? -1.2 : -2;
+  const rx = (dna.eyeShape === 1 ? 6.8 : 7.6) * dna.eyeSize;
+  const ry = (dna.eyeShape === 1 ? 4.8 : 3.8) * dna.eyeSize;
+  ctx.strokeStyle = mix("#1c2018", dna.hair, 0.2);
+  ctx.lineWidth = 1.55;
   ctx.beginPath();
-  ctx.moveTo(-1.8, 19);
-  ctx.lineTo(-0.8, 22.4);
-  ctx.moveTo(1.8, 19);
-  ctx.lineTo(0.8, 22.4);
+  ctx.ellipse(-gap + look * 0.3, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(gap + look * 0.3, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-gap + rx - 0.4, y - 0.4);
+  ctx.lineTo(gap - rx + 0.4, y - 0.4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-gap - rx, y);
+  ctx.lineTo(-gap - rx - 8, y - 2);
+  ctx.moveTo(gap + rx, y);
+  ctx.lineTo(gap + rx + 8, y - 2);
   ctx.stroke();
 }
 
@@ -700,27 +866,14 @@ export function drawFace(
   paintEyes(ctx, dna, blink, look, browY, tone);
   paintNose(ctx, dna, look);
   paintMouth(ctx, dna, mouth, talking);
-  if (dna.scar) {
-    ctx.strokeStyle = deep(dna.skin, 0.42);
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(10, -2);
-    ctx.lineTo(20, 18);
-    ctx.stroke();
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(13, 4);
-    ctx.lineTo(16, 5);
-    ctx.moveTo(16, 10);
-    ctx.lineTo(19, 11);
-    ctx.stroke();
-  }
+  paintScar(ctx, dna);
   paintBeard(ctx, dna, jw, chin, 24);
   ctx.restore();
 
   paintHair(ctx, dna, jw, "front");
   paintHeadgear(ctx, dna, brass, jw);
-  if (tone === "ally" && dna.headgear !== 3) paintHeadset(ctx, jw, dna.headgear === 0);
+  if (dna.glasses) paintGlasses(ctx, dna, look);
+  if (dna.headset) paintHeadset(ctx, jw, dna.headgear === 0);
   paintCollar(ctx, dna.uniform, brass);
   ctx.fillStyle = "rgba(220, 230, 200, 0.04)";
   ctx.beginPath();

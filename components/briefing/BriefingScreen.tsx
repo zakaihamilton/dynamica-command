@@ -8,11 +8,11 @@ import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { missionObjectives } from "@/lib/gen/story";
 import { formatSeed } from "@/lib/seed/rng";
-import type { BriefingLine, CharacterRole } from "@/lib/types";
+import type { BriefingLine } from "@/lib/types";
 import { briefingCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
 import { BriefingMast } from "./BriefingMast";
 import { BriefingObjectives } from "./BriefingObjectives";
-import { BriefingStory, characterFor } from "./BriefingStory";
+import { BriefingStory } from "./BriefingStory";
 import { Portrait } from "./Portrait";
 import styles from "./BriefingScreen.module.css";
 
@@ -71,7 +71,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     return <div className={styles.missing}>Mission missing.</div>;
   }
 
-  const talking = shown < totalChars;
+  const talking = shown > 0 && shown < totalChars;
   let remaining = shown;
   const revealedLines = lines.map((line) => {
     const chars = Math.max(0, Math.min(line.text.length, remaining));
@@ -84,65 +84,65 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     };
   });
   const visibleLines = revealedLines.filter((line) => line.started);
-  const active = revealedLines.find((line) => line.started && !line.complete) ?? revealedLines.at(-1);
-  const speaker = active ? characterFor(campaign, active.speaker) : campaign.characters.advisor;
-  const revealed = shown >= totalChars;
+  // Only the line currently being typed is "live" — never fall back to another
+  // speaker, or the wrong portrait can flash for a frame between lines.
+  const liveRole = talking ? revealedLines.find((line) => line.started && !line.complete)?.speaker : undefined;
 
   return (
     <div className={styles.screen}>
       <div className={styles.inner}>
-        <BriefingMast seed={seed} mission={mission} campaign={campaign} def={def} />
+        <div className={styles.mast}>
+          <BriefingMast seed={seed} mission={mission} campaign={campaign} def={def} />
+        </div>
 
-        <div className={styles.layout}>
-          <div className={styles.portraits}>
-            <Portrait
-              who={campaign.characters.advisor}
-              talking={speaker.role === "advisor" && talking}
-              tone="ally"
-              faction={campaign.factions[0].name}
+        <div className={styles.portraits}>
+          <Portrait
+            who={campaign.characters.advisor}
+            talking={liveRole === "advisor"}
+            tone="ally"
+            faction={campaign.factions[0].name}
+          />
+          <Portrait
+            who={campaign.characters.commander}
+            talking={liveRole === "commander"}
+            tone="command"
+            faction={campaign.factions[0].name}
+          />
+        </div>
+
+        <MetalPanel className={styles.panel}>
+          <section className={styles.comms}>
+            <ConsoleLabel>Incoming transmission</ConsoleLabel>
+            <BriefingStory
+              storyRef={storyRef}
+              campaign={campaign}
+              lines={visibleLines}
+              talking={talking}
+              speakerRole={liveRole}
             />
-            <Portrait
-              who={campaign.characters.commander}
-              talking={speaker.role === "commander" && talking}
-              tone="command"
-              faction={campaign.factions[0].name}
-            />
+          </section>
+          <BriefingObjectives objectives={objectives} />
+          <div className={styles.actions}>
+            <ConsoleButton
+              tooltip={returnToGame ? "Return to the battlefield" : "Launch this mission"}
+              shortcut={returnToGame ? SHORTCUT.resume : SHORTCUT.launch}
+              onClick={() => router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`)}
+            >
+              {returnToGame ? "Return to mission" : "Launch"}
+            </ConsoleButton>
+            <p className={styles.tone}>
+              {campaign.world.tone} · {campaign.world.conflict}
+            </p>
           </div>
+        </MetalPanel>
 
-          <MetalPanel className={styles.panel}>
-            <section className={styles.comms}>
-              <ConsoleLabel>Incoming transmission</ConsoleLabel>
-              <BriefingStory
-                storyRef={storyRef}
-                campaign={campaign}
-                lines={visibleLines}
-                talking={talking}
-                speakerRole={speaker.role as CharacterRole}
-              />
-            </section>
-            <BriefingObjectives objectives={objectives} revealed={revealed} />
-            <div className={styles.actions}>
-              <ConsoleButton
-                tooltip={returnToGame ? "Return to the battlefield" : "Launch this mission"}
-                shortcut={returnToGame ? SHORTCUT.resume : SHORTCUT.launch}
-                onClick={() => router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`)}
-              >
-                {returnToGame ? "Return to mission" : "Launch"}
-              </ConsoleButton>
-              <p className={styles.tone}>
-                {campaign.world.tone} · {campaign.world.conflict}
-              </p>
-            </div>
-          </MetalPanel>
-
-          <div className={styles.enemy}>
-            <Portrait
-              who={campaign.characters.enemyLeader}
-              talking={speaker.role === "enemyLeader" && talking}
-              tone="enemy"
-              faction={campaign.factions[1].name}
-            />
-          </div>
+        <div className={styles.enemy}>
+          <Portrait
+            who={campaign.characters.enemyLeader}
+            talking={liveRole === "enemyLeader"}
+            tone="enemy"
+            faction={campaign.factions[1].name}
+          />
         </div>
       </div>
     </div>

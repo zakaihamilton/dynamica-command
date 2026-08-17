@@ -1,7 +1,7 @@
 import { createRng } from "../seed/rng";
 import type { Character } from "../types";
 import { generateFace } from "./faces";
-import { genAdvisorTitle, genEnemyTitle, genName, genRank } from "./names";
+import { genAdvisorTitle, genEnemyTitle, genPerson, genRank } from "./names";
 
 export function generateCharacters(seed: number): {
   commander: Character;
@@ -9,24 +9,27 @@ export function generateCharacters(seed: number): {
   enemyLeader: Character;
 } {
   const rng = createRng(seed, "characters");
+  const commander = genPerson(rng.fork("cmd"));
+  const advisor = genPerson(rng.fork("adv"));
+  const enemy = genPerson(rng.fork("foe"));
   return {
     commander: {
       role: "commander",
-      name: genName(rng.fork("cmd")),
+      name: commander.name,
       title: genRank(rng),
-      face: generateFace(rng.fork("cmd-face"), "commander"),
+      face: generateFace(rng.fork("cmd-face"), "commander", { feminine: commander.feminine }),
     },
     advisor: {
       role: "advisor",
-      name: genName(rng.fork("adv")),
+      name: advisor.name,
       title: genAdvisorTitle(rng),
-      face: generateFace(rng.fork("adv-face"), "advisor"),
+      face: generateFace(rng.fork("adv-face"), "advisor", { feminine: advisor.feminine }),
     },
     enemyLeader: {
       role: "enemyLeader",
-      name: genName(rng.fork("foe")),
+      name: enemy.name,
       title: genEnemyTitle(rng),
-      face: generateFace(rng.fork("foe-face"), "enemyLeader"),
+      face: generateFace(rng.fork("foe-face"), "enemyLeader", { feminine: enemy.feminine }),
     },
   };
 }

@@ -13,11 +13,18 @@
   margin: 0 auto;
   max-width: 72rem;
   width: 100%;
+  display: grid;
+  gap: 1.25rem 1.75rem;
 }
 
-.layout {
-  display: grid;
-  gap: 1rem;
+.mast {
+  min-width: 0;
+  width: 100%;
+}
+
+.mast > :global(*) {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .portraits {
@@ -25,10 +32,12 @@
   gap: 1rem;
   align-content: start;
   align-items: start;
+  min-width: 0;
 }
 
 .enemy {
   align-self: start;
+  min-width: 0;
 }
 
 .panel {
@@ -37,6 +46,7 @@
   gap: 1rem;
   padding: 1.25rem;
   min-height: 0;
+  min-width: 0;
 }
 
 .comms {
@@ -100,27 +110,30 @@
   .inner {
     flex: 1;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .layout {
-    grid-template-columns: 240px 1fr 240px;
-    flex: 1;
-    min-height: 0;
+    grid-template-columns: 168px minmax(0, 1fr) 168px;
+    grid-template-areas:
+      "mast mast mast"
+      "portraits panel enemy";
+    column-gap: 2rem;
+    row-gap: 1.25rem;
     align-items: start;
   }
 
-  .portraits {
-    grid-template-columns: 1fr;
-    flex-shrink: 0;
+  .mast {
+    grid-area: mast;
   }
 
-  .enemy {
-    flex-shrink: 0;
+  .portraits {
+    grid-area: portraits;
+    grid-template-columns: 1fr;
   }
 
   .panel {
+    grid-area: panel;
     overflow: hidden;
+  }
+
+  .enemy {
+    grid-area: enemy;
   }
 }

@@ -1,10 +1,11 @@
 import type { BiomeName, WinCategoryKind } from "../types";
 import type { Rng } from "../seed/rng";
 
-const FIRST_NAMES = [
-  "Elena", "Marcus", "Irene", "Jonas", "Nadia", "Victor", "Claire", "Dorian",
-  "Helena", "Felix", "Mara", "Tomas", "Lydia", "Owen", "Kara", "Adrian",
-  "Nina", "Caleb", "Ruth", "Hugo",
+const FIRST_FEM = [
+  "Elena", "Irene", "Nadia", "Claire", "Helena", "Mara", "Lydia", "Kara", "Nina", "Ruth",
+];
+const FIRST_MASC = [
+  "Marcus", "Jonas", "Victor", "Dorian", "Felix", "Tomas", "Owen", "Adrian", "Caleb", "Hugo",
 ];
 const LAST_NAMES = [
   "Hale", "Voss", "Reed", "Cole", "Marsh", "Beck", "Nash", "Ward",
@@ -73,8 +74,14 @@ export function biomeLabel(biome: BiomeName): string {
   return BIOME_LABELS[biome];
 }
 
+export function genPerson(rng: Rng): { name: string; feminine: boolean } {
+  const feminine = rng.chance(0.5);
+  const first = rng.pick(feminine ? FIRST_FEM : FIRST_MASC);
+  return { name: `${first} ${rng.pick(LAST_NAMES)}`, feminine };
+}
+
 export function genName(rng: Rng): string {
-  return `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`;
+  return genPerson(rng).name;
 }
 
 export function characterLabel(who: { title: string; name: string }): string {

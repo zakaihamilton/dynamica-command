@@ -3,21 +3,30 @@
   flex-direction: column;
   flex-shrink: 0;
   width: 100%;
-  border: 3px solid var(--chrome-steel-lo);
+  box-sizing: border-box;
+  border: 1px solid var(--chrome-inset);
   background: var(--chrome-void);
   box-shadow: inset 2px 2px var(--chrome-void), inset -2px -2px var(--chrome-bevel), 4px 5px 0 var(--chrome-void);
-  padding: 0.45rem 0.45rem 0.5rem;
+  padding: 0.4rem 0.4rem 0.45rem;
 }
 
 .live {
   box-shadow: inset 2px 2px var(--chrome-void), inset -2px -2px var(--chrome-cyan-dim), 0 0 0 1px var(--chrome-cyan), 4px 5px 0 var(--chrome-void);
 }
 
+.frame[data-tone="enemy"].live {
+  box-shadow: inset 2px 2px var(--chrome-void), inset -2px -2px var(--chrome-alert), 0 0 0 1px var(--chrome-alert), 4px 5px 0 var(--chrome-void);
+}
+
+.frame[data-tone="enemy"] .statusLive {
+  color: var(--chrome-alert);
+}
+
 .meta {
   display: flex;
   justify-content: space-between;
   flex-shrink: 0;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
   color: var(--chrome-muted);
   font-size: 0.58rem;
   font-weight: 700;
@@ -34,7 +43,7 @@
 }
 
 .name {
-  margin: 0.5rem 0 0;
+  margin: 0.35rem 0 0;
   flex-shrink: 0;
   text-align: center;
   font-size: 10px;
