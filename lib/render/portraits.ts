@@ -416,6 +416,7 @@ export function portraitFrameIndex(
   if (talking && frameCount >= 3) {
     return portraitSpeechFrame(time, portraitId, frameCount);
   }
+  if (frameCount >= 2 && portraitBlinking(time, portraitId)) return 1;
   return 0;
 }
 

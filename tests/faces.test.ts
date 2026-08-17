@@ -115,12 +115,15 @@ describe("portrait DNA", () => {
     expect(new Set(sequence)).toEqual(new Set([0, 2]));
     expect(sequence.some((frame, index) => index > 0 && frame === sequence[index - 1])).toBe(true);
     expect(sequence.some((frame, index) => index > 0 && frame !== sequence[index - 1])).toBe(true);
-    expect(portraitFrameIndex(40, false, 3, "commander-01")).toBe(0);
+    expect(portraitSpeechFrame(40, "commander-01", 3)).not.toBe(1);
   });
 
-  it("keeps idle portraits on the closed-mouth sheet frame", () => {
+  it("keeps idle portraits blinking without opening the mouth", () => {
     const frames = Array.from({ length: 400 }, (_, time) => portraitFrameIndex(time, false, 3, "commander-01"));
-    expect(new Set(frames)).toEqual(new Set([0]));
+    expect(frames).toContain(0);
+    expect(frames).toContain(1);
+    expect(frames).not.toContain(2);
+    expect(frames.every((frame, time) => frame === (portraitBlinking(time, "commander-01") ? 1 : 0))).toBe(true);
   });
 
   it("clips blink and speech onto the idle frame instead of swapping the whole sheet", () => {

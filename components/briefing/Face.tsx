@@ -12,7 +12,7 @@ import {
   PORTRAIT_MOUTH_CLIP,
   PORTRAIT_OFFSET_NONE,
   portraitBlinking,
-  portraitFrameIndex,
+  portraitSpeechFrame,
   resolvePortraitAnimation,
   type FaceTone,
   type PortraitClip,
@@ -30,6 +30,7 @@ export const Face = memo(function Face({
   talking: boolean;
   tone: FaceTone;
 }) {
+  "use no memo";
   const ref = useRef<HTMLCanvasElement>(null);
   const whoRef = useRef(who);
   const talkingRef = useRef(talking);
@@ -43,11 +44,9 @@ export const Face = memo(function Face({
   const mouthClipRef = useRef<PortraitClip>(PORTRAIT_MOUTH_CLIP);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
 
-  useEffect(() => {
-    whoRef.current = who;
-    talkingRef.current = talking;
-    toneRef.current = tone;
-  }, [who, talking, tone]);
+  whoRef.current = who;
+  talkingRef.current = talking;
+  toneRef.current = tone;
 
   useEffect(() => {
     const portraitId = who.face.portraitId;
@@ -98,21 +97,24 @@ export const Face = memo(function Face({
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
     const w = 200;
     const h = 240;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = w * dpr;
     c.height = h * dpr;
-    ctx.imageSmoothingEnabled = true;
-    if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
     let t = 0;
     let last = performance.now();
     let raf = 0;
     const loop = (now: number) => {
       t += Math.min(32, now - last) * (60 / 1000);
       last = now;
+      const ctx = c.getContext("2d");
+      if (!ctx) {
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      ctx.imageSmoothingEnabled = true;
+      if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
       const currentTone = toneRef.current;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = currentTone === "enemy" ? "#1c1210" : currentTone === "command" ? "#12160f" : "#10140c";
@@ -121,10 +123,11 @@ export const Face = memo(function Face({
       const asset = getPortraitAsset(currentFace.portraitId);
       const image = portraitRef.current;
       if (asset && image && loadedIdRef.current === currentFace.portraitId) {
-        const talking = talkingRef.current;
-        const frame = portraitFrameIndex(t, talking, asset.frameCount, currentFace.portraitId);
+        const speaking = talkingRef.current;
+        const mouthOpen = speaking && portraitSpeechFrame(t, currentFace.portraitId, asset.frameCount) === 2;
+        const blinking = asset.frameCount >= 2 && portraitBlinking(t, currentFace.portraitId);
         drawPortraitFrame(ctx, image, asset, 0, 0, 0, w, h);
-        if (talking && frame === 2) {
+        if (mouthOpen) {
           drawPortraitClippedFrame(
             ctx,
             image,
@@ -139,7 +142,7 @@ export const Face = memo(function Face({
             overlayRef.current ?? (overlayRef.current = document.createElement("canvas")),
           );
         }
-        if (asset.frameCount >= 2 && portraitBlinking(t, currentFace.portraitId)) {
+        if (blinking) {
           drawPortraitClippedFrame(
             ctx,
             image,
