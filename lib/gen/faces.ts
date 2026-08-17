@@ -70,6 +70,12 @@ export function generateFace(
     eyeSize: feminine ? rng.next() * 0.28 + 0.92 : rng.next() * 0.32 + 0.78,
     noseStyle: feminine ? rng.pick([0, 0, 1, 1, 2]) : rng.pick([0, 1, 1, 2, 2]),
     mouthStyle: feminine ? rng.pick([0, 1, 1, 1, 2]) : rng.pick([0, 0, 1, 2, 2]),
+    ageBand: rng.pick(role === "commander" || role === "enemyLeader" ? [0, 1, 1, 2] : [0, 0, 1, 2]),
+    faceShape: rng.int(4) as FaceDna["faceShape"],
+    complexion: rng.int(3) as FaceDna["complexion"],
+    hairTexture: rng.int(3) as FaceDna["hairTexture"],
+    uniformStyle: rng.int(3) as FaceDna["uniformStyle"],
+    accessory: rng.int(4) as FaceDna["accessory"],
   };
 }
 

@@ -3,6 +3,10 @@
   min-height: 100vh;
   overflow: hidden;
   color: var(--chrome-body);
+  background:
+    linear-gradient(180deg, rgba(3, 7, 12, 0.38), rgba(3, 7, 12, 0.74)),
+    var(--scene-art) center / cover no-repeat,
+    var(--chrome-void);
 }
 
 .vignette {

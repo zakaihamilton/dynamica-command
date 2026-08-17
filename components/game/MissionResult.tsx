@@ -2,7 +2,9 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
+import { RASTER_ART } from "@/lib/gen/visualAssets";
 import type { SimState } from "@/lib/types";
+import type { CSSProperties } from "react";
 import styles from "./MissionResult.module.css";
 
 export function MissionResult({
@@ -22,7 +24,12 @@ export function MissionResult({
 }) {
   if (result === "playing") return null;
   return (
-    <div className={styles.overlay} data-testid="mission-result">
+    <div
+      className={styles.overlay}
+      data-testid="mission-result"
+      data-result={result}
+      style={{ "--result-art": `url("${RASTER_ART[result === "won" ? "victory" : "defeat"]}")` } as CSSProperties}
+    >
       <MetalPanel className={styles.panel}>
         <ConsoleLabel>Theater status</ConsoleLabel>
         <h2 className={styles.title}>

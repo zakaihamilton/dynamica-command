@@ -91,6 +91,15 @@ export type Palette = {
   dark: string;
 };
 
+export type FactionVisualProfile = {
+  designFamily: 0 | 1 | 2;
+  material: "brushed" | "armored" | "industrial";
+  trimPattern: 0 | 1 | 2 | 3;
+  insignia: 0 | 1 | 2 | 3 | 4;
+  weathering: 0 | 1 | 2 | 3;
+  lightRig: "cyan" | "amber" | "red";
+};
+
 export type Faction = {
   id: Owner;
   name: string;
@@ -119,6 +128,12 @@ export type FaceDna = {
   eyeSize: number;
   noseStyle: 0 | 1 | 2;
   mouthStyle: 0 | 1 | 2;
+  ageBand: 0 | 1 | 2;
+  faceShape: 0 | 1 | 2 | 3;
+  complexion: 0 | 1 | 2;
+  hairTexture: 0 | 1 | 2;
+  uniformStyle: 0 | 1 | 2;
+  accessory: 0 | 1 | 2 | 3;
 };
 
 export type CharacterRole = "commander" | "advisor" | "enemyLeader";
@@ -208,6 +223,7 @@ export type UnitSpriteOptions = {
   facing?: Facing;
   animationFrame?: AnimFrame;
   damageStage?: 0 | 1 | 2;
+  profile?: FactionVisualProfile;
 };
 
 export type BuildingSpriteOptions = {
@@ -215,6 +231,7 @@ export type BuildingSpriteOptions = {
   animationFrame?: AnimFrame;
   damageStage?: 0 | 1 | 2;
   constructionStage?: 0 | 1 | 2 | 3;
+  profile?: FactionVisualProfile;
 };
 
 export type SimState = {

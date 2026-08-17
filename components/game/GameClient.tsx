@@ -74,12 +74,10 @@ export function GameClient({
   const [repairMode, setRepairMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"construction" | "production">("construction");
   const activeTabRef = useRef(activeTab);
-  activeTabRef.current = activeTab;
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
   const [pauseView, setPauseView] = useState<"main" | "options" | "assets">("main");
   const pauseViewRef = useRef(pauseView);
-  pauseViewRef.current = pauseView;
   const [pauseNotice, setPauseNotice] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const cmdQ = useRef<Command[]>([]);
@@ -93,13 +91,21 @@ export function GameClient({
   const fxRef = useRef<FxBurst[]>([]);
   const fxSeq = useRef(1);
   const panAvailRef = useRef<PanAvailability>({ left: false, right: false, up: false, down: false });
-  const [panAvail, setPanAvail] = useState<PanAvailability>(panAvailRef.current);
+  const [panAvail, setPanAvail] = useState<PanAvailability>({ left: false, right: false, up: false, down: false });
   const [hotPan, setHotPan] = useState<PanDir | null>(null);
 
   const applyEdgePan = useCallback((dir: PanDir | null) => {
     panHold.current = dir;
     setHotPan((prev) => (prev === dir ? prev : dir));
   }, []);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    pauseViewRef.current = pauseView;
+  }, [pauseView]);
 
   useEffect(() => {
     const s = stateRef.current;
@@ -695,6 +701,7 @@ export function GameClient({
         seed={s.seed}
         missionName={s.missionName}
         objective={obj.label}
+        biome={s.biome}
         onMouseDown={onDown}
         onMouseMove={onMove}
         onMouseLeave={onLeave}

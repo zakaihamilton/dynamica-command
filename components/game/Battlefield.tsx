@@ -1,6 +1,8 @@
-import type { MouseEventHandler, ReactNode, Ref } from "react";
+import type { CSSProperties, MouseEventHandler, ReactNode, Ref } from "react";
 import type { PanAvailability, PanDir } from "@/lib/render/camera";
 import { formatSeed } from "@/lib/seed/rng";
+import { biomeArt } from "@/lib/gen/visualAssets";
+import type { BiomeName } from "@/lib/types";
 import { ScrollArrow } from "./ScrollArrow";
 import styles from "./Battlefield.module.css";
 
@@ -14,6 +16,7 @@ export function Battlefield({
   seed,
   missionName,
   objective,
+  biome,
   children,
   onMouseDown,
   onMouseMove,
@@ -29,6 +32,7 @@ export function Battlefield({
   seed: number;
   missionName: string;
   objective: string;
+  biome: BiomeName;
   children?: ReactNode;
   onMouseDown: MouseEventHandler<HTMLCanvasElement>;
   onMouseMove: MouseEventHandler<HTMLCanvasElement>;
@@ -36,7 +40,11 @@ export function Battlefield({
   onMouseUp: MouseEventHandler<HTMLCanvasElement>;
 }) {
   return (
-    <div ref={hostRef} className={styles.root}>
+    <div
+      ref={hostRef}
+      className={styles.root}
+      style={{ "--scene-art": `url("${biomeArt(biome)}")` } as CSSProperties}
+    >
       <canvas
         ref={canvasRef}
         width={width}

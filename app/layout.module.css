@@ -15,6 +15,13 @@
   --chrome-gold: #e8c45a;
   --chrome-gold-dim: #b89a40;
   --chrome-alert: #e07058;
+  --chrome-glass: rgba(9, 16, 23, 0.86);
+  --chrome-raised: #2c3a47;
+  --chrome-line: rgba(126, 172, 190, 0.2);
+  --chrome-bloom: rgba(92, 225, 230, 0.18);
+  --texture-brushed: url("/art/textures/brushed-gunmetal.webp");
+  --texture-worn: url("/art/textures/worn-panel.webp");
+  --texture-crt: url("/art/textures/crt-glass.webp");
 }
 
 .html,
@@ -31,6 +38,7 @@
   color: var(--chrome-text);
   font-family: var(--font-geist-mono), "Arial Narrow", Tahoma, sans-serif;
   letter-spacing: 0.015em;
+  text-rendering: geometricPrecision;
 }
 
 .body :global(button) {

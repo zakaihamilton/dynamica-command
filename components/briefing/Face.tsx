@@ -18,9 +18,12 @@ export const Face = memo(function Face({
   const whoRef = useRef(who);
   const talkingRef = useRef(talking);
   const toneRef = useRef(tone);
-  whoRef.current = who;
-  talkingRef.current = talking;
-  toneRef.current = tone;
+
+  useEffect(() => {
+    whoRef.current = who;
+    talkingRef.current = talking;
+    toneRef.current = tone;
+  }, [who, talking, tone]);
 
   useEffect(() => {
     const c = ref.current;

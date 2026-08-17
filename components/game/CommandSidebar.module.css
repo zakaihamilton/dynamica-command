@@ -11,7 +11,9 @@
   border-left: 3px solid color-mix(in srgb, var(--p, var(--chrome-steel-hi)) 40%, var(--chrome-inset));
   background:
     repeating-linear-gradient(90deg, rgba(255,255,255,0.028) 0 1px, transparent 1px 10px),
-    linear-gradient(90deg, var(--chrome-steel-hi) 0, var(--chrome-steel) 7px, color-mix(in srgb, var(--chrome-steel) 70%, var(--chrome-steel-lo)) 12px, var(--chrome-steel-lo) 100%);
+    linear-gradient(90deg, color-mix(in srgb, var(--chrome-steel-hi) 82%, transparent) 0, var(--chrome-steel) 7px, color-mix(in srgb, var(--chrome-steel) 70%, var(--chrome-steel-lo)) 12px, color-mix(in srgb, var(--chrome-steel-lo) 94%, transparent) 100%),
+    var(--texture-worn) center / 420px 420px;
+  background-blend-mode: screen, normal, soft-light;
   box-shadow:
     inset 3px 0 color-mix(in srgb, var(--p, var(--chrome-bevel)) 45%, var(--chrome-bevel)),
     inset 4px 0 var(--chrome-inset),
@@ -39,7 +41,8 @@
   border: 1px solid var(--chrome-inset);
   background:
     linear-gradient(90deg, transparent, color-mix(in srgb, var(--chrome-cyan) 12%, transparent), transparent),
-    linear-gradient(var(--chrome-steel-hi), var(--chrome-steel-lo));
+    linear-gradient(color-mix(in srgb, var(--chrome-steel-hi) 86%, transparent), color-mix(in srgb, var(--chrome-steel-lo) 92%, transparent)),
+    var(--texture-brushed) center / 280px 280px;
   box-shadow: inset 1px 1px var(--chrome-bevel), inset -1px -1px var(--chrome-void), 2px 2px 0 var(--chrome-inset);
 }
 

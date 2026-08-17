@@ -1,5 +1,6 @@
 import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor } from "../catalog";
 import { cliffFaces, drawElevationFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite, wreckSprite } from "../gen/assets";
+import { generateVisualProfile } from "../gen/visualProfile";
 import { MAP_SKIRT, MAP_SKIRT_ALPHA, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import type { BuildingKind, Entity, Facing, SimState, TileContour, UnitKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
@@ -22,7 +23,7 @@ import { fogAt } from "../sim/fog";
 import { canRepair } from "../sim/repair";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
 
-const SHROUD_FILL = "#050608";
+const SHROUD_FILL = "rgba(5, 6, 8, 0.68)";
 
 function entityElev(state: SimState, e: Entity): number {
   return e.class === "unit" ? groundHeight(state, e.x, e.y) : heightAt(state, Math.round(e.x), Math.round(e.y));
@@ -213,6 +214,7 @@ function paintTileRange(
 function paintTerrain(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
+  ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = SHROUD_FILL;
   ctx.fillRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = false;
@@ -255,6 +257,7 @@ export function renderWorld(
 ): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
+  ctx.clearRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = false;
 
   const key = terrainCacheKey(state, cam, w, h);
@@ -309,6 +312,7 @@ export function renderWorld(
   for (const e of drawList) {
     if (!entityVisible(state, e)) continue;
     const pal = state.factions[e.owner]!.palette;
+    const profile = generateVisualProfile(state.seed, e.owner);
     const facing = facingFor(state, e);
     const uAnim = e.class === "unit" ? unitAnim(e, state.tick, clock) : null;
     const bAnim = e.class === "building" ? buildingAnim(e, state.tick, clock) : null;
@@ -319,11 +323,13 @@ export function renderWorld(
           facing,
           animationFrame: uAnim!.frame,
           damageStage,
+          profile,
         })
       : buildingSprite(e.kind as BuildingKind, pal, {
           variant: entityVariant(state, e),
           damageStage,
           constructionStage: constructionStage(e),
+          profile,
         });
     let cx = e.x;
     let cy = e.y;
@@ -491,10 +497,26 @@ function drawCombatEffects(ctx: CanvasRenderingContext2D, state: SimState, cam: 
     ctx.globalAlpha = 0.55 + (1 - u) * 0.35;
     ctx.strokeStyle = anti ? "#ff8b3d" : heavy ? "#ffe08a" : "#f6d06c";
     ctx.lineWidth = Math.max(1, Math.round(z * (heavy ? 3 : anti ? 2 : 1)));
+    ctx.shadowColor = anti ? "#ff5a28" : "#ffd56a";
+    ctx.shadowBlur = (heavy ? 7 : 4) * z;
     ctx.beginPath();
     ctx.moveTo(Math.round(ax), Math.round(ay));
     ctx.lineTo(Math.round(px), Math.round(py));
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    if (anti) {
+      for (let i = 1; i <= 3; i++) {
+        const trail = Math.max(0, u - i * 0.045);
+        const tx = ax + (bx - ax) * trail;
+        const ty = ay + (by - ay) * trail;
+        ctx.globalAlpha = 0.22 * (1 - i / 4);
+        ctx.fillStyle = "#9aa09a";
+        ctx.beginPath();
+        ctx.ellipse(tx, ty, (2 + i) * z, (1.2 + i * 0.55) * z, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 0.55 + (1 - u) * 0.35;
     ctx.fillStyle = heavy ? "#fff4c4" : "#fff0a0";
     const shell = heavy ? 5 : 3;
     ctx.fillRect(Math.round(px - shell / 2), Math.round(py - shell / 2), shell, shell);
@@ -504,6 +526,15 @@ function drawCombatEffects(ctx: CanvasRenderingContext2D, state: SimState, cam: 
       ctx.beginPath();
       ctx.arc(ax, ay, Math.max(2, 3 * z), 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = anti ? "#ff8b3d" : "#fff4c4";
+      ctx.lineWidth = Math.max(1, z);
+      for (let i = 0; i < 5; i++) {
+        const ang = (i / 5) * Math.PI * 2 + facing * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(ax + Math.cos(ang) * 8 * z, ay + Math.sin(ang) * 5 * z);
+        ctx.stroke();
+      }
     }
     if (u > 0.72) {
       const burst = (u - 0.72) / 0.28;
@@ -982,11 +1013,41 @@ function drawFxLayer(
       }
       const radius = (6 + p * 22) * z;
       ctx.save();
+      ctx.globalCompositeOperation = "lighter";
       ctx.globalAlpha = 0.9 * (1 - p);
       ctx.fillStyle = "#a54b25";
       ctx.beginPath();
       ctx.ellipse(s.x, s.y + 6 * z, radius, radius * 0.55, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.28 * (1 - p);
+      ctx.fillStyle = "#20252a";
+      for (let i = 0; i < 5; i++) {
+        const drift = ((burst.id + i * 7) % 9) - 4;
+        ctx.beginPath();
+        ctx.ellipse(
+          s.x + drift * z + Math.cos(i * 2.2) * radius * 0.35,
+          s.y - (5 + p * 24 + i * 2) * z,
+          radius * (0.28 + i * 0.035),
+          radius * (0.2 + i * 0.03),
+          0,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+      ctx.globalAlpha = 0.74 * (1 - p);
+      ctx.strokeStyle = p < 0.42 ? "#ffd38a" : "#6b4a38";
+      ctx.lineWidth = Math.max(1, 1.3 * z);
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2 + burst.id * 0.7;
+        const inner = radius * 0.32;
+        const outer = radius * (0.7 + (i % 3) * 0.16);
+        ctx.beginPath();
+        ctx.moveTo(s.x + Math.cos(ang) * inner, s.y + 4 * z + Math.sin(ang) * inner * 0.55);
+        ctx.lineTo(s.x + Math.cos(ang) * outer, s.y + 4 * z + Math.sin(ang) * outer * 0.55);
+        ctx.stroke();
+      }
       ctx.fillStyle = "#ffe08a";
       ctx.beginPath();
       ctx.ellipse(s.x, s.y + 4 * z, radius * 0.45, radius * 0.28, 0, 0, Math.PI * 2);

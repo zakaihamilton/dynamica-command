@@ -4,13 +4,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.75);
+  background:
+    radial-gradient(circle at center, rgba(3, 7, 12, 0.42), rgba(3, 7, 12, 0.88) 72%),
+    var(--result-art) center / cover no-repeat;
+  isolation: isolate;
 }
 
 .panel {
   max-width: 32rem;
   padding: 2rem;
   text-align: center;
+  backdrop-filter: blur(12px) saturate(0.7);
+  border-color: color-mix(in srgb, var(--chrome-cyan) 38%, var(--chrome-inset));
+}
+
+.overlay[data-result="won"] .title {
+  color: var(--chrome-gold);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--chrome-gold) 35%, transparent);
+}
+
+.overlay[data-result="lost"] .title {
+  color: #f0a08c;
+  text-shadow: 0 0 24px color-mix(in srgb, var(--chrome-alert) 35%, transparent);
 }
 
 .title {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
 import { listGeneratedAssets } from "@/lib/gen/assetCatalog";
+import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { buildingAnim } from "@/lib/render/anim";
 import { drawSprite, rasterize } from "@/lib/render/sprites";
 import { assetsCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
@@ -14,6 +15,7 @@ import type {
   BuildingKind,
   Entity,
   Facing,
+  FactionVisualProfile,
   Palette,
   UnitKind,
 } from "@/lib/types";
@@ -92,14 +94,17 @@ export function AssetsBrowser({
   const [construction, setConstruction] = useState<0 | 1 | 2 | 3>(3);
   const [damage, setDamage] = useState<0 | 1 | 2>(0);
   const [variant, setVariant] = useState(4);
+  const [designFamily, setDesignFamily] = useState<FactionVisualProfile["designFamily"]>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const profile = useMemo(() => ({ ...generateVisualProfile(421, 0), designFamily }), [designFamily]);
 
-  useEffect(() => {
+  const selectAsset = (id: string) => {
+    setSelectedId(id);
     setFacing(0);
     setConstruction(3);
     setDamage(0);
     setPlaying(true);
-  }, [selectedId]);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -124,12 +129,13 @@ export function AssetsBrowser({
     const paint = (now: number) => {
       const spec =
         selected.category === "unit"
-          ? unitSprite(selected.kind as UnitKind, palette, { facing, animationFrame: frame, variant: 11 })
+          ? unitSprite(selected.kind as UnitKind, palette, { facing, animationFrame: frame, variant: 11, profile })
           : selected.category === "building"
             ? buildingSprite(selected.kind as BuildingKind, palette, {
                 constructionStage: construction,
                 damageStage: damage,
                 variant: 13,
+                profile,
               })
             : selected.category === "wreck"
               ? wreckSprite(selected.kind as UnitKind, palette)
@@ -163,7 +169,7 @@ export function AssetsBrowser({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [construction, damage, facing, palette, playing, selected, variant]);
+  }, [construction, damage, facing, palette, playing, profile, selected, variant]);
 
   if (!selected) return null;
 
@@ -182,7 +188,7 @@ export function AssetsBrowser({
       </div>
 
       <div className={styles.body}>
-        <AssetList assets={assets} selectedId={selected.id} onSelect={setSelectedId} />
+        <AssetList assets={assets} selectedId={selected.id} onSelect={selectAsset} />
         <AssetPreview
           selected={selected}
           canvasRef={canvasRef}
@@ -191,11 +197,13 @@ export function AssetsBrowser({
           construction={construction}
           damage={damage}
           variant={variant}
+          designFamily={designFamily}
           onFacing={setFacing}
           onPlaying={() => setPlaying((v) => !v)}
           onConstruction={setConstruction}
           onDamage={setDamage}
           onVariant={setVariant}
+          onDesignFamily={setDesignFamily}
         />
       </div>
     </MetalPanel>

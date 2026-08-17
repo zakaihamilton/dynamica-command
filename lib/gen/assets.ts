@@ -446,6 +446,39 @@ function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: 
     const oy = signed(v, 230 + i, 3);
     shapes.push(ell(cx + ox, cy + oy + 1, 3 + pick(v, 250 + i, 3), 2, i % 2 ? p.secondary : p.dark));
   }
+  paintBiomeSignature(shapes, biome, p, v, cx, cy);
+}
+
+function paintBiomeSignature(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number, cx: number, cy: number): void {
+  const ox = signed(v, 270, 10);
+  const oy = signed(v, 271, 3);
+  if (biome === "ash plains") {
+    shapes.push(ell(cx + ox - 6, cy + oy - 2, 12, 5, "#2a302c", "#667068"));
+    shapes.push(ell(cx + ox - 3, cy + oy - 1, 6, 2.5, "#151a18"));
+  } else if (biome === "crystal flats") {
+    shapes.push(poly([cx + ox - 4, cy + oy + 3, cx + ox - 1, cy + oy - 6, cx + ox + 1, cy + oy + 2], "#92b8ac", "#263c38", 1));
+    shapes.push(poly([cx + ox, cy + oy + 3, cx + ox + 5, cy + oy - 3, cx + ox + 4, cy + oy + 4], "#6f9188", "#263c38", 1));
+  } else if (biome === "rust canyons") {
+    shapes.push(line(cx + ox - 7, cy + oy, cx + ox + 7, cy + oy + 3, "#3d2b22", 3));
+    shapes.push(line(cx + ox - 5, cy + oy - 1, cx + ox + 5, cy + oy + 1, "#a7683f", 1));
+  } else if (biome === "salt marshes") {
+    for (let i = -2; i <= 2; i++) shapes.push(line(cx + ox + i * 2, cy + oy + 3, cx + ox + i * 2 + (i % 2), cy + oy - 5 - Math.abs(i), "#778465", 1));
+  } else if (biome === "glass desert") {
+    shapes.push(poly([cx + ox - 8, cy + oy + 3, cx + ox - 2, cy + oy - 4, cx + ox + 8, cy + oy + 2, cx + ox + 1, cy + oy + 4], "#262b2c", "#9a9d95", 1));
+    shapes.push(line(cx + ox - 2, cy + oy - 3, cx + ox + 5, cy + oy + 1, "#d0c4aa", 1));
+  } else if (biome === "tundra grid") {
+    shapes.push(line(cx + ox - 9, cy + oy - 2, cx + ox + 8, cy + oy + 3, "#a7b7ba", 2));
+    shapes.push(line(cx + ox - 8, cy + oy, cx + ox + 7, cy + oy + 4, "#46545a", 1));
+  } else if (biome === "jungle wreckage") {
+    shapes.push(line(cx + ox - 8, cy + oy, cx + ox + 8, cy + oy + 2, "#17271b", 2));
+    shapes.push(ell(cx + ox - 5, cy + oy - 4, 8, 4, "#547448", INK));
+    shapes.push(ell(cx + ox + 1, cy + oy - 3, 7, 4, "#385f3d", INK));
+  } else if (biome === "volcanic shelf") {
+    shapes.push(line(cx + ox - 8, cy + oy - 2, cx + ox, cy + oy + 1, "#1c1716", 3));
+    shapes.push(line(cx + ox, cy + oy + 1, cx + ox + 8, cy + oy - 1, "#c54f2b", 2));
+    shapes.push(line(cx + ox + 1, cy + oy + 1, cx + ox + 6, cy + oy, "#ff9a42", 1));
+  }
+  if (pick(v, 272, 5) === 0) shapes.push(ell(cx - ox * 0.4, cy - oy, 4, 2, p.light));
 }
 
 function pushBush(shapes: ShapeSpec[], x: number, y: number, v: number, biome: BiomeName): void {

@@ -2,6 +2,7 @@ import { BUILDING_STATS } from "../catalog";
 import type {
   BuildingKind,
   BuildingSpriteOptions,
+  FactionVisualProfile,
   Facing,
   Palette,
   SpriteSpec,
@@ -25,6 +26,19 @@ const GOLD = "#d3b846";
 const RIM = "#c8cec4";
 const SOFT = "#3a423c";
 const SKINS = ["#b58d68", "#c68642", "#e8c39e", "#8d5524", "#d4a574"];
+
+const DEFAULT_PROFILE: FactionVisualProfile = {
+  designFamily: 0,
+  material: "brushed",
+  trimPattern: 0,
+  insignia: 0,
+  weathering: 0,
+  lightRig: "cyan",
+};
+
+function visualKey(profile: FactionVisualProfile): string {
+  return `${profile.designFamily}:${profile.material}:${profile.trimPattern}:${profile.insignia}:${profile.weathering}:${profile.lightRig}`;
+}
 
 class Svg {
   private defs: string[] = [];
@@ -126,6 +140,7 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
   const frame = options.animationFrame ?? 0;
   const variant = options.variant ?? 0;
   const dmg = options.damageStage ?? 0;
+  const profile = options.profile ?? DEFAULT_PROFILE;
   const svg = new Svg();
   const cx = w / 2;
   const ground = h - 5;
@@ -134,6 +149,7 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
   if (kind === "harvester") paintHarvester(svg, cx, cy, facing, frame, palette);
   else if (kind === "tank") paintTank(svg, cx, cy, facing, frame, palette);
   else paintInfantry(svg, kind, cx, cy, facing, frame, variant, palette);
+  paintUnitIdentity(svg, kind, cx, cy, facing, variant, palette, profile);
   if (variant % 3 === 1) svg.ellipse(cx - 14, cy, 2, 1.2, GOLD);
   if (dmg > 0) svg.ellipse(cx - 4, cy, 8, 3.5, "rgba(30,24,18,0.7)");
   if (dmg > 1) {
@@ -141,7 +157,7 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
     svg.ellipse(cx + 6, cy - 8, 6, 7, "rgba(58,58,54,0.45)");
   }
   return {
-    id: `unit:${kind}:${palette.primary}:${variant}:${facing}:${frame}:${dmg}`,
+    id: `unit:${kind}:${palette.primary}:${visualKey(profile)}:${variant}:${facing}:${frame}:${dmg}`,
     kind: "unit",
     w,
     h,
@@ -152,6 +168,51 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
     anchorY: ground,
     pixelScale: 1,
   };
+}
+
+function paintUnitIdentity(
+  svg: Svg,
+  kind: UnitKind,
+  cx: number,
+  cy: number,
+  facing: Facing,
+  variant: number,
+  pal: Palette,
+  profile: FactionVisualProfile,
+): void {
+  const dir = facingVector(facing);
+  const infantry = kind === "infantry" || kind === "antiArmor";
+  const light = profile.lightRig === "amber" ? "#ffd27a" : profile.lightRig === "red" ? "#ff8068" : "#8eeff1";
+  if (infantry) {
+    const shoulder = veh(cx, cy, -1, profile.designFamily === 1 ? 7 : 5, 17, facing);
+    svg.path(d(octagon(shoulder[0], shoulder[1], profile.designFamily === 1 ? 4.8 : 3.4, 2.4)), pal.primary, INK, 1);
+    if (profile.designFamily === 2) {
+      const pack = veh(cx, cy, -4, 0, 14, facing);
+      svg.path(d(octagon(pack[0], pack[1], 4.2, 5)), STEEL_DARK, INK, 1);
+      svg.line(pack[0], pack[1] - 4, pack[0] - dir.x * 3, pack[1] - 9, STEEL_LIGHT, 1);
+    }
+  } else if (profile.designFamily === 0) {
+    const nose = veh(cx, cy, 10, 0, 9, facing);
+    svg.path(d(octagon(nose[0], nose[1], 5.6, 3.2)), pal.primary, INK, 1);
+    svg.line(nose[0] - dir.y * 4, nose[1] + dir.x * 2, nose[0] + dir.y * 4, nose[1] - dir.x * 2, pal.light, 1);
+  } else if (profile.designFamily === 1) {
+    for (const side of [-1, 1]) {
+      const pod = veh(cx, cy, -3, side * 8, 7, facing);
+      svg.path(d(octagon(pod[0], pod[1], 5, 3.4)), STEEL_DARK, INK, 1);
+      svg.path(d(octagon(pod[0], pod[1] - 1, 3.2, 2)), pal.primary, INK, 1);
+    }
+  } else {
+    const mast = veh(cx, cy, -9, -4, 13, facing);
+    svg.line(mast[0], mast[1], mast[0], mast[1] - 7, STEEL_DARK, 1);
+    svg.ellipse(mast[0], mast[1] - 8, 2.3, 1.6, light, INK, 1);
+  }
+  const mark = veh(cx, cy, infantry ? 0 : 2, 0, infantry ? 19 : 11, facing);
+  if (profile.insignia % 2 === 0) svg.path(d(diamond(mark[0], mark[1], 4, 2.8)), pal.accent, INK, 0.7);
+  else svg.ellipse(mark[0], mark[1], 2.2, 1.5, light, INK, 0.7);
+  if (profile.weathering >= 2) {
+    const scratch = veh(cx, cy, ((variant >>> 3) % 7) - 3, 0, infantry ? 13 : 7, facing);
+    svg.line(scratch[0] - 3, scratch[1] - 2, scratch[0] + 3, scratch[1] + 1, RUST_LIGHT, 0.8);
+  }
 }
 
 function paintTreads(svg: Svg, cx: number, cy: number, facing: Facing, frame: number, length: number, width: number): void {
@@ -395,7 +456,6 @@ function isoBox(
   const ne = pt(iso, x1, y0, z1);
   const se = pt(iso, x1, y1, z1);
   const sw = pt(iso, x0, y1, z1);
-  const nwg = pt(iso, x0, y0, z0);
   const neg = pt(iso, x1, y0, z0);
   const seg = pt(iso, x1, y1, z0);
   const swg = pt(iso, x0, y1, z0);
@@ -608,6 +668,7 @@ export function buildingSprite(kind: BuildingKind, palette: Palette, options: Bu
   const construction = options.constructionStage ?? 3;
   const dmg = options.damageStage ?? 0;
   const variant = options.variant ?? 0;
+  const profile = options.profile ?? DEFAULT_PROFILE;
   const lit = construction >= 3 && dmg < 2;
   const complete = construction >= 3;
   const svg = new Svg();
@@ -615,6 +676,7 @@ export function buildingSprite(kind: BuildingKind, palette: Palette, options: Bu
 
   paintYard(svg, iso, kind);
   if (construction >= 1) paintBuildingMass(svg, iso, kind, palette, construction, lit, complete);
+  if (construction >= 2) paintBuildingIdentity(svg, iso, kind, palette, variant, profile);
   if (construction < 3) paintScaffold(svg, iso, construction);
   if (dmg > 0) {
     svg.ellipse(ground[0] - 8, ground[1] - 2, 10, 4.5, "rgba(34,24,19,0.72)");
@@ -631,7 +693,7 @@ export function buildingSprite(kind: BuildingKind, palette: Palette, options: Bu
   }
 
   return {
-    id: `bld:${kind}:${palette.primary}:${variant}:${dmg}:${construction}`,
+    id: `bld:${kind}:${palette.primary}:${visualKey(profile)}:${variant}:${dmg}:${construction}`,
     kind: "building",
     w: iso.w,
     h: iso.h,
@@ -642,6 +704,44 @@ export function buildingSprite(kind: BuildingKind, palette: Palette, options: Bu
     anchorY: ground[1],
     pixelScale: 1,
   };
+}
+
+function paintBuildingIdentity(
+  svg: Svg,
+  iso: Iso,
+  kind: BuildingKind,
+  pal: Palette,
+  variant: number,
+  profile: FactionVisualProfile,
+): void {
+  const z = Math.max(12, buildingSky(kind) * 0.5);
+  const center = pt(iso, iso.fw * 0.52, iso.fh * 0.48, z);
+  const light = profile.lightRig === "amber" ? "#ffd27a" : profile.lightRig === "red" ? "#ff8068" : "#8eeff1";
+  const span = Math.max(8, Math.min(18, (iso.fw + iso.fh) * 4));
+  if (profile.designFamily === 0) {
+    svg.path(d(diamond(center[0], center[1] - 3, span, 7)), pal.primary, INK, 1);
+    svg.line(center[0] - span * 0.35, center[1] - 3, center[0] + span * 0.35, center[1] - 3, pal.light, 1);
+  } else if (profile.designFamily === 1) {
+    svg.path(d(octagon(center[0], center[1] - 2, span * 0.48, 5.5)), STEEL_DARK, INK, 1);
+    svg.path(d(octagon(center[0], center[1] - 4, span * 0.3, 3.2)), pal.primary, INK, 1);
+  } else {
+    const mastTop = center[1] - 14 - (variant % 4);
+    svg.line(center[0], center[1], center[0], mastTop, STEEL_DARK, 2);
+    svg.line(center[0], mastTop + 4, center[0] + 9, mastTop + 1, STEEL_LIGHT, 1.5);
+    svg.ellipse(center[0] + 10, mastTop, 3.5, 2, light, INK, 1);
+  }
+  const badge = pt(iso, Math.min(iso.fw - 0.15, iso.fw * 0.72), 0.12, Math.max(8, z * 0.7));
+  if (profile.insignia % 2 === 0) svg.path(d(diamond(badge[0], badge[1], 6, 4)), pal.accent, INK, 1);
+  else svg.ellipse(badge[0], badge[1], 4, 2.5, pal.accent, INK, 1);
+  if (profile.trimPattern >= 2) {
+    const a = pt(iso, 0.1, Math.min(iso.fh - 0.1, iso.fh * 0.7), 3);
+    const b = pt(iso, Math.min(iso.fw - 0.1, iso.fw * 0.8), Math.min(iso.fh - 0.1, iso.fh * 0.7), 3);
+    svg.line(a[0], a[1], b[0], b[1], profile.trimPattern === 3 ? pal.accent : pal.primary, 2);
+  }
+  if (profile.weathering >= 2) {
+    svg.line(center[0] - 8, center[1] + 5, center[0] + 3, center[1] + 8, RUST, 1);
+    svg.ellipse(center[0] + 8, center[1] + 6, 5, 2.2, "rgba(58,42,32,0.42)");
+  }
 }
 
 function paintYard(svg: Svg, iso: Iso, kind: BuildingKind): void {

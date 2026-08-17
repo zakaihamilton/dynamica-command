@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { cliffFaces, drawElevationFaces, buildingSprite, tileSprite, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite } from "@/lib/gen/assets";
 import { generateFactions } from "@/lib/gen/factions";
 import { generateMap } from "@/lib/gen/map";
+import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
 import { drawSprite, rasterize } from "@/lib/render/sprites";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
@@ -250,6 +251,7 @@ export function MenuBackdrop() {
 
       for (const item of sprites) {
         const pal = item.owner === 0 ? us.palette : them.palette;
+        const profile = generateVisualProfile(CINEMA_SEED, item.owner);
         const spec =
           item.class === "unit"
             ? unitSprite(item.kind as UnitKind, pal, {
@@ -262,10 +264,12 @@ export function MenuBackdrop() {
                   return ((Math.round(angle / (Math.PI * 2) * 8) + 8) % 8) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
                 })(),
                 animationFrame: Math.floor(t / 8) % 2 as 0 | 1,
+                profile,
               })
             : buildingSprite(item.kind as BuildingKind, pal, {
                 variant: Math.round(item.x * 31 + item.y * 17),
                 animationFrame: Math.floor(t / 12) % 2 as 0 | 1,
+                profile,
               });
         const img = rasterize(spec);
         let cx = item.x;

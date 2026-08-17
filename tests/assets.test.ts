@@ -176,7 +176,7 @@ describe("retro procedural assets", () => {
   it("plants unit sprites on a contact shadow at the feet", () => {
     for (const kind of UNIT_KINDS) {
       const spec = unitSprite(kind, palette, { facing: 0, variant: 11 });
-      const shadowY = Number(spec.svg.match(/<ellipse cx="[\d.]+" cy="([\d.]+)"/)?.[1]);
+      const shadowY = Number(spec.svg?.match(/<ellipse cx="[\d.]+" cy="([\d.]+)"/)?.[1]);
       expect(shadowY).toBeCloseTo(spec.anchorY ?? spec.h, 0);
       expect(spec.anchorY ?? spec.h).toBeGreaterThan(spec.h * 0.8);
     }

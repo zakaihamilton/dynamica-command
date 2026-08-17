@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
+import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { listSaves, localStorageAdapter } from "@/lib/persist/save";
 import { isEditableTarget, menuCommandFromKey, SHORTCUT } from "@/lib/ui/shortcuts";
@@ -36,18 +37,18 @@ export function MenuScreen() {
     return createCampaign(n);
   }, [code]);
 
-  function openNewGame() {
+  const openNewGame = useCallback(function openNewGame() {
     setCode((current) => current.length === 4 ? current : rollSeed());
     setError("");
     setView("newGame");
-  }
+  }, []);
 
-  function randomize() {
+  const randomize = useCallback(function randomize() {
     setCode(rollSeed());
     setError("");
-  }
+  }, []);
 
-  function launch() {
+  const launch = useCallback(function launch() {
     const n = parseSeed(code);
     if (n === null || code.length < 4) {
       setError("Enter a 4-digit seed (0000–9999), or roll a random theater.");
@@ -55,7 +56,7 @@ export function MenuScreen() {
     }
     setError("");
     router.push(`/briefing?seed=${formatSeed(n)}&mission=0`);
-  }
+  }, [code, router]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -72,14 +73,17 @@ export function MenuScreen() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [view, code]);
+  }, [view, openNewGame, launch, randomize]);
 
   const previewLine = preview
     ? `${preview.world.name} · ${preview.factions[0].name} vs ${preview.factions[1].name}`
     : "Four digits lock a theater — or roll a random war";
 
   return (
-    <div className={styles.screen}>
+    <div
+      className={styles.screen}
+      style={{ "--scene-art": `url("${RASTER_ART.menu}")` } as CSSProperties}
+    >
       <MenuBackdrop />
       <div className={styles.vignette} />
       <div className={styles.scanlines} />

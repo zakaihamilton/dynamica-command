@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { missionObjectives } from "@/lib/gen/story";
+import { biomeArt } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
 import type { BriefingLine } from "@/lib/types";
 import { briefingCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
@@ -72,10 +73,9 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   }
 
   const talking = shown > 0 && shown < totalChars;
-  let remaining = shown;
-  const revealedLines = lines.map((line) => {
-    const chars = Math.max(0, Math.min(line.text.length, remaining));
-    remaining -= chars;
+  const revealedLines = lines.map((line, index) => {
+    const consumed = lines.slice(0, index).reduce((sum, item) => sum + item.text.length, 0);
+    const chars = Math.max(0, Math.min(line.text.length, shown - consumed));
     return {
       ...line,
       visible: line.text.slice(0, chars),
@@ -89,7 +89,10 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   const liveRole = talking ? revealedLines.find((line) => line.started && !line.complete)?.speaker : undefined;
 
   return (
-    <div className={styles.screen}>
+    <div
+      className={styles.screen}
+      style={{ "--scene-art": `url("${biomeArt(campaign.world.biome)}")` } as CSSProperties}
+    >
       <div className={styles.inner}>
         <div className={styles.mast}>
           <BriefingMast seed={seed} mission={mission} campaign={campaign} def={def} />

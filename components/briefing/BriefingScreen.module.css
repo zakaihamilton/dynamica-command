@@ -6,7 +6,9 @@
   color: var(--chrome-body);
   background:
     repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0,0,0,0.16) 3px 4px),
-    radial-gradient(circle at 50% 12%, var(--chrome-steel-hi), var(--chrome-void) 68%);
+    radial-gradient(circle at 50% 12%, color-mix(in srgb, var(--chrome-steel-hi) 58%, transparent), var(--chrome-void) 78%),
+    linear-gradient(rgba(3, 7, 12, 0.64), rgba(3, 7, 12, 0.84)),
+    var(--scene-art) center / cover fixed no-repeat;
 }
 
 .inner {
@@ -54,6 +56,10 @@
   padding: 1rem;
   border: 1px solid var(--chrome-inset);
   background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  background:
+    linear-gradient(rgba(17, 28, 37, 0.9), rgba(6, 11, 17, 0.94)),
+    var(--texture-crt) center / 420px 420px;
+  background-blend-mode: normal, screen;
   box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -1px -1px var(--chrome-void);
 }
 

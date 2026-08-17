@@ -18,13 +18,10 @@ function tooltipTarget(node: EventTarget | null): HTMLElement | null {
 }
 
 export function TooltipLayer() {
-  const [mounted, setMounted] = useState(false);
   const [tip, setTip] = useState<TipState | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const hoverRef = useRef<HTMLElement | null>(null);
   const forcedRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const forcedEl = () => document.querySelector("[data-tooltip-open]") as HTMLElement | null;
@@ -115,7 +112,7 @@ export function TooltipLayer() {
     node.style.left = `${next.left}px`;
   }, [tip]);
 
-  if (!mounted || !tip) return null;
+  if (!tip) return null;
   return createPortal(
     <div ref={nodeRef} className={styles.tooltip} role="tooltip" style={{ top: -9999, left: -9999 }}>
       <span className={styles.text}>{tip.text}</span>

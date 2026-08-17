@@ -3,7 +3,7 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import type { CatalogAsset } from "@/lib/gen/assetCatalog";
-import type { Facing } from "@/lib/types";
+import type { Facing, FactionVisualProfile } from "@/lib/types";
 import { AssetChip } from "./AssetChip";
 import styles from "./AssetPreview.module.css";
 
@@ -20,11 +20,13 @@ export function AssetPreview({
   construction,
   damage,
   variant,
+  designFamily,
   onFacing,
   onPlaying,
   onConstruction,
   onDamage,
   onVariant,
+  onDesignFamily,
 }: {
   selected: CatalogAsset;
   canvasRef: Ref<HTMLCanvasElement>;
@@ -33,11 +35,13 @@ export function AssetPreview({
   construction: 0 | 1 | 2 | 3;
   damage: 0 | 1 | 2;
   variant: number;
+  designFamily: FactionVisualProfile["designFamily"];
   onFacing: (dir: Facing) => void;
   onPlaying: () => void;
   onConstruction: (stage: 0 | 1 | 2 | 3) => void;
   onDamage: (stage: 0 | 1 | 2) => void;
   onVariant: (value: number) => void;
+  onDesignFamily: (value: FactionVisualProfile["designFamily"]) => void;
 }) {
   const showFacing = selected.category === "unit";
   const showAnim = selected.category === "unit" || selected.category === "building";
@@ -80,6 +84,24 @@ export function AssetPreview({
           >
             {playing ? "Pause animation" : "Play animation"}
           </ConsoleButton>
+        ) : null}
+
+        {selected.category === "unit" || selected.category === "building" ? (
+          <div className={styles.group}>
+            <ConsoleLabel>Faction design</ConsoleLabel>
+            <div className={styles.chips}>
+              {([0, 1, 2] as const).map((family) => (
+                <AssetChip
+                  key={family}
+                  active={designFamily === family}
+                  tooltip={["Angular vanguard", "Heavy fortress", "Industrial utility"][family]!}
+                  onClick={() => onDesignFamily(family)}
+                >
+                  {`Family ${family + 1}`}
+                </AssetChip>
+              ))}
+            </div>
+          </div>
         ) : null}
 
         {selected.category === "building" ? (
