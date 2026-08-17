@@ -504,8 +504,8 @@ export function drawPortraitBackdrop(
 export function portraitSpeechFrame(time: number, portraitId: string, frameCount: number): number {
   if (frameCount <= 1) return 0;
 
-  // Hold each viseme long enough to read at briefing size. One chunk is ~80ms
-  // at a 60fps clock; open holds under two chunks look like flicker, not speech.
+  // One chunk is ~80ms at a 60fps clock. Open holds under two chunks look like
+  // flicker; closed gaps stay shorter than idle so the mouth still works.
   const targetChunk = Math.max(0, Math.floor(time / 5));
   let cursor = 0;
   let mouthOpen = false;
@@ -513,11 +513,10 @@ export function portraitSpeechFrame(time: number, portraitId: string, frameCount
 
   for (let segment = 0; segment < 2048; segment += 1) {
     random = nextPortraitRandom(random);
-    const duration = mouthOpen ? 3 + (random % 4) : 3 + (random % 5);
+    const duration = mouthOpen ? 3 + (random % 3) : 2 + (random % 3);
     if (targetChunk < cursor + duration) return mouthOpen ? 2 : 0;
     cursor += duration;
-    random = nextPortraitRandom(random);
-    mouthOpen = mouthOpen ? false : random % 5 !== 0;
+    mouthOpen = !mouthOpen;
   }
 
   return mouthOpen ? 2 : 0;

@@ -4,6 +4,7 @@ import { tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { formatHoldClock, inspect, objectiveProgress } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
+import { generateWinCategory } from "../lib/gen/objectives";
 import { missionObjectives } from "../lib/gen/story";
 
 describe("win categories", () => {
@@ -110,6 +111,18 @@ describe("win categories", () => {
     cy.hp = 0;
     tick(s);
     expect(inspect(s).result).toBe("lost");
+  });
+});
+
+describe("generated harvest quotas", () => {
+  it("uses round credit targets", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      for (let index = 0; index < 8; index++) {
+        const win = generateWinCategory(seed, index, "harvestQuota");
+        expect(win.target).toBeGreaterThanOrEqual(4000);
+        expect(win.target! % 500).toBe(0);
+      }
+    }
   });
 });
 

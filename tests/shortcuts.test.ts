@@ -73,6 +73,9 @@ describe("shortcut matching", () => {
     expect(briefingCommandFromKey({ key: " " }, { typing: false, revealed: false })).toEqual({ type: "skip" });
     expect(briefingCommandFromKey({ key: " " }, { typing: false, revealed: true })).toEqual({ type: "launch" });
     expect(briefingCommandFromKey({ key: "Enter" }, { typing: false, revealed: true })).toEqual({ type: "launch" });
+    expect(briefingCommandFromKey({ key: "r" }, { typing: false, revealed: false })).toEqual({ type: "replay" });
+    expect(briefingCommandFromKey({ key: "r" }, { typing: false, revealed: true })).toEqual({ type: "replay" });
+    expect(briefingCommandFromKey({ key: "r" }, { typing: false, revealed: true, returnToGame: true })).toEqual({ type: "replay" });
     expect(briefingCommandFromKey({ key: "Escape" }, { typing: false, revealed: true, returnToGame: true })).toEqual({ type: "launch" });
     expect(briefingCommandFromKey({ key: "Enter" }, { typing: false, revealed: true, returnToGame: true })).toBeNull();
     expect(assetsCommandFromKey({ key: "Escape" }, { typing: false })).toEqual({ type: "close" });

@@ -30,6 +30,18 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
 test("shows briefing portraits before launch", async ({ page }) => {
   await openBriefing(page);
   await expect(page.getByTestId("briefing-portrait").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Replay" })).toBeVisible();
+});
+
+test("replays the incoming transmission from the start", async ({ page }) => {
+  await openBriefing(page);
+  await page.keyboard.press(" ");
+  const lastLine = page.getByTestId("briefing-line").nth(2);
+  await expect(lastLine).toBeVisible();
+  const lastText = (await lastLine.innerText()).trim();
+  expect(lastText.length).toBeGreaterThan(12);
+  await page.getByRole("button", { name: "Replay" }).click();
+  await expect(page.getByTestId("briefing-dialogue")).not.toContainText(lastText.slice(-24));
 });
 
 test("pauses and resumes from the battlefield", async ({ page }) => {

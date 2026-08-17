@@ -98,16 +98,25 @@ describe("portrait DNA", () => {
   it("holds speech visemes long enough to read at briefing size", () => {
     const sequence = Array.from({ length: 800 }, (_, time) => portraitSpeechFrame(time, "commander-01", 3));
     let longestOpen = 0;
-    let run = 0;
-    for (const frame of sequence) {
+    let longestClosed = 0;
+    let openRun = 0;
+    let closedRun = 0;
+    let transitions = 0;
+    for (const [index, frame] of sequence.entries()) {
+      if (index > 0 && frame !== sequence[index - 1]) transitions += 1;
       if (frame === 2) {
-        run += 1;
-        longestOpen = Math.max(longestOpen, run);
+        openRun += 1;
+        closedRun = 0;
+        longestOpen = Math.max(longestOpen, openRun);
       } else {
-        run = 0;
+        closedRun += 1;
+        openRun = 0;
+        longestClosed = Math.max(longestClosed, closedRun);
       }
     }
     expect(longestOpen).toBeGreaterThanOrEqual(15);
+    expect(longestClosed).toBeLessThanOrEqual(22);
+    expect(transitions).toBeGreaterThanOrEqual(20);
   });
 
   it("alternates bitmap mouth frames while a portrait is speaking", () => {

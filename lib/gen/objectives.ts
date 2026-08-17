@@ -17,7 +17,7 @@ export function generateWinCategory(
     case "harvestQuota":
       return {
         kind,
-        target: Math.round(2800 + minutes * 420 + rng.int(600)),
+        target: Math.round((2800 + minutes * 420 + rng.int(600)) / 500) * 500,
       };
     case "forceQuota": {
       const role = rng.chance(0.55) ? rng.pick(COMBAT_ROLES) : undefined;

@@ -37,7 +37,7 @@ export type MenuCommand =
   | { type: "deploy" }
   | { type: "randomize" }
   | { type: "back" };
-export type BriefingCommand = { type: "launch" } | { type: "skip" };
+export type BriefingCommand = { type: "launch" } | { type: "skip" } | { type: "replay" };
 export type AssetsCommand = { type: "close" } | { type: "togglePlay" };
 
 export const SHORTCUT = {
@@ -66,6 +66,7 @@ export const SHORTCUT = {
   randomize: "R",
   deploy: "Enter",
   launch: "Enter",
+  replay: "R",
   play: "Space",
   resultPrimary: "Enter",
   resultMenu: "Esc",
@@ -186,6 +187,7 @@ export function briefingCommandFromKey(
   ctx: { typing: boolean; revealed: boolean; returnToGame?: boolean },
 ): BriefingCommand | null {
   if (ctx.typing || e.repeat || modified(e)) return null;
+  if (letter(e) === "r") return { type: "replay" };
   if (ctx.returnToGame) {
     if (isEscape(e)) return { type: "launch" };
     if (isSpace(e) && !ctx.revealed) return { type: "skip" };

@@ -25,6 +25,7 @@ describe("determinism", () => {
         }
         if (mission.win.kind === "harvestQuota") {
           expect(mission.win.target).toBeGreaterThanOrEqual(4000);
+          expect(mission.win.target! % 500).toBe(0);
         }
         if (mission.win.kind === "forceQuota") {
           expect(mission.win.target).toBeGreaterThanOrEqual(6);

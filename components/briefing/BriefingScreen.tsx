@@ -22,6 +22,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   const campaign = useMemo(() => createCampaign(seed), [seed]);
   const def = campaign.missions[mission];
   const [shown, setShown] = useState(0);
+  const [playId, setPlayId] = useState(0);
   const storyRef = useRef<HTMLDivElement>(null);
   const lines: BriefingLine[] = def?.briefing ?? [];
   const totalChars = lines.reduce((n, line) => n + line.text.length, 0);
@@ -31,6 +32,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   );
 
   useEffect(() => {
+    setShown(0);
     const id = setInterval(() => {
       setShown((n) => {
         if (n >= totalChars) {
@@ -41,7 +43,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
       });
     }, 40);
     return () => clearInterval(id);
-  }, [totalChars]);
+  }, [totalChars, playId]);
 
   useLayoutEffect(() => {
     const el = storyRef.current;
@@ -60,6 +62,10 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
       e.preventDefault();
       if (command.type === "skip") {
         setShown(totalChars);
+        return;
+      }
+      if (command.type === "replay") {
+        setPlayId((n) => n + 1);
         return;
       }
       router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`);
@@ -126,6 +132,13 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
           </section>
           <BriefingObjectives objectives={objectives} />
           <div className={styles.actions}>
+            <ConsoleButton
+              tooltip="Replay the incoming transmission"
+              shortcut={SHORTCUT.replay}
+              onClick={() => setPlayId((n) => n + 1)}
+            >
+              Replay
+            </ConsoleButton>
             <ConsoleButton
               tooltip={returnToGame ? "Return to the battlefield" : "Launch this mission"}
               shortcut={returnToGame ? SHORTCUT.resume : SHORTCUT.launch}
