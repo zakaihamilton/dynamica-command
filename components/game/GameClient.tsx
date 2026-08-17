@@ -274,6 +274,42 @@ export function GameClient({
     router.push(`/briefing?seed=${formatSeed(stateRef.current.seed)}&mission=${stateRef.current.missionIndex}&return=game`);
   }, [router]);
 
+  const restartMission = useCallback(() => {
+    const world = stateRef.current;
+    const fresh = createMission({ seed: world.seed, missionIndex: world.missionIndex });
+    stateRef.current = fresh;
+    setState({ ...fresh, entities: [...fresh.entities] });
+    selected.current.clear();
+    setSelectedIds([]);
+    cmdQ.current = [];
+    fxRef.current = [];
+    place.current = null;
+    setPlaceKind(null);
+    repair.current = false;
+    setRepairMode(false);
+    hover.current = null;
+    cursor.current = null;
+    box.current = null;
+    pausedRef.current = false;
+    setPaused(false);
+    setPauseView("main");
+    setPauseNotice("");
+    const cy = fresh.entities.find((e) => e.owner === 0 && e.kind === "constructionYard");
+    const canvas = canvasRef.current;
+    if (cy && canvas) {
+      const elev = heightAt(fresh, cy.x, cy.y);
+      const p = tileToScreen(cy.x, cy.y, { x: 0, y: 0, zoom: camRef.current.zoom }, elev);
+      camRef.current.x = canvas.width / 2 - p.x;
+      camRef.current.y = canvas.height / 3 - p.y;
+      const bounds = cameraPanBounds(camRef.current, fresh.width, fresh.height, canvas.width, canvas.height);
+      clampCamera(camRef.current, bounds);
+      const avail = panAvailability(camRef.current, bounds);
+      panAvailRef.current = avail;
+      setPanAvail(avail);
+    }
+    beep("select");
+  }, []);
+
   const toggleSound = useCallback(() => {
     setSoundEnabled((prev) => {
       setMuted(prev);
@@ -435,6 +471,7 @@ export function GameClient({
       } else if (command.type === "save") saveMission();
       else if (command.type === "load") loadMission();
       else if (command.type === "briefing") viewMissionBriefing();
+      else if (command.type === "restart") restartMission();
       else if (command.type === "assets") {
         setPauseView("assets");
         setPauseNotice("");
@@ -464,6 +501,7 @@ export function GameClient({
     openPauseMenu,
     resultPrimary,
     resumeMission,
+    restartMission,
     router,
     saveMission,
     toggleRepair,
@@ -707,6 +745,7 @@ export function GameClient({
           onSave={saveMission}
           onLoad={loadMission}
           onBriefing={viewMissionBriefing}
+          onRestart={restartMission}
           onAssets={() => { setPauseView("assets"); setPauseNotice(""); }}
           onOptions={() => { setPauseView("options"); setPauseNotice(""); }}
           onMenu={() => router.push("/")}

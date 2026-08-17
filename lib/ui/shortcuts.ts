@@ -23,6 +23,7 @@ export type GameCommand =
   | { type: "save" }
   | { type: "load" }
   | { type: "briefing" }
+  | { type: "restart" }
   | { type: "assets" }
   | { type: "options" }
   | { type: "menu" }
@@ -54,6 +55,7 @@ export const SHORTCUT = {
   save: "S",
   load: "L",
   briefing: "B",
+  restart: "R",
   assets: "A",
   options: "O",
   menu: "M",
@@ -135,6 +137,7 @@ export function gameCommandFromKey(
     if (key === "s") return { type: "save" };
     if (key === "l") return { type: "load" };
     if (key === "b") return { type: "briefing" };
+    if (key === "r") return { type: "restart" };
     if (key === "a") return { type: "assets" };
     if (key === "o") return { type: "options" };
     if (key === "m") return { type: "menu" };
