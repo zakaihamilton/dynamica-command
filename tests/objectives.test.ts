@@ -132,7 +132,7 @@ describe("mission briefing dialogue", () => {
         expect(line.text).not.toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+:/);
       }
       const joined = mission.briefing.map((line) => line.text).join(" ");
-      expect(joined).toContain(mission.name);
+      expect(joined).not.toContain(mission.name);
       expect(joined.toLowerCase()).toContain("construction yard");
     }
   });

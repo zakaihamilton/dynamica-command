@@ -1,0 +1,43 @@
+.section {
+  padding: 1rem;
+  flex-shrink: 0;
+  border: 1px solid var(--chrome-inset);
+  background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -1px -1px var(--chrome-void);
+}
+
+.list {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr;
+  gap: 0.7rem;
+  align-items: start;
+  border: 1px solid var(--chrome-steel);
+  background: var(--chrome-steel-lo);
+  color: var(--chrome-body);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.index {
+  color: var(--chrome-cyan);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.decrypting {
+  margin: 0.75rem 0 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--chrome-muted);
+}

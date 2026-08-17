@@ -1,0 +1,39 @@
+.item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 0.55rem;
+  border: 0;
+  border-bottom: 1px solid var(--chrome-steel);
+  background: transparent;
+  color: var(--chrome-body);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cat {
+  flex: 0 0 6.2rem;
+  color: var(--chrome-muted);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item:hover,
+.active {
+  background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  color: var(--chrome-text);
+}
+
+.active .cat {
+  color: var(--chrome-cyan);
+}

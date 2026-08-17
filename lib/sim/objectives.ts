@@ -1,3 +1,4 @@
+import { labelFor, TICKS_PER_SECOND } from "../catalog";
 import type { InspectReport, SimEvent, SimState } from "../types";
 import { formatSeed } from "../seed/rng";
 import { living } from "./world";
@@ -17,7 +18,7 @@ export function objectiveProgress(state: SimState): { current: number; target: n
         current,
         target: w.target ?? 0,
         label: w.role
-          ? `${w.role} ${current} / ${w.target}`
+          ? `${labelFor(w.role)} ${current} / ${w.target}`
           : `Units built ${current} / ${w.target}`,
       };
     }
@@ -29,7 +30,7 @@ export function objectiveProgress(state: SimState): { current: number; target: n
         current,
         target: w.target ?? 0,
         label: w.building
-          ? `${w.building} ${current} / ${w.target}`
+          ? `${labelFor(w.building)} ${current} / ${w.target}`
           : `Buildings ${current} / ${w.target}`,
       };
     }
@@ -53,7 +54,13 @@ export function objectiveProgress(state: SimState): { current: number; target: n
     }
     case "holdTheLine": {
       const t = w.ticks ?? 0;
-      return { current: Math.min(state.tick, t), target: t, label: `Hold ${state.tick} / ${t}` };
+      const left = Math.max(0, t - state.tick);
+      const seconds = Math.ceil(left / TICKS_PER_SECOND);
+      return {
+        current: Math.min(state.tick, t),
+        target: t,
+        label: left <= 0 ? "Held" : `Hold ${seconds}s`,
+      };
     }
     default:
       return { current: 0, target: 1, label: "Unknown" };

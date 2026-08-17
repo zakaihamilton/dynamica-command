@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { deserializeState, listSaves, memoryStorage, readSave, serializeState, writeSave } from "../lib/persist/save";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { tick } from "../lib/sim/api";
@@ -19,6 +19,20 @@ describe("persist", () => {
     const listed = listSaves(storage);
     expect(listed).toHaveLength(1);
     expect(listed[0]!.seed).toBe("0421");
+  });
+
+  it("lists campaigns by last saved time", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+      const storage = memoryStorage();
+      writeSave(storage, makeFixture({ seed: 9, win: { kind: "annihilate" } }));
+      vi.setSystemTime(new Date("2026-01-01T00:00:01Z"));
+      writeSave(storage, makeFixture({ seed: 1, win: { kind: "annihilate" } }));
+      expect(listSaves(storage).map((s) => s.seed)).toEqual(["0001", "0009"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("backfills biome and surface metadata in legacy saves", () => {

@@ -1,0 +1,720 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { MAX_PRODUCTION_QUEUE, buildingCameoStatus, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
+import { beep, setMuted } from "@/lib/audio/synth";
+import { TICK_MS } from "@/lib/game/loop";
+import { createCampaign } from "@/lib/gen/campaign";
+import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
+import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
+import { cameraViewQuad, createCamera, screenToTile, tileToScreen, TILE_H } from "@/lib/render/iso";
+import { renderMinimap } from "@/lib/render/minimap";
+import { pickEntity } from "@/lib/render/pick";
+import { renderWorld, pickTile, type RenderExtras } from "@/lib/render/renderer";
+import { burstsFromDestroyed, cullFx, type FxBurst } from "@/lib/render/fx";
+import { formatSeed } from "@/lib/seed/rng";
+import { createMission, tick } from "@/lib/sim/api";
+import { objectiveProgress } from "@/lib/sim/objectives";
+import { powerBreakdown, buildingAt, heightAt } from "@/lib/sim/world";
+import type { BuildingKind, Command, SimState, UnitKind } from "@/lib/types";
+import { gameCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
+import { Battlefield } from "./Battlefield";
+import { CommandSidebar } from "./CommandSidebar";
+import { MissionResult } from "./MissionResult";
+import { PauseMenu } from "./PauseMenu";
+import styles from "./GameClient.module.css";
+
+const PLACEABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
+const PRODUCIBLE: UnitKind[] = ["infantry", "antiArmor", "harvester", "tank"];
+const MIN_RENDER_WIDTH = 640;
+const MIN_RENDER_HEIGHT = 480;
+
+function renderDimensions(host: HTMLElement): { width: number; height: number } {
+  return {
+    width: Math.max(MIN_RENDER_WIDTH, Math.floor(host.clientWidth)),
+    height: Math.max(MIN_RENDER_HEIGHT, Math.floor(host.clientHeight)),
+  };
+}
+
+function initialMission(seed: number, mission: number, resume: boolean): SimState {
+  if (resume && typeof window !== "undefined") {
+    const saved = readSave(localStorageAdapter(), seed);
+    if (saved) return saved;
+  }
+  return createMission({ seed, missionIndex: mission });
+}
+
+export function GameClient({
+  seed,
+  mission,
+  resume,
+}: {
+  seed: number;
+  mission: number;
+  resume: boolean;
+}) {
+  const router = useRouter();
+  const campaign = useMemo(() => createCampaign(seed), [seed]);
+  const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume));
+  const stateRef = useRef<SimState>(state);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const miniRef = useRef<HTMLCanvasElement>(null);
+  const camRef = useRef(createCamera());
+  const selected = useRef(new Set<number>());
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const keys = useRef<Record<string, boolean>>({});
+  const hover = useRef<{ x: number; y: number } | null>(null);
+  const cursor = useRef<{ x: number; y: number } | null>(null);
+  const box = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const place = useRef<BuildingKind | null>(null);
+  const [placeKind, setPlaceKind] = useState<BuildingKind | null>(null);
+  const repair = useRef(false);
+  const [repairMode, setRepairMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<"construction" | "production">("construction");
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const [pauseView, setPauseView] = useState<"main" | "options" | "assets">("main");
+  const pauseViewRef = useRef(pauseView);
+  pauseViewRef.current = pauseView;
+  const [pauseNotice, setPauseNotice] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const cmdQ = useRef<Command[]>([]);
+  const minimapDragging = useRef(false);
+  const panHold = useRef<PanDir | null>(null);
+  const extrasRef = useRef<RenderExtras>({
+    cursor: null,
+    placeKind: null,
+    repairMode: false,
+  });
+  const fxRef = useRef<FxBurst[]>([]);
+  const fxSeq = useRef(1);
+  const panAvailRef = useRef<PanAvailability>({ left: false, right: false, up: false, down: false });
+  const [panAvail, setPanAvail] = useState<PanAvailability>(panAvailRef.current);
+  const [hotPan, setHotPan] = useState<PanDir | null>(null);
+
+  const applyEdgePan = useCallback((dir: PanDir | null) => {
+    panHold.current = dir;
+    setHotPan((prev) => (prev === dir ? prev : dir));
+  }, []);
+
+  useEffect(() => {
+    const s = stateRef.current;
+    const resize = () => {
+      const c = canvasRef.current;
+      const host = hostRef.current;
+      if (!c || !host) return;
+      const dimensions = renderDimensions(host);
+      c.width = dimensions.width;
+      c.height = dimensions.height;
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    if (hostRef.current) observer.observe(hostRef.current);
+    const cy = s.entities.find((e) => e.owner === 0 && e.kind === "constructionYard");
+    if (cy) {
+      const elev = heightAt(s, cy.x, cy.y);
+      const p = tileToScreen(cy.x, cy.y, { x: 0, y: 0, zoom: 1 }, elev);
+      const c = canvasRef.current;
+      camRef.current.x = (c?.width ?? MIN_RENDER_WIDTH) / 2 - p.x;
+      camRef.current.y = (c?.height ?? MIN_RENDER_HEIGHT) / 3 - p.y;
+      const bounds = cameraPanBounds(camRef.current, s.width, s.height, c?.width ?? MIN_RENDER_WIDTH, c?.height ?? MIN_RENDER_HEIGHT);
+      clampCamera(camRef.current, bounds);
+      const avail = panAvailability(camRef.current, bounds);
+      panAvailRef.current = avail;
+      setPanAvail(avail);
+    }
+    return () => observer.disconnect();
+  }, []);
+
+  const redraw = useCallback(() => {
+    const s = stateRef.current;
+    const canvas = canvasRef.current;
+    const host = hostRef.current;
+    if (!s || !canvas || !host) return;
+    const dimensions = renderDimensions(host);
+    if (canvas.width !== dimensions.width || canvas.height !== dimensions.height) {
+      canvas.width = dimensions.width;
+      canvas.height = dimensions.height;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    extrasRef.current.cursor = cursor.current;
+    extrasRef.current.placeKind = place.current;
+    extrasRef.current.repairMode = repair.current;
+    const now = performance.now();
+    extrasRef.current.clockMs = now;
+    extrasRef.current.selectBox = box.current;
+    fxRef.current = cullFx(fxRef.current, now);
+    extrasRef.current.fx = fxRef.current;
+    renderWorld(ctx, s, camRef.current, selected.current, hover.current, extrasRef.current);
+    const mini = miniRef.current;
+    if (mini) {
+      const mctx = mini.getContext("2d");
+      if (mctx) {
+        renderMinimap(mctx, s, cameraViewQuad(camRef.current, canvas.width, canvas.height));
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let acc = 0;
+    let last = performance.now();
+    let raf = 0;
+    const frame = (now: number) => {
+      const s = stateRef.current;
+      if (!s) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      if (pausedRef.current) {
+        acc = 0;
+        last = now;
+        redraw();
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      const cam = camRef.current;
+      const canvas = canvasRef.current;
+      const bounds = canvas
+        ? cameraPanBounds(cam, s.width, s.height, canvas.width, canvas.height)
+        : undefined;
+      if (keys.current.w || keys.current.ArrowUp) panCamera(cam, 0, 10, bounds);
+      if (keys.current.s || keys.current.ArrowDown) panCamera(cam, 0, -10, bounds);
+      if (keys.current.a || keys.current.ArrowLeft) panCamera(cam, 10, 0, bounds);
+      if (keys.current.d || keys.current.ArrowRight) panCamera(cam, -10, 0, bounds);
+      const hold = panHold.current;
+      if (hold && bounds) {
+        if (!panAvailability(cam, bounds)[hold]) applyEdgePan(null);
+        else {
+          const off = panOffset(hold);
+          panCamera(cam, off.dx, off.dy, bounds);
+        }
+      } else if (bounds) {
+        clampCamera(cam, bounds);
+      }
+      if (bounds) {
+        const next = panAvailability(cam, bounds);
+        const prev = panAvailRef.current;
+        if (prev.left !== next.left || prev.right !== next.right || prev.up !== next.up || prev.down !== next.down) {
+          panAvailRef.current = next;
+          setPanAvail(next);
+        }
+      }
+      acc += now - last;
+      last = now;
+      while (acc >= TICK_MS && s.result === "playing" && !pausedRef.current) {
+        const cmds = cmdQ.current.splice(0, cmdQ.current.length);
+        const out = tick(s, cmds.length ? cmds : undefined);
+        stateRef.current = out.state;
+        if (out.state.tick % 48 === 0) writeSave(localStorageAdapter(), out.state);
+        if (out.state.tick % 6 === 0) setState({ ...out.state, entities: [...out.state.entities] });
+        if (out.events.some((e) => e.type === "won")) beep("win");
+        if (out.events.some((e) => e.type === "lost")) beep("lose");
+        if (out.events.some((e) => e.type === "destroyed")) {
+          const spawned = burstsFromDestroyed(out.events, out.state, now, fxSeq.current);
+          fxSeq.current = spawned.nextId;
+          fxRef.current.push(...spawned.bursts);
+        }
+        acc -= TICK_MS;
+      }
+      if (stateRef.current && stateRef.current.result !== "playing") {
+        writeSave(localStorageAdapter(), stateRef.current);
+        setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
+      }
+      redraw();
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [redraw, applyEdgePan]);
+
+  const commitSelection = useCallback((ids: number[]) => {
+    selected.current = new Set(ids);
+    setSelectedIds(ids);
+  }, []);
+
+  const openPauseMenu = useCallback(() => {
+    pausedRef.current = true;
+    setPaused(true);
+    setPauseView("main");
+    setPauseNotice("");
+  }, []);
+
+  const resumeMission = useCallback(() => {
+    pausedRef.current = false;
+    setPaused(false);
+    setPauseView("main");
+    setPauseNotice("");
+  }, []);
+
+  const saveMission = useCallback(() => {
+    writeSave(localStorageAdapter(), stateRef.current);
+    setPauseNotice("Mission saved.");
+  }, []);
+
+  const loadMission = useCallback(() => {
+    const loaded = readSave(localStorageAdapter(), seed);
+    if (!loaded) {
+      setPauseNotice("No save found for this seed.");
+      return;
+    }
+    stateRef.current = loaded;
+    setState({ ...loaded, entities: [...loaded.entities] });
+    selected.current.clear();
+    setSelectedIds([]);
+    setPauseNotice(`Loaded mission at tick ${loaded.tick}.`);
+  }, [seed]);
+
+  const viewMissionBriefing = useCallback(() => {
+    writeSave(localStorageAdapter(), stateRef.current);
+    router.push(`/briefing?seed=${formatSeed(stateRef.current.seed)}&mission=${stateRef.current.missionIndex}&return=game`);
+  }, [router]);
+
+  const toggleSound = useCallback(() => {
+    setSoundEnabled((prev) => {
+      setMuted(prev);
+      return !prev;
+    });
+  }, []);
+
+  const availableProducer = useCallback((unit: UnitKind) => {
+    const world = stateRef.current;
+    const kind = producerFor(unit);
+    let best: typeof world.entities[number] | undefined;
+    let bestN = Infinity;
+    for (const e of world.entities) {
+      if (e.hp <= 0 || e.owner !== 0 || e.class !== "building" || e.kind !== kind || e.constructing > 0) continue;
+      const n = productionQueueSize(e);
+      if (n >= MAX_PRODUCTION_QUEUE) continue;
+      if (n < bestN) {
+        best = e;
+        bestN = n;
+      }
+    }
+    return best;
+  }, []);
+
+  const focusTile = useCallback((tx: number, ty: number, yBias = 0.5) => {
+    const world = stateRef.current;
+    const canvas = canvasRef.current;
+    if (!world || !canvas) return;
+    const elev = heightAt(world, tx, ty);
+    const p = tileToScreen(tx, ty, { x: 0, y: 0, zoom: camRef.current.zoom }, elev);
+    camRef.current.x = canvas.width / 2 - p.x;
+    camRef.current.y = canvas.height * yBias - p.y;
+    const bounds = cameraPanBounds(camRef.current, world.width, world.height, canvas.width, canvas.height);
+    clampCamera(camRef.current, bounds);
+  }, []);
+
+  const jumpHome = useCallback(() => {
+    const cy = stateRef.current.entities.find((e) => e.hp > 0 && e.owner === 0 && e.kind === "constructionYard");
+    if (cy) focusTile(cy.x, cy.y, 1 / 3);
+  }, [focusTile]);
+
+  const centerSelection = useCallback(() => {
+    const id = [...selected.current][0];
+    const ent = stateRef.current.entities.find((e) => e.id === id && e.hp > 0);
+    if (ent) focusTile(ent.x, ent.y);
+  }, [focusTile]);
+
+  const clearTools = useCallback(() => {
+    place.current = null;
+    setPlaceKind(null);
+    repair.current = false;
+    setRepairMode(false);
+  }, []);
+
+  const togglePlace = useCallback((kind: BuildingKind) => {
+    const next = place.current === kind ? null : kind;
+    place.current = next;
+    setPlaceKind(next);
+    if (next) {
+      repair.current = false;
+      setRepairMode(false);
+    }
+  }, []);
+
+  const toggleRepair = useCallback(() => {
+    const next = !repair.current;
+    repair.current = next;
+    setRepairMode(next);
+    if (next) {
+      place.current = null;
+      setPlaceKind(null);
+    }
+  }, []);
+
+  const cancelBuilding = useCallback((kind: BuildingKind) => {
+    if (place.current === kind) {
+      place.current = null;
+      setPlaceKind(null);
+      beep("select");
+      return;
+    }
+    if (buildingCameoStatus(stateRef.current.entities, 0, kind).phase === "idle") return;
+    cmdQ.current.push({ type: "cancelBuild", building: kind });
+    beep("select");
+  }, []);
+
+  const queueUnit = useCallback((unit: UnitKind) => {
+    const next = availableProducer(unit);
+    if (!next) return;
+    cmdQ.current.push({ type: "produce", fromId: next.id, unit });
+    beep("build");
+  }, [availableProducer]);
+
+  const cancelUnit = useCallback((unit: UnitKind) => {
+    if (unitCameoStatus(stateRef.current.entities, 0, unit).phase === "idle") return;
+    cmdQ.current.push({ type: "cancelProduce", unit });
+    beep("select");
+  }, []);
+
+  const activateCameo = useCallback((index: number, cancel: boolean) => {
+    if (activeTabRef.current === "construction") {
+      const kind = PLACEABLE[index];
+      if (!kind) return;
+      if (cancel) cancelBuilding(kind);
+      else togglePlace(kind);
+      return;
+    }
+    const unit = PRODUCIBLE[index];
+    if (!unit) return;
+    if (cancel) cancelUnit(unit);
+    else queueUnit(unit);
+  }, [cancelBuilding, cancelUnit, queueUnit, togglePlace]);
+
+  const resultPrimary = useCallback(() => {
+    const world = stateRef.current;
+    if (world.result === "won" && world.missionIndex < 7) {
+      router.push(`/briefing?seed=${formatSeed(world.seed)}&mission=${world.missionIndex + 1}`);
+      return;
+    }
+    if (world.result === "lost") {
+      router.push(`/briefing?seed=${formatSeed(world.seed)}&mission=${world.missionIndex}`);
+      return;
+    }
+    router.push("/");
+  }, [router]);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      keys.current[e.key] = true;
+      if (
+        !isEditableTarget(e.target) &&
+        !pausedRef.current &&
+        stateRef.current.result === "playing" &&
+        (e.key === "w" || e.key === "a" || e.key === "s" || e.key === "d" || e.key.startsWith("Arrow"))
+      ) {
+        e.preventDefault();
+      }
+      const command = gameCommandFromKey(e, {
+        typing: isEditableTarget(e.target),
+        playing: !pausedRef.current && stateRef.current.result === "playing",
+        paused: pausedRef.current,
+        pauseView: pauseViewRef.current,
+        result: stateRef.current.result,
+        toolActive: !!(place.current || repair.current),
+      });
+      if (!command) return;
+      e.preventDefault();
+      if (command.type === "pause") openPauseMenu();
+      else if (command.type === "resume") resumeMission();
+      else if (command.type === "pauseBack") setPauseView("main");
+      else if (command.type === "tab") setActiveTab(command.tab);
+      else if (command.type === "cameo") activateCameo(command.index, command.cancel);
+      else if (command.type === "home") jumpHome();
+      else if (command.type === "center") centerSelection();
+      else if (command.type === "repair") toggleRepair();
+      else if (command.type === "cancelTool") {
+        clearTools();
+        beep("select");
+      } else if (command.type === "save") saveMission();
+      else if (command.type === "load") loadMission();
+      else if (command.type === "briefing") viewMissionBriefing();
+      else if (command.type === "assets") {
+        setPauseView("assets");
+        setPauseNotice("");
+      } else if (command.type === "options") {
+        setPauseView("options");
+        setPauseNotice("");
+      } else if (command.type === "menu") router.push("/");
+      else if (command.type === "toggleSound") toggleSound();
+      else if (command.type === "resultPrimary") resultPrimary();
+      else if (command.type === "resultMenu") router.push("/");
+    };
+    const up = (e: KeyboardEvent) => {
+      keys.current[e.key] = false;
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, [
+    activateCameo,
+    centerSelection,
+    clearTools,
+    jumpHome,
+    loadMission,
+    openPauseMenu,
+    resultPrimary,
+    resumeMission,
+    router,
+    saveMission,
+    toggleRepair,
+    toggleSound,
+    viewMissionBriefing,
+  ]);
+
+  useEffect(() => () => setMuted(false), []);
+
+  function canvasPos(e: React.MouseEvent<HTMLCanvasElement>) {
+    const canvas = e.currentTarget;
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    return { x: (e.clientX - r.left) * scaleX, y: (e.clientY - r.top) * scaleY };
+  }
+
+  function entityAt(s: SimState, tx: number, ty: number) {
+    const unit = s.entities.find(
+      (en) => en.hp > 0 && en.class === "unit" && Math.round(en.x) === tx && Math.round(en.y) === ty,
+    );
+    if (unit) return unit;
+    return buildingAt(s, tx, ty);
+  }
+
+  const onDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (e.button !== 0) return;
+    const p = canvasPos(e);
+    box.current = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+  };
+
+  const onMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const p = canvasPos(e);
+    cursor.current = p;
+    const s = stateRef.current;
+    if (s) {
+      hover.current = pickTile(s, p.x, p.y, camRef.current);
+    }
+    if (box.current && e.buttons === 1) {
+      box.current.x1 = p.x;
+      box.current.y1 = p.y;
+    }
+    const r = e.currentTarget.getBoundingClientRect();
+    applyEdgePan(
+      pausedRef.current
+        ? null
+        : panDirFromPointer(e.clientX - r.left, e.clientY - r.top, r.width, r.height, EDGE_PAN_BAND, panAvailRef.current),
+    );
+  };
+
+  const onLeave = () => {
+    cursor.current = null;
+    hover.current = null;
+    applyEdgePan(null);
+  };
+
+  function minimapPos(e: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = e.currentTarget;
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(canvas.width - 1, (e.clientX - r.left) * (canvas.width / r.width))),
+      y: Math.max(0, Math.min(canvas.height - 1, (e.clientY - r.top) * (canvas.height / r.height))),
+    };
+  }
+
+  function focusFromMinimap(e: React.PointerEvent<HTMLCanvasElement>) {
+    const s = stateRef.current;
+    const canvas = canvasRef.current;
+    const mini = e.currentTarget;
+    if (!s || !canvas) return;
+    const p = minimapPos(e);
+    const tx = Math.max(0, Math.min(s.width - 1, Math.floor((p.x / mini.width) * s.width)));
+    const ty = Math.max(0, Math.min(s.height - 1, Math.floor((p.y / mini.height) * s.height)));
+    const elev = heightAt(s, tx, ty);
+    const anchor = tileToScreen(tx, ty, { x: 0, y: 0, zoom: camRef.current.zoom }, elev);
+    camRef.current.x = canvas.width / 2 - anchor.x;
+    camRef.current.y = canvas.height / 2 - anchor.y - (TILE_H * camRef.current.zoom) / 2;
+    const bounds = cameraPanBounds(camRef.current, s.width, s.height, canvas.width, canvas.height);
+    clampCamera(camRef.current, bounds);
+  }
+
+  const onMinimapPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (e.button !== 0) return;
+    minimapDragging.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    focusFromMinimap(e);
+  };
+
+  const onMinimapPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (minimapDragging.current) focusFromMinimap(e);
+  };
+
+  const onMinimapPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    minimapDragging.current = false;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
+  const onUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const s = stateRef.current;
+    if (!s) return;
+    const p = canvasPos(e);
+    const picked = pickTile(s, p.x, p.y, camRef.current);
+    const t = picked ?? screenToTile(p.x, p.y, camRef.current);
+    const tx = Math.round(t.x);
+    const ty = Math.round(t.y);
+    if (e.button === 2) {
+      e.preventDefault();
+      if (repair.current) {
+        repair.current = false;
+        setRepairMode(false);
+        beep("select");
+        return;
+      }
+      const ids = [...selected.current];
+      const target = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      if (target && target.owner === 1) {
+        cmdQ.current.push({ type: "attack", unitIds: ids, targetId: target.id });
+      } else if (s.tiles[ty * s.width + tx] === 2) {
+        cmdQ.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
+      } else {
+        cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
+      }
+      beep("ack");
+      return;
+    }
+    if (place.current) {
+      box.current = null;
+      cmdQ.current.push({ type: "build", building: place.current, x: tx, y: ty });
+      beep("build");
+      place.current = null;
+      setPlaceKind(null);
+      return;
+    }
+    if (repair.current) {
+      box.current = null;
+      const hit = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      if (hit && hit.owner === 0 && hit.class === "building") {
+        cmdQ.current.push({ type: "repair", buildingId: hit.id });
+        beep("build");
+      }
+      return;
+    }
+    const b = box.current;
+    box.current = null;
+    const drag = b && Math.hypot(b.x1 - b.x0, b.y1 - b.y0) > 8;
+    if (drag && b) {
+      const ids: number[] = [];
+      const x0 = Math.min(b.x0, b.x1);
+      const y0 = Math.min(b.y0, b.y1);
+      const x1 = Math.max(b.x0, b.x1);
+      const y1 = Math.max(b.y0, b.y1);
+      for (const en of s.entities) {
+        if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit") continue;
+        const elev = heightAt(s, Math.round(en.x), Math.round(en.y));
+        const sp = tileToScreen(en.x, en.y, camRef.current, elev);
+        if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) ids.push(en.id);
+      }
+      commitSelection(ids);
+    } else {
+      const hit = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      commitSelection(hit && hit.owner === 0 ? [hit.id] : []);
+    }
+    beep("select");
+  };
+
+  const s = state;
+  const obj = objectiveProgress(s);
+  const grid = powerBreakdown(s, 0);
+  const power = grid.surplus;
+  const selectedEnt = s.entities.find((e) => selectedIds.includes(e.id) && e.hp > 0);
+  const pal = s.factions[0].palette;
+
+  return (
+    <div
+      className={styles.shell}
+      style={
+        {
+          "--p": pal.primary,
+          "--a": pal.accent,
+        } as CSSProperties
+      }
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <Battlefield
+        hostRef={hostRef}
+        canvasRef={canvasRef}
+        width={MIN_RENDER_WIDTH}
+        height={MIN_RENDER_HEIGHT}
+        panAvail={panAvail}
+        hotPan={hotPan}
+        seed={s.seed}
+        missionName={s.missionName}
+        objective={obj.label}
+        onMouseDown={onDown}
+        onMouseMove={onMove}
+        onMouseLeave={onLeave}
+        onMouseUp={onUp}
+      >
+        <MissionResult
+          result={s.result}
+          missionIndex={s.missionIndex}
+          onNextBriefing={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex + 1}`)}
+          onCampaignVictory={() => router.push("/")}
+          onRetry={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex}`)}
+          onMenu={() => router.push("/")}
+        />
+      </Battlefield>
+
+      <CommandSidebar
+        factionName={campaign.factions[0].name}
+        state={s}
+        palette={pal}
+        selected={selectedEnt}
+        placeKind={placeKind}
+        repairMode={repairMode}
+        activeTab={activeTab}
+        power={power}
+        produced={grid.produced}
+        used={grid.used}
+        miniRef={miniRef}
+        onPause={openPauseMenu}
+        onMinimapPointerDown={onMinimapPointerDown}
+        onMinimapPointerMove={onMinimapPointerMove}
+        onMinimapPointerUp={onMinimapPointerUp}
+        onTab={setActiveTab}
+        onRepair={toggleRepair}
+        onPlace={togglePlace}
+        onCancelBuilding={cancelBuilding}
+        onQueueUnit={queueUnit}
+        onCancelUnit={cancelUnit}
+        availableProducer={availableProducer}
+      />
+
+      {paused ? (
+        <PauseMenu
+          view={pauseView}
+          notice={pauseNotice}
+          soundEnabled={soundEnabled}
+          palette={pal}
+          onResume={resumeMission}
+          onSave={saveMission}
+          onLoad={loadMission}
+          onBriefing={viewMissionBriefing}
+          onAssets={() => { setPauseView("assets"); setPauseNotice(""); }}
+          onOptions={() => { setPauseView("options"); setPauseNotice(""); }}
+          onMenu={() => router.push("/")}
+          onToggleSound={toggleSound}
+          onBack={() => setPauseView("main")}
+          onCloseAssets={() => setPauseView("main")}
+        />
+      ) : null}
+    </div>
+  );
+}

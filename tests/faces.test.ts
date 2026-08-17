@@ -37,5 +37,6 @@ describe("procedural faces", () => {
     expect(a).toEqual(b);
     expect(a.commander.face).not.toEqual(a.advisor.face);
     expect(a.commander.face).not.toEqual(a.enemyLeader.face);
+    expect(a.advisor.face.headgear).not.toBe(a.enemyLeader.face.headgear);
   });
 });

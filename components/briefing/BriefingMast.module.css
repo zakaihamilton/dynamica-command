@@ -1,0 +1,53 @@
+.mast {
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  background:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--chrome-cyan) 10%, transparent), transparent),
+    linear-gradient(var(--chrome-steel-hi), var(--chrome-steel-lo));
+}
+
+.title {
+  margin: 0.5rem 0 0;
+  font-size: 1.875rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--chrome-text);
+}
+
+.world {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--chrome-cyan);
+}
+
+.aside {
+  margin: 0;
+  max-width: 24rem;
+  text-align: right;
+  font-size: 11px;
+  text-transform: uppercase;
+  line-height: 1.25rem;
+  letter-spacing: 0.12em;
+  color: var(--chrome-muted);
+}
+
+.objective {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--chrome-cyan);
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: 2.25rem;
+  }
+}

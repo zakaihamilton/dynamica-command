@@ -1,0 +1,30 @@
+.block {
+  margin-top: 1.25rem;
+}
+
+.listWrap {
+  margin-top: 0.5rem;
+  height: 7rem;
+  overflow-y: auto;
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--chrome-muted);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.item {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+}

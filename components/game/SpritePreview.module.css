@@ -1,0 +1,8 @@
+.canvas {
+  display: block;
+  width: 100%;
+  height: 3.45rem;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  transition: transform 0.2s ease;
+}

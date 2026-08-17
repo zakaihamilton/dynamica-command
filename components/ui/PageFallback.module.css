@@ -1,0 +1,5 @@
+.root {
+  min-height: 100vh;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+}

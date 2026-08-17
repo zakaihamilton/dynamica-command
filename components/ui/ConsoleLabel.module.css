@@ -1,0 +1,8 @@
+.label {
+  color: var(--chrome-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-shadow: 1px 1px var(--chrome-void);
+}

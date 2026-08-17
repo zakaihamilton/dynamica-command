@@ -17,7 +17,7 @@ export function createCampaign(seed: number): Campaign {
     const win = generateWinCategory(seed, index, kind);
     const draft: MissionDef = {
       index,
-      name: genMissionTitle(createRng(seed, `mission-title:${index}`), index),
+      name: genMissionTitle(createRng(seed, `mission-title:${index}`), kind),
       briefing: [],
       win,
       mapSize: mapSizeForMission(index),

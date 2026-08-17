@@ -1,54 +1,98 @@
-import type { BiomeName } from "../types";
+import type { BiomeName, WinCategoryKind } from "../types";
 import type { Rng } from "../seed/rng";
 
-const PREFIX = [
-  "Ash", "Iron", "Void", "Solar", "Dust", "Nova", "Keth", "Ryn", "Tal", "Vor",
-  "Hel", "Mir", "Zha", "Orr", "Kael", "Syr", "Nox", "Lum", "Grav", "Pyre",
+const FIRST_NAMES = [
+  "Elena", "Marcus", "Irene", "Jonas", "Nadia", "Victor", "Claire", "Dorian",
+  "Helena", "Felix", "Mara", "Tomas", "Lydia", "Owen", "Kara", "Adrian",
+  "Nina", "Caleb", "Ruth", "Hugo",
 ];
-const MID = ["a", "e", "i", "o", "u", "ae", "ia", "or", "ul", "en"];
-const SUFFIX = [
-  "gard", "ron", "vex", "thal", "mir", "dax", "wyn", "sol", "kar", "neth",
-  "ion", "ara", "osk", "ium", "eon", "ash", "or", "um", "is", "el",
+const LAST_NAMES = [
+  "Hale", "Voss", "Reed", "Cole", "Marsh", "Beck", "Nash", "Ward",
+  "Cross", "Frost", "Drake", "Shaw", "Pike", "Vance", "Holt", "Rook",
+  "Steele", "Ashford", "Crowe", "Graves",
+];
+const FACTION_ADJ = [
+  "Ashen", "Iron", "Solar", "Northern", "Crimson", "United", "Free",
+  "Eastern", "Western", "Outer", "Steel", "Amber",
 ];
 const FACTION_END = [
-  "Protocol", "Directorate", "Concord", "Legion", "Syndicate", "Mandate",
-  "Pact", "Circle", "Host", "Union", "Order", "Front",
+  "Directorate", "Concord", "Legion", "Syndicate", "Mandate", "Pact",
+  "Circle", "Union", "Order", "Front", "Republic", "Coalition",
+];
+const PLACE_ADJ = [
+  "Ash", "Iron", "Dust", "Frost", "Red", "Black", "Glass", "Salt",
+  "Rust", "Amber", "Copper", "Stone",
 ];
 const PLACE = [
-  "Rift", "Expanse", "Wastes", "Basin", "Reach", "Marches", "Spire", "Hollow",
-  "Delta", "Grid", "Shelf", "Trench",
+  "Rift", "Expanse", "Wastes", "Basin", "Reach", "Marches", "Spires",
+  "Hollow", "Delta", "Ridge", "Flats", "Coast",
 ];
 const TONE = [
-  "grim industrial", "coldly optimistic", "war-weary", "fanatic", "pragmatic",
-  "doctrinal", "desperate", "calculated",
+  "grim", "cold", "war-weary", "fanatic", "pragmatic", "doctrinal",
+  "desperate", "calculated",
 ];
 const CONFLICT = [
-  "a resource monopoly", "a broken ceasefire", "a succession crisis",
-  "an orbital blockade", "a terraforming collapse", "a rogue AI compact",
-  "a border annexation", "a relic excavation",
+  "a resource war", "a broken ceasefire", "a succession crisis",
+  "an orbital blockade", "a terraforming collapse", "a border annexation",
+  "a relic excavation", "a civil split",
 ];
 const ERA = [
-  "late reconstruction", "second expansion", "post-collapse", "high mandate",
-  "silent years", "open war decade",
+  "Late Reconstruction", "the Second Expansion", "the Collapse Years",
+  "Open War", "the Ceasefire", "the Long Winter",
 ];
 export const BIOMES: BiomeName[] = [
   "ash plains", "crystal flats", "rust canyons", "salt marshes", "glass desert",
   "tundra grid", "jungle wreckage", "volcanic shelf",
 ];
+export const BIOME_LABELS: Record<BiomeName, string> = {
+  "ash plains": "Ash Plains",
+  "crystal flats": "Crystal Flats",
+  "rust canyons": "Rust Canyons",
+  "salt marshes": "Salt Marshes",
+  "glass desert": "Glass Desert",
+  "tundra grid": "Frozen Tundra",
+  "jungle wreckage": "Ruined Jungle",
+  "volcanic shelf": "Volcanic Shelf",
+};
 const RANK = ["Commander", "Marshal", "Director", "Captain", "Overseer", "Warden"];
 const ADVISOR = ["Strategist", "Attaché", "Quartermaster", "Analyst", "Herald"];
 const ENEMY_TITLE = ["Warlord", "Prefect", "Autarch", "General", "Executor"];
 
+const MISSION_TITLES: Record<WinCategoryKind, string[]> = {
+  harvestQuota: ["The Harvest", "Claim the Fields", "Strip the Veins", "Take the Ore"],
+  forceQuota: ["Build Forces", "Train Up", "Get Numbers", "Combat Ready"],
+  structureQuota: ["Raise the Fort", "Lay Foundations", "Build the Line", "Fortify"],
+  destroyMarked: ["Cut the Spine", "Strike the Marks", "High Value", "Break Their Holds"],
+  razeAll: ["Scorched Earth", "Leave Nothing", "Burn the Camp", "Raze the Field"],
+  decapitate: ["Cut Off the Head", "Storm the Yard", "Kill the Heart", "Break Command"],
+  annihilate: ["No Quarter", "Wipe Them Out", "Total War", "End Them"],
+  holdTheLine: ["Hold the Line", "Stand Fast", "Last Watch", "Do Not Yield"],
+};
+
+export function biomeLabel(biome: BiomeName): string {
+  return BIOME_LABELS[biome];
+}
+
 export function genName(rng: Rng): string {
-  return `${rng.pick(PREFIX)}${rng.pick(MID)}${rng.pick(SUFFIX)}`;
+  return `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`;
+}
+
+export function characterLabel(who: { title: string; name: string }): string {
+  return `${who.title} ${who.name}`;
 }
 
 export function genFactionName(rng: Rng): string {
-  return `${rng.pick(PREFIX)}${rng.pick(SUFFIX)} ${rng.pick(FACTION_END)}`;
+  return `${rng.pick(FACTION_ADJ)} ${rng.pick(FACTION_END)}`;
+}
+
+export function genFactionPair(rng: Rng): [string, string] {
+  const adj = rng.shuffle(FACTION_ADJ);
+  const end = rng.shuffle(FACTION_END);
+  return [`${adj[0]} ${end[0]}`, `${adj[1]} ${end[1]}`];
 }
 
 export function genPlace(rng: Rng): string {
-  return `${rng.pick(PREFIX)} ${rng.pick(PLACE)}`;
+  return `${rng.pick(PLACE_ADJ)} ${rng.pick(PLACE)}`;
 }
 
 export function genTone(rng: Rng): string {
@@ -79,7 +123,6 @@ export function genEnemyTitle(rng: Rng): string {
   return rng.pick(ENEMY_TITLE);
 }
 
-export function genMissionTitle(rng: Rng, index: number): string {
-  const ops = ["Operation", "Directive", "Strike", "Hold", "Harvest", "Siege"];
-  return `${rng.pick(ops)} ${genName(rng)} ${index + 1}`;
+export function genMissionTitle(rng: Rng, kind: WinCategoryKind): string {
+  return rng.pick(MISSION_TITLES[kind]);
 }

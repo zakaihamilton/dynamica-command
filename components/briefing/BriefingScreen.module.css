@@ -1,0 +1,126 @@
+.screen {
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 1.25rem 1rem;
+  color: var(--chrome-body);
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0,0,0,0.16) 3px 4px),
+    radial-gradient(circle at 50% 12%, var(--chrome-steel-hi), var(--chrome-void) 68%);
+}
+
+.inner {
+  margin: 0 auto;
+  max-width: 72rem;
+  width: 100%;
+}
+
+.layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.portraits {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  align-items: start;
+}
+
+.enemy {
+  align-self: start;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  min-height: 0;
+}
+
+.comms {
+  flex-shrink: 0;
+  padding: 1rem;
+  border: 1px solid var(--chrome-inset);
+  background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -1px -1px var(--chrome-void);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.tone {
+  margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--chrome-muted);
+}
+
+.missing {
+  padding: 2rem;
+  color: var(--chrome-text);
+}
+
+@media (min-width: 640px) {
+  .portraits {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .screen {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  .panel {
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .screen {
+    position: fixed;
+    inset: 0;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .inner {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .layout {
+    grid-template-columns: 240px 1fr 240px;
+    flex: 1;
+    min-height: 0;
+    align-items: start;
+  }
+
+  .portraits {
+    grid-template-columns: 1fr;
+    flex-shrink: 0;
+  }
+
+  .enemy {
+    flex-shrink: 0;
+  }
+
+  .panel {
+    overflow: hidden;
+  }
+}

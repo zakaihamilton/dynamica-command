@@ -1,0 +1,22 @@
+.button {
+  position: relative;
+  border: 1px solid var(--chrome-steel-lo);
+  background: linear-gradient(color-mix(in srgb, var(--chrome-steel-hi) 55%, var(--chrome-bevel)), var(--chrome-steel));
+  box-shadow: inset 1px 1px var(--chrome-bevel), inset -2px -2px var(--chrome-steel-lo), 2px 2px var(--chrome-void);
+  color: var(--chrome-text);
+  padding: 0.65rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.15s ease, filter 0.15s ease;
+}
+
+.button:hover {
+  color: var(--chrome-cyan);
+  filter: brightness(1.12);
+}
+
+.muted {
+  color: var(--chrome-muted);
+}

@@ -1,0 +1,66 @@
+.pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.stage {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 8rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--chrome-inset);
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 2px, color-mix(in srgb, var(--chrome-cyan) 6%, transparent) 2px 3px),
+    var(--chrome-void);
+  box-shadow: inset 1px 1px var(--chrome-void), inset -1px -1px var(--chrome-steel-hi);
+}
+
+.canvas {
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.controls {
+  flex-shrink: 0;
+  min-width: 0;
+  padding-bottom: 0.15rem;
+}
+
+.meta {
+  margin-top: 0.5rem;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--chrome-muted);
+}
+
+.group {
+  margin-top: 0.75rem;
+}
+
+.chips {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.compass {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.play {
+  margin-top: 0.75rem;
+  width: 100%;
+}

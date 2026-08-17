@@ -1,0 +1,15 @@
+.shell {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--chrome-void);
+  color: var(--chrome-body);
+}
+
+@media (max-width: 799px) {
+  .shell {
+    flex-direction: column;
+  }
+}

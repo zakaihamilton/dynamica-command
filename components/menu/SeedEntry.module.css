@@ -1,0 +1,75 @@
+.block {
+  margin-top: 0.25rem;
+}
+
+.row {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.digitsWrap {
+  position: relative;
+}
+
+.digits {
+  pointer-events: none;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cell {
+  display: flex;
+  height: 4rem;
+  width: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--chrome-inset);
+  background: var(--chrome-steel-lo);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 1.875rem;
+  color: var(--chrome-cyan);
+  box-shadow: inset 1px 1px var(--chrome-void), inset -1px -1px var(--chrome-bevel);
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  cursor: text;
+  opacity: 0;
+}
+
+.roll {
+  height: 4rem;
+  flex-shrink: 0;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.status {
+  margin-top: 0.75rem;
+  min-height: 2.5rem;
+}
+
+.preview {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: var(--chrome-muted);
+}
+
+.error {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #f87171;
+}
+
+.hidden {
+  visibility: hidden;
+}

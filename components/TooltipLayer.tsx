@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { parseTooltipPos, placeTooltip, tooltipMaxBox, type TooltipPos } from "@/lib/ui/tooltip";
+import styles from "./TooltipLayer.module.css";
 
 type TipState = {
   text: string;
@@ -116,9 +117,9 @@ export function TooltipLayer() {
 
   if (!mounted || !tip) return null;
   return createPortal(
-    <div ref={nodeRef} className="console-tooltip" role="tooltip" style={{ top: -9999, left: -9999 }}>
-      <span className="console-tooltip-text">{tip.text}</span>
-      {tip.shortcut ? <kbd className="console-kbd">{tip.shortcut}</kbd> : null}
+    <div ref={nodeRef} className={styles.tooltip} role="tooltip" style={{ top: -9999, left: -9999 }}>
+      <span className={styles.text}>{tip.text}</span>
+      {tip.shortcut ? <kbd className={styles.kbd}>{tip.shortcut}</kbd> : null}
     </div>,
     document.body,
   );

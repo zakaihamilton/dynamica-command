@@ -9,6 +9,7 @@ import { drawSprite, rasterize } from "@/lib/render/sprites";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
 import type { BuildingKind, UnitKind } from "@/lib/types";
 import { BUILDING_STATS } from "@/lib/catalog";
+import styles from "./MenuBackdrop.module.css";
 
 const CINEMA_SEED = 1847;
 
@@ -314,7 +315,7 @@ export function MenuBackdrop() {
   return (
     <canvas
       ref={ref}
-      className="pointer-events-none absolute inset-0 h-full w-full"
+      className={styles.canvas}
       aria-hidden
     />
   );

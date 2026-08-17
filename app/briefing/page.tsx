@@ -2,7 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { BriefingScreen } from "@/components/BriefingScreen";
+import { BriefingScreen } from "@/components/briefing/BriefingScreen";
+import { PageFallback } from "@/components/ui/PageFallback";
 import { parseSeed } from "@/lib/seed/rng";
 
 function Inner() {
@@ -15,7 +16,7 @@ function Inner() {
 
 export default function BriefingPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--chrome-bg)] text-[var(--chrome-text)]">Loading briefing…</div>}>
+    <Suspense fallback={<PageFallback>Loading briefing…</PageFallback>}>
       <Inner />
     </Suspense>
   );

@@ -30,7 +30,11 @@ export type GameCommand =
   | { type: "resultPrimary" }
   | { type: "resultMenu" };
 
-export type MenuCommand = { type: "newGame" } | { type: "assets" } | { type: "deploy" };
+export type MenuCommand =
+  | { type: "newGame" }
+  | { type: "deploy" }
+  | { type: "randomize" }
+  | { type: "back" };
 export type BriefingCommand = { type: "launch" } | { type: "skip" };
 export type AssetsCommand = { type: "close" } | { type: "togglePlay" };
 
@@ -55,6 +59,7 @@ export const SHORTCUT = {
   menu: "M",
   mute: "M",
   newGame: "N",
+  randomize: "R",
   deploy: "Enter",
   launch: "Enter",
   play: "Space",
@@ -155,13 +160,18 @@ export function gameCommandFromKey(
 
 export function menuCommandFromKey(
   e: KeyEventLike,
-  ctx: { typing: boolean; assetsOpen: boolean },
+  ctx: { typing: boolean; setupOpen: boolean },
 ): MenuCommand | null {
-  if (ctx.typing || ctx.assetsOpen || e.repeat || modified(e)) return null;
-  const key = letter(e);
-  if (key === "n") return { type: "newGame" };
-  if (key === "a") return { type: "assets" };
-  if (isEnter(e)) return { type: "deploy" };
+  if (e.repeat || modified(e)) return null;
+  if (ctx.setupOpen) {
+    if (isEscape(e)) return { type: "back" };
+    if (ctx.typing) return null;
+    if (isEnter(e)) return { type: "deploy" };
+    if (letter(e) === "r") return { type: "randomize" };
+    return null;
+  }
+  if (ctx.typing) return null;
+  if (letter(e) === "n") return { type: "newGame" };
   return null;
 }
 

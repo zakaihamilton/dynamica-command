@@ -62,9 +62,12 @@ describe("shortcut matching", () => {
   it("ignores typing, repeats, and menu keys that would clash with an open overlay", () => {
     expect(gameCommandFromKey({ key: "q" }, { ...play, typing: true })).toBeNull();
     expect(gameCommandFromKey({ key: "q", repeat: true }, play)).toBeNull();
-    expect(menuCommandFromKey({ key: "n" }, { typing: false, assetsOpen: false })).toEqual({ type: "newGame" });
-    expect(menuCommandFromKey({ key: "Enter" }, { typing: false, assetsOpen: false })).toEqual({ type: "deploy" });
-    expect(menuCommandFromKey({ key: "n" }, { typing: false, assetsOpen: true })).toBeNull();
+    expect(menuCommandFromKey({ key: "n" }, { typing: false, setupOpen: false })).toEqual({ type: "newGame" });
+    expect(menuCommandFromKey({ key: "a" }, { typing: false, setupOpen: false })).toBeNull();
+    expect(menuCommandFromKey({ key: "Enter" }, { typing: false, setupOpen: false })).toBeNull();
+    expect(menuCommandFromKey({ key: "Enter" }, { typing: false, setupOpen: true })).toEqual({ type: "deploy" });
+    expect(menuCommandFromKey({ key: "r" }, { typing: false, setupOpen: true })).toEqual({ type: "randomize" });
+    expect(menuCommandFromKey({ key: "Escape" }, { typing: true, setupOpen: true })).toEqual({ type: "back" });
     expect(briefingCommandFromKey({ key: " " }, { typing: false, revealed: false })).toEqual({ type: "skip" });
     expect(briefingCommandFromKey({ key: " " }, { typing: false, revealed: true })).toEqual({ type: "launch" });
     expect(briefingCommandFromKey({ key: "Enter" }, { typing: false, revealed: true })).toEqual({ type: "launch" });

@@ -3,11 +3,12 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { PageFallback } from "@/components/ui/PageFallback";
 import { parseSeed } from "@/lib/seed/rng";
 
 const GameClient = dynamic(
-  () => import("@/components/GameClient").then((m) => m.GameClient),
-  { ssr: false, loading: () => <div className="min-h-screen bg-[var(--chrome-bg)] text-[var(--chrome-text)]">Deploying…</div> },
+  () => import("@/components/game/GameClient").then((m) => m.GameClient),
+  { ssr: false, loading: () => <PageFallback>Deploying…</PageFallback> },
 );
 
 function Inner() {
@@ -20,7 +21,7 @@ function Inner() {
 
 export default function PlayPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--chrome-bg)] text-[var(--chrome-text)]">Deploying…</div>}>
+    <Suspense fallback={<PageFallback>Deploying…</PageFallback>}>
       <Inner />
     </Suspense>
   );

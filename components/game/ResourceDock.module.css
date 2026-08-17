@@ -1,0 +1,13 @@
+.dock {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--chrome-inset);
+  background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  box-shadow: inset 1px 1px var(--chrome-bevel), inset -1px -1px var(--chrome-void), 2px 2px 0 var(--chrome-inset);
+}
+
+.host {
+  position: relative;
+}

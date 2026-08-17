@@ -14,19 +14,19 @@ export function generateCharacters(seed: number): {
       role: "commander",
       name: genName(rng.fork("cmd")),
       title: genRank(rng),
-      face: generateFace(rng.fork("cmd-face")),
+      face: generateFace(rng.fork("cmd-face"), "commander"),
     },
     advisor: {
       role: "advisor",
       name: genName(rng.fork("adv")),
       title: genAdvisorTitle(rng),
-      face: generateFace(rng.fork("adv-face")),
+      face: generateFace(rng.fork("adv-face"), "advisor"),
     },
     enemyLeader: {
       role: "enemyLeader",
       name: genName(rng.fork("foe")),
       title: genEnemyTitle(rng),
-      face: generateFace(rng.fork("foe-face")),
+      face: generateFace(rng.fork("foe-face"), "enemyLeader"),
     },
   };
 }

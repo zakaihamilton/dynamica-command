@@ -1,0 +1,42 @@
+.html {
+  height: 100%;
+  --chrome-void: #05080e;
+  --chrome-bg: #070b12;
+  --chrome-steel-lo: #121820;
+  --chrome-steel: #243040;
+  --chrome-steel-hi: #3a4d5e;
+  --chrome-bevel: #6a8498;
+  --chrome-inset: #080c12;
+  --chrome-cyan: #5ce1e6;
+  --chrome-cyan-dim: #3aa8b0;
+  --chrome-text: #e8f2f6;
+  --chrome-body: #c5d4de;
+  --chrome-muted: #7a92a4;
+  --chrome-gold: #e8c45a;
+  --chrome-gold-dim: #b89a40;
+  --chrome-alert: #e07058;
+}
+
+.html,
+.html :global(*),
+.html :global(*::before),
+.html :global(*::after) {
+  box-sizing: border-box;
+}
+
+.body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  font-family: var(--font-geist-mono), "Arial Narrow", Tahoma, sans-serif;
+  letter-spacing: 0.015em;
+}
+
+.body :global(button) {
+  cursor: pointer;
+}
+
+.body :global(button:disabled) {
+  cursor: not-allowed;
+}

@@ -23,6 +23,7 @@ export type SaveMeta = {
   tick: number;
   result: SimState["result"];
   missionName: string;
+  savedAt: number;
 };
 
 export function serializeState(state: SimState): string {
@@ -50,7 +51,7 @@ export function deserializeState(raw: string): SimState {
 }
 
 export function writeSave(storage: StorageAdapter, state: SimState): void {
-  storage.setItem(saveKey(state.seed), serializeState(state));
+  storage.setItem(saveKey(state.seed), JSON.stringify({ ...state, savedAt: Date.now() }));
 }
 
 export function readSave(storage: StorageAdapter, seed: number): SimState | null {
@@ -66,6 +67,7 @@ export function listSaves(storage: StorageAdapter): SaveMeta[] {
     const raw = storage.getItem(key);
     if (!raw) continue;
     try {
+      const parsed = JSON.parse(raw) as { savedAt?: unknown };
       const s = deserializeState(raw);
       out.push({
         seed: formatSeed(s.seed),
@@ -73,12 +75,13 @@ export function listSaves(storage: StorageAdapter): SaveMeta[] {
         tick: s.tick,
         result: s.result,
         missionName: s.missionName,
+        savedAt: typeof parsed.savedAt === "number" ? parsed.savedAt : 0,
       });
     } catch {
       /* skip */
     }
   }
-  return out.sort((a, b) => a.seed.localeCompare(b.seed));
+  return out.sort((a, b) => b.savedAt - a.savedAt || a.seed.localeCompare(b.seed));
 }
 
 export function memoryStorage(initial: Record<string, string> = {}): StorageAdapter {

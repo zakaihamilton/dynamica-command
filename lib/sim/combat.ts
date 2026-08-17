@@ -12,20 +12,38 @@ function statsFor(e: Entity): { damage: number; range: number; cooldown: number 
   return { damage: 0, range: 0, cooldown: 0 };
 }
 
-function acquire(state: SimState, e: Entity): Entity | undefined {
-  const { range } = statsFor(e);
-  const sight = e.class === "unit" ? UNIT_STATS[e.kind as UnitKind].sight : BUILDING_STATS[e.kind as BuildingKind].sight;
+function isCombatThreat(e: Entity): boolean {
+  if (e.class === "building" && e.constructing > 0) return false;
+  return statsFor(e).damage > 0;
+}
+
+function closestEnemy(state: SimState, e: Entity, maxDist: number, threatsOnly: boolean): Entity | undefined {
   let best: Entity | undefined;
   let bestD = Infinity;
   for (const o of living(state)) {
     if (o.owner === e.owner) continue;
+    if (threatsOnly && !isCombatThreat(o)) continue;
     const d = distToEntity(e, o);
-    if (d < bestD && d <= Math.max(range + 4, sight)) {
+    if (d < bestD && d <= maxDist) {
       bestD = d;
       best = o;
     }
   }
   return best;
+}
+
+function acquire(state: SimState, e: Entity, threatsOnly = false): Entity | undefined {
+  const { range } = statsFor(e);
+  const sight = e.class === "unit" ? UNIT_STATS[e.kind as UnitKind].sight : BUILDING_STATS[e.kind as BuildingKind].sight;
+  return closestEnemy(state, e, Math.max(range + 4, sight), threatsOnly);
+}
+
+function acquirePreferred(state: SimState, e: Entity): Entity | undefined {
+  return acquire(state, e, true) ?? acquire(state, e, false);
+}
+
+function pathDest(path: { x: number; y: number }[]): { x: number; y: number } | undefined {
+  return path[path.length - 1];
 }
 
 export function tickCombat(state: SimState): SimEvent[] {
@@ -34,32 +52,41 @@ export function tickCombat(state: SimState): SimEvent[] {
   for (const e of living(state)) {
     const st = statsFor(e);
     if (st.damage <= 0) continue;
-    if (e.cooldown > 0) {
-      e.cooldown -= 1;
-      continue;
+    if (e.cooldown > 0) e.cooldown -= 1;
+
+    const inRangeThreat = closestEnemy(state, e, st.range, true);
+    let target = inRangeThreat ?? (e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined);
+    if (target && !isCombatThreat(target)) {
+      const threat = acquire(state, e, true);
+      if (threat) {
+        target = threat;
+        e.path = [];
+      }
     }
-    let target = e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined;
-    if (!target) {
-      target = acquire(state, e);
-      if (target) e.attackTarget = target.id;
-    }
+    if (!target) target = acquirePreferred(state, e);
+    if (target) e.attackTarget = target.id;
     if (!target) continue;
+
     const d = distToEntity(e, target);
-    if (d > st.range) {
-      if (e.class === "unit" && !e.path.length) {
-        const dest = target.class === "building" ? closestApproach(state, e, target) : target;
-        e.path = findPath(state, e, dest);
+    if (d <= st.range) {
+      e.path = [];
+      if (e.cooldown > 0) continue;
+      const jitter = 0.85 + rng.next() * 0.3;
+      target.hp -= st.damage * jitter;
+      e.cooldown = st.cooldown;
+      if (target.hp <= 0) {
+        target.hp = 0;
+        events.push({ type: "destroyed", id: target.id, kind: String(target.kind) });
+        e.attackTarget = undefined;
       }
       continue;
     }
-    e.path = [];
-    const jitter = 0.85 + rng.next() * 0.3;
-    target.hp -= st.damage * jitter;
-    e.cooldown = st.cooldown;
-    if (target.hp <= 0) {
-      target.hp = 0;
-      events.push({ type: "destroyed", id: target.id, kind: String(target.kind) });
-      e.attackTarget = undefined;
+
+    if (e.class === "unit") {
+      const dest = target.class === "building" ? closestApproach(state, e, target) : target;
+      const end = pathDest(e.path);
+      const stale = !end || Math.hypot(end.x - dest.x, end.y - dest.y) > 1.25;
+      if (!e.path.length || stale) e.path = findPath(state, e, dest);
     }
   }
   state.rngState = rng.state;

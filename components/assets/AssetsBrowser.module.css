@@ -1,0 +1,41 @@
+.browser {
+  display: flex;
+  flex-direction: column;
+  width: min(72rem, calc(100vw - 2rem));
+  max-height: min(42rem, calc(100vh - 3rem));
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.title {
+  margin: 0.25rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--chrome-text);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(22rem, 26rem) minmax(0, 1fr);
+  gap: 0.75rem;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+@media (max-width: 799px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+}

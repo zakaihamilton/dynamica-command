@@ -22,6 +22,8 @@ import { fogAt } from "../sim/fog";
 import { canRepair } from "../sim/repair";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
 
+const SHROUD_FILL = "#050608";
+
 function entityElev(state: SimState, e: Entity): number {
   return e.class === "unit" ? groundHeight(state, e.x, e.y) : heightAt(state, Math.round(e.x), Math.round(e.y));
 }
@@ -197,8 +199,9 @@ function paintTileRange(
       const y = depth - x;
       const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
       const fog = fogAt(state, x, y);
-      if (mode === "skirt" && (inMap || fog === 0)) continue;
-      if (mode === "map" && !inMap && fog !== 0) continue;
+      if (fog === 0) continue;
+      if (mode === "skirt" && inMap) continue;
+      if (mode === "map" && !inMap) continue;
       const elev = memoScenery(state, x, y).elev;
       const s = tileToScreen(x, y, cam, elev);
       if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
@@ -210,7 +213,7 @@ function paintTileRange(
 function paintTerrain(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
-  ctx.fillStyle = "#1a221c";
+  ctx.fillStyle = SHROUD_FILL;
   ctx.fillRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = false;
   sceneryMemo.clear();
@@ -538,16 +541,12 @@ function drawTile(
 ): void {
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
   const fog = fogAt(state, x, y);
+  if (fog === 0) return;
   const scenery = memoScenery(state, x, y);
   const elev = scenery.elev;
   const s = tileToScreen(x, y, cam, elev);
   const tw = TILE_W * cam.zoom;
   const th = TILE_H * cam.zoom;
-  if (fog === 0) {
-    ctx.fillStyle = "#050608";
-    drawDiamond(ctx, s.x, s.y, tw, th);
-    return;
-  }
 
   const prev = ctx.globalAlpha;
   ctx.globalAlpha = prev * (fog === 1 ? 0.45 : 1);

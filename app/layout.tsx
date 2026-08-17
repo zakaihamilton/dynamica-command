@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipLayer } from "@/components/TooltipLayer";
-import "./globals.css";
+import styles from "./layout.module.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,9 +22,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full`}
+      className={`${geistSans.variable} ${geistMono.variable} ${styles.html}`}
     >
-      <body className="min-h-full bg-[var(--chrome-bg)] text-[var(--chrome-text)]">
+      <body className={styles.body}>
         {children}
         <TooltipLayer />
       </body>

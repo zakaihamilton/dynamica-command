@@ -1,0 +1,49 @@
+.host {
+  position: relative;
+}
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  padding: 0.25rem;
+  border: 2px solid var(--chrome-inset);
+  background: var(--chrome-void);
+  box-shadow: inset 2px 2px var(--chrome-inset), inset -2px -2px color-mix(in srgb, var(--p, var(--chrome-steel-hi)) 45%, var(--chrome-steel-hi)), 2px 2px 0 var(--chrome-inset);
+}
+
+.frame::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 4px;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, color-mix(in srgb, var(--chrome-cyan) 8%, transparent) 2px 3px);
+}
+
+.canvas {
+  display: block;
+  height: 10rem;
+  width: 100%;
+  cursor: crosshair;
+  background: #000;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.sweep {
+  pointer-events: none;
+  position: absolute;
+  inset: 4px;
+  background: linear-gradient(to bottom, transparent 35%, color-mix(in srgb, var(--chrome-cyan) 22%, transparent) 50%, transparent 65%);
+  animation: radar-scan 4.5s linear infinite;
+}
+
+@keyframes radar-scan {
+  from { transform: translateY(-75%); }
+  to { transform: translateY(75%); }
+}
+
+@media (max-width: 799px) {
+  .canvas {
+    height: 118px;
+  }
+}
