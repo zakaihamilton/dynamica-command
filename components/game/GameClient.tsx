@@ -4,20 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useRouter } from "next/navigation";
 import { MAX_PRODUCTION_QUEUE, buildingCameoStatus, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
 import { beep, setMuted } from "@/lib/audio/synth";
-import { TICK_MS } from "@/lib/game/loop";
+import { startLoop } from "@/lib/game/loop";
 import { createCampaign } from "@/lib/gen/campaign";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
 import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { cameraViewQuad, createCamera, screenToTile, tileToScreen, TILE_H } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { pickEntity } from "@/lib/render/pick";
-import { renderWorld, pickTile, type RenderExtras } from "@/lib/render/renderer";
+import { renderWorld, pickTile, visibleBuildingAt, type RenderExtras } from "@/lib/render/renderer";
 import { burstsFromDestroyed, cullFx, type FxBurst } from "@/lib/render/fx";
 import { formatSeed } from "@/lib/seed/rng";
-import { createMission, tick } from "@/lib/sim/api";
+import { createMission } from "@/lib/sim/api";
 import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import { objectiveProgress } from "@/lib/sim/objectives";
-import { powerBreakdown, buildingAt, heightAt } from "@/lib/sim/world";
+import { powerBreakdown, heightAt } from "@/lib/sim/world";
 import type { BuildingKind, Command, SimState, UnitKind } from "@/lib/types";
 import { gameCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
 import { Battlefield } from "./Battlefield";
@@ -173,78 +173,63 @@ export function GameClient({
   }, []);
 
   useEffect(() => {
-    let acc = 0;
-    let last = performance.now();
-    let raf = 0;
-    const frame = (now: number) => {
-      const s = stateRef.current;
-      if (!s) {
-        raf = requestAnimationFrame(frame);
-        return;
-      }
-      if (pausedRef.current) {
-        acc = 0;
-        last = now;
-        redraw();
-        raf = requestAnimationFrame(frame);
-        return;
-      }
-      const cam = camRef.current;
-      const canvas = canvasRef.current;
-      const bounds = canvas
-        ? cameraPanBounds(cam, s.width, s.height, canvas.width, canvas.height)
-        : undefined;
-      if (keys.current.w || keys.current.ArrowUp) panCamera(cam, 0, 10, bounds);
-      if (keys.current.s || keys.current.ArrowDown) panCamera(cam, 0, -10, bounds);
-      if (keys.current.a || keys.current.ArrowLeft) panCamera(cam, 10, 0, bounds);
-      if (keys.current.d || keys.current.ArrowRight) panCamera(cam, -10, 0, bounds);
-      const hold = panHold.current;
-      if (hold && bounds) {
-        if (!panAvailability(cam, bounds)[hold]) applyEdgePan(null);
-        else {
-          const off = panOffset(hold);
-          panCamera(cam, off.dx, off.dy, bounds);
-        }
-      } else if (bounds) {
-        clampCamera(cam, bounds);
-      }
-      if (bounds) {
-        const next = panAvailability(cam, bounds);
-        const prev = panAvailRef.current;
-        if (prev.left !== next.left || prev.right !== next.right || prev.up !== next.up || prev.down !== next.down) {
-          panAvailRef.current = next;
-          setPanAvail(next);
-        }
-      }
-      acc += now - last;
-      last = now;
-      while (acc >= TICK_MS && s.result === "playing" && !pausedRef.current) {
-        const cmds = cmdQ.current.splice(0, cmdQ.current.length);
-        const out = tick(s, cmds.length ? cmds : undefined);
-        stateRef.current = out.state;
-        if (out.state.tick % 48 === 0) writeSave(localStorageAdapter(), out.state);
-        if (out.state.tick % 6 === 0) setState({ ...out.state, entities: [...out.state.entities] });
-        if (out.events.some((e) => e.type === "won")) beep("win");
-        if (out.events.some((e) => e.type === "lost")) beep("lose");
-        if (out.events.some((e) => e.type === "destroyed")) {
-          const spawned = burstsFromDestroyed(out.events, out.state, now, fxSeq.current);
+    const loop = startLoop({
+      getState: () => stateRef.current,
+      setState: (next) => {
+        stateRef.current = next;
+      },
+      drainCommands: () => cmdQ.current.splice(0, cmdQ.current.length),
+      isPaused: () => pausedRef.current,
+      onTick: (next, events, now) => {
+        if (next.tick % 48 === 0) writeSave(localStorageAdapter(), next);
+        if (next.tick % 6 === 0) setState({ ...next, entities: [...next.entities] });
+        if (events.some((e) => e.type === "won")) beep("win");
+        if (events.some((e) => e.type === "lost")) beep("lose");
+        if (events.some((e) => e.type === "destroyed")) {
+          const spawned = burstsFromDestroyed(events, next, now, fxSeq.current);
           fxSeq.current = spawned.nextId;
           fxRef.current.push(...spawned.bursts);
         }
-        acc -= TICK_MS;
-      }
-      if (stateRef.current && stateRef.current.result !== "playing") {
-        if (!terminalSaveRef.current) {
-          terminalSaveRef.current = true;
-          writeSave(localStorageAdapter(), stateRef.current);
-          setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
+      },
+      onFrame: (_now, s, paused) => {
+        if (!paused) {
+          const cam = camRef.current;
+          const canvas = canvasRef.current;
+          const bounds = canvas
+            ? cameraPanBounds(cam, s.width, s.height, canvas.width, canvas.height)
+            : undefined;
+          if (keys.current.w || keys.current.ArrowUp) panCamera(cam, 0, 10, bounds);
+          if (keys.current.s || keys.current.ArrowDown) panCamera(cam, 0, -10, bounds);
+          if (keys.current.a || keys.current.ArrowLeft) panCamera(cam, 10, 0, bounds);
+          if (keys.current.d || keys.current.ArrowRight) panCamera(cam, -10, 0, bounds);
+          const hold = panHold.current;
+          if (hold && bounds) {
+            if (!panAvailability(cam, bounds)[hold]) applyEdgePan(null);
+            else {
+              const off = panOffset(hold);
+              panCamera(cam, off.dx, off.dy, bounds);
+            }
+          } else if (bounds) {
+            clampCamera(cam, bounds);
+          }
+          if (bounds) {
+            const next = panAvailability(cam, bounds);
+            const prev = panAvailRef.current;
+            if (prev.left !== next.left || prev.right !== next.right || prev.up !== next.up || prev.down !== next.down) {
+              panAvailRef.current = next;
+              setPanAvail(next);
+            }
+          }
         }
-      }
-      redraw();
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+        if (s.result !== "playing" && !terminalSaveRef.current) {
+          terminalSaveRef.current = true;
+          writeSave(localStorageAdapter(), s);
+          setState({ ...s, entities: [...s.entities] });
+        }
+        redraw();
+      },
+    });
+    return () => loop.stop();
   }, [redraw, applyEdgePan]);
 
   const commitSelection = useCallback((ids: number[]) => {
@@ -563,7 +548,7 @@ export function GameClient({
       (en) => en.hp > 0 && en.class === "unit" && Math.round(en.x) === tx && Math.round(en.y) === ty,
     );
     if (unit) return unit;
-    return buildingAt(s, tx, ty);
+    return visibleBuildingAt(s, tx, ty);
   }
 
   const onDown = (e: React.MouseEvent<HTMLCanvasElement>) => {

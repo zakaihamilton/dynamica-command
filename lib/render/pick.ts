@@ -1,8 +1,8 @@
 import type { Entity, SimState } from "../types";
 import { fogAt } from "../sim/fog";
-import { buildingAt, groundHeight } from "../sim/world";
+import { groundHeight } from "../sim/world";
 import { TILE_H, tileToScreen, type Camera } from "./iso";
-import { pickTile } from "./renderer";
+import { pickTile, visibleBuildingAt } from "./renderer";
 
 function fogVisible(state: SimState, e: Entity): boolean {
   const tx = Math.round(e.x);
@@ -33,7 +33,5 @@ export function pickEntity(state: SimState, sx: number, sy: number, cam: Camera)
   if (bestUnit) return bestUnit;
   const tile = pickTile(state, sx, sy, cam);
   if (!tile) return undefined;
-  const b = buildingAt(state, tile.x, tile.y);
-  if (b && fogVisible(state, b)) return b;
-  return undefined;
+  return visibleBuildingAt(state, tile.x, tile.y);
 }

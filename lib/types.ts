@@ -109,32 +109,7 @@ export type Faction = {
 
 export type FaceDna = {
   portraitId: string;
-  skin: string;
-  hair: string;
-  hairStyle: 0 | 1 | 2 | 3 | 4 | 5;
-  eyes: string;
-  brow: number;
-  jaw: number;
-  mouthWidth: number;
-  nose: number;
-  uniform: string;
-  headgear: 0 | 1 | 2 | 3 | 4;
-  insignia: 0 | 1 | 2 | 3;
-  beard: 0 | 1 | 2 | 3;
-  scar: 0 | 1 | 2 | 3;
   feminine: boolean;
-  glasses: boolean;
-  headset: boolean;
-  eyeShape: 0 | 1 | 2;
-  eyeSize: number;
-  noseStyle: 0 | 1 | 2;
-  mouthStyle: 0 | 1 | 2;
-  ageBand: 0 | 1 | 2;
-  faceShape: 0 | 1 | 2 | 3;
-  complexion: 0 | 1 | 2;
-  hairTexture: 0 | 1 | 2;
-  uniformStyle: 0 | 1 | 2;
-  accessory: 0 | 1 | 2 | 3;
 };
 
 export type CharacterRole = "commander" | "advisor" | "enemyLeader";

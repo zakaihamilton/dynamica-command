@@ -54,7 +54,6 @@ export function CreditsCounter({ value }: { value: number }) {
       <div className={styles.lcd}>
         <span className={styles.currency}>$</span>
         <span className={styles.readout}>
-          <span className={styles.ghost} aria-hidden="true">8,888,888</span>
           <strong data-testid="credits" className={styles.digits}>
             {shown.toLocaleString("en-US")}
           </strong>

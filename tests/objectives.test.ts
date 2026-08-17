@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { TICKS_PER_SECOND } from "../lib/catalog";
 import { tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
-import { inspect } from "../lib/sim/objectives";
+import { formatHoldClock, inspect, objectiveProgress } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
 import { missionObjectives } from "../lib/gen/story";
 
@@ -89,6 +90,18 @@ describe("win categories", () => {
     expect(inspect(s).result).toBe("playing");
     tick(s);
     expect(inspect(s).result).toBe("won");
+  });
+
+  it("formats hold remaining time as minutes and seconds", () => {
+    expect(formatHoldClock(187)).toBe("3:07");
+    expect(formatHoldClock(7)).toBe("0:07");
+    expect(formatHoldClock(60)).toBe("1:00");
+
+    const s = makeFixture({ win: { kind: "holdTheLine", ticks: 187 * TICKS_PER_SECOND } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    expect(objectiveProgress(s).label).toBe("Hold 3:07");
+    s.tick = 187 * TICKS_PER_SECOND;
+    expect(objectiveProgress(s).label).toBe("Held");
   });
 
   it("losing the construction yard fails the mission", () => {

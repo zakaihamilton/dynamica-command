@@ -88,6 +88,13 @@ function entityVisible(state: SimState, e: Entity): boolean {
   return true;
 }
 
+export function visibleBuildingAt(state: SimState, x: number, y: number): Entity | undefined {
+  if (fogAt(state, x, y) === 0) return undefined;
+  const b = buildingAt(state, x, y);
+  if (!b || b.hp <= 0 || !entityVisible(state, b)) return undefined;
+  return b;
+}
+
 export function entityAtPointer(state: SimState, sx: number, sy: number, cam: Camera): Entity | undefined {
   const tile = pickTile(state, sx, sy, cam);
   let bestUnit: Entity | undefined;
@@ -104,9 +111,7 @@ export function entityAtPointer(state: SimState, sx: number, sy: number, cam: Ca
   }
   if (bestUnit) return bestUnit;
   if (!tile) return undefined;
-  const b = buildingAt(state, tile.x, tile.y);
-  if (b && entityVisible(state, b)) return b;
-  return undefined;
+  return visibleBuildingAt(state, tile.x, tile.y);
 }
 
 export type RenderExtras = {
@@ -409,7 +414,7 @@ export function renderWorld(
   drawSelectBox(ctx, extras.selectBox);
 
   if (hoverTile && !extras.placeKind && (extras.repairMode || extras.sellMode)) {
-    const hovered = buildingAt(state, hoverTile.x, hoverTile.y);
+    const hovered = visibleBuildingAt(state, hoverTile.x, hoverTile.y);
     if (hovered && hovered.hp > 0) {
       const fp = footprintOf(hovered.kind as BuildingKind);
       const ok = hovered.owner === 0 && (
@@ -440,7 +445,7 @@ export function renderWorld(
     ctx.strokeStyle = "rgba(255,255,200,0.7)";
     ctx.lineWidth = 1.5;
     drawDiamondStroke(ctx, s.x, s.y, TILE_W * cam.zoom, TILE_H * cam.zoom);
-    const hovered = buildingAt(state, hoverTile.x, hoverTile.y);
+    const hovered = visibleBuildingAt(state, hoverTile.x, hoverTile.y);
     if (hovered) {
       const fp = footprintOf(hovered.kind as BuildingKind);
       ctx.strokeStyle = "rgba(245,230,168,0.45)";

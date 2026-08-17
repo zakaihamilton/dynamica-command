@@ -1,6 +1,10 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { generateCharacters } from "../lib/gen/characters";
 import { generateFace } from "../lib/gen/faces";
+import { PORTRAIT_ASSETS, getPortraitAsset, portraitCandidates, portraitSheetNumber } from "../lib/gen/portraitCatalog";
 import {
   PORTRAIT_EYE_CLIPS,
   PORTRAIT_MOUTH_CLIP,
@@ -30,43 +34,6 @@ describe("portrait DNA", () => {
     for (const seed of [0, 7, 42, 421, 9999]) {
       const face = generateFace(createRng(seed, "face"));
       expect(face.portraitId).toMatch(/^(commander|advisor|enemy-leader)-\d{2}$/);
-      expect(face.skin).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(face.hair).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(face.eyes).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(face.uniform).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(face.hairStyle).toBeGreaterThanOrEqual(0);
-      expect(face.hairStyle).toBeLessThanOrEqual(5);
-      expect(face.headgear).toBeGreaterThanOrEqual(0);
-      expect(face.headgear).toBeLessThanOrEqual(4);
-      expect(face.beard).toBeGreaterThanOrEqual(0);
-      expect(face.beard).toBeLessThanOrEqual(3);
-      expect(face.scar).toBeGreaterThanOrEqual(0);
-      expect(face.scar).toBeLessThanOrEqual(3);
-      expect(face.eyeShape).toBeGreaterThanOrEqual(0);
-      expect(face.eyeShape).toBeLessThanOrEqual(2);
-      expect(face.noseStyle).toBeGreaterThanOrEqual(0);
-      expect(face.noseStyle).toBeLessThanOrEqual(2);
-      expect(face.mouthStyle).toBeGreaterThanOrEqual(0);
-      expect(face.mouthStyle).toBeLessThanOrEqual(2);
-      expect(face.ageBand).toBeGreaterThanOrEqual(0);
-      expect(face.ageBand).toBeLessThanOrEqual(2);
-      expect(face.faceShape).toBeGreaterThanOrEqual(0);
-      expect(face.faceShape).toBeLessThanOrEqual(3);
-      expect(face.complexion).toBeGreaterThanOrEqual(0);
-      expect(face.complexion).toBeLessThanOrEqual(2);
-      expect(face.hairTexture).toBeGreaterThanOrEqual(0);
-      expect(face.hairTexture).toBeLessThanOrEqual(2);
-      expect(face.uniformStyle).toBeGreaterThanOrEqual(0);
-      expect(face.uniformStyle).toBeLessThanOrEqual(2);
-      expect(face.accessory).toBeGreaterThanOrEqual(0);
-      expect(face.accessory).toBeLessThanOrEqual(3);
-      expect(face.jaw).toBeGreaterThanOrEqual(0.75);
-      expect(face.jaw).toBeLessThanOrEqual(1.25);
-      expect(face.nose).toBeGreaterThanOrEqual(0.3);
-      expect(face.mouthWidth).toBeGreaterThan(0.3);
-      expect(face.eyeSize).toBeGreaterThan(0.7);
-      expect(typeof face.glasses).toBe("boolean");
-      expect(typeof face.headset).toBe("boolean");
       expect(typeof face.feminine).toBe("boolean");
     }
   });
@@ -75,24 +42,57 @@ describe("portrait DNA", () => {
     const a = generateCharacters(421);
     const b = generateCharacters(421);
     expect(a).toEqual(b);
-    expect(a.commander.face).not.toEqual(a.advisor.face);
-    expect(a.commander.face).not.toEqual(a.enemyLeader.face);
+    expect(a.commander.face.portraitId).not.toEqual(a.advisor.face.portraitId);
+    expect(a.commander.face.portraitId).not.toEqual(a.enemyLeader.face.portraitId);
+    expect(a.advisor.face.portraitId).not.toEqual(a.enemyLeader.face.portraitId);
   });
 
-  it("varies eyes, noses, and mouths across a campaign", () => {
+  it("never reuses a portrait sheet in the same briefing", () => {
+    for (const seed of [0, 42, 421, 2346, 9999]) {
+      const c = generateCharacters(seed);
+      const sheets = [
+        portraitSheetNumber(c.commander.face.portraitId),
+        portraitSheetNumber(c.advisor.face.portraitId),
+        portraitSheetNumber(c.enemyLeader.face.portraitId),
+      ];
+      expect(new Set(sheets).size, `seed ${seed} sheets ${sheets.join(",")}`).toBe(3);
+      expect(new Set([c.commander.face.portraitId, c.advisor.face.portraitId, c.enemyLeader.face.portraitId]).size).toBe(3);
+    }
+  });
+
+  it("marks commander and enemy sheets 07, 09, and 11 as masculine", () => {
+    for (const id of ["commander-07", "commander-09", "commander-11", "enemy-leader-07", "enemy-leader-09", "enemy-leader-11"]) {
+      expect(getPortraitAsset(id)?.feminine).toBe(false);
+    }
+    expect(getPortraitAsset("commander-01")?.feminine).toBe(true);
+    expect(getPortraitAsset("advisor-07")?.feminine).toBe(true);
+  });
+
+  it("varies portrait sheets across a campaign", () => {
     const faces = [0, 42, 421, 2346, 9999].flatMap((seed) => {
       const c = generateCharacters(seed);
       return [c.commander.face, c.advisor.face, c.enemyLeader.face];
     });
-    expect(new Set(faces.map((f) => f.eyeShape)).size).toBeGreaterThan(1);
-    expect(new Set(faces.map((f) => f.noseStyle)).size).toBeGreaterThan(1);
-    expect(new Set(faces.map((f) => f.mouthStyle)).size).toBeGreaterThan(1);
-    expect(new Set(faces.map((f) => f.hairStyle)).size).toBeGreaterThan(1);
-    expect(new Set(faces.map((f) => f.ageBand)).size).toBeGreaterThan(1);
-    expect(new Set(faces.map((f) => f.faceShape)).size).toBeGreaterThan(2);
-    expect(new Set(faces.map((f) => f.uniformStyle)).size).toBeGreaterThan(1);
-    expect(new Set(faces.map((f) => f.accessory)).size).toBeGreaterThan(2);
+    expect(new Set(faces.map((f) => f.portraitId)).size).toBeGreaterThan(4);
     expect(faces.some((f) => f.feminine) && faces.some((f) => !f.feminine)).toBe(true);
+  });
+
+  it("has a bitmap on disk for every catalog portrait", () => {
+    const root = path.dirname(fileURLToPath(import.meta.url));
+    expect(PORTRAIT_ASSETS.length).toBeGreaterThan(0);
+    for (const asset of PORTRAIT_ASSETS) {
+      const file = path.join(root, "..", "public", asset.src.replace(/^\//, ""));
+      expect(existsSync(file), asset.src).toBe(true);
+    }
+  });
+
+  it("always has portrait candidates for a role and presentation", () => {
+    for (const role of ["commander", "advisor", "enemyLeader"] as const) {
+      expect(portraitCandidates({ role }).length).toBeGreaterThan(0);
+      expect(portraitCandidates({ role, feminine: true }).length).toBeGreaterThan(0);
+      expect(portraitCandidates({ role, feminine: false }).length).toBeGreaterThan(0);
+      expect(portraitCandidates({ role, excludeSheets: [7] }).every((asset) => asset.sheet !== 7)).toBe(true);
+    }
   });
 
   it("holds speech visemes long enough to read at briefing size", () => {
@@ -185,13 +185,30 @@ describe("portrait DNA", () => {
     expect(clip.cx).toBeLessThan(0.6);
   });
 
+  it("finds the viseme opening instead of a decoy lip line", () => {
+    const width = 80;
+    const height = 80;
+    const idle = rgbaSquare(width, height, 0, 0, width, height, 170);
+    paintRect(idle, width, 28, 42, 24, 3, 18);
+    const talk = new Uint8ClampedArray(idle);
+    paintRect(talk, width, 30, 51, 20, 8, 230);
+    const clip = detectPortraitMouthClip(idle, width, height, talk);
+    expect(clip.cy).toBeGreaterThan(0.6);
+    expect(clip.cy).toBeLessThan(0.72);
+    expect(clip.cx).toBeGreaterThan(0.42);
+    expect(clip.cx).toBeLessThan(0.58);
+    const solved = resolvePortraitAnimation(idle, idle, talk, width, height);
+    expect(solved.mouthClip.cy).toBeGreaterThan(0.6);
+    expect(solved.talk).toEqual(PORTRAIT_OFFSET_NONE);
+  });
+
   it("keeps generic mouth clips when detection latches onto a collar", () => {
     expect(
       choosePortraitMouthClip({ cx: 0.5, cy: 0.82, rx: 0.15, ry: 0.075 }),
     ).toEqual(PORTRAIT_MOUTH_CLIP);
-    const nearby = choosePortraitMouthClip({ cx: 0.49, cy: 0.66, rx: 0.15, ry: 0.075 });
+    const nearby = choosePortraitMouthClip({ cx: 0.49, cy: 0.63, rx: 0.15, ry: 0.075 });
     expect(nearby.cx).toBeCloseTo(0.49);
-    expect(nearby.cy).toBeCloseTo(0.66);
+    expect(nearby.cy).toBeCloseTo(0.63);
     expect(nearby.rx).toBe(PORTRAIT_MOUTH_CLIP.rx);
   });
 
@@ -202,7 +219,8 @@ describe("portrait DNA", () => {
     const solved = resolvePortraitAnimation(idle, idle, idle, width, height);
     expect(portraitHasDrift(solved.blink)).toBe(false);
     expect(portraitHasDrift(solved.talk)).toBe(false);
-    expect(solved.mouthClip).toEqual(PORTRAIT_MOUTH_CLIP);
+    expect(solved.mouthClip.cy).toBeGreaterThanOrEqual(0.48);
+    expect(solved.mouthClip.cy).toBeLessThanOrEqual(0.7);
     expect(solved.talk).toEqual(PORTRAIT_OFFSET_NONE);
   });
 

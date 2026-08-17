@@ -3,6 +3,11 @@ import type { InspectReport, SimEvent, SimState } from "../types";
 import { formatSeed } from "../seed/rng";
 import { living } from "./world";
 
+export function formatHoldClock(seconds: number): string {
+  const safe = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
+}
+
 export function objectiveProgress(state: SimState): { current: number; target: number; label: string } {
   const w = state.win;
   switch (w.kind) {
@@ -59,7 +64,7 @@ export function objectiveProgress(state: SimState): { current: number; target: n
       return {
         current: Math.min(state.tick, t),
         target: t,
-        label: left <= 0 ? "Held" : `Hold ${seconds}s`,
+        label: left <= 0 ? "Held" : `Hold ${formatHoldClock(seconds)}`,
       };
     }
     default:

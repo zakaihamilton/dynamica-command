@@ -34,7 +34,7 @@ describe("mission debrief", () => {
 
     expect(missionDebrief(state)).toMatchObject({
       outcome: "Construction yard destroyed.",
-      objective: { headline: "Hold this ground for 10 seconds", progress: "Hold 7s" },
+      objective: { headline: "Hold this ground for 10 seconds", progress: "Hold 0:07" },
     });
   });
 

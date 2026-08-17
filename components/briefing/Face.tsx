@@ -168,7 +168,7 @@ export const Face = memo(function Face({
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  return <canvas ref={ref} width={200} height={240} className={styles.canvas} />;
+  return <canvas ref={ref} width={200} height={240} className={styles.canvas} data-testid="briefing-portrait" />;
 });
 
 function measureLoadedPortraitOffsets(image: HTMLImageElement, asset: PortraitAsset) {

@@ -34,7 +34,7 @@ export const PORTRAIT_MEASURE_HEIGHT = 240;
 
 // Destination-space ellipses used to composite blink/speech frames onto a
 // stable idle sheet. Full-frame swaps flicker because generated sheets drift.
-export const PORTRAIT_MOUTH_CLIP: PortraitClip = { cx: 0.5, cy: 0.635, rx: 0.18, ry: 0.09 };
+export const PORTRAIT_MOUTH_CLIP: PortraitClip = { cx: 0.5, cy: 0.58, rx: 0.16, ry: 0.085 };
 export const PORTRAIT_EYE_CLIPS: readonly PortraitClip[] = [
   { cx: 0.36, cy: 0.405, rx: 0.135, ry: 0.075 },
   { cx: 0.64, cy: 0.405, rx: 0.135, ry: 0.075 },
@@ -97,7 +97,7 @@ export function portraitHasDrift(offset: PortraitOffset, threshold = PORTRAIT_DR
 }
 
 export function choosePortraitMouthClip(detected: PortraitClip, fallback = PORTRAIT_MOUTH_CLIP): PortraitClip {
-  if (Math.abs(detected.cy - fallback.cy) > 0.07 || Math.abs(detected.cx - fallback.cx) > 0.08) {
+  if (detected.cy < 0.48 || detected.cy > 0.7 || Math.abs(detected.cx - fallback.cx) > 0.1) {
     return fallback;
   }
   return { ...fallback, cx: detected.cx, cy: detected.cy };
@@ -122,13 +122,12 @@ export function resolvePortraitAnimation(
   const talkDrift = talkRgba
     ? measurePortraitOffset(idleRgba, talkRgba, width, height, 16, faceWindow)
     : PORTRAIT_OFFSET_NONE;
+  const mouthClip = choosePortraitMouthClip(detectPortraitMouthClip(idleRgba, width, height, talkRgba));
 
   if (!portraitHasDrift(blinkDrift) && !portraitHasDrift(talkDrift)) {
-    return { blink: PORTRAIT_OFFSET_NONE, talk: PORTRAIT_OFFSET_NONE, mouthClip: PORTRAIT_MOUTH_CLIP };
+    return { blink: PORTRAIT_OFFSET_NONE, talk: PORTRAIT_OFFSET_NONE, mouthClip };
   }
 
-  const mouthClip = choosePortraitMouthClip(detectPortraitMouthClip(idleRgba, width, height));
-  const mouthWindow = portraitClipWindow([mouthClip], width, height, 6);
   const eyeWindow = portraitClipWindow(PORTRAIT_EYE_CLIPS, width, height);
   return {
     blink: blinkRgba
@@ -141,16 +140,12 @@ export function resolvePortraitAnimation(
           eyeWindow,
         )
       : PORTRAIT_OFFSET_NONE,
-    talk: talkRgba
-      ? refinePortraitOffset(
-          idleRgba,
-          talkRgba,
-          width,
-          height,
-          measurePortraitOffset(idleRgba, talkRgba, width, height, 16, mouthWindow),
-          mouthWindow,
-        )
-      : PORTRAIT_OFFSET_NONE,
+    // Do not register inside the mouth window: that SAD would treat the viseme
+    // itself as drift and slide the open mouth onto the closed lips.
+    talk: {
+      dx: Math.max(-2, Math.min(2, talkDrift.dx)),
+      dy: Math.max(-3, Math.min(0.5, talkDrift.dy)),
+    },
     mouthClip,
   };
 }
@@ -159,19 +154,141 @@ export function detectPortraitMouthClip(
   rgba: ArrayLike<number>,
   width: number,
   height: number,
+  talkRgba?: ArrayLike<number> | null,
+): PortraitClip {
+  const viseme = talkRgba ? detectMouthFromViseme(rgba, talkRgba, width, height) : null;
+  if (viseme) return viseme;
+  return detectMouthFromLipLine(rgba, width, height);
+}
+
+function detectMouthFromViseme(
+  idleRgba: ArrayLike<number>,
+  talkRgba: ArrayLike<number>,
+  width: number,
+  height: number,
+): PortraitClip | null {
+  const idle = lumaBuffer(idleRgba, width, height);
+  const talk = lumaBuffer(talkRgba, width, height);
+  const x0 = Math.floor(width * 0.32);
+  const x1 = Math.ceil(width * 0.68);
+  const y0 = Math.floor(height * 0.48);
+  const y1 = Math.ceil(height * 0.72);
+  if (x1 <= x0 || y1 <= y0) return null;
+
+  const midX = width * 0.5;
+  const sigmaX = width * 0.1;
+  const twoSigmaX2 = 2 * sigmaX * sigmaX;
+  const rowScore = new Float64Array(height);
+  let bestRawMean = 0;
+
+  for (let y = y0; y < y1; y += 1) {
+    let weighted = 0;
+    let raw = 0;
+    let center = 0;
+    let sides = 0;
+    const row = y * width;
+    for (let x = x0; x < x1; x += 1) {
+      const d = Math.abs(idle[row + x] - talk[row + x]);
+      const nx = x - midX;
+      weighted += d * Math.exp((-nx * nx) / twoSigmaX2);
+      raw += d;
+      if (x >= width * 0.42 && x < width * 0.58) center += d;
+      else sides += d;
+    }
+    const count = x1 - x0;
+    const mean = raw / count;
+    if (mean > bestRawMean) bestRawMean = mean;
+    rowScore[y] = 0.3 * weighted + Math.max(0, center - 0.55 * sides);
+  }
+
+  // Open mouths in these sheets change the mouth band by more than film grain.
+  if (bestRawMean < 4) return null;
+
+  const smooth = new Float64Array(height);
+  let bestY = Math.round(height * PORTRAIT_MOUTH_CLIP.cy);
+  let bestScore = Number.NEGATIVE_INFINITY;
+  for (let y = y0; y < y1; y += 1) {
+    const prev = y > y0 ? rowScore[y - 1]! : rowScore[y]!;
+    const next = y + 1 < y1 ? rowScore[y + 1]! : rowScore[y]!;
+    const score = prev + rowScore[y]! + next;
+    smooth[y] = score;
+    if (score > bestScore) {
+      bestScore = score;
+      bestY = y;
+    }
+  }
+
+  const radius = Math.max(4, Math.round(height * 0.07));
+  let weightedY = 0;
+  let rowWeight = 0;
+  const local0 = Math.max(y0, bestY - radius);
+  const local1 = Math.min(y1, bestY + radius + 1);
+  for (let y = local0; y < local1; y += 1) {
+    const score = Math.max(0, smooth[y]!);
+    weightedY += y * score;
+    rowWeight += score;
+  }
+  if (rowWeight > 0) bestY = Math.round(weightedY / rowWeight);
+
+  let weightedX = 0;
+  let weight = 0;
+  const rowStart = Math.max(y0, bestY - 3);
+  const rowEnd = Math.min(y1, bestY + 4);
+  for (let y = rowStart; y < rowEnd; y += 1) {
+    const row = y * width;
+    for (let x = x0; x < x1; x += 1) {
+      const d = Math.abs(idle[row + x] - talk[row + x]);
+      const nx = x - midX;
+      const w = d * d * Math.exp((-nx * nx) / twoSigmaX2);
+      weightedX += x * w;
+      weight += w;
+    }
+  }
+
+  const cx = weight > 0 ? weightedX / weight / width : PORTRAIT_MOUTH_CLIP.cx;
+  return {
+    cx: Math.min(0.58, Math.max(0.42, cx)),
+    cy: bestY / height,
+    rx: PORTRAIT_MOUTH_CLIP.rx,
+    ry: PORTRAIT_MOUTH_CLIP.ry,
+  };
+}
+
+function detectMouthFromLipLine(
+  rgba: ArrayLike<number>,
+  width: number,
+  height: number,
 ): PortraitClip {
   const luma = lumaBuffer(rgba, width, height);
-  const x0 = Math.floor(width * 0.34);
-  const x1 = Math.ceil(width * 0.66);
-  const y0 = Math.floor(height * 0.54);
-  const y1 = Math.ceil(height * 0.74);
+  const x0 = Math.floor(width * 0.36);
+  const x1 = Math.ceil(width * 0.64);
+  const y0 = Math.floor(height * 0.5);
+  const y1 = Math.ceil(height * 0.68);
   let bestY = Math.round(height * PORTRAIT_MOUTH_CLIP.cy);
-  let bestSum = Number.POSITIVE_INFINITY;
+  let bestScore = Number.NEGATIVE_INFINITY;
   for (let y = y0; y < y1; y += 1) {
-    let sum = 0;
-    for (let x = x0; x < x1; x += 1) sum += luma[y * width + x];
-    if (sum < bestSum) {
-      bestSum = sum;
+    let row = 0;
+    let above = 0;
+    let below = 0;
+    let center = 0;
+    let sides = 0;
+    const yAbove = Math.max(0, y - 3);
+    const yBelow = Math.min(height - 1, y + 3);
+    for (let x = x0; x < x1; x += 1) {
+      const value = luma[y * width + x];
+      row += value;
+      above += luma[yAbove * width + x];
+      below += luma[yBelow * width + x];
+      if (x >= width * 0.44 && x < width * 0.56) center += 140 - value;
+      else sides += 140 - value;
+    }
+    const count = x1 - x0;
+    // Thin dark lip line: darker than philtrum and chin, strongest in the center.
+    const contrast = (above + below) / count - (2 * row) / count;
+    const compact = (center - 0.45 * sides) / count;
+    const score = contrast + compact;
+    if (score > bestScore) {
+      bestScore = score;
       bestY = y;
     }
   }
@@ -190,10 +307,10 @@ export function detectPortraitMouthClip(
 
   const cx = weight > 0 ? weightedX / weight / width : PORTRAIT_MOUTH_CLIP.cx;
   return {
-    cx: Math.min(0.62, Math.max(0.38, cx)),
+    cx: Math.min(0.58, Math.max(0.42, cx)),
     cy: bestY / height,
-    rx: 0.15,
-    ry: 0.075,
+    rx: PORTRAIT_MOUTH_CLIP.rx,
+    ry: PORTRAIT_MOUTH_CLIP.ry,
   };
 }
 

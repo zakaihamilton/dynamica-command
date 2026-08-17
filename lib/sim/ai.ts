@@ -1,8 +1,19 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
 import type { SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
-import { closestApproach, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
+import { closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
 import { rngFromState } from "../seed/rng";
+
+const YARD_DEFENSE_RANGE = 14;
+
+function tryBuildPower(state: SimState, yardX: number, yardY: number): boolean {
+  if (state.credits[1] < BUILDING_STATS.power.cost) return false;
+  const spot = findBuildSite(state, "power", yardX + 3, yardY);
+  if (!spot) return false;
+  spawnBuilding(state, 1, "power", spot.x, spot.y, BUILDING_STATS.power.buildTicks);
+  state.credits[1] -= BUILDING_STATS.power.cost;
+  return true;
+}
 
 export function tickAi(state: SimState): void {
   if (state.result !== "playing") return;
@@ -22,9 +33,12 @@ export function tickAi(state: SimState): void {
     const want: UnitKind = rng.chance(0.4) ? "tank" : rng.chance(0.5) ? "antiArmor" : "infantry";
     const producer = want === "infantry" || want === "antiArmor" ? barracks : factory;
     const cost = UNIT_STATS[want].cost;
-    if (producer && state.credits[1] >= cost && powerFor(state, 1) >= 0) {
+    const power = powerFor(state, 1);
+    if (producer && state.credits[1] >= cost && power >= 0) {
       state.credits[1] -= cost;
       producer.producing = { kind: want, remaining: UNIT_STATS[want].buildTicks };
+    } else if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
+      // Restore the grid before expanding.
     } else if (state.credits[1] >= BUILDING_STATS.barracks.cost && !barracks) {
       const spot = findBuildSite(state, "barracks", yard.x - 3, yard.y);
       if (spot) {
@@ -37,12 +51,8 @@ export function tickAi(state: SimState): void {
         state.credits[1] -= BUILDING_STATS.factory.cost;
         spawnBuilding(state, 1, "factory", spot.x, spot.y, BUILDING_STATS.factory.buildTicks);
       }
-    } else if (state.credits[1] >= BUILDING_STATS.power.cost && powerFor(state, 1) < 20) {
-      const spot = findBuildSite(state, "power", yard.x + 3, yard.y);
-      if (spot) {
-        spawnBuilding(state, 1, "power", spot.x, spot.y, BUILDING_STATS.power.buildTicks);
-        state.credits[1] -= BUILDING_STATS.power.cost;
-      }
+    } else if (power < 20) {
+      tryBuildPower(state, yard.x, yard.y);
     }
   }
 
@@ -64,6 +74,20 @@ export function tickAi(state: SimState): void {
   for (const b of enemyBuildings) {
     if (b.constructing > 0 || b.hp <= 0) continue;
     if (b.hp < b.maxHp) b.repairing = true;
+  }
+
+  const threat = nearest(
+    state,
+    yard,
+    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester",
+  );
+  if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) {
+    for (const u of living(state)) {
+      if (u.owner !== 1 || u.class !== "unit" || u.kind === "harvester") continue;
+      if (u.attackTarget) continue;
+      u.attackTarget = threat.id;
+      u.path = findPath(state, u, closestApproach(state, u, threat));
+    }
   }
 
   if (playerYard && state.tick > 0 && state.tick % waveEvery === 0) {

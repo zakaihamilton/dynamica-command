@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MAP_SKIRT } from "../lib/gen/map";
-import { expandFog, fogAt, fogGridHeight, fogGridWidth, makeFog, tickFog } from "../lib/sim/fog";
-import { addUnit, makeFixture } from "../lib/sim/fixtures";
+import { visibleBuildingAt } from "../lib/render/renderer";
+import { expandFog, fogAt, fogGridHeight, fogGridWidth, fogIndex, makeFog, tickFog } from "../lib/sim/fog";
+import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { deserializeState, serializeState } from "../lib/persist/save";
 
 describe("out of bounds shroud", () => {
@@ -40,5 +41,35 @@ describe("out of bounds shroud", () => {
     expect(fogAt(loaded, 1, 0)).toBe(1);
     expect(fogAt(loaded, -1, 0)).toBe(0);
     expect(expandFog(legacy.fog, 6, 6)).toHaveLength(loaded.fog.length);
+  });
+});
+
+describe("hover under shroud", () => {
+  it("does not reveal a building footprint on unexplored tiles", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    s.fog = makeFog(12, 12, 0);
+    const yard = addBuilding(s, 1, "constructionYard", 4, 4);
+    expect(visibleBuildingAt(s, 4, 4)).toBeUndefined();
+    expect(visibleBuildingAt(s, 5, 5)).toBeUndefined();
+
+    s.fog[fogIndex(s, 4, 4)!] = 2;
+    s.fog[fogIndex(s, 5, 4)!] = 2;
+    s.fog[fogIndex(s, 4, 5)!] = 2;
+    s.fog[fogIndex(s, 5, 5)!] = 2;
+    expect(visibleBuildingAt(s, 4, 4)?.id).toBe(yard.id);
+    expect(visibleBuildingAt(s, 5, 5)?.id).toBe(yard.id);
+  });
+
+  it("does not reveal enemy buildings that were seen but are not in sight", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    s.fog = makeFog(12, 12, 1);
+    addBuilding(s, 1, "turret", 6, 6);
+    expect(visibleBuildingAt(s, 6, 6)).toBeUndefined();
+  });
+
+  it("still outlines friendly buildings in sight", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const power = addBuilding(s, 0, "power", 3, 3);
+    expect(visibleBuildingAt(s, 3, 3)?.id).toBe(power.id);
   });
 });

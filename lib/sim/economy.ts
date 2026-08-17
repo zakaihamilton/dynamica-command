@@ -5,19 +5,42 @@ import { findPath } from "./pathfinding";
 import { at, closestApproach, dist, distToEntity, living, nearest, tileAt } from "./world";
 
 const CARRY_MAX = UNIT_STATS.harvester.carryMax;
+const resourceIndex = new WeakMap<SimState, number[]>();
+
+function resourceTiles(state: SimState): number[] {
+  let list = resourceIndex.get(state);
+  if (!list) {
+    list = [];
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        const i = at(state, x, y);
+        if (tileAt(state, x, y) === TILE_RESOURCE && state.resourceAmount[i]! > 0) list.push(i);
+      }
+    }
+    resourceIndex.set(state, list);
+  }
+  return list;
+}
+
+function dropResourceTile(state: SimState, index: number): void {
+  const list = resourceIndex.get(state);
+  if (!list) return;
+  const atIndex = list.indexOf(index);
+  if (atIndex >= 0) list.splice(atIndex, 1);
+}
 
 function nearestResource(state: SimState, from: Entity): { x: number; y: number } | undefined {
+  const list = resourceTiles(state);
   let best: { x: number; y: number } | undefined;
   let bestD = Infinity;
-  for (let y = 0; y < state.height; y++) {
-    for (let x = 0; x < state.width; x++) {
-      if (tileAt(state, x, y) !== TILE_RESOURCE) continue;
-      if (state.resourceAmount[at(state, x, y)]! <= 0) continue;
-      const d = dist(from, { x, y });
-      if (d < bestD) {
-        bestD = d;
-        best = { x, y };
-      }
+  for (const i of list) {
+    if (state.resourceAmount[i]! <= 0) continue;
+    const x = i % state.width;
+    const y = (i - x) / state.width;
+    const d = dist(from, { x, y });
+    if (d < bestD) {
+      bestD = d;
+      best = { x, y };
     }
   }
   return best;
@@ -71,6 +94,7 @@ export function tickEconomy(state: SimState): SimEvent[] {
         state.tiles[i] = 0;
         e.gatherX = undefined;
         e.gatherY = undefined;
+        dropResourceTile(state, i);
       }
     } else if (!e.path.length) {
       e.path = findPath(state, e, { x: gx, y: gy });

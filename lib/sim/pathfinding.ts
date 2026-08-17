@@ -1,7 +1,7 @@
 import type { SimState, Vec2 } from "../types";
 import { canClimb, inBounds, isWalkable } from "./world";
 
-type Node = { x: number; y: number; g: number; f: number; px: number; py: number };
+type Node = { x: number; y: number; g: number; f: number; px: number; py: number; seq: number };
 
 const DIRS: Vec2[] = [
   { x: 1, y: 0 },
@@ -13,6 +13,70 @@ const DIRS: Vec2[] = [
   { x: -1, y: 1 },
   { x: -1, y: -1 },
 ];
+
+class MinHeap {
+  private items: Node[] = [];
+
+  get length(): number {
+    return this.items.length;
+  }
+
+  push(node: Node): void {
+    this.items.push(node);
+    this.up(this.items.length - 1);
+  }
+
+  pop(): Node | undefined {
+    const items = this.items;
+    if (!items.length) return undefined;
+    const top = items[0]!;
+    const last = items.pop()!;
+    if (items.length) {
+      items[0] = last;
+      this.down(0);
+    }
+    return top;
+  }
+
+  private less(i: number, j: number): boolean {
+    const a = this.items[i]!;
+    const b = this.items[j]!;
+    if (a.f !== b.f) return a.f < b.f;
+    return a.seq < b.seq;
+  }
+
+  private swap(i: number, j: number): void {
+    const items = this.items;
+    const tmp = items[i]!;
+    items[i] = items[j]!;
+    items[j] = tmp;
+  }
+
+  private up(index: number): void {
+    let i = index;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (!this.less(i, p)) break;
+      this.swap(i, p);
+      i = p;
+    }
+  }
+
+  private down(index: number): void {
+    const n = this.items.length;
+    let i = index;
+    for (;;) {
+      const l = i * 2 + 1;
+      const r = l + 1;
+      let best = i;
+      if (l < n && this.less(l, best)) best = l;
+      if (r < n && this.less(r, best)) best = r;
+      if (best === i) break;
+      this.swap(i, best);
+      i = best;
+    }
+  }
+}
 
 export function findPath(
   state: SimState,
@@ -33,19 +97,19 @@ export function findPath(
 
   const w = state.width;
   const key = (x: number, y: number) => y * w + x;
-  const open: Node[] = [{ x: sx, y: sy, g: 0, f: heuristic(sx, sy, gx, gy), px: -1, py: -1 }];
+  const open = new MinHeap();
+  let seq = 0;
+  open.push({ x: sx, y: sy, g: 0, f: heuristic(sx, sy, gx, gy), px: -1, py: -1, seq: seq++ });
   const came = new Map<number, Node>();
   const gScore = new Map<number, number>([[key(sx, sy), 0]]);
   let explored = 0;
 
   while (open.length && explored < maxNodes) {
-    let bestI = 0;
-    for (let i = 1; i < open.length; i++) {
-      if (open[i]!.f < open[bestI]!.f) bestI = i;
-    }
-    const current = open.splice(bestI, 1)[0]!;
+    const current = open.pop()!;
+    const currentKey = key(current.x, current.y);
+    if (current.g > (gScore.get(currentKey) ?? Infinity)) continue;
     explored++;
-    came.set(key(current.x, current.y), current);
+    came.set(currentKey, current);
     if (goalOk(current.x, current.y) && !(current.x === sx && current.y === sy && !walkableGoal)) {
       if (current.x === sx && current.y === sy) continue;
       return reconstruct(came, current, w);
@@ -70,6 +134,7 @@ export function findPath(
         f: tentative + heuristic(nx, ny, gx, gy),
         px: current.x,
         py: current.y,
+        seq: seq++,
       });
     }
   }

@@ -73,28 +73,10 @@
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.ghost,
-.digits {
-  font-family: var(--font-geist-mono), "Courier New", monospace;
-  font-size: 1.22rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
-  line-height: 1;
-}
-
 .readout {
   position: relative;
   flex: 1;
   min-width: 0;
-}
-
-.ghost {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  color: color-mix(in srgb, var(--chrome-gold) 14%, transparent);
-  text-align: right;
 }
 
 .digits {
@@ -102,6 +84,12 @@
   z-index: 1;
   display: block;
   color: #f6de7a;
+  font-family: var(--font-geist-mono), "Courier New", monospace;
+  font-size: 1.22rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  line-height: 1;
   text-align: right;
   text-shadow:
     0 0 6px color-mix(in srgb, var(--chrome-gold) 55%, transparent),
