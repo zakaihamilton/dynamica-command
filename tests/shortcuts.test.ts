@@ -37,6 +37,7 @@ describe("shortcut matching", () => {
     expect(gameCommandFromKey({ key: "h" }, play)).toEqual({ type: "home" });
     expect(gameCommandFromKey({ key: " " }, play)).toEqual({ type: "center" });
     expect(gameCommandFromKey({ key: "r" }, play)).toEqual({ type: "repair" });
+    expect(gameCommandFromKey({ key: "f" }, play)).toEqual({ type: "sell" });
     expect(gameCommandFromKey({ key: "Escape" }, { ...play, toolActive: true })).toEqual({ type: "cancelTool" });
     expect(gameCommandFromKey({ key: "s" }, play)).toBeNull();
     expect(gameCommandFromKey({ key: "2" }, play)).toEqual({ type: "cameo", index: 1, cancel: false });

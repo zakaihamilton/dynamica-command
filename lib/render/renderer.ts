@@ -1,4 +1,4 @@
-import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor } from "../catalog";
+import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor, sellRefundFor } from "../catalog";
 import { cliffFaces, drawElevationFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite, wreckSprite } from "../gen/assets";
 import { generateVisualProfile } from "../gen/visualProfile";
 import { MAP_SKIRT, MAP_SKIRT_ALPHA, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
@@ -21,6 +21,7 @@ import { cachedSprite, drawSprite, rasterize } from "./sprites";
 import { buildingAt, canPlaceBuilding, groundHeight, heightAt } from "../sim/world";
 import { fogAt } from "../sim/fog";
 import { canRepair } from "../sim/repair";
+import { canSell } from "../sim/sell";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
 
 const SHROUD_FILL = "rgba(5, 6, 8, 0.68)";
@@ -112,6 +113,7 @@ export type RenderExtras = {
   cursor?: { x: number; y: number } | null;
   placeKind?: BuildingKind | null;
   repairMode?: boolean;
+  sellMode?: boolean;
   clockMs?: number;
   selectBox?: { x0: number; y0: number; x1: number; y1: number } | null;
   fx?: FxBurst[];
@@ -406,13 +408,18 @@ export function renderWorld(
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
   drawSelectBox(ctx, extras.selectBox);
 
-  if (hoverTile && extras.repairMode && !extras.placeKind) {
+  if (hoverTile && !extras.placeKind && (extras.repairMode || extras.sellMode)) {
     const hovered = buildingAt(state, hoverTile.x, hoverTile.y);
     if (hovered && hovered.hp > 0) {
       const fp = footprintOf(hovered.kind as BuildingKind);
-      const ok = hovered.owner === 0 && (hovered.repairing || canRepair(hovered));
-      ctx.strokeStyle = ok ? "rgba(90,220,200,0.95)" : "rgba(220,70,70,0.95)";
-      ctx.fillStyle = ok ? "rgba(90,220,200,0.16)" : "rgba(220,70,70,0.16)";
+      const ok = hovered.owner === 0 && (
+        extras.repairMode
+          ? hovered.repairing || canRepair(hovered)
+          : canSell(hovered)
+      );
+      const tone = extras.repairMode ? "90,220,200" : "220,190,70";
+      ctx.strokeStyle = ok ? `rgba(${tone},0.95)` : "rgba(220,70,70,0.95)";
+      ctx.fillStyle = ok ? `rgba(${tone},0.16)` : "rgba(220,70,70,0.16)";
       ctx.lineWidth = 2;
       for (let oy = 0; oy < fp.h; oy++) {
         for (let ox = 0; ox < fp.w; ox++) {
@@ -428,7 +435,7 @@ export function renderWorld(
     }
   }
 
-  if (hoverTile && !extras.placeKind && !extras.repairMode) {
+  if (hoverTile && !extras.placeKind && !extras.repairMode && !extras.sellMode) {
     const s = tileToScreen(hoverTile.x, hoverTile.y, cam, heightAt(state, hoverTile.x, hoverTile.y));
     ctx.strokeStyle = "rgba(255,255,200,0.7)";
     ctx.lineWidth = 1.5;
@@ -444,7 +451,7 @@ export function renderWorld(
   const cursor = extras.cursor;
   if (cursor) {
     const ent = entityAtPointer(state, cursor.x, cursor.y, cam);
-    if (ent) drawTooltip(ctx, cursor.x, cursor.y, tooltipLines(state, ent), w, h);
+    if (ent) drawTooltip(ctx, cursor.x, cursor.y, tooltipLines(state, ent, extras), w, h);
     else if (hoverTile) drawTooltip(ctx, cursor.x, cursor.y, tileTooltipLines(state, hoverTile.x, hoverTile.y), w, h);
   }
 }
@@ -706,7 +713,7 @@ function tileTooltipLines(state: SimState, x: number, y: number): string[] {
   return lines;
 }
 
-function tooltipLines(state: SimState, e: Entity): string[] {
+function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): string[] {
   const name = labelFor(e.kind as UnitKind | BuildingKind);
   const cls = e.class === "unit" ? "Unit" : "Building";
   const faction = state.factions[e.owner]?.name ?? (e.owner === 0 ? "Player" : "Enemy");
@@ -728,6 +735,9 @@ function tooltipLines(state: SimState, e: Entity): string[] {
   }
   if (e.repairing) lines.push("Repairing");
   if (e.marked) lines.push("Marked objective");
+  if (extras.sellMode && e.owner === 0 && canSell(e)) {
+    lines.push(`Sell for ${sellRefundFor(e.kind as BuildingKind, e.hp)}`);
+  }
   return lines;
 }
 

@@ -73,6 +73,8 @@ export function GameClient({
   const [placeKind, setPlaceKind] = useState<BuildingKind | null>(null);
   const repair = useRef(false);
   const [repairMode, setRepairMode] = useState(false);
+  const sell = useRef(false);
+  const [sellMode, setSellMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"construction" | "production">("construction");
   const activeTabRef = useRef(activeTab);
   const [paused, setPaused] = useState(false);
@@ -89,6 +91,7 @@ export function GameClient({
     cursor: null,
     placeKind: null,
     repairMode: false,
+    sellMode: false,
   });
   const fxRef = useRef<FxBurst[]>([]);
   const fxSeq = useRef(1);
@@ -153,6 +156,7 @@ export function GameClient({
     extrasRef.current.cursor = cursor.current;
     extrasRef.current.placeKind = place.current;
     extrasRef.current.repairMode = repair.current;
+    extrasRef.current.sellMode = sell.current;
     const now = performance.now();
     extrasRef.current.clockMs = now;
     extrasRef.current.selectBox = box.current;
@@ -300,6 +304,8 @@ export function GameClient({
     setPlaceKind(null);
     repair.current = false;
     setRepairMode(false);
+    sell.current = false;
+    setSellMode(false);
     hover.current = null;
     cursor.current = null;
     box.current = null;
@@ -375,6 +381,8 @@ export function GameClient({
     setPlaceKind(null);
     repair.current = false;
     setRepairMode(false);
+    sell.current = false;
+    setSellMode(false);
   }, []);
 
   const togglePlace = useCallback((kind: BuildingKind) => {
@@ -384,6 +392,8 @@ export function GameClient({
     if (next) {
       repair.current = false;
       setRepairMode(false);
+      sell.current = false;
+      setSellMode(false);
     }
   }, []);
 
@@ -394,6 +404,20 @@ export function GameClient({
     if (next) {
       place.current = null;
       setPlaceKind(null);
+      sell.current = false;
+      setSellMode(false);
+    }
+  }, []);
+
+  const toggleSell = useCallback(() => {
+    const next = !sell.current;
+    sell.current = next;
+    setSellMode(next);
+    if (next) {
+      place.current = null;
+      setPlaceKind(null);
+      repair.current = false;
+      setRepairMode(false);
     }
   }, []);
 
@@ -466,7 +490,7 @@ export function GameClient({
         paused: pausedRef.current,
         pauseView: pauseViewRef.current,
         result: stateRef.current.result,
-        toolActive: !!(place.current || repair.current),
+        toolActive: !!(place.current || repair.current || sell.current),
       });
       if (!command) return;
       e.preventDefault();
@@ -478,6 +502,7 @@ export function GameClient({
       else if (command.type === "home") jumpHome();
       else if (command.type === "center") centerSelection();
       else if (command.type === "repair") toggleRepair();
+      else if (command.type === "sell") toggleSell();
       else if (command.type === "cancelTool") {
         clearTools();
         beep("select");
@@ -518,6 +543,7 @@ export function GameClient({
     router,
     saveMission,
     toggleRepair,
+    toggleSell,
     toggleSound,
     viewMissionBriefing,
   ]);
@@ -622,9 +648,11 @@ export function GameClient({
     const ty = Math.round(t.y);
     if (e.button === 2) {
       e.preventDefault();
-      if (repair.current) {
+      if (repair.current || sell.current) {
         repair.current = false;
         setRepairMode(false);
+        sell.current = false;
+        setSellMode(false);
         beep("select");
         return;
       }
@@ -653,6 +681,15 @@ export function GameClient({
       const hit = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
       if (hit && hit.owner === 0 && hit.class === "building") {
         cmdQ.current.push({ type: "repair", buildingId: hit.id });
+        beep("build");
+      }
+      return;
+    }
+    if (sell.current) {
+      box.current = null;
+      const hit = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      if (hit && hit.owner === 0 && hit.class === "building") {
+        cmdQ.current.push({ type: "sell", buildingId: hit.id });
         beep("build");
       }
       return;
@@ -732,6 +769,7 @@ export function GameClient({
         selected={selectedEnt}
         placeKind={placeKind}
         repairMode={repairMode}
+        sellMode={sellMode}
         activeTab={activeTab}
         power={power}
         produced={grid.produced}
@@ -743,6 +781,7 @@ export function GameClient({
         onMinimapPointerUp={onMinimapPointerUp}
         onTab={setActiveTab}
         onRepair={toggleRepair}
+        onSell={toggleSell}
         onPlace={togglePlace}
         onCancelBuilding={cancelBuilding}
         onQueueUnit={queueUnit}

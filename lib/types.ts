@@ -274,7 +274,8 @@ export type Command =
   | { type: "produce"; fromId: number; unit: UnitKind }
   | { type: "cancelBuild"; building: BuildingKind }
   | { type: "cancelProduce"; unit: UnitKind }
-  | { type: "repair"; buildingId: number };
+  | { type: "repair"; buildingId: number }
+  | { type: "sell"; buildingId: number };
 
 export type SimEvent =
   | { type: "produced"; owner: Owner; kind: UnitKind }

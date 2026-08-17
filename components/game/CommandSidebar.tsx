@@ -20,6 +20,7 @@ export function CommandSidebar({
   selected,
   placeKind,
   repairMode,
+  sellMode,
   activeTab,
   power,
   produced,
@@ -31,6 +32,7 @@ export function CommandSidebar({
   onMinimapPointerUp,
   onTab,
   onRepair,
+  onSell,
   onPlace,
   onCancelBuilding,
   onQueueUnit,
@@ -43,6 +45,7 @@ export function CommandSidebar({
   selected: Entity | undefined;
   placeKind: BuildingKind | null;
   repairMode: boolean;
+  sellMode: boolean;
   activeTab: "construction" | "production";
   power: number;
   produced: number;
@@ -54,6 +57,7 @@ export function CommandSidebar({
   onMinimapPointerUp: PointerEventHandler<HTMLCanvasElement>;
   onTab: (tab: "construction" | "production") => void;
   onRepair: () => void;
+  onSell: () => void;
   onPlace: (kind: BuildingKind) => void;
   onCancelBuilding: (kind: BuildingKind) => void;
   onQueueUnit: (unit: UnitKind) => void;
@@ -93,9 +97,11 @@ export function CommandSidebar({
         <CommandTabs
           activeTab={activeTab}
           repairMode={repairMode}
+          sellMode={sellMode}
           onConstruction={() => onTab("construction")}
           onProduction={() => onTab("production")}
           onRepair={onRepair}
+          onSell={onSell}
         />
         {activeTab === "construction" ? (
           <CameoGrid>

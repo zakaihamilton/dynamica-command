@@ -1,7 +1,8 @@
-import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, producerFor, productionQueueSize } from "../catalog";
+import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, producerFor, productionQueueSize, sellRefundFor } from "../catalog";
 import type { BuildingKind, Command, Entity, SimEvent, SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
 import { canRepair } from "./repair";
+import { canSell } from "./sell";
 import { byId, canPlaceBuilding, closestApproach, powerFor, spawnBuilding } from "./world";
 
 export function issue(state: SimState, command: Command): SimEvent[] {
@@ -23,6 +24,8 @@ export function issue(state: SimState, command: Command): SimEvent[] {
       return cancelProduce(state, command.unit);
     case "repair":
       return toggleRepair(state, command.buildingId);
+    case "sell":
+      return sellBuilding(state, command.buildingId);
     default:
       return [];
   }
@@ -135,6 +138,27 @@ function toggleRepair(state: SimState, buildingId: number): SimEvent[] {
   if (!canRepair(e)) return [];
   e.repairing = true;
   return [];
+}
+
+function refundQueuedUnits(state: SimState, e: Entity): void {
+  if (e.producing) {
+    state.credits[0] += UNIT_STATS[e.producing.kind].cost;
+    e.producing = undefined;
+  }
+  if (!e.queue?.length) return;
+  for (const unit of e.queue) state.credits[0] += UNIT_STATS[unit].cost;
+  e.queue = [];
+}
+
+function sellBuilding(state: SimState, buildingId: number): SimEvent[] {
+  const e = byId(state, buildingId);
+  if (!e || e.owner !== 0 || !canSell(e)) return [];
+  refundQueuedUnits(state, e);
+  state.credits[0] += sellRefundFor(e.kind as BuildingKind, e.hp);
+  e.hp = 0;
+  e.repairing = false;
+  state.losses.buildings[0] += 1;
+  return [{ type: "destroyed", id: e.id, kind: String(e.kind) }];
 }
 
 function cancelProduce(state: SimState, unit: UnitKind): SimEvent[] {
