@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
 import { buildingSprite, elevationFace, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
@@ -5,6 +7,7 @@ import { generateFactions } from "../lib/gen/factions";
 import { BIOMES } from "../lib/gen/names";
 import { SURFACE_CONCRETE } from "../lib/types";
 import { generateCampaignVisualProfile } from "../lib/gen/visualProfile";
+import { UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
 import { rotatedSpriteBounds } from "../lib/render/sprites";
 
 describe("tactical procedural assets", () => {
@@ -207,10 +210,23 @@ describe("tactical procedural assets", () => {
         unitSprite(kind, palette, { facing: facing as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 }),
       );
       expect(views.every((spec) => spec.rotation === undefined)).toBe(true);
+      expect(new Set(views.map((spec) => spec.imageSrc)).size).toBe(8);
       expect(views[0]!.imageSrc).toMatch(/-right(?:-v[12])?\.png/);
+      expect(views[1]!.imageSrc).toContain("-front-right-v1.png");
       expect(views[2]!.imageSrc).toMatch(/-front(?:-v1)?\.png/);
+      expect(views[3]!.imageSrc).toContain("-front-left-v1.png");
       expect(views[4]!.imageSrc).toMatch(/-left(?:-v[12])?\.png/);
+      expect(views[5]!.imageSrc).toContain("-back-left-v1.png");
       expect(views[6]!.imageSrc).toMatch(/-back(?:-v1)?\.png/);
+      expect(views[7]!.imageSrc).toContain("-back-right-v1.png");
+    }
+  });
+
+  it("ships every mapped directional raster with the application", () => {
+    for (const kind of UNIT_KINDS) {
+      for (const source of Object.values(UNIT_DIRECTION_ART[kind])) {
+        expect(existsSync(resolve(process.cwd(), "public", source.slice(1)))).toBe(true);
+      }
     }
   });
 
@@ -286,7 +302,7 @@ describe("tactical procedural assets", () => {
     const barracks = buildingSprite("barracks", palette, { variant: 13 });
     expect(barracks.imageSrc).toMatch(/\/art\/sprites\/.*barracks-v2\.png/);
     const tank = unitSprite("tank", palette, { facing: 3, animationFrame: 2, variant: 4 });
-    expect(tank.imageSrc).toMatch(/\/art\/sprites\/.*tank-front\.png/);
+    expect(tank.imageSrc).toMatch(/\/art\/sprites\/.*tank-front-left-v1\.png/);
   });
 
   it("paints floor silhouettes that are not four-point diamonds", () => {

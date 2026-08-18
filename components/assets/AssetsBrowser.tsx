@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
 import { listGeneratedAssets } from "@/lib/gen/assetCatalog";
 import { generateCampaignVisualProfile, generateVisualProfile } from "@/lib/gen/visualProfile";
-import { buildingAnim } from "@/lib/render/anim";
+import { buildingAnim, unitMovementOffset } from "@/lib/render/anim";
 import { drawSprite, rasterize, rotatedSpriteBounds } from "@/lib/render/sprites";
+import { paintUnitMovementFx } from "@/lib/render/unitMotion";
 import { assetsCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
@@ -160,7 +161,15 @@ export function AssetsBrowser({
       const dh = Math.max(1, Math.round(spec.h * scale));
       const dx = Math.round((canvas.width - bounds.width * scale) / 2 - bounds.minX * scale);
       const dy = Math.round((canvas.height - bounds.height * scale) / 2 - bounds.minY * scale);
-      drawSprite(ctx, spec, image, dx, dy, dw, dh);
+      const movement = selected.category === "unit"
+        ? unitMovementOffset(selected.kind as UnitKind, frame)
+        : null;
+      const renderDx = dx + (movement?.swayX ?? 0) * scale;
+      const renderDy = dy - (movement?.bobY ?? 0) * scale;
+      drawSprite(ctx, spec, image, renderDx, renderDy, dw, dh);
+      if (movement && selected.category === "unit") {
+        paintUnitMovementFx(ctx, selected.kind as UnitKind, renderDx, renderDy, dw, dh, scale, frame, 1);
+      }
       if (selected.category === "building") {
         paintOverlay(ctx, selected.kind as BuildingKind, canvas.width / 2, canvas.height / 2, Math.max(1, scale), now);
       }

@@ -18,6 +18,7 @@ import {
 } from "./anim";
 import { HEIGHT_STEP, TILE_H, TILE_W, screenToGroundTile, tileToScreen, type Camera } from "./iso";
 import { cachedSprite, drawSprite, rasterize } from "./sprites";
+import { paintUnitMovementFx } from "./unitMotion";
 import { buildingAt, canPlaceBuilding, groundHeight, heightAt, terrainAccess } from "../sim/world";
 import { fogAt } from "../sim/fog";
 import { canRepair } from "../sim/repair";
@@ -397,6 +398,9 @@ export function renderWorld(
     ctx.globalAlpha = entityAlpha * (e.constructing > 0 ? 0.72 : 1);
     drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
     ctx.globalAlpha = 1;
+    if (uAnim?.pose === "move") {
+      paintUnitMovementFx(ctx, e.kind as UnitKind, dx, dy, spec.w * z, spec.h * z, z, uAnim.frame, entityAlpha);
+    }
     drawDamageOverlay(
       ctx,
       spec,

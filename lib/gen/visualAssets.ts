@@ -22,32 +22,56 @@ export const SPRITE_ART = {
   tank: "/art/sprites/sleek-modular/tank-v2.png",
 } as const;
 
-export type UnitView = "front" | "right" | "back" | "left";
+export type UnitView =
+  | "right"
+  | "front-right"
+  | "front"
+  | "front-left"
+  | "left"
+  | "back-left"
+  | "back"
+  | "back-right";
 
 export const UNIT_DIRECTION_ART: Record<UnitKind, Record<UnitView, string>> = {
   harvester: {
+    "front-right": "/art/sprites/sleek-modular/harvester-front-right-v1.png",
     front: "/art/sprites/sleek-modular/harvester-front.png",
     right: "/art/sprites/sleek-modular/harvester-right-v2.png",
+    "front-left": "/art/sprites/sleek-modular/harvester-front-left-v1.png",
+    "back-left": "/art/sprites/sleek-modular/harvester-back-left-v1.png",
     back: "/art/sprites/sleek-modular/harvester-back.png",
     left: "/art/sprites/sleek-modular/harvester-left-v2.png",
+    "back-right": "/art/sprites/sleek-modular/harvester-back-right-v1.png",
   },
   infantry: {
+    "front-right": "/art/sprites/sleek-modular/infantry-front-right-v1.png",
     front: "/art/sprites/sleek-modular/infantry-front-v1.png",
     right: "/art/sprites/sleek-modular/infantry-right-v1.png",
+    "front-left": "/art/sprites/sleek-modular/infantry-front-left-v1.png",
+    "back-left": "/art/sprites/sleek-modular/infantry-back-left-v1.png",
     back: "/art/sprites/sleek-modular/infantry-back-v1.png",
     left: "/art/sprites/sleek-modular/infantry-left-v1.png",
+    "back-right": "/art/sprites/sleek-modular/infantry-back-right-v1.png",
   },
   antiArmor: {
+    "front-right": "/art/sprites/sleek-modular/anti-armor-front-right-v1.png",
     front: "/art/sprites/sleek-modular/anti-armor-front.png",
     right: "/art/sprites/sleek-modular/anti-armor-right.png",
+    "front-left": "/art/sprites/sleek-modular/anti-armor-front-left-v1.png",
+    "back-left": "/art/sprites/sleek-modular/anti-armor-back-left-v1.png",
     back: "/art/sprites/sleek-modular/anti-armor-back.png",
     left: "/art/sprites/sleek-modular/anti-armor-left.png",
+    "back-right": "/art/sprites/sleek-modular/anti-armor-back-right-v1.png",
   },
   tank: {
+    "front-right": "/art/sprites/sleek-modular/tank-front-right-v1.png",
     front: "/art/sprites/sleek-modular/tank-front.png",
     right: "/art/sprites/sleek-modular/tank-right.png",
+    "front-left": "/art/sprites/sleek-modular/tank-front-left-v1.png",
+    "back-left": "/art/sprites/sleek-modular/tank-back-left-v1.png",
     back: "/art/sprites/sleek-modular/tank-back.png",
     left: "/art/sprites/sleek-modular/tank-left.png",
+    "back-right": "/art/sprites/sleek-modular/tank-back-right-v1.png",
   },
 };
 
@@ -65,9 +89,13 @@ export const UNIT_DIRECTION_CROPS: Partial<Record<UnitKind, Partial<Record<UnitV
 
 export function unitViewForFacing(facing: Facing): UnitView {
   if (facing === 0) return "right";
-  if (facing <= 3) return "front";
+  if (facing === 1) return "front-right";
+  if (facing === 2) return "front";
+  if (facing === 3) return "front-left";
   if (facing === 4) return "left";
-  return "back";
+  if (facing === 5) return "back-left";
+  if (facing === 6) return "back";
+  return "back-right";
 }
 
 export const TERRAIN_ART = {
