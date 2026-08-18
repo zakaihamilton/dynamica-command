@@ -116,7 +116,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
 
 export const BUILDING_STATS: Record<BuildingKind, BuildingStats> = {
   constructionYard: { hp: 3200, cost: 0, buildTicks: 0, power: 20, sight: 8, footprint: { w: 2, h: 2 }, armor: "structure" },
-  power: { hp: 520, cost: 300, buildTicks: 180, power: 100, sight: 4, footprint: { w: 2, h: 2 }, armor: "structure" },
+  power: { hp: 520, cost: 300, buildTicks: 180, power: 50, sight: 4, footprint: { w: 2, h: 2 }, armor: "structure" },
   refinery: { hp: 1100, cost: 500, buildTicks: 240, power: -10, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },
   barracks: { hp: 900, cost: 375, buildTicks: 216, power: -10, sight: 5, footprint: { w: 2, h: 2 }, armor: "structure" },
   factory: { hp: 1300, cost: 800, buildTicks: 360, power: -15, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },

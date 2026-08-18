@@ -19,6 +19,7 @@ describe("tactical expansion", () => {
     expect(BUILDING_STATS.barracks.cost).toBe(375);
     expect(BUILDING_STATS.factory.cost).toBe(800);
     expect(BUILDING_STATS.turret.cost).toBe(275);
+    expect(BUILDING_STATS.power.power).toBe(50);
   });
 
   it("ramps enemy pressure across the campaign instead of starting at endgame strength", () => {
