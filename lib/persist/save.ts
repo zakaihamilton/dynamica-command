@@ -84,6 +84,7 @@ export function saveKey(seed: number): string {
 
 export type SaveMeta = {
   seed: string;
+  campaignName: string;
   missionIndex: number;
   tick: number;
   result: SimState["result"];
@@ -159,6 +160,10 @@ export function readSave(storage: StorageAdapter, seed: number): SimState | null
   }
 }
 
+export function removeSave(storage: StorageAdapter, seed: number): void {
+  storage.removeItem(saveKey(seed));
+}
+
 export function listSaves(storage: StorageAdapter): SaveMeta[] {
   const out: SaveMeta[] = [];
   for (const key of storage.keys()) {
@@ -170,6 +175,7 @@ export function listSaves(storage: StorageAdapter): SaveMeta[] {
       if (key !== saveKey(s.seed)) continue;
       out.push({
         seed: formatSeed(s.seed),
+        campaignName: generateWorld(s.seed).name,
         missionIndex: s.missionIndex,
         tick: s.tick,
         result: s.result,

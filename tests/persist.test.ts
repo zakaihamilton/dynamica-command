@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { deserializeState, listSaves, memoryStorage, readSave, saveKey, SAVE_VERSION, serializeState, writeSave } from "../lib/persist/save";
+import { deserializeState, listSaves, memoryStorage, readSave, removeSave, saveKey, SAVE_VERSION, serializeState, writeSave } from "../lib/persist/save";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { tick } from "../lib/sim/api";
 
@@ -22,6 +22,7 @@ describe("persist", () => {
     const listed = listSaves(storage);
     expect(listed).toHaveLength(1);
     expect(listed[0]!.seed).toBe("0421");
+    expect(listed[0]!.campaignName).toBeTruthy();
   });
 
   it("writes a versioned envelope and rejects malformed or mismatched saves", () => {
@@ -54,6 +55,17 @@ describe("persist", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("removes only the requested campaign save", () => {
+    const storage = memoryStorage();
+    writeSave(storage, makeFixture({ seed: 9, win: { kind: "annihilate" } }));
+    writeSave(storage, makeFixture({ seed: 10, win: { kind: "annihilate" } }));
+
+    removeSave(storage, 9);
+
+    expect(readSave(storage, 9)).toBeNull();
+    expect(readSave(storage, 10)).not.toBeNull();
   });
 
   it("backfills biome and surface metadata in legacy saves", () => {

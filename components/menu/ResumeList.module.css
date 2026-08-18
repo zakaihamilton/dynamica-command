@@ -5,7 +5,28 @@
 .listWrap {
   margin-top: 0.5rem;
   height: 7rem;
+  min-width: 0;
+  padding-inline-end: 1rem;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--chrome-bevel) var(--chrome-inset);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.listWrap::-webkit-scrollbar {
+  width: 0.45rem;
+}
+
+.listWrap::-webkit-scrollbar-track {
+  background: var(--chrome-inset);
+  border-inline-start: 1px solid var(--chrome-line);
+}
+
+.listWrap::-webkit-scrollbar-thumb {
+  background: var(--chrome-bevel);
+  border: 1px solid var(--chrome-inset);
 }
 
 .empty {
@@ -20,6 +41,18 @@
   list-style: none;
   display: grid;
   gap: 0.25rem;
+  min-width: 0;
+}
+
+.list li {
+  min-width: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem;
+  min-width: 0;
 }
 
 .item {
@@ -27,4 +60,74 @@
   padding: 0.5rem 0.75rem;
   text-align: left;
   font-size: 0.75rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.delete {
+  align-self: stretch;
+  padding: 0.5rem;
+  color: var(--chrome-alert);
+  font-size: 0.65rem;
+}
+
+.deleteIcon {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(3px);
+}
+
+.confirmDialog {
+  width: min(100%, 28rem);
+  padding: 1.5rem;
+}
+
+.confirmCopy {
+  margin: 0.75rem 0 0;
+  color: var(--chrome-body);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.confirmActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.confirmDelete {
+  color: var(--chrome-alert);
+}
+
+@media (max-width: 420px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) 5rem;
+  }
+
+  .delete {
+    padding-inline: 0.35rem;
+  }
+
+  .confirmActions > * {
+    flex: 1 1 8rem;
+  }
 }

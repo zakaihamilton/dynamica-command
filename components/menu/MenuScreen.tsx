@@ -7,7 +7,7 @@ import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
-import { listSaves, localStorageAdapter } from "@/lib/persist/save";
+import { listSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
 import { isEditableTarget, menuCommandFromKey, SHORTCUT } from "@/lib/ui/shortcuts";
 import { MenuBackdrop } from "./MenuBackdrop";
@@ -60,6 +60,11 @@ export function MenuScreen() {
     router.push(progress.tutorialComplete ? `/briefing?seed=${formatSeed(n)}&mission=0` : `/tutorial?seed=${formatSeed(n)}`);
   }, [code, router]);
 
+  const deleteSave = useCallback((saveSeed: string) => {
+    removeSave(localStorageAdapter(), Number(saveSeed));
+    setSaves(listSaves(localStorageAdapter()));
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const command = menuCommandFromKey(e, {
@@ -104,7 +109,11 @@ export function MenuScreen() {
             NEW GAME
           </ConsoleButton>
 
-          <ResumeList saves={saves} onResume={(seed) => router.push(`/play?seed=${seed}&resume=1`)} />
+        <ResumeList
+          saves={saves}
+          onResume={(seed) => router.push(`/play?seed=${seed}&resume=1`)}
+          onDelete={deleteSave}
+        />
         </MetalPanel>
       </div>
 
