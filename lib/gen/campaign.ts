@@ -21,6 +21,7 @@ export function createCampaign(seed: number): Campaign {
       briefing: [],
       win,
       mapSize: mapSizeForMission(index),
+      kind: win.kind,
     };
     draft.briefing = generateBriefing({ world, factions, characters }, draft);
     return draft;

@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { MAX_PRODUCTION_QUEUE, buildingCameoStatus, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
+import { MAX_PRODUCTION_QUEUE, UPGRADE_COST, buildingCameoStatus, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
 import { beep, setMuted } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
 import { createCampaign } from "@/lib/gen/campaign";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
+import { buyUpgrade, completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { cameraViewQuad, createCamera, screenToTile, tileToScreen, TILE_H } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
@@ -15,15 +16,19 @@ import { renderWorld, pickTile, visibleBuildingAt, type RenderExtras } from "@/l
 import { burstsFromDestroyed, cullFx, type FxBurst } from "@/lib/render/fx";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission } from "@/lib/sim/api";
+import { createTutorialMission, tutorialPrompt } from "@/lib/sim/tutorial";
 import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import { objectiveProgress } from "@/lib/sim/objectives";
 import { powerBreakdown, heightAt } from "@/lib/sim/world";
-import type { BuildingKind, Command, SimState, UnitKind } from "@/lib/types";
+import { applyUpgradeSnapshot } from "@/lib/sim/upgrades";
+import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind, UpgradeId } from "@/lib/types";
 import { gameCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
 import { Battlefield } from "./Battlefield";
 import { CommandSidebar } from "./CommandSidebar";
 import { MissionResult } from "./MissionResult";
+import { MobileCommandTray, type MobileCommand } from "./MobileCommandTray";
 import { PauseMenu } from "./PauseMenu";
+import { TutorialOverlay } from "./TutorialOverlay";
 import styles from "./GameClient.module.css";
 
 const PLACEABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
@@ -38,26 +43,31 @@ function renderDimensions(host: HTMLElement): { width: number; height: number } 
   };
 }
 
-function initialMission(seed: number, mission: number, resume: boolean): SimState {
+function initialMission(seed: number, mission: number, resume: boolean, tutorial: boolean): SimState {
+  if (tutorial) return createTutorialMission(seed);
   if (resume && typeof window !== "undefined") {
     const saved = readSave(localStorageAdapter(), seed);
     if (saved) return saved;
   }
-  return createMission({ seed, missionIndex: mission });
+  const fresh = createMission({ seed, missionIndex: mission });
+  applyUpgradeSnapshot(fresh, readCampaignProgress(localStorageAdapter(), seed).upgrades);
+  return fresh;
 }
 
 export function GameClient({
   seed,
   mission,
   resume,
+  tutorial = false,
 }: {
   seed: number;
   mission: number;
   resume: boolean;
+  tutorial?: boolean;
 }) {
   const router = useRouter();
   const campaign = useMemo(() => createCampaign(seed), [seed]);
-  const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume));
+  const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume, tutorial));
   const stateRef = useRef<SimState>(state);
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -80,13 +90,21 @@ export function GameClient({
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
   const terminalSaveRef = useRef(false);
-  const [pauseView, setPauseView] = useState<"main" | "options" | "assets">("main");
+  const campaignRecordedRef = useRef(false);
+  const [pauseView, setPauseView] = useState<"main" | "options" | "assets" | "upgrades">("main");
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [campaignProgress, setCampaignProgress] = useState(() => readCampaignProgress(localStorageAdapter(), seed));
   const cmdQ = useRef<Command[]>([]);
   const minimapDragging = useRef(false);
   const panHold = useRef<PanDir | null>(null);
+  const touchPoints = useRef(new Map<number, { x: number; y: number }>());
+  const touchGesture = useRef<{ center: { x: number; y: number }; distance: number } | null>(null);
+  const touchMultiTouch = useRef(false);
+  const mobileCommand = useRef<MobileCommand | null>(null);
+  const [mobileCommandState, setMobileCommandState] = useState<MobileCommand | null>(null);
+  const longPress = useRef<{ pointerId: number; timer: number; x: number; y: number; fired: boolean } | null>(null);
   const extrasRef = useRef<RenderExtras>({
     cursor: null,
     placeKind: null,
@@ -98,6 +116,26 @@ export function GameClient({
   const panAvailRef = useRef<PanAvailability>({ left: false, right: false, up: false, down: false });
   const [panAvail, setPanAvail] = useState<PanAvailability>({ left: false, right: false, up: false, down: false });
   const [hotPan, setHotPan] = useState<PanDir | null>(null);
+
+  const advanceTutorial = useCallback(() => {
+    const stages: NonNullable<SimState["tutorialStage"]>[] = ["select", "move", "harvest", "build", "produce", "attack", "repair", "complete"];
+    const current = stateRef.current.tutorialStage ?? "select";
+    const next = stages[Math.min(stages.length - 1, stages.indexOf(current) + 1)]!;
+    stateRef.current.tutorialStage = next;
+    setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
+    if (next === "complete") {
+      const progress = readCampaignProgress(localStorageAdapter(), seed);
+      progress.tutorialComplete = true;
+      writeCampaignProgress(localStorageAdapter(), progress);
+    }
+  }, [seed]);
+
+  const exitTutorial = useCallback(() => {
+    const progress = readCampaignProgress(localStorageAdapter(), seed);
+    progress.tutorialComplete = true;
+    writeCampaignProgress(localStorageAdapter(), progress);
+    router.push(`/briefing?seed=${formatSeed(seed)}&mission=0`);
+  }, [router, seed]);
 
   const applyEdgePan = useCallback((dir: PanDir | null) => {
     panHold.current = dir;
@@ -185,6 +223,7 @@ export function GameClient({
         if (next.tick % 6 === 0) setState({ ...next, entities: [...next.entities] });
         if (events.some((e) => e.type === "won")) beep("win");
         if (events.some((e) => e.type === "lost")) beep("lose");
+        if (events.some((e) => e.type === "commandRejected")) beep("alert");
         if (events.some((e) => e.type === "destroyed")) {
           const spawned = burstsFromDestroyed(events, next, now, fxSeq.current);
           fxSeq.current = spawned.nextId;
@@ -226,6 +265,12 @@ export function GameClient({
           writeSave(localStorageAdapter(), s);
           setState({ ...s, entities: [...s.entities] });
         }
+        if (s.result === "won" && !campaignRecordedRef.current) {
+          campaignRecordedRef.current = true;
+          const medals = 1 + (s.runtime?.secondary.every((objective) => objective.kind !== "preserveYard" || s.entities.some((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0)) ? 1 : 0) + (s.losses.units[0] === 0 ? 1 : 0);
+          const progress = readCampaignProgress(localStorageAdapter(), s.seed);
+          writeCampaignProgress(localStorageAdapter(), completeMission(progress, s.missionIndex, medals, Math.max(0, s.creditsEarned[0] - s.losses.units[0] * 100)));
+        }
         redraw();
       },
     });
@@ -256,6 +301,23 @@ export function GameClient({
     setPauseNotice("Mission saved.");
   }, []);
 
+  const openUpgrades = useCallback(() => {
+    setCampaignProgress(readCampaignProgress(localStorageAdapter(), seed));
+    setPauseView("upgrades");
+    setPauseNotice("");
+  }, [seed]);
+
+  const purchaseUpgrade = useCallback((id: UpgradeId) => {
+    const next = buyUpgrade(campaignProgress, id, UPGRADE_COST[id]);
+    if (!next) {
+      setPauseNotice("Upgrade locked or insufficient research points.");
+      return;
+    }
+    writeCampaignProgress(localStorageAdapter(), next);
+    setCampaignProgress(next);
+    setPauseNotice("Upgrade installed for the next mission.");
+  }, [campaignProgress]);
+
   const loadMission = useCallback(() => {
     const loaded = readSave(localStorageAdapter(), seed);
     if (!loaded) {
@@ -263,6 +325,7 @@ export function GameClient({
       return;
     }
     stateRef.current = loaded;
+    campaignRecordedRef.current = loaded.result === "won";
     terminalSaveRef.current = loaded.result !== "playing";
     setState({ ...loaded, entities: [...loaded.entities] });
     selected.current.clear();
@@ -278,8 +341,10 @@ export function GameClient({
   const restartMission = useCallback(() => {
     const world = stateRef.current;
     const fresh = createMission({ seed: world.seed, missionIndex: world.missionIndex });
+    applyUpgradeSnapshot(fresh, world.appliedUpgrades ?? []);
     stateRef.current = fresh;
     terminalSaveRef.current = false;
+    campaignRecordedRef.current = false;
     setState({ ...fresh, entities: [...fresh.entities] });
     selected.current.clear();
     setSelectedIds([]);
@@ -368,6 +433,31 @@ export function GameClient({
     setRepairMode(false);
     sell.current = false;
     setSellMode(false);
+  }, []);
+
+  const chooseMobileCommand = useCallback((command: MobileCommand) => {
+    clearTools();
+    mobileCommand.current = command;
+    setMobileCommandState(command);
+    beep("select");
+  }, [clearTools]);
+
+  const cancelMobileCommand = useCallback(() => {
+    mobileCommand.current = null;
+    setMobileCommandState(null);
+    clearTools();
+    beep("select");
+  }, [clearTools]);
+
+  const issueSelectedCommand = useCallback((command: "stop" | "stance" | "formation", value?: Stance | Formation) => {
+    const unitIds = [...selected.current];
+    if (unitIds.length === 0) return;
+    if (command === "stop") cmdQ.current.push({ type: "stop", unitIds });
+    else if (command === "stance" && value) cmdQ.current.push({ type: "stance", unitIds, stance: value as Stance });
+    else if (command === "formation" && value) cmdQ.current.push({ type: "formation", unitIds, formation: value as Formation });
+    mobileCommand.current = null;
+    setMobileCommandState(null);
+    beep("ack");
   }, []);
 
   const togglePlace = useCallback((kind: BuildingKind) => {
@@ -535,7 +625,7 @@ export function GameClient({
 
   useEffect(() => () => setMuted(false), []);
 
-  function canvasPos(e: React.MouseEvent<HTMLCanvasElement>) {
+  function canvasPos(e: PointerEvent<HTMLCanvasElement>) {
     const canvas = e.currentTarget;
     const r = canvas.getBoundingClientRect();
     const scaleX = canvas.width / r.width;
@@ -545,20 +635,79 @@ export function GameClient({
 
   function entityAt(s: SimState, tx: number, ty: number) {
     const unit = s.entities.find(
-      (en) => en.hp > 0 && en.class === "unit" && Math.round(en.x) === tx && Math.round(en.y) === ty,
+      (en) => en.hp > 0 && en.class === "unit" && !en.neutral && Math.round(en.x) === tx && Math.round(en.y) === ty,
     );
     if (unit) return unit;
     return visibleBuildingAt(s, tx, ty);
   }
 
-  const onDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const issueContextOrder = (s: SimState, p: { x: number; y: number }) => {
+    const picked = pickTile(s, p.x, p.y, camRef.current);
+    const t = picked ?? screenToTile(p.x, p.y, camRef.current);
+    const tx = Math.round(t.x);
+    const ty = Math.round(t.y);
+    if (repair.current || sell.current) {
+      clearTools();
+      beep("select");
+      return;
+    }
+    const ids = [...selected.current];
+    const target = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+    if (target && target.owner === 1) cmdQ.current.push({ type: "attack", unitIds: ids, targetId: target.id });
+    else if (s.tiles[ty * s.width + tx] === 2) cmdQ.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
+    else cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
+    beep("ack");
+  };
+
+  const onDown = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (e.pointerType === "touch") {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const p = canvasPos(e);
+      touchPoints.current.set(e.pointerId, p);
+      if (touchPoints.current.size >= 2) {
+        touchMultiTouch.current = true;
+        touchGesture.current = null;
+        if (longPress.current) window.clearTimeout(longPress.current.timer);
+        longPress.current = null;
+      } else {
+        const timer = window.setTimeout(() => {
+          const held = longPress.current;
+          if (held && held.pointerId === e.pointerId && !held.fired && !touchGesture.current) {
+            held.fired = true;
+            issueContextOrder(stateRef.current, { x: held.x, y: held.y });
+          }
+        }, 480);
+        longPress.current = { pointerId: e.pointerId, timer, x: p.x, y: p.y, fired: false };
+      }
+      return;
+    }
     if (e.button !== 0) return;
     const p = canvasPos(e);
     box.current = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
   };
 
-  const onMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const onMove = (e: PointerEvent<HTMLCanvasElement>) => {
     const p = canvasPos(e);
+    if (e.pointerType === "touch") {
+      touchPoints.current.set(e.pointerId, p);
+      if (touchPoints.current.size >= 2) {
+        const points = [...touchPoints.current.values()];
+        const center = { x: (points[0]!.x + points[1]!.x) / 2, y: (points[0]!.y + points[1]!.y) / 2 };
+        const distance = Math.hypot(points[0]!.x - points[1]!.x, points[0]!.y - points[1]!.y);
+        const previous = touchGesture.current;
+        if (previous) {
+          panCamera(camRef.current, center.x - previous.center.x, center.y - previous.center.y, undefined);
+          camRef.current.zoom = Math.max(0.55, Math.min(1.8, camRef.current.zoom * (distance / Math.max(1, previous.distance))));
+        }
+        touchGesture.current = { center, distance };
+        return;
+      }
+      const held = longPress.current;
+      if (held && Math.hypot(p.x - held.x, p.y - held.y) > 12) {
+        held.fired = true;
+        window.clearTimeout(held.timer);
+      }
+    }
     cursor.current = p;
     const s = stateRef.current;
     if (s) {
@@ -623,14 +772,44 @@ export function GameClient({
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
-  const onUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const onUp = (e: PointerEvent<HTMLCanvasElement>) => {
     const s = stateRef.current;
     if (!s) return;
+    if (e.pointerType === "touch") {
+      const held = longPress.current;
+      touchPoints.current.delete(e.pointerId);
+      if (held?.pointerId === e.pointerId) {
+        window.clearTimeout(held.timer);
+        longPress.current = null;
+      }
+      if (touchPoints.current.size > 0) {
+        return;
+      }
+      const wasGesture = !!touchGesture.current || touchMultiTouch.current;
+      touchGesture.current = null;
+      touchMultiTouch.current = false;
+      if (held?.fired || wasGesture) return;
+    }
     const p = canvasPos(e);
     const picked = pickTile(s, p.x, p.y, camRef.current);
     const t = picked ?? screenToTile(p.x, p.y, camRef.current);
     const tx = Math.round(t.x);
     const ty = Math.round(t.y);
+    if (e.pointerType === "touch" && mobileCommand.current) {
+      const command = mobileCommand.current;
+      const target = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      const ids = [...selected.current];
+      if (ids.length > 0) {
+        if (command === "move") cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
+        else if (command === "attackMove") cmdQ.current.push({ type: "attackMove", unitIds: ids, x: tx, y: ty });
+        else if (command === "attack" && target?.owner === 1) cmdQ.current.push({ type: "attack", unitIds: ids, targetId: target.id });
+        else if (command === "harvest" && s.tiles[ty * s.width + tx] === 2) cmdQ.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
+      }
+      mobileCommand.current = null;
+      setMobileCommandState(null);
+      beep("ack");
+      return;
+    }
     if (e.button === 2) {
       e.preventDefault();
       if (repair.current || sell.current) {
@@ -641,16 +820,7 @@ export function GameClient({
         beep("select");
         return;
       }
-      const ids = [...selected.current];
-      const target = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
-      if (target && target.owner === 1) {
-        cmdQ.current.push({ type: "attack", unitIds: ids, targetId: target.id });
-      } else if (s.tiles[ty * s.width + tx] === 2) {
-        cmdQ.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
-      } else {
-        cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
-      }
-      beep("ack");
+      issueContextOrder(s, p);
       return;
     }
     if (place.current) {
@@ -697,9 +867,23 @@ export function GameClient({
       commitSelection(ids);
     } else {
       const hit = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
-      commitSelection(hit && hit.owner === 0 ? [hit.id] : []);
+      if (e.pointerType === "touch" && selected.current.size > 0 && !hit) {
+        const ids = [...selected.current];
+        const hasHarvester = ids.some((id) => s.entities.some((entity) => entity.id === id && entity.owner === 0 && entity.kind === "harvester"));
+        if (hasHarvester && s.tiles[ty * s.width + tx] === 2) {
+          cmdQ.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
+        } else {
+          cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
+        }
+        beep("ack");
+      } else if (e.pointerType === "touch" && selected.current.size > 0 && hit?.owner === 1 && !hit.neutral) {
+        cmdQ.current.push({ type: "attack", unitIds: [...selected.current], targetId: hit.id });
+        beep("ack");
+      } else {
+        commitSelection(hit && hit.owner === 0 && !hit.neutral ? [hit.id] : []);
+        beep("select");
+      }
     }
-    beep("select");
   };
 
   const s = state;
@@ -733,10 +917,10 @@ export function GameClient({
         missionName={s.missionName}
         objective={obj.label}
         biome={s.biome}
-        onMouseDown={onDown}
-        onMouseMove={onMove}
-        onMouseLeave={onLeave}
-        onMouseUp={onUp}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerLeave={onLeave}
+        onPointerUp={onUp}
       >
         <MissionResult
           state={s}
@@ -745,7 +929,26 @@ export function GameClient({
           onRetry={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex}`)}
           onMenu={() => router.push("/")}
         />
+        {tutorial ? (
+          <TutorialOverlay
+            prompt={tutorialPrompt(s)}
+            complete={s.tutorialStage === "complete"}
+            onAdvance={s.tutorialStage === "complete" ? exitTutorial : advanceTutorial}
+            onSkip={exitTutorial}
+          />
+        ) : null}
       </Battlefield>
+
+      <MobileCommandTray
+        command={mobileCommandState}
+        onCommand={chooseMobileCommand}
+        onStop={() => issueSelectedCommand("stop")}
+        onRepair={toggleRepair}
+        onSell={toggleSell}
+        onStance={(stance) => issueSelectedCommand("stance", stance)}
+        onFormation={(formation) => issueSelectedCommand("formation", formation)}
+        onCancel={cancelMobileCommand}
+      />
 
       {shouldShowCommandSidebar(s.result) ? <CommandSidebar
         factionName={campaign.factions[0].name}
@@ -791,6 +994,9 @@ export function GameClient({
           onToggleSound={toggleSound}
           onBack={() => setPauseView("main")}
           onCloseAssets={() => setPauseView("main")}
+          progress={campaignProgress}
+          onUpgrades={openUpgrades}
+          onBuyUpgrade={purchaseUpgrade}
         />
       ) : null}
     </div>

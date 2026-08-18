@@ -15,7 +15,7 @@ export function objectiveProgress(state: SimState): { current: number; target: n
       return {
         current: state.creditsEarned[0],
         target: w.target ?? 0,
-        label: `Credits ${state.creditsEarned[0]} / ${w.target}`,
+        label: `Extracted ${state.creditsEarned[0]} / ${w.target}`,
       };
     case "forceQuota": {
       const current = w.role ? (state.unitsProducedByRole[w.role] ?? 0) : state.unitsProduced[0];
@@ -66,6 +66,20 @@ export function objectiveProgress(state: SimState): { current: number; target: n
         target: t,
         label: left <= 0 ? "Held" : `Hold ${formatHoldClock(seconds)}`,
       };
+    }
+    case "escort":
+    case "rescue":
+    case "extraction": {
+      const runtime = state.runtime;
+      const current = runtime?.rescued ?? 0;
+      const target = w.targetCount ?? runtime?.required ?? 1;
+      const label = w.kind === "escort" ? `Convoy ${current} / ${target}` : w.kind === "rescue" ? `Rescued ${current} / ${target}` : `Extracted ${current} / ${target}`;
+      return { current, target, label };
+    }
+    case "sabotage": {
+      const ids = w.targetIds ?? [];
+      const current = ids.filter((id) => !state.entities.some((e) => e.id === id && e.hp > 0)).length;
+      return { current, target: ids.length || w.targetCount || 1, label: `Systems ${current} / ${ids.length || w.targetCount || 1}` };
     }
     default:
       return { current: 0, target: 1, label: "Unknown" };
@@ -119,6 +133,16 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
       break;
     case "holdTheLine":
       if (state.tick >= (w.ticks ?? Infinity) && playerCy) won = true;
+      break;
+    case "escort":
+    case "rescue":
+    case "extraction":
+      won = (state.runtime?.rescued ?? 0) >= (w.targetCount ?? state.runtime?.required ?? Infinity);
+      if (state.tick >= (w.ticks ?? Infinity)) won = false;
+      break;
+    case "sabotage":
+      won = (w.targetIds ?? []).length > 0 && (w.targetIds ?? []).every((id) => !state.entities.some((e) => e.id === id && e.hp > 0));
+      if (state.tick >= (w.ticks ?? Infinity)) won = false;
       break;
     default:
       break;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createCampaign } from "../lib/gen/campaign";
-import { WIN_KIND_ORDER } from "../lib/catalog";
+import { NEW_MISSION_KINDS } from "../lib/catalog";
 import { MAX_MISSION_TICKS, MIN_MISSION_TICKS } from "../lib/gen/pacing";
 import { createMission, inspect, tick } from "../lib/sim/api";
 
@@ -11,8 +11,9 @@ describe("determinism", () => {
     expect(a).toEqual(b);
     expect(a.seed).toBe("0000");
     expect(a.missions).toHaveLength(8);
-    const kinds = a.missions.map((m) => m.win.kind).sort();
-    expect(kinds).toEqual([...WIN_KIND_ORDER].sort());
+    const kinds = a.missions.map((m) => m.win.kind);
+    expect(kinds.filter((kind) => NEW_MISSION_KINDS.includes(kind as typeof NEW_MISSION_KINDS[number]))).toHaveLength(4);
+    expect(new Set(kinds).size).toBe(8);
   });
 
   it("mission objectives are paced for 5–20 minute runs", () => {

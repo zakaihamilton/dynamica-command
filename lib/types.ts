@@ -22,8 +22,52 @@ export type WinCategoryKind =
   | "annihilate"
   | "holdTheLine";
 
+export type MissionKind = WinCategoryKind | "escort" | "sabotage" | "rescue" | "extraction";
+export type Formation = "line" | "column" | "wedge";
+export type Stance = "aggressive" | "defensive" | "hold";
+export type WeaponType = "smallArms" | "antiArmor" | "cannon";
+export type ArmorType = "light" | "heavy" | "structure";
+export type TutorialStage = "select" | "move" | "harvest" | "build" | "produce" | "attack" | "repair" | "complete";
+export type AiBehavior = "economy" | "defense" | "assault" | "retreat" | "regroup";
+export type UpgradeId =
+  | "logistics-cargo" | "logistics-drills" | "logistics-unload" | "logistics-cache"
+  | "arsenal-barrels" | "arsenal-plating" | "arsenal-targeting" | "arsenal-shock"
+  | "engineering-frames" | "engineering-grid" | "engineering-repair" | "engineering-fabrication";
+
+export type SecondaryObjective = {
+  id: string;
+  label: string;
+  kind: "preserveYard" | "destroyTarget" | "completeBefore" | "keepUnits";
+  target?: number;
+  targetId?: number;
+  completed?: boolean;
+};
+
+export type MissionRuntime = {
+  kind: MissionKind;
+  phase: "active" | "extraction" | "complete";
+  targetIds: number[];
+  zone?: Vec2;
+  deadline?: number;
+  rescued: number;
+  required: number;
+  secondary: SecondaryObjective[];
+};
+
+export type CampaignProgress = {
+  version: 1;
+  seed: number;
+  tutorialComplete: boolean;
+  unlockedMission: number;
+  completedMissions: number[];
+  medals: Record<string, number>;
+  bestScores: Record<string, number>;
+  researchPoints: number;
+  upgrades: UpgradeId[];
+};
+
 export type WinCategory = {
-  kind: WinCategoryKind;
+  kind: MissionKind;
   target?: number;
   role?: UnitKind;
   building?: BuildingKind;
@@ -80,6 +124,12 @@ export type Entity = {
   idle: boolean;
   facing?: Facing;
   repairing?: boolean;
+  neutral?: boolean;
+  stance?: Stance;
+  suppression?: number;
+  armor?: ArmorType;
+  weapon?: WeaponType;
+  formation?: Formation;
 };
 
 export type Palette = {
@@ -140,6 +190,7 @@ export type MissionDef = {
   briefing: BriefingLine[];
   win: WinCategory;
   mapSize: number;
+  kind?: MissionKind;
 };
 
 export type Campaign = {
@@ -239,10 +290,16 @@ export type SimState = {
   rngState: number;
   factions: [Faction, Faction];
   missionName: string;
+  missionKind?: MissionKind;
+  runtime?: MissionRuntime;
+  appliedUpgrades?: UpgradeId[];
+  tutorialStage?: TutorialStage;
+  aiState?: AiBehavior;
 };
 
 export type Command =
-  | { type: "move"; unitIds: number[]; x: number; y: number }
+  | { type: "move"; unitIds: number[]; x: number; y: number; formation?: Formation }
+  | { type: "attackMove"; unitIds: number[]; x: number; y: number; formation?: Formation }
   | { type: "attack"; unitIds: number[]; targetId: number }
   | { type: "harvest"; unitIds: number[]; x: number; y: number }
   | { type: "build"; building: BuildingKind; x: number; y: number }
@@ -250,7 +307,10 @@ export type Command =
   | { type: "cancelBuild"; building: BuildingKind }
   | { type: "cancelProduce"; unit: UnitKind }
   | { type: "repair"; buildingId: number }
-  | { type: "sell"; buildingId: number };
+  | { type: "sell"; buildingId: number }
+  | { type: "stop"; unitIds: number[] }
+  | { type: "stance"; unitIds: number[]; stance: Stance }
+  | { type: "formation"; unitIds: number[]; formation: Formation };
 
 export type SimEvent =
   | { type: "produced"; owner: Owner; kind: UnitKind }
@@ -258,7 +318,10 @@ export type SimEvent =
   | { type: "destroyed"; id: number; kind: string }
   | { type: "credits"; owner: Owner; amount: number }
   | { type: "won" }
-  | { type: "lost" };
+  | { type: "lost" }
+  | { type: "commandRejected"; reason: string }
+  | { type: "alert"; kind: "warning" | "objective" | "contact"; text: string }
+  | { type: "suppressed"; id: number };
 
 export type InspectReport = {
   seed: string;
@@ -268,6 +331,6 @@ export type InspectReport = {
   creditsEarned: number;
   units: { player: number; enemy: number };
   buildings: { player: number; enemy: number };
-  objective: { kind: WinCategoryKind; label: string; current: number; target: number };
+  objective: { kind: MissionKind; label: string; current: number; target: number };
   result: SimState["result"];
 };

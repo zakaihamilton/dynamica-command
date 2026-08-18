@@ -18,7 +18,7 @@ describe("mission debrief", () => {
 
     expect(missionDebrief(state)).toMatchObject({
       outcome: "Primary objective achieved.",
-      objective: { headline: "Extract 900 credits from the field", progress: "Credits 900 / 900" },
+      objective: { headline: "Extract 900 credits from the field", progress: "Extracted 900 / 900" },
       battle: { duration: "00:12", creditsGathered: 900, unitsTrained: 5, structuresCompleted: 2 },
       forces: {
         friendly: { unitsRemaining: 1, buildingsRemaining: 1, unitsLost: 1, buildingsLost: 0 },

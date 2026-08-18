@@ -8,6 +8,7 @@ import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { listSaves, localStorageAdapter } from "@/lib/persist/save";
+import { readCampaignProgress } from "@/lib/persist/campaign";
 import { isEditableTarget, menuCommandFromKey, SHORTCUT } from "@/lib/ui/shortcuts";
 import { MenuBackdrop } from "./MenuBackdrop";
 import { NewGameSetup } from "./NewGameSetup";
@@ -55,7 +56,8 @@ export function MenuScreen() {
       return;
     }
     setError("");
-    router.push(`/briefing?seed=${formatSeed(n)}&mission=0`);
+    const progress = readCampaignProgress(localStorageAdapter(), n);
+    router.push(progress.tutorialComplete ? `/briefing?seed=${formatSeed(n)}&mission=0` : `/tutorial?seed=${formatSeed(n)}`);
   }, [code, router]);
 
   useEffect(() => {

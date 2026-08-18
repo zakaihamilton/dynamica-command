@@ -1,15 +1,30 @@
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, producerFor, productionQueueSize, sellRefundFor } from "../catalog";
-import type { BuildingKind, Command, Entity, SimEvent, SimState, UnitKind } from "../types";
+import type { BuildingKind, Command, Entity, Formation, SimEvent, SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
 import { canRepair } from "./repair";
 import { canSell } from "./sell";
 import { byId, canPlaceBuilding, closestApproach, powerFor, spawnBuilding } from "./world";
+import { buildingBuildTicks, buildingCost, unitBuildTicks } from "./upgrades";
 
 export function issue(state: SimState, command: Command): SimEvent[] {
   if (state.result !== "playing") return [];
+  if (state.tutorialStage && state.tutorialStage !== "complete") {
+    const stages = ["select", "move", "harvest", "build", "produce", "attack", "repair", "complete"] as const;
+    const required = command.type === "move" || command.type === "stop" || command.type === "formation" || command.type === "stance" ? "move"
+      : command.type === "harvest" ? "harvest"
+        : command.type === "build" || command.type === "cancelBuild" ? "build"
+          : command.type === "produce" || command.type === "cancelProduce" ? "produce"
+            : command.type === "attack" || command.type === "attackMove" ? "attack"
+              : command.type === "repair" ? "repair" : undefined;
+    if (required && stages.indexOf(state.tutorialStage) < stages.indexOf(required)) {
+      return [{ type: "commandRejected", reason: `training step: ${required}` }];
+    }
+  }
   switch (command.type) {
     case "move":
-      return moveUnits(state, command.unitIds, command.x, command.y);
+      return moveUnits(state, command.unitIds, command.x, command.y, command.formation);
+    case "attackMove":
+      return attackMoveUnits(state, command.unitIds, command.x, command.y, command.formation);
     case "attack":
       return attackUnits(state, command.unitIds, command.targetId);
     case "harvest":
@@ -26,32 +41,90 @@ export function issue(state: SimState, command: Command): SimEvent[] {
       return toggleRepair(state, command.buildingId);
     case "sell":
       return sellBuilding(state, command.buildingId);
+    case "stop":
+      return stopUnits(state, command.unitIds);
+    case "stance":
+      return setStance(state, command.unitIds, command.stance);
+    case "formation":
+      return setFormation(state, command.unitIds, command.formation);
     default:
       return [];
   }
 }
 
-function moveUnits(state: SimState, ids: number[], x: number, y: number): SimEvent[] {
+function moveUnits(state: SimState, ids: number[], x: number, y: number, formation?: Formation): SimEvent[] {
   const tx = Math.round(x);
   const ty = Math.round(y);
-  for (const id of ids) {
+  ids.forEach((id, index) => {
     const e = byId(state, id);
-    if (!e || e.class !== "unit" || e.owner !== 0) continue;
+    if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral) return;
     e.attackTarget = undefined;
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
-    e.path = findPath(state, e, { x: tx, y: ty });
+    e.formation = formation;
+    e.path = findPath(state, e, formationDestination(tx, ty, formation, index, ids.length));
+  });
+  return [];
+}
+
+function attackMoveUnits(state: SimState, ids: number[], x: number, y: number, formation?: Formation): SimEvent[] {
+  ids.forEach((id, index) => {
+    const e = byId(state, id);
+    if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral || e.kind === "harvester") return;
+    e.attackTarget = undefined;
+    e.gatherX = undefined;
+    e.gatherY = undefined;
+    e.idle = false;
+    e.formation = formation;
+    e.path = findPath(state, e, formationDestination(Math.round(x), Math.round(y), formation, index, ids.length));
+  });
+  return [];
+}
+
+function formationDestination(x: number, y: number, formation: Formation | undefined, index: number, count: number): { x: number; y: number } {
+  if (!formation || count <= 1) return { x, y };
+  const centered = index - (count - 1) / 2;
+  if (formation === "column") return { x: x + Math.round(centered), y };
+  if (formation === "wedge") return { x: x + Math.round(centered), y: y + Math.abs(Math.round(centered)) };
+  return { x, y: y + Math.round(centered) };
+}
+
+function stopUnits(state: SimState, ids: number[]): SimEvent[] {
+  for (const id of ids) {
+    const e = byId(state, id);
+    if (!e || e.owner !== 0 || e.class !== "unit") continue;
+    e.path = [];
+    e.attackTarget = undefined;
+    e.gatherX = undefined;
+    e.gatherY = undefined;
+    e.idle = true;
+  }
+  return [];
+}
+
+function setStance(state: SimState, ids: number[], stance: "aggressive" | "defensive" | "hold"): SimEvent[] {
+  for (const id of ids) {
+    const e = byId(state, id);
+    if (e?.owner === 0 && e.class === "unit") e.stance = stance;
+  }
+  return [];
+}
+
+function setFormation(state: SimState, ids: number[], formation: Formation): SimEvent[] {
+  for (const id of ids) {
+    const e = byId(state, id);
+    if (e?.owner === 0 && e.class === "unit") e.formation = formation;
   }
   return [];
 }
 
 function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent[] {
   const target = byId(state, targetId);
-  if (!target) return [];
+  if (!target || target.owner !== 1 || target.neutral) return [{ type: "commandRejected", reason: "invalid attack target" }];
   for (const id of ids) {
     const e = byId(state, id);
-    if (!e || e.class !== "unit" || e.owner !== 0) continue;
+    if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral) continue;
     if (e.kind === "harvester") continue;
     e.attackTarget = targetId;
     e.gatherX = undefined;
@@ -69,7 +142,7 @@ function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent
 function harvestUnits(state: SimState, ids: number[], x: number, y: number): SimEvent[] {
   for (const id of ids) {
     const e = byId(state, id);
-    if (!e || e.kind !== "harvester") continue;
+    if (!e || e.kind !== "harvester" || e.owner !== 0 || e.neutral) continue;
     e.attackTarget = undefined;
     e.gatherX = Math.round(x);
     e.gatherY = Math.round(y);
@@ -80,33 +153,33 @@ function harvestUnits(state: SimState, ids: number[], x: number, y: number): Sim
 }
 
 function startBuild(state: SimState, kind: BuildingKind, x: number, y: number): SimEvent[] {
-  if (kind === "constructionYard" || kind === "objective") return [];
+  if (kind === "constructionYard" || kind === "objective") return [{ type: "commandRejected", reason: "invalid building" }];
   const tx = Math.round(x);
   const ty = Math.round(y);
-  if (!canPlaceBuilding(state, kind, tx, ty)) return [];
+  if (!canPlaceBuilding(state, kind, tx, ty)) return [{ type: "commandRejected", reason: "invalid placement" }];
   const yard = state.entities.find(
     (e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0 && e.constructing === 0,
   );
-  if (!yard) return [];
-  const stats = BUILDING_STATS[kind];
-  if (state.credits[0] < stats.cost) return [];
-  state.credits[0] -= stats.cost;
-  spawnBuilding(state, 0, kind, tx, ty, stats.buildTicks);
+  if (!yard) return [{ type: "commandRejected", reason: "construction yard unavailable" }];
+  const cost = buildingCost(state, 0, kind);
+  if (state.credits[0] < cost) return [{ type: "commandRejected", reason: "insufficient credits" }];
+  state.credits[0] -= cost;
+  spawnBuilding(state, 0, kind, tx, ty, buildingBuildTicks(state, 0, kind));
   return [];
 }
 
 function startProduce(state: SimState, fromId: number, unit: UnitKind): SimEvent[] {
   const b = byId(state, fromId);
-  if (!b || b.class !== "building" || b.owner !== 0 || b.constructing > 0) return [];
-  if (b.kind !== producerFor(unit)) return [];
+  if (!b || b.class !== "building" || b.owner !== 0 || b.constructing > 0) return [{ type: "commandRejected", reason: "producer unavailable" }];
+  if (b.kind !== producerFor(unit)) return [{ type: "commandRejected", reason: "wrong producer" }];
   if (!b.queue) b.queue = [];
-  if (productionQueueSize(b) >= MAX_PRODUCTION_QUEUE) return [];
+  if (productionQueueSize(b) >= MAX_PRODUCTION_QUEUE) return [{ type: "commandRejected", reason: "production queue full" }];
   const stats = UNIT_STATS[unit];
-  if (state.credits[0] < stats.cost) return [];
-  if (powerFor(state, 0) < 0) return [];
+  if (state.credits[0] < stats.cost) return [{ type: "commandRejected", reason: "insufficient credits" }];
+  if (powerFor(state, 0) < 0) return [{ type: "commandRejected", reason: "power shortage" }];
   state.credits[0] -= stats.cost;
   if (!b.producing) {
-    b.producing = { kind: unit, remaining: stats.buildTicks };
+    b.producing = { kind: unit, remaining: unitBuildTicks(state, 0, unit) };
   } else {
     b.queue.push(unit);
   }

@@ -18,7 +18,7 @@ export function pickEntity(state: SimState, sx: number, sy: number, cam: Camera)
   let bestD = Infinity;
   const z = cam.zoom;
   for (const e of state.entities) {
-    if (e.hp <= 0 || e.class !== "unit" || !fogVisible(state, e)) continue;
+    if (e.hp <= 0 || e.class !== "unit" || e.neutral || !fogVisible(state, e)) continue;
     const elev = groundHeight(state, e.x, e.y);
     const s = tileToScreen(e.x, e.y, cam, elev);
     const bodyX = s.x;

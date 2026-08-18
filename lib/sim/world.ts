@@ -9,6 +9,7 @@ import type {
   Vec2,
 } from "../types";
 import { TILE_BLOCKED, TILE_WATER } from "../types";
+import { powerProduction, unitMaxHp } from "./upgrades";
 
 export function at(state: SimState, x: number, y: number): number {
   return y * state.width + x;
@@ -286,8 +287,8 @@ export function makeUnit(
     kind,
     x,
     y,
-    hp: stats.hp,
-    maxHp: stats.hp,
+    hp: unitMaxHp(state, owner, kind),
+    maxHp: unitMaxHp(state, owner, kind),
     cooldown: 0,
     path: [],
     carry: 0,
@@ -296,6 +297,10 @@ export function makeUnit(
     marked: false,
     idle: true,
     facing: owner === 0 ? 0 : 4,
+    stance: "aggressive",
+    suppression: 0,
+    armor: stats.armor,
+    weapon: stats.weapon,
   };
 }
 
@@ -326,6 +331,10 @@ export function makeBuilding(
     marked,
     idle: true,
     facing: owner === 0 ? 0 : 4,
+    stance: "aggressive",
+    suppression: 0,
+    armor: stats.armor,
+    weapon: stats.weapon,
   };
 }
 
@@ -356,7 +365,7 @@ export function powerBreakdown(state: SimState, owner: Owner): { produced: numbe
   let used = 0;
   for (const e of living(state)) {
     if (e.class !== "building" || e.owner !== owner || e.constructing > 0) continue;
-    const watt = BUILDING_STATS[e.kind as BuildingKind].power;
+    const watt = powerProduction(state, e.owner, e.kind as BuildingKind);
     if (watt >= 0) produced += watt;
     else used -= watt;
   }

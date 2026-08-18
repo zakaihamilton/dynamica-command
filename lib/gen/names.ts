@@ -1,4 +1,4 @@
-import type { BiomeName, WinCategoryKind } from "../types";
+import type { BiomeName, MissionKind } from "../types";
 import type { Rng } from "../seed/rng";
 
 const FIRST_FEM = [
@@ -59,7 +59,7 @@ const RANK = ["Commander", "Marshal", "Director", "Captain", "Overseer", "Warden
 const ADVISOR = ["Strategist", "Attaché", "Quartermaster", "Analyst", "Herald"];
 const ENEMY_TITLE = ["Warlord", "Prefect", "Autarch", "General", "Executor"];
 
-const MISSION_TITLES: Record<WinCategoryKind, string[]> = {
+const MISSION_TITLES: Record<MissionKind, string[]> = {
   harvestQuota: ["The Harvest", "Claim the Fields", "Strip the Veins", "Take the Ore"],
   forceQuota: ["Build Forces", "Train Up", "Get Numbers", "Combat Ready"],
   structureQuota: ["Raise the Fort", "Lay Foundations", "Build the Line", "Fortify"],
@@ -68,6 +68,10 @@ const MISSION_TITLES: Record<WinCategoryKind, string[]> = {
   decapitate: ["Cut Off the Head", "Storm the Yard", "Kill the Heart", "Break Command"],
   annihilate: ["No Quarter", "Wipe Them Out", "Total War", "End Them"],
   holdTheLine: ["Hold the Line", "Stand Fast", "Last Watch", "Do Not Yield"],
+  escort: ["The Long Route", "Convoy Run", "Through the Fire", "Guided Passage"],
+  sabotage: ["Cut the Grid", "Silent Charges", "System Failure", "Break the Line"],
+  rescue: ["Bring Them Home", "Stranded", "Recovery Zone", "The Missing"],
+  extraction: ["Get Out Alive", "Final Lift", "Extraction Window", "Cargo Run"],
 };
 
 export function biomeLabel(biome: BiomeName): string {
@@ -130,6 +134,6 @@ export function genEnemyTitle(rng: Rng): string {
   return rng.pick(ENEMY_TITLE);
 }
 
-export function genMissionTitle(rng: Rng, kind: WinCategoryKind): string {
+export function genMissionTitle(rng: Rng, kind: MissionKind): string {
   return rng.pick(MISSION_TITLES[kind]);
 }
