@@ -50,8 +50,11 @@ export function unitMovementOffset(kind: UnitKind, frame: AnimFrame): { bobY: nu
   const infantry = kind === "infantry" || kind === "antiArmor";
   const gait = [0, 1, 0, -1][frame] ?? 0;
   return {
-    bobY: infantry ? gait * 1.5 : gait * 0.65,
-    swayX: infantry ? gait * 0.8 : gait * 0.25,
+    // Keep the unit's contact point close to the ground. Infantry gets a
+    // restrained step bob; tracked vehicles stay level and sell movement
+    // through their tread animation instead of hovering up and down.
+    bobY: infantry ? gait * 0.55 : 0,
+    swayX: infantry ? gait * 0.25 : 0,
   };
 }
 

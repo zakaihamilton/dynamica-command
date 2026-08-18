@@ -9,7 +9,7 @@ import { createCampaign } from "@/lib/gen/campaign";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
 import { buyUpgrade, completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
-import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
+import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { cameraViewQuad, createCamera, screenToTile, tileToScreen, TILE_H } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { pickEntity } from "@/lib/render/pick";
@@ -101,6 +101,7 @@ export function GameClient({
   const cmdQ = useRef<Command[]>([]);
   const minimapDragging = useRef(false);
   const panHold = useRef<PanDir | null>(null);
+  const edgePanHover = useRef<{ dir: PanDir; startedAt: number } | null>(null);
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ center: { x: number; y: number }; distance: number } | null>(null);
   const touchMultiTouch = useRef(false);
@@ -140,7 +141,13 @@ export function GameClient({
   }, [router, seed]);
 
   const applyEdgePan = useCallback((dir: PanDir | null) => {
-    panHold.current = dir;
+    if (dir === null) {
+      edgePanHover.current = null;
+      panHold.current = null;
+    } else if (edgePanHover.current?.dir !== dir) {
+      edgePanHover.current = { dir, startedAt: performance.now() };
+      panHold.current = null;
+    }
     setHotPan((prev) => (prev === dir ? prev : dir));
   }, []);
 
@@ -232,7 +239,7 @@ export function GameClient({
           fxRef.current.push(...spawned.bursts);
         }
       },
-      onFrame: (_now, s, paused) => {
+      onFrame: (now, s, paused) => {
         if (!paused) {
           const cam = camRef.current;
           const canvas = canvasRef.current;
@@ -243,7 +250,9 @@ export function GameClient({
           if (keys.current.s || keys.current.ArrowDown) panCamera(cam, 0, -10, bounds);
           if (keys.current.a || keys.current.ArrowLeft) panCamera(cam, 10, 0, bounds);
           if (keys.current.d || keys.current.ArrowRight) panCamera(cam, -10, 0, bounds);
-          const hold = panHold.current;
+          const hoveredEdge = edgePanHover.current;
+          const hold = hoveredEdge && now - hoveredEdge.startedAt >= EDGE_PAN_DELAY_MS ? hoveredEdge.dir : null;
+          panHold.current = hold;
           if (hold && bounds) {
             if (!panAvailability(cam, bounds)[hold]) applyEdgePan(null);
             else {
@@ -261,6 +270,11 @@ export function GameClient({
               setPanAvail(next);
             }
           }
+        } else {
+          // Require a fresh edge hover after closing the pause menu instead
+          // of immediately resuming a stale camera-pan hold.
+          edgePanHover.current = null;
+          panHold.current = null;
         }
         if (s.result !== "playing" && !terminalSaveRef.current) {
           terminalSaveRef.current = true;

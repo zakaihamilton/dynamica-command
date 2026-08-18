@@ -42,9 +42,9 @@ describe("asset API contract", () => {
 
     const infantry = assetById("unit:infantry")!;
     expect(spriteSpecToSvg(assetPreviewSpec(infantry, 0), "https://example.test/infantry.png"))
-      .toContain('width="54" height="54" viewBox="0 0 54 54"');
+      .toContain('width="38" height="42" viewBox="0 0 38 42"');
     expect(spriteSpecToSvg(assetPreviewSpec(infantry, 6), "https://example.test/infantry.png"))
-      .toContain('width="54" height="54" viewBox="0 0 54 54"');
+      .toContain('width="38" height="42" viewBox="0 0 38 42"');
 
     const harvester = assetById("unit:harvester")!;
     expect(spriteSpecToSvg(assetPreviewSpec(harvester, 2), "https://example.test/harvester.png"))

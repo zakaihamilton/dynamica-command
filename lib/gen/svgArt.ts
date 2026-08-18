@@ -150,9 +150,12 @@ function hull(cx: number, cy: number, facing: Facing, length: number, width: num
 }
 
 export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSpriteOptions = {}): SpriteSpec {
-  const infantry = kind === "infantry" || kind === "antiArmor";
-  const w = infantry ? 54 : 64;
-  const h = infantry ? 54 : 60;
+  const infantry = kind === "infantry";
+  const antiArmor = kind === "antiArmor";
+  // Keep foot soldiers visually subordinate to the larger tracked units while
+  // retaining the same bottom contact anchor on the battlefield.
+  const w = infantry ? 38 : antiArmor ? 44 : 64;
+  const h = infantry ? 42 : antiArmor ? 46 : 60;
   const facing = options.facing ?? 0;
   const frame = options.animationFrame ?? 0;
   const variant = options.variant ?? 0;

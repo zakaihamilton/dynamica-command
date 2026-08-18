@@ -166,9 +166,10 @@ export function AssetsBrowser({
         : null;
       const renderDx = dx + (movement?.swayX ?? 0) * scale;
       const renderDy = dy - (movement?.bobY ?? 0) * scale;
+      const groundY = dy + dh;
       drawSprite(ctx, spec, image, renderDx, renderDy, dw, dh);
       if (movement && selected.category === "unit") {
-        paintUnitMovementFx(ctx, selected.kind as UnitKind, renderDx, renderDy, dw, dh, scale, frame, 1);
+        paintUnitMovementFx(ctx, selected.kind as UnitKind, renderDx, renderDy, dw, dh, groundY, scale, frame, 1);
       }
       if (selected.category === "building") {
         paintOverlay(ctx, selected.kind as BuildingKind, canvas.width / 2, canvas.height / 2, Math.max(1, scale), now);

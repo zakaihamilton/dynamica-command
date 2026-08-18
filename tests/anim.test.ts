@@ -64,7 +64,8 @@ describe("animation helpers", () => {
     const infantryMove = new Set([0, 90, 180, 270].map((clock) => unitAnim(infantry, 12, clock).bobY));
     const tankMove = new Set([0, 90, 180, 270].map((clock) => unitAnim(idle, 12, clock).bobY));
     expect(infantryMove.size).toBeGreaterThan(1);
-    expect(tankMove.size).toBeGreaterThan(1);
+    expect(tankMove.size).toBe(1);
+    expect(new Set([0, 90, 180, 270].map((clock) => unitAnim(idle, 12, clock).frame)).size).toBeGreaterThan(1);
   });
 
   it("derives building activity from construction and production", () => {

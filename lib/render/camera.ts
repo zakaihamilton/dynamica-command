@@ -119,6 +119,7 @@ export function panCamera(cam: Camera, dx: number, dy: number, bounds?: CameraBo
 }
 
 export const EDGE_PAN_BAND = 36;
+export const EDGE_PAN_DELAY_MS = 250;
 
 export function panDirFromPointer(
   x: number,

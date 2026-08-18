@@ -399,7 +399,18 @@ export function renderWorld(
     drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
     ctx.globalAlpha = 1;
     if (uAnim?.pose === "move") {
-      paintUnitMovementFx(ctx, e.kind as UnitKind, dx, dy, spec.w * z, spec.h * z, z, uAnim.frame, entityAlpha);
+      paintUnitMovementFx(
+        ctx,
+        e.kind as UnitKind,
+        dx,
+        dy,
+        spec.w * z,
+        spec.h * z,
+        s.y + (TILE_H / 2) * z,
+        z,
+        uAnim.frame,
+        entityAlpha,
+      );
     }
     drawDamageOverlay(
       ctx,
@@ -621,7 +632,16 @@ function facingFor(state: SimState, e: Entity): Facing {
   let target: { x: number; y: number } | undefined;
   if (e.attackTarget !== undefined) target = entityById.get(e.attackTarget);
   if (!target && e.path.length) target = e.path[0];
-  if (!target) return e.facing ?? ((e.owner === 0 ? 0 : 4) as Facing);
+  if (!target) {
+    // Once a unit has stopped, use the south-facing asset so its idle pose
+    // reads as looking toward the player. Combat and movement still take
+    // priority above this fallback, and therefore keep their live direction.
+    if (e.class === "unit" && e.attackTarget === undefined && e.path.length === 0) {
+      e.facing = 2;
+      return 2;
+    }
+    return e.facing ?? ((e.owner === 0 ? 0 : 4) as Facing);
+  }
   const next = toFacing(target.x - e.x, target.y - e.y);
   e.facing = next;
   return next;
