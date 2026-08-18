@@ -66,6 +66,38 @@ describe("tactical expansion", () => {
     expect(state.runtime.rescued).toBe(1);
   });
 
+  it("keeps extraction assets stationary until a player unit reaches them", () => {
+    const state = makeFixture({ win: { kind: "extraction", targetCount: 1, ticks: 100 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const escort = addUnit(state, 0, "infantry", 2, 3);
+    const asset = addUnit(state, 0, "infantry", 6, 3);
+    asset.neutral = true;
+    state.runtime = {
+      kind: "extraction",
+      phase: "active",
+      targetIds: [asset.id],
+      zone: { x: 0, y: 0 },
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    issue(state, { type: "move", unitIds: [asset.id], x: 9, y: 3 });
+    for (let i = 0; i < 10; i++) tick(state);
+    expect(asset.neutral).toBe(true);
+    expect(asset.x).toBe(6);
+    expect(asset.y).toBe(3);
+
+    issue(state, { type: "move", unitIds: [escort.id], x: asset.x, y: asset.y });
+    for (let i = 0; i < 100 && asset.neutral; i++) tick(state);
+    expect(asset.neutral).toBe(false);
+
+    issue(state, { type: "move", unitIds: [asset.id], x: 9, y: 3 });
+    for (let i = 0; i < 100; i++) tick(state);
+    expect(asset.x).toBeGreaterThan(6);
+  });
+
   it("completes a rescue quota even when the timed secondary objective expired", () => {
     const state = makeFixture({ win: { kind: "rescue", targetCount: 3, ticks: 10 } });
     addBuilding(state, 0, "constructionYard", 0, 0);

@@ -2,6 +2,7 @@ import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor, se
 import { cliffFaces, drawElevationFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite, wreckSprite } from "../gen/assets";
 import { generateVisualProfile } from "../gen/visualProfile";
 import { MAP_SKIRT, MAP_SKIRT_ALPHA, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
+import { RESCUE_CONTACT_RADIUS } from "../types";
 import type { BuildingKind, Entity, Facing, SimState, TileContour, UnitKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import {
@@ -348,6 +349,7 @@ export function renderWorld(
     const elev = entityElev(state, e);
     const s = tileToScreen(cx, cy, cam, elev);
     if (s.x < -cullPad || s.y < -cullPad || s.x > w + cullPad || s.y > h + cullPad) continue;
+    if (isLockedContactUnit(state, e)) drawRescueHalo(ctx, s.x, s.y, z, timeMs);
     const img = rasterize(spec);
     const ax = (spec.anchorX ?? spec.w / 2) * z;
     const ay = (spec.anchorY ?? spec.h) * z;
@@ -480,6 +482,39 @@ export function renderWorld(
     if (ent) drawTooltip(ctx, cursor.x, cursor.y, tooltipLines(state, ent, extras), w, h);
     else if (hoverTile) drawTooltip(ctx, cursor.x, cursor.y, tileTooltipLines(state, hoverTile.x, hoverTile.y), w, h);
   }
+}
+
+function isLockedContactUnit(state: SimState, e: Entity): boolean {
+  return e.class === "unit"
+    && e.neutral === true
+    && (state.runtime?.kind === "rescue" || state.runtime?.kind === "extraction")
+    && state.runtime.targetIds.includes(e.id);
+}
+
+function drawRescueHalo(ctx: CanvasRenderingContext2D, x: number, y: number, z: number, timeMs: number): void {
+  const pulse = selectionPulse(timeMs);
+  ctx.save();
+  ctx.globalAlpha = 0.14 + pulse * 0.08;
+  ctx.fillStyle = "#67e0d0";
+  ctx.beginPath();
+  ctx.ellipse(
+    x,
+    y + (TILE_H / 2) * z,
+    RESCUE_CONTACT_RADIUS * (TILE_W / 2) * z,
+    RESCUE_CONTACT_RADIUS * (TILE_H / 2) * z,
+    0,
+    0,
+    Math.PI * 2,
+  );
+  ctx.fill();
+  ctx.globalAlpha = 0.8 + pulse * 0.2;
+  ctx.strokeStyle = "#67e0d0";
+  ctx.lineWidth = Math.max(2, 2.5 * z);
+  ctx.shadowColor = "#67e0d0";
+  ctx.shadowBlur = 7 * z;
+  ctx.setLineDash([4 * z, 4 * z]);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function entityVariant(state: SimState, e: Entity): number {

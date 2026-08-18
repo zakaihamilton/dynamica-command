@@ -54,6 +54,8 @@ export type MissionRuntime = {
   secondary: SecondaryObjective[];
 };
 
+export const RESCUE_CONTACT_RADIUS = 2.5;
+
 export type CampaignProgress = {
   version: 1;
   seed: number;
