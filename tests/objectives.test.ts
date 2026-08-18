@@ -13,7 +13,7 @@ describe("win categories", () => {
     addBuilding(s, 0, "constructionYard", 0, 0);
     addBuilding(s, 0, "refinery", 3, 2);
     const h = addUnit(s, 0, "harvester", 2, 2);
-    h.carry = 100;
+    h.carry = 250;
     setTile(s, 5, 5, TILE_RESOURCE, 200);
     tick(s);
     expect(s.creditsEarned[0]).toBeGreaterThanOrEqual(50);

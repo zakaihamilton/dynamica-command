@@ -11,6 +11,7 @@ describe("tactical expansion", () => {
 
     expect(state.credits).toEqual([STARTING_CREDITS.player, STARTING_CREDITS.enemy]);
     expect(UNIT_STATS.harvester.cost).toBe(450);
+    expect(UNIT_STATS.harvester.carryMax).toBe(250);
     expect(UNIT_STATS.infantry.cost).toBe(75);
     expect(UNIT_STATS.antiArmor.cost).toBe(160);
     expect(UNIT_STATS.tank.cost).toBe(425);
