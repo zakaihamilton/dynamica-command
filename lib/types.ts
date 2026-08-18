@@ -270,6 +270,8 @@ export type TileSpriteOptions = {
   biome?: BiomeName;
   variant?: number;
   edgeMask?: number;
+  /** Cardinal boundary mask for contiguous roads/pads; used to avoid cell-by-cell seams. */
+  surfaceMask?: number;
   surface?: SurfaceKind;
   resourceLevel?: number;
   contour?: TileContour;

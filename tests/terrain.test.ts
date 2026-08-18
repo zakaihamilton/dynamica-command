@@ -205,7 +205,66 @@ describe("organic map generation", () => {
     expect(water).toBeGreaterThan(0);
     expect(neighborSum / water).toBeGreaterThan(3);
   });
+
+  it("removes tiny water remnants after pads and routes are carved", () => {
+    for (let seed = 0; seed < 32; seed++) {
+      const campaign = createCampaign(seed);
+      for (const mission of campaign.missions) {
+        const components = waterComponentSizes(generateMap(seed, mission));
+        expect(components.every((size) => size >= 4)).toBe(true);
+      }
+    }
+  }, 30_000);
+
+  it("forms broad elevation regions and non-linear surface routes", () => {
+    const map = generateMap(832, { index: 0, win: { kind: "annihilate" }, mapSize: 48 });
+    let elevated = 0;
+    let adjacentElevated = 0;
+    const roadDiagonals = new Set<number>();
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        const i = y * map.width + x;
+        if ((map.heights[i] ?? 1) >= 2) {
+          elevated += 1;
+          if (x + 1 < map.width && (map.heights[i + 1] ?? 1) >= 2) adjacentElevated += 1;
+          if (y + 1 < map.height && (map.heights[i + map.width] ?? 1) >= 2) adjacentElevated += 1;
+        }
+        if (map.surfaces[i] === 1) roadDiagonals.add(x - y);
+      }
+    }
+    expect(elevated).toBeGreaterThan(0);
+    expect(adjacentElevated / elevated).toBeGreaterThan(0.25);
+    expect(roadDiagonals.size).toBeGreaterThan(8);
+  });
 });
+
+function waterComponentSizes(map: ReturnType<typeof generateMap>): number[] {
+  const seen = new Uint8Array(map.tiles.length);
+  const components: number[] = [];
+  for (let i = 0; i < map.tiles.length; i++) {
+    if (seen[i] || map.tiles[i] !== TILE_WATER) continue;
+    const queue = [i];
+    seen[i] = 1;
+    let size = 0;
+    while (queue.length) {
+      const current = queue.pop()!;
+      size += 1;
+      const x = current % map.width;
+      const y = Math.floor(current / map.width);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;
+        const next = ny * map.width + nx;
+        if (seen[next] || map.tiles[next] !== TILE_WATER) continue;
+        seen[next] = 1;
+        queue.push(next);
+      }
+    }
+    components.push(size);
+  }
+  return components;
+}
 
 describe("minimap camera view", () => {
   it("projects screen corners around the focused isometric tile", () => {

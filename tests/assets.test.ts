@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
-import { buildingSprite, elevationFace, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
+import { buildingSprite, cliffFaces, elevationFace, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
 import { BIOMES } from "../lib/gen/names";
 import { SURFACE_CONCRETE } from "../lib/types";
@@ -93,6 +93,85 @@ describe("tactical procedural assets", () => {
     const shapeCounts = jungleLayouts.map((shapes) => shapes.length);
     expect(Math.min(...shapeCounts)).toBeLessThanOrEqual(8);
     expect(Math.max(...shapeCounts) - Math.min(...shapeCounts)).toBeGreaterThan(3);
+  });
+
+  it("shares a deterministic material drift across coarse terrain zones", () => {
+    const local = tileSprite("clear", 1, { biome: "tundra grid", variant: 7, contour: "none" });
+    const zones = Array.from({ length: 16 }, (_, zone) =>
+      tileSprite("clear", 1, { biome: "tundra grid", variant: (7 | (zone << 8)), contour: "none" }),
+    );
+    const repeat = tileSprite("clear", 1, { biome: "tundra grid", variant: (7 | (5 << 8)), contour: "none" });
+    expect(repeat).toEqual(zones[5]);
+    expect(new Set(zones.map((spec) => spec.palette.primary)).size).toBeGreaterThan(1);
+    expect(new Set(zones.map((spec) => JSON.stringify(spec.shapes))).size).toBeGreaterThan(1);
+    expect(zones.some((spec) => spec.palette.primary !== local.palette.primary)).toBe(true);
+  });
+
+  it("adds layered wear and tactical markings to concrete without a cell bevel lattice", () => {
+    const variants = Array.from({ length: 64 }, (_, variant) =>
+      tileSprite("clear", 1, {
+        biome: "tundra grid",
+        variant,
+        surface: SURFACE_CONCRETE,
+        contour: "none",
+      }),
+    );
+    const fingerprints = variants.map((spec) => JSON.stringify(spec.shapes));
+    const lineCounts = variants.map((spec) => spec.shapes.filter((shape) => shape.type === "line").length);
+    const hazardMarks = variants.filter((spec) =>
+      spec.shapes.some((shape) => shape.stroke === "#d5a64e" || shape.stroke === "#d87868"),
+    );
+    expect(new Set(fingerprints).size).toBeGreaterThan(20);
+    expect(Math.max(...lineCounts)).toBeGreaterThan(Math.min(...lineCounts));
+    expect(hazardMarks.length).toBeGreaterThan(0);
+    expect(variants.every((spec) => spec.shapes.some((shape) => shape.type === "poly"))).toBe(true);
+  });
+
+  it("keeps contiguous road interiors quieter than route boundaries", () => {
+    const interior = tileSprite("clear", 1, {
+      biome: "tundra grid",
+      variant: 11,
+      surface: 1,
+      surfaceMask: 0,
+      contour: "none",
+    });
+    const boundary = tileSprite("clear", 1, {
+      biome: "tundra grid",
+      variant: 11,
+      surface: 1,
+      surfaceMask: 15,
+      contour: "none",
+    });
+    expect(interior.shapes.filter((shape) => shape.type === "line").length)
+      .toBeLessThan(boundary.shapes.filter((shape) => shape.type === "line").length);
+    expect(interior.shapes.some((shape) => shape.type === "poly" && shape.w >= 88)).toBe(true);
+  });
+
+  it("supports continuous terrain compositing without repeating full floor plates", () => {
+    const open = tileSprite("clear", 1, {
+      biome: "ash plains",
+      variant: 11,
+      surfaceMask: -1,
+      contour: "none",
+    });
+    const water = tileSprite("water", 0, {
+      biome: "ash plains",
+      variant: 11,
+      surfaceMask: 0,
+      contour: "bank",
+    });
+    expect(open.shapes.some((shape) => shape.type === "poly" && shape.w >= 60)).toBe(false);
+    expect(water.shapes).toHaveLength(0);
+  });
+
+  it("gives elevation faces stronger, deterministic material separation", () => {
+    const low = cliffFaces("tundra grid", 1);
+    const mid = cliffFaces("tundra grid", 2);
+    const high = cliffFaces("tundra grid", 3);
+    expect(low).toEqual(cliffFaces("tundra grid", 1));
+    expect(new Set([low.south, mid.south, high.south]).size).toBeGreaterThan(1);
+    expect(new Set([low.east, mid.east, high.east]).size).toBeGreaterThan(1);
+    expect(mid.south).not.toBe(high.south);
   });
 
   it("scatters distinct landmark families through continuous terrain fields", () => {
