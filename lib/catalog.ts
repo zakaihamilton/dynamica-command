@@ -2,6 +2,7 @@ import type { ArmorType, BuildingKind, UnitKind, UpgradeId, WeaponType } from ".
 
 export const TICKS_PER_SECOND = 12;
 export const MAX_PRODUCTION_QUEUE = 10;
+export const STARTING_CREDITS = { player: 2000, enemy: 2000 } as const;
 
 export function productionQueueSize(entity: {
   producing?: { kind: UnitKind; remaining: number };
@@ -57,7 +58,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     damage: 0,
     range: 0,
     cooldown: 0,
-    cost: 900,
+    cost: 450,
     buildTicks: 216,
     sight: 5,
     carryMax: 100,
@@ -72,7 +73,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     damage: 5,
     range: 2.4,
     cooldown: 12,
-    cost: 150,
+    cost: 75,
     buildTicks: 96,
     sight: 6,
     carryMax: 0,
@@ -87,7 +88,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     damage: 10,
     range: 3.2,
     cooldown: 16,
-    cost: 320,
+    cost: 160,
     buildTicks: 144,
     sight: 6,
     carryMax: 0,
@@ -102,7 +103,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     damage: 12,
     range: 3.6,
     cooldown: 16,
-    cost: 850,
+    cost: 425,
     buildTicks: 240,
     sight: 7,
     carryMax: 0,
@@ -115,11 +116,11 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
 
 export const BUILDING_STATS: Record<BuildingKind, BuildingStats> = {
   constructionYard: { hp: 3200, cost: 0, buildTicks: 0, power: 20, sight: 8, footprint: { w: 2, h: 2 }, armor: "structure" },
-  power: { hp: 520, cost: 600, buildTicks: 180, power: 100, sight: 4, footprint: { w: 2, h: 2 }, armor: "structure" },
-  refinery: { hp: 1100, cost: 1000, buildTicks: 240, power: -10, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },
-  barracks: { hp: 900, cost: 750, buildTicks: 216, power: -10, sight: 5, footprint: { w: 2, h: 2 }, armor: "structure" },
-  factory: { hp: 1300, cost: 1600, buildTicks: 360, power: -15, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },
-  turret: { hp: 480, cost: 550, buildTicks: 168, power: -8, sight: 7, footprint: { w: 1, h: 1 }, armor: "structure", weapon: "cannon" },
+  power: { hp: 520, cost: 300, buildTicks: 180, power: 100, sight: 4, footprint: { w: 2, h: 2 }, armor: "structure" },
+  refinery: { hp: 1100, cost: 500, buildTicks: 240, power: -10, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },
+  barracks: { hp: 900, cost: 375, buildTicks: 216, power: -10, sight: 5, footprint: { w: 2, h: 2 }, armor: "structure" },
+  factory: { hp: 1300, cost: 800, buildTicks: 360, power: -15, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },
+  turret: { hp: 480, cost: 275, buildTicks: 168, power: -8, sight: 7, footprint: { w: 1, h: 1 }, armor: "structure", weapon: "cannon" },
   objective: { hp: 1800, cost: 0, buildTicks: 0, power: 0, sight: 3, footprint: { w: 2, h: 2 }, armor: "structure" },
 };
 

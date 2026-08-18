@@ -3,8 +3,24 @@ import { createMission, issue, tick } from "../lib/sim/api";
 import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
+import { BUILDING_STATS, STARTING_CREDITS, UNIT_STATS } from "../lib/catalog";
 
 describe("tactical expansion", () => {
+  it("starts missions with more credits and half-cost units and buildings", () => {
+    const state = createMission({ seed: 421, missionIndex: 0 });
+
+    expect(state.credits).toEqual([STARTING_CREDITS.player, STARTING_CREDITS.enemy]);
+    expect(UNIT_STATS.harvester.cost).toBe(450);
+    expect(UNIT_STATS.infantry.cost).toBe(75);
+    expect(UNIT_STATS.antiArmor.cost).toBe(160);
+    expect(UNIT_STATS.tank.cost).toBe(425);
+    expect(BUILDING_STATS.power.cost).toBe(300);
+    expect(BUILDING_STATS.refinery.cost).toBe(500);
+    expect(BUILDING_STATS.barracks.cost).toBe(375);
+    expect(BUILDING_STATS.factory.cost).toBe(800);
+    expect(BUILDING_STATS.turret.cost).toBe(275);
+  });
+
   it("ramps enemy pressure across the campaign instead of starting at endgame strength", () => {
     const opening = createMission({ seed: 421, missionIndex: 0 });
     const finale = createMission({ seed: 421, missionIndex: 7 });

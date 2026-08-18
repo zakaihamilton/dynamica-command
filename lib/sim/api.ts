@@ -1,4 +1,4 @@
-import { UNIT_STATS } from "../catalog";
+import { STARTING_CREDITS, UNIT_STATS } from "../catalog";
 import { createRng, mixSeed } from "../seed/rng";
 import { RESCUE_CONTACT_RADIUS } from "../types";
 import type { BuildingKind, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
@@ -84,7 +84,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     fog: makeFog(map.width, map.height, 0),
     entities: [],
     nextId: 1,
-    credits: [1000, 1400],
+    credits: [STARTING_CREDITS.player, STARTING_CREDITS.enemy],
     creditsEarned: [0, 0],
     unitsProduced: [0, 0],
     unitsProducedByRole: emptyRoleCounts(),
