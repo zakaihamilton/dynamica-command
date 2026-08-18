@@ -11,6 +11,8 @@ import type {
 import { TILE_BLOCKED, TILE_WATER } from "../types";
 import { powerProduction, unitMaxHp } from "./upgrades";
 
+export const BUILDING_PLACEMENT_RADIUS = 8;
+
 export function at(state: SimState, x: number, y: number): number {
   return y * state.width + x;
 }
@@ -94,8 +96,35 @@ export function footprintFlat(state: SimState, x: number, y: number, w: number, 
   return true;
 }
 
-export function canPlaceBuilding(state: SimState, kind: BuildingKind, x: number, y: number): boolean {
+function buildingNetworkDistance(
+  state: SimState,
+  owner: Owner,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): number {
+  let nearest = Infinity;
+  for (const building of state.entities) {
+    if (building.hp <= 0 || building.class !== "building" || building.owner !== owner) continue;
+    const fp = footprintOf(building.kind as BuildingKind);
+    const dx = Math.max(building.x - (x + w), x - (building.x + fp.w), 0);
+    const dy = Math.max(building.y - (y + h), y - (building.y + fp.h), 0);
+    nearest = Math.min(nearest, Math.hypot(dx, dy));
+  }
+  return nearest;
+}
+
+export function canPlaceBuilding(
+  state: SimState,
+  kind: BuildingKind,
+  x: number,
+  y: number,
+  owner: Owner = 0,
+  requireNetwork = true,
+): boolean {
   const fp = footprintOf(kind);
+  if (requireNetwork && buildingNetworkDistance(state, owner, x, y, fp.w, fp.h) > BUILDING_PLACEMENT_RADIUS) return false;
   for (let oy = 0; oy < fp.h; oy++) {
     for (let ox = 0; ox < fp.w; ox++) {
       const tx = x + ox;
@@ -114,17 +143,19 @@ export function findBuildSite(
   nearX: number,
   nearY: number,
   maxR = 12,
+  owner: Owner = 0,
+  requireNetwork = true,
 ): Vec2 | undefined {
   const cx = Math.round(nearX);
   const cy = Math.round(nearY);
-  if (canPlaceBuilding(state, kind, cx, cy)) return { x: cx, y: cy };
+  if (canPlaceBuilding(state, kind, cx, cy, owner, requireNetwork)) return { x: cx, y: cy };
   for (let r = 1; r <= maxR; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const x = cx + dx;
         const y = cy + dy;
-        if (canPlaceBuilding(state, kind, x, y)) return { x, y };
+        if (canPlaceBuilding(state, kind, x, y, owner, requireNetwork)) return { x, y };
       }
     }
   }
@@ -427,7 +458,7 @@ export function spawnBuildingAt(
   constructing = 0,
   marked = false,
 ): Entity | undefined {
-  const spot = findBuildSite(state, kind, x, y, 14);
+  const spot = findBuildSite(state, kind, x, y, 14, owner, false);
   if (!spot) return undefined;
   return spawnBuilding(state, owner, kind, spot.x, spot.y, constructing, marked);
 }

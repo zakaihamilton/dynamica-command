@@ -9,7 +9,7 @@ const YARD_DEFENSE_RANGE = 14;
 
 function tryBuildPower(state: SimState, yardX: number, yardY: number): boolean {
   if (state.credits[1] < BUILDING_STATS.power.cost) return false;
-  const spot = findBuildSite(state, "power", yardX + 3, yardY);
+  const spot = findBuildSite(state, "power", yardX + 3, yardY, 12, 1);
   if (!spot) return false;
   spawnBuilding(state, 1, "power", spot.x, spot.y, BUILDING_STATS.power.buildTicks);
   state.credits[1] -= BUILDING_STATS.power.cost;
@@ -47,13 +47,13 @@ export function tickAi(state: SimState): void {
     } else if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
       // Restore the grid before expanding.
     } else if (state.credits[1] >= BUILDING_STATS.barracks.cost && !barracks) {
-      const spot = findBuildSite(state, "barracks", yard.x - 3, yard.y);
+      const spot = findBuildSite(state, "barracks", yard.x - 3, yard.y, 12, 1);
       if (spot) {
         state.credits[1] -= BUILDING_STATS.barracks.cost;
         spawnBuilding(state, 1, "barracks", spot.x, spot.y, BUILDING_STATS.barracks.buildTicks);
       }
     } else if (state.credits[1] >= BUILDING_STATS.factory.cost && !factory) {
-      const spot = findBuildSite(state, "factory", yard.x, yard.y - 3);
+      const spot = findBuildSite(state, "factory", yard.x, yard.y - 3, 12, 1);
       if (spot) {
         state.credits[1] -= BUILDING_STATS.factory.cost;
         spawnBuilding(state, 1, "factory", spot.x, spot.y, BUILDING_STATS.factory.buildTicks);
