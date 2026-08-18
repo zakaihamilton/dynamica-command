@@ -8,7 +8,7 @@ import type {
   UnitKind,
   Vec2,
 } from "../types";
-import { TILE_BLOCKED, TILE_WATER } from "../types";
+import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import { powerProduction, unitMaxHp } from "./upgrades";
 
 export const BUILDING_PLACEMENT_RADIUS = 8;
@@ -69,9 +69,24 @@ export function buildingAt(state: SimState, x: number, y: number): Entity | unde
   return state.entities.find((e) => e.class === "building" && occupies(e, x, y));
 }
 
+export type TerrainAccess = {
+  traversable: boolean;
+  buildable: boolean;
+  label: "Open ground" | "Water" | "Ore field" | "Hard blocker" | "Outside map";
+};
+
+/** The shared terrain contract for movement, construction, tooltips, and picking feedback. */
+export function terrainAccess(state: SimState, x: number, y: number): TerrainAccess {
+  if (!inBounds(state, x, y)) return { traversable: false, buildable: false, label: "Outside map" };
+  const tile = tileAt(state, x, y);
+  if (tile === TILE_WATER) return { traversable: false, buildable: false, label: "Water" };
+  if (tile === TILE_BLOCKED) return { traversable: false, buildable: false, label: "Hard blocker" };
+  if (tile === TILE_RESOURCE) return { traversable: true, buildable: true, label: "Ore field" };
+  return { traversable: true, buildable: true, label: "Open ground" };
+}
+
 export function isWalkable(state: SimState, x: number, y: number): boolean {
-  if (!inBounds(state, x, y)) return false;
-  if (tileAt(state, x, y) === TILE_WATER || tileAt(state, x, y) === TILE_BLOCKED) return false;
+  if (!terrainAccess(state, x, y).traversable) return false;
   if (buildingAt(state, x, y)) return false;
   if (unitAt(state, x, y)) return false;
   return true;
@@ -130,7 +145,7 @@ export function canPlaceBuilding(
       const tx = x + ox;
       const ty = y + oy;
       if (!inBounds(state, tx, ty)) return false;
-      if (tileAt(state, tx, ty) === TILE_WATER || tileAt(state, tx, ty) === TILE_BLOCKED) return false;
+      if (!terrainAccess(state, tx, ty).buildable) return false;
       if (buildingAt(state, tx, ty)) return false;
     }
   }

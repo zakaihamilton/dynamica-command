@@ -153,6 +153,14 @@ export type FactionVisualProfile = {
   lightRig: "cyan" | "amber" | "red";
 };
 
+export type CampaignArtFamily = 0 | 1 | 2;
+
+export type CampaignVisualProfile = {
+  family: CampaignArtFamily;
+  terrainTreatment: "modular" | "armored" | "expeditionary";
+  terrainAccent: "cyan" | "amber" | "red";
+};
+
 export type Faction = {
   id: Owner;
   name: string;
@@ -230,6 +238,16 @@ export type SpriteSpec = {
   palette: Palette;
   shapes: ShapeSpec[];
   svg?: string;
+  /** A project-local pre-rendered sprite. Kept optional for deterministic procedural fallbacks. */
+  imageSrc?: string;
+  /** Seeded campaign-grade color treatment composited over a pre-rendered sprite. */
+  imageTint?: string;
+  /** A subtle material plate composited into procedural terrain without replacing map geometry. */
+  imageTextureSrc?: string;
+  imageTextureOpacity?: number;
+  imageTextureOffset?: number;
+  /** Screen-space turn applied around the sprite anchor (used by raster units). */
+  rotation?: number;
   anchorX?: number;
   anchorY?: number;
   pixelScale?: number;
@@ -244,6 +262,7 @@ export type TileSpriteOptions = {
   surface?: SurfaceKind;
   resourceLevel?: number;
   contour?: TileContour;
+  campaignProfile?: CampaignVisualProfile;
 };
 
 export type AnimFrame = 0 | 1 | 2 | 3;

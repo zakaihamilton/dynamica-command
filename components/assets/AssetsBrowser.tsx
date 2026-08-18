@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
 import { listGeneratedAssets } from "@/lib/gen/assetCatalog";
-import { generateVisualProfile } from "@/lib/gen/visualProfile";
+import { generateCampaignVisualProfile, generateVisualProfile } from "@/lib/gen/visualProfile";
 import { buildingAnim } from "@/lib/render/anim";
-import { drawSprite, rasterize } from "@/lib/render/sprites";
+import { drawSprite, rasterize, rotatedSpriteBounds } from "@/lib/render/sprites";
 import { assetsCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
@@ -97,6 +97,11 @@ export function AssetsBrowser({
   const [designFamily, setDesignFamily] = useState<FactionVisualProfile["designFamily"]>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const profile = useMemo(() => ({ ...generateVisualProfile(421, 0), designFamily }), [designFamily]);
+  const campaignProfile = useMemo(() => {
+    const base = generateCampaignVisualProfile(421);
+    const terrainTreatment = ["modular", "armored", "expeditionary"] as const;
+    return { ...base, family: designFamily, terrainTreatment: terrainTreatment[designFamily] };
+  }, [designFamily]);
 
   const selectAsset = (id: string) => {
     setSelectedId(id);
@@ -145,14 +150,16 @@ export function AssetsBrowser({
                     biome: selected.biome ?? "ash plains",
                     variant,
                     contour: selected.tileKind === "water" ? "bank" : "none",
+                    campaignProfile,
                   });
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const image = rasterize(spec);
-      const scale = Math.min(canvas.width / spec.w, canvas.height / spec.h) * 0.86;
+      const bounds = rotatedSpriteBounds(spec);
+      const scale = Math.min(canvas.width / bounds.width, canvas.height / bounds.height) * 0.86;
       const dw = Math.max(1, Math.round(spec.w * scale));
       const dh = Math.max(1, Math.round(spec.h * scale));
-      const dx = Math.round((canvas.width - dw) / 2);
-      const dy = Math.round((canvas.height - dh) / 2);
+      const dx = Math.round((canvas.width - bounds.width * scale) / 2 - bounds.minX * scale);
+      const dy = Math.round((canvas.height - bounds.height * scale) / 2 - bounds.minY * scale);
       drawSprite(ctx, spec, image, dx, dy, dw, dh);
       if (selected.category === "building") {
         paintOverlay(ctx, selected.kind as BuildingKind, canvas.width / 2, canvas.height / 2, Math.max(1, scale), now);
@@ -169,7 +176,7 @@ export function AssetsBrowser({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [construction, damage, facing, palette, playing, profile, selected, variant]);
+  }, [campaignProfile, construction, damage, facing, palette, playing, profile, selected, variant]);
 
   if (!selected) return null;
 

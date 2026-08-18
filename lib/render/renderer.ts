@@ -1,15 +1,14 @@
 import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor, sellRefundFor } from "../catalog";
 import { cliffFaces, drawElevationFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite, wreckSprite } from "../gen/assets";
-import { generateVisualProfile } from "../gen/visualProfile";
+import { generateCampaignVisualProfile, generateVisualProfile } from "../gen/visualProfile";
 import { MAP_SKIRT, MAP_SKIRT_ALPHA, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import { RESCUE_CONTACT_RADIUS } from "../types";
-import type { BuildingKind, Entity, Facing, SimState, TileContour, UnitKind } from "../types";
+import type { BuildingKind, CampaignVisualProfile, Entity, Facing, SimState, TileContour, UnitKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import {
   animClock,
   buildingAnim,
   constructionProgress,
-  damageFlicker,
   facingVector,
   selectionPulse,
   toFacing,
@@ -19,13 +18,14 @@ import {
 } from "./anim";
 import { HEIGHT_STEP, TILE_H, TILE_W, screenToGroundTile, tileToScreen, type Camera } from "./iso";
 import { cachedSprite, drawSprite, rasterize } from "./sprites";
-import { buildingAt, canPlaceBuilding, groundHeight, heightAt } from "../sim/world";
+import { buildingAt, canPlaceBuilding, groundHeight, heightAt, terrainAccess } from "../sim/world";
 import { fogAt } from "../sim/fog";
 import { canRepair } from "../sim/repair";
 import { canSell } from "../sim/sell";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
 
 const SHROUD_FILL = "rgba(5, 6, 8, 0.68)";
+const TERRAIN_RENDER_REV = "surface-continuity-v2";
 
 function entityElev(state: SimState, e: Entity): number {
   return e.class === "unit" ? groundHeight(state, e.x, e.y) : heightAt(state, Math.round(e.x), Math.round(e.y));
@@ -38,8 +38,8 @@ function tileKind(t: number): "clear" | "water" | "resource" | "blocked" {
   return "clear";
 }
 
-function tileVariant(x: number, y: number): number {
-  return ((x * 73856093) ^ (y * 19349663)) >>> 0;
+function tileVariant(seed: number, x: number, y: number): number {
+  return ((seed * 83492791) ^ (x * 73856093) ^ (y * 19349663)) >>> 0;
 }
 
 function pointInDiamond(px: number, py: number, x: number, y: number, w: number, h: number): boolean {
@@ -54,14 +54,17 @@ export function pickTile(
   sy: number,
   cam: Camera,
 ): { x: number; y: number } | null {
-  const g = screenToGroundTile(sx, sy, cam);
+  // Bring the pointer back to the base plane, then test actual raised tile tops.
+  // This avoids a cliff face stealing a click intended for the tile behind it.
+  const maxElev = 3;
+  const g = screenToGroundTile(sx, sy + maxElev * HEIGHT_STEP * cam.zoom, cam);
   const cx = Math.round(g.x);
   const cy = Math.round(g.y);
   let best: { x: number; y: number } | null = null;
   let bestDepth = -Infinity;
   const tw = TILE_W * cam.zoom;
   const th = TILE_H * cam.zoom;
-  const r = 5;
+  const r = 4;
   const x0 = Math.max(0, cx - r);
   const y0 = Math.max(0, cy - r);
   const x1 = Math.min(state.width - 1, cx + r);
@@ -71,7 +74,9 @@ export function pickTile(
       const elev = heightAt(state, x, y);
       const s = tileToScreen(x, y, cam, elev);
       if (!pointInDiamond(sx, sy, s.x, s.y, tw, th)) continue;
-      const depth = x + y + elev * 8;
+      // Terrain is painted in x + y order. Prefer the front-most top surface,
+      // and resolve same-depth overlaps in favor of the raised tactical tile.
+      const depth = (x + y) * 16 + elev;
       if (depth >= bestDepth) {
         bestDepth = depth;
         best = { x, y };
@@ -87,6 +92,23 @@ function entityVisible(state: SimState, e: Entity): boolean {
   const fog = fogAt(state, tx, ty);
   if (e.owner === 1 && fog !== 2) return false;
   return true;
+}
+
+function renderEntityOpacity(state: SimState, e: Entity, timeMs: number): number {
+  if (e.owner === 0 || e.class !== "unit") return entityVisible(state, e) ? 1 : 0;
+  const fog = fogAt(state, Math.round(e.x), Math.round(e.y));
+  const target = fog === 2 ? 1 : fog === 1 ? 0.22 : 0;
+  const previous = entityVisibility.get(e.id);
+  if (!previous) {
+    entityVisibility.set(e.id, { alpha: target, target, timeMs });
+    return target;
+  }
+  if (previous.target !== target) previous.target = target;
+  const elapsed = Math.max(0, timeMs - previous.timeMs);
+  const blend = 1 - Math.exp(-elapsed / 120);
+  previous.alpha += (previous.target - previous.alpha) * blend;
+  previous.timeMs = timeMs;
+  return previous.alpha;
 }
 
 export function visibleBuildingAt(state: SimState, x: number, y: number): Entity | undefined {
@@ -127,6 +149,7 @@ export type RenderExtras = {
 
 const sceneryMemo = new Map<number, ScenerySample>();
 const entityById = new Map<number, Entity>();
+const entityVisibility = new Map<number, { alpha: number; target: number; timeMs: number }>();
 const drawList: Entity[] = [];
 
 type TerrainLayer = {
@@ -136,6 +159,16 @@ type TerrainLayer = {
 };
 
 const terrainLayer: TerrainLayer = { canvas: null, skirt: null, key: "" };
+const campaignVisualMemo = new Map<number, CampaignVisualProfile>();
+
+function campaignVisualFor(seed: number): CampaignVisualProfile {
+  let profile = campaignVisualMemo.get(seed);
+  if (!profile) {
+    profile = generateCampaignVisualProfile(seed);
+    campaignVisualMemo.set(seed, profile);
+  }
+  return profile;
+}
 
 function sceneryKey(x: number, y: number): number {
   return ((x + 512) << 12) | (y + 512);
@@ -164,7 +197,7 @@ function resourceSignature(amounts: number[]): number {
 }
 
 function terrainCacheKey(state: SimState, cam: Camera, w: number, h: number): string {
-  return `${state.seed}:${state.missionIndex}:${w}x${h}:${cam.x | 0}:${cam.y | 0}:${cam.zoom}:${fogSignature(state.fog)}:${resourceSignature(state.resourceAmount)}`;
+  return `${TERRAIN_RENDER_REV}:${state.seed}:${state.missionIndex}:${w}x${h}:${cam.x | 0}:${cam.y | 0}:${cam.zoom}:${fogSignature(state.fog)}:${resourceSignature(state.resourceAmount)}`;
 }
 
 function ensureOffscreen(slot: "canvas" | "skirt", w: number, h: number): HTMLCanvasElement | null {
@@ -318,7 +351,8 @@ export function renderWorld(
   const timeMs = animClock(state.tick, clock);
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "ground");
   for (const e of drawList) {
-    if (!entityVisible(state, e)) continue;
+    const entityAlpha = renderEntityOpacity(state, e, timeMs);
+    if (entityAlpha <= 0.01) continue;
     const pal = state.factions[e.owner]!.palette;
     const profile = generateVisualProfile(state.seed, e.owner);
     const facing = facingFor(state, e);
@@ -360,9 +394,21 @@ export function renderWorld(
     if (e.class === "building") {
       drawBuildingShadow(ctx, state, cam, e, z);
     }
-    ctx.globalAlpha = (e.constructing > 0 ? 0.72 : 1) * damageFlicker(timeMs, e.id, damageStage);
+    ctx.globalAlpha = entityAlpha * (e.constructing > 0 ? 0.72 : 1);
     drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
     ctx.globalAlpha = 1;
+    drawDamageOverlay(
+      ctx,
+      spec,
+      dx,
+      dy,
+      spec.w * z,
+      spec.h * z,
+      damageStage,
+      timeMs,
+      e.id,
+      entityAlpha * (e.constructing > 0 ? 0.72 : 1),
+    );
 
     if (bAnim) drawBuildingFx(ctx, e, s, z, bAnim);
     if (uAnim?.pose === "work") drawHarvestFx(ctx, state, e, cam, timeMs);
@@ -521,6 +567,52 @@ function entityVariant(state: SimState, e: Entity): number {
   return ((state.seed * 2654435761) ^ (e.id * 2246822519)) >>> 0;
 }
 
+function drawDamageOverlay(
+  ctx: CanvasRenderingContext2D,
+  spec: { w: number; h: number; rotation?: number; anchorX?: number; anchorY?: number },
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  damageStage: 0 | 1 | 2,
+  timeMs: number,
+  id: number,
+  baseAlpha: number,
+): void {
+  if (damageStage <= 0) return;
+  const sx = dw / spec.w;
+  const sy = dh / spec.h;
+  const ax = (spec.anchorX ?? spec.w / 2) * sx;
+  const ay = (spec.anchorY ?? spec.h) * sy;
+  const pulse = (Math.sin(timeMs * 0.006 + id * 1.7) + 1) * 0.5;
+  ctx.save();
+  ctx.translate(dx + ax, dy + ay);
+  if (spec.rotation) ctx.rotate(spec.rotation);
+  ctx.globalAlpha = baseAlpha * 0.6;
+  ctx.fillStyle = "#2b2520";
+  ctx.beginPath();
+  ctx.ellipse(-8 * sx, -8 * sy, 9 * sx, 4 * sy, -0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#171514";
+  ctx.lineWidth = Math.max(1, 1.8 * sx);
+  ctx.beginPath();
+  ctx.moveTo(-4 * sx, -20 * sy);
+  ctx.lineTo(4 * sx, 5 * sy);
+  ctx.lineTo(13 * sx, -1 * sy);
+  ctx.stroke();
+  if (damageStage > 1) {
+    ctx.globalAlpha = baseAlpha * (0.22 + pulse * 0.16);
+    ctx.fillStyle = "#1b1d1c";
+    for (let i = 0; i < 3; i++) {
+      const rise = (i * 8 + pulse * 5) * sy;
+      ctx.beginPath();
+      ctx.arc((8 + i * 5) * sx, -22 * sy - rise, (3 + i) * sx, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 function facingFor(state: SimState, e: Entity): Facing {
   let target: { x: number; y: number } | undefined;
   if (e.attackTarget !== undefined) target = entityById.get(e.attackTarget);
@@ -664,8 +756,8 @@ function drawTile(
       HEIGHT_STEP * cam.zoom,
       dropE,
       dropS,
-      tileVariant(x, y),
-      cliffFaces(state.biome, elev),
+      tileVariant(state.seed, x, y),
+      cliffFaces(state.biome, elev, campaignVisualFor(state.seed)),
     );
   }
 
@@ -698,11 +790,12 @@ function drawTile(
   const amount = inMap ? (state.resourceAmount[y * state.width + x] ?? 0) : 0;
   const opts = {
     biome: state.biome,
-    variant: tileVariant(x, y) % 64,
+    variant: tileVariant(state.seed, x, y) % 64,
     edgeMask,
     surface: inMap ? (state.surfaces[y * state.width + x] ?? SURFACE_NONE) : SURFACE_NONE,
     resourceLevel: amount > 700 ? 4 : amount > 450 ? 3 : amount > 200 ? 2 : 1,
     contour,
+    campaignProfile: campaignVisualFor(state.seed),
   };
   const id = tileSpriteId(kind, elev, opts);
   const img = cachedSprite(id) ?? rasterize(tileSprite(kind, elev, opts));
@@ -768,8 +861,10 @@ function tileTooltipLines(state: SimState, x: number, y: number): string[] {
   else if (scenery.kind === TILE_BLOCKED) terrain = "Impassable";
   if (surface === SURFACE_ROAD) terrain = "Dirt road";
   else if (surface === SURFACE_CONCRETE) terrain = "Concrete pad";
-  const lines = [terrain, state.biome, `Elevation ${scenery.elev}`];
+  const access = terrainAccess(state, x, y);
+  const lines = [terrain, state.biome, `Elevation ${scenery.elev}`, access.traversable ? "Passable" : "Impassable"];
   if (scenery.kind === TILE_RESOURCE) lines.push(`Ore ${state.resourceAmount[y * state.width + x] ?? 0}`);
+  if (!access.buildable) lines.push("Construction blocked");
   if (fog === 1) lines.push("Shrouded");
   return lines;
 }

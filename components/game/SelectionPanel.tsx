@@ -2,16 +2,18 @@ import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, TICKS_PER_SECOND, UNIT_STATS, lab
 import { ProgressMeter } from "@/components/ui/ProgressMeter";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
-import type { BuildingKind, Entity, Palette, UnitKind } from "@/lib/types";
+import type { BuildingKind, Entity, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import { SpritePreview } from "./SpritePreview";
 import styles from "./SelectionPanel.module.css";
 
 export function SelectionPanel({
   selected,
   palette,
+  profile,
 }: {
   selected: Entity | undefined;
   palette: Palette;
+  profile: FactionVisualProfile;
 }) {
   return (
     <section className={styles.section}>
@@ -20,7 +22,7 @@ export function SelectionPanel({
         <div className={styles.body}>
           <div className={styles.row}>
             <div className={styles.portrait}>
-              <SpritePreview kind={selected.kind as BuildingKind | UnitKind} palette={palette} />
+              <SpritePreview kind={selected.kind as BuildingKind | UnitKind} palette={palette} profile={profile} />
             </div>
             <div>
               <strong

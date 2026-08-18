@@ -6,6 +6,7 @@ import { MAX_PRODUCTION_QUEUE, UPGRADE_COST, buildingCameoStatus, producerFor, p
 import { beep, setMuted } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
 import { createCampaign } from "@/lib/gen/campaign";
+import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
 import { buyUpgrade, completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
@@ -67,6 +68,7 @@ export function GameClient({
 }) {
   const router = useRouter();
   const campaign = useMemo(() => createCampaign(seed), [seed]);
+  const playerVisualProfile = useMemo(() => generateVisualProfile(seed, 0), [seed]);
   const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume, tutorial));
   const stateRef = useRef<SimState>(state);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -964,6 +966,7 @@ export function GameClient({
         factionName={campaign.factions[0].name}
         state={s}
         palette={pal}
+        profile={playerVisualProfile}
         selected={selectedEnt}
         placeKind={placeKind}
         repairMode={repairMode}

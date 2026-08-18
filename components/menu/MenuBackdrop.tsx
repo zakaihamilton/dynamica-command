@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { cliffFaces, drawElevationFaces, buildingSprite, tileSprite, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite } from "@/lib/gen/assets";
 import { generateFactions } from "@/lib/gen/factions";
 import { generateMap } from "@/lib/gen/map";
-import { generateVisualProfile } from "@/lib/gen/visualProfile";
+import { generateCampaignVisualProfile, generateVisualProfile } from "@/lib/gen/visualProfile";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
 import { drawSprite, rasterize } from "@/lib/render/sprites";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
@@ -41,6 +41,7 @@ export function MenuBackdrop() {
       mapSize: 28,
     });
     const [us, them] = generateFactions(CINEMA_SEED);
+    const campaignProfile = generateCampaignVisualProfile(CINEMA_SEED);
 
     const p0 = map.playerStart;
     const e0 = map.enemyStart;
@@ -203,7 +204,7 @@ export function MenuBackdrop() {
               dropE,
               dropS,
               x * 13 + y * 7,
-              cliffFaces(map.biome, elev),
+              cliffFaces(map.biome, elev, campaignProfile),
             );
           }
           const img = rasterize(tileSprite(kind, elev, {
@@ -211,6 +212,7 @@ export function MenuBackdrop() {
             variant: (x * 13 + y * 7) % 64,
             surface: map.surfaces[y * map.width + x],
             resourceLevel: 4,
+            campaignProfile,
           }));
           if (kind === "resource") {
             ctx.globalAlpha = 0.85 + Math.sin(t * 0.08 + x + y) * 0.15;

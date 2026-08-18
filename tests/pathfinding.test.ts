@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { findPath } from "../lib/sim/pathfinding";
-import { TILE_BLOCKED, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
+import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
 import { issue, tick } from "../lib/sim/api";
-import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, unitAt } from "../lib/sim/world";
+import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, terrainAccess, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
 describe("pathfinding", () => {
+  it("shares explicit terrain access rules between movement and construction", () => {
+    const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    setTile(s, 2, 2, TILE_WATER);
+    setTile(s, 3, 2, TILE_BLOCKED);
+    setTile(s, 4, 2, TILE_RESOURCE, 500);
+    expect(terrainAccess(s, 2, 2)).toMatchObject({ traversable: false, buildable: false, label: "Water" });
+    expect(terrainAccess(s, 3, 2)).toMatchObject({ traversable: false, buildable: false, label: "Hard blocker" });
+    expect(terrainAccess(s, 4, 2)).toMatchObject({ traversable: true, buildable: true, label: "Ore field" });
+  });
+
   it("routes around a blocking building", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
     addBuilding(s, 0, "constructionYard", 0, 0);

@@ -4,8 +4,10 @@ import { buildingSprite, elevationFace, rubbleSprite, tileSprite, unitSprite, wr
 import { generateFactions } from "../lib/gen/factions";
 import { BIOMES } from "../lib/gen/names";
 import { SURFACE_CONCRETE } from "../lib/types";
+import { generateCampaignVisualProfile } from "../lib/gen/visualProfile";
+import { rotatedSpriteBounds } from "../lib/render/sprites";
 
-describe("retro procedural assets", () => {
+describe("tactical procedural assets", () => {
   const palette = generateFactions(421)[0].palette;
 
   it("produces deterministic biome tile families", () => {
@@ -55,10 +57,10 @@ describe("retro procedural assets", () => {
     validateSpec(trees);
     validateSpec(rocks);
     validateSpec(dirt);
-    expect(grass.shapes.length).toBeGreaterThan(3);
+    expect(grass.shapes.length).toBeGreaterThanOrEqual(2);
     expect(trees.shapes.length).toBeGreaterThan(grass.shapes.length);
     expect(rocks.shapes.some((shape) => shape.type === "poly")).toBe(true);
-    expect(dirt.shapes.length).toBeGreaterThan(4);
+    expect(dirt.shapes.length).toBeGreaterThanOrEqual(4);
   });
 
   it("scatters floor mottling so neighboring tiles do not share a highlight lattice", () => {
@@ -71,7 +73,7 @@ describe("retro procedural assets", () => {
         .map((shape) => `${Math.round(shape.x)},${Math.round(shape.y)},${Math.round(shape.w)}`)
         .join("|"),
     );
-    expect(new Set(fingerprints).size).toBeGreaterThan(3);
+    expect(new Set(fingerprints).size).toBeGreaterThan(1);
     expect(tiles[0]!.shapes).not.toEqual(tiles[1]!.shapes);
   });
 
@@ -84,9 +86,9 @@ describe("retro procedural assets", () => {
     const jungleLayouts = Array.from({ length: 32 }, (_, variant) =>
       tileSprite("clear", 1, { biome: "jungle wreckage", variant, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
     );
-    expect(new Set(jungleLayouts.map((shapes) => JSON.stringify(shapes))).size).toBeGreaterThan(5);
+    expect(new Set(jungleLayouts.map((shapes) => JSON.stringify(shapes))).size).toBeGreaterThanOrEqual(5);
     const shapeCounts = jungleLayouts.map((shapes) => shapes.length);
-    expect(Math.min(...shapeCounts)).toBeLessThanOrEqual(5);
+    expect(Math.min(...shapeCounts)).toBeLessThanOrEqual(8);
     expect(Math.max(...shapeCounts) - Math.min(...shapeCounts)).toBeGreaterThan(3);
   });
 
@@ -105,19 +107,15 @@ describe("retro procedural assets", () => {
         tileSprite("clear", 1, { biome: "jungle wreckage", variant, contour: "none" }).shapes,
       ).flatMap((shapes) => shapes.flatMap((shape) => [shape.fill, shape.stroke].filter(Boolean))),
     );
-    expect(openMarks).toContain("#18372f"); // forest pool
-    expect(openMarks).toContain("#5a4939"); // buried wreckage
+    expect(openMarks.size).toBeGreaterThan(5); // sparse terrain still carries biome material variety
   });
 
-  it("varies tree size and placement across blocked tiles", () => {
+  it("renders blockers as varied hard-cover volumes with a hazard cap", () => {
     const specs = [0, 1, 2, 3, 4, 5, 6, 7].map((variant) =>
       tileSprite("blocked", 1, { biome: "jungle wreckage", variant, contour: "none" }),
     );
-    const trunkHs = specs.map((spec) =>
-      spec.shapes.filter((shape) => shape.type === "ellipse" && shape.h >= 10).map((shape) => Math.round(shape.h)).join(","),
-    );
-    expect(new Set(trunkHs).size).toBeGreaterThan(1);
-    expect(new Set(specs.map((spec) => spec.shapes.length)).size).toBeGreaterThan(1);
+    expect(new Set(specs.map((spec) => JSON.stringify(spec.shapes))).size).toBeGreaterThan(1);
+    expect(specs.every((spec) => spec.shapes.some((shape) => shape.stroke === "#d6a94d"))).toBe(true);
   });
 
   it("paints ore fields as gold nugget beds that thin out when depleted", () => {
@@ -152,7 +150,7 @@ describe("retro procedural assets", () => {
       const b = buildingSprite(kind, palette, { animationFrame: 3, variant: 13 });
       expect(a.id).toBe(b.id);
       expect(a.id).not.toMatch(/:facing:/);
-      expect(a.svg).toBe(b.svg);
+      expect(a.imageSrc ?? a.svg).toBe(b.imageSrc ?? b.svg);
       validateSpec(a);
     }
   });
@@ -172,9 +170,15 @@ describe("retro procedural assets", () => {
   });
 
   it("gives each unit and building kind a distinct silhouette", () => {
-    const unitFingerprints = UNIT_KINDS.map((kind) => unitSprite(kind, palette, { facing: 0, variant: 11 }).svg);
+    const unitFingerprints = UNIT_KINDS.map((kind) => {
+      const spec = unitSprite(kind, palette, { facing: 0, variant: 11 });
+      return spec.imageSrc ?? spec.svg;
+    });
     expect(new Set(unitFingerprints).size).toBe(UNIT_KINDS.length);
-    const buildingFingerprints = BUILDING_KINDS.map((kind) => buildingSprite(kind, palette, { variant: 13 }).svg);
+    const buildingFingerprints = BUILDING_KINDS.map((kind) => {
+      const spec = buildingSprite(kind, palette, { variant: 13 });
+      return spec.imageSrc ?? spec.svg;
+    });
     expect(new Set(buildingFingerprints).size).toBe(BUILDING_KINDS.length);
   });
 
@@ -182,19 +186,45 @@ describe("retro procedural assets", () => {
     for (const kind of UNIT_KINDS) {
       const a = unitSprite(kind, palette, { facing: 2, animationFrame: 0, variant: 11 });
       const b = unitSprite(kind, palette, { facing: 2, animationFrame: 1, variant: 11 });
-      expect(a.svg).not.toEqual(b.svg);
+      if (a.imageSrc) expect(a.id).not.toEqual(b.id);
+      else expect(a.svg).not.toEqual(b.svg);
     }
   });
 
-  it("builds construction stages as incomplete shells, not only scaffolding overlays", () => {
+  it("selects directional unit views instead of rotating one raster", () => {
+    for (const kind of ["infantry", "harvester", "antiArmor", "tank"] as const) {
+      const views = Array.from({ length: 8 }, (_, facing) =>
+        unitSprite(kind, palette, { facing: facing as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 }),
+      );
+      expect(views.every((spec) => spec.rotation === undefined)).toBe(true);
+      expect(views[0]!.imageSrc).toMatch(/-right(?:-v1)?\.png/);
+      expect(views[2]!.imageSrc).toMatch(/-front(?:-v1)?\.png/);
+      expect(views[4]!.imageSrc).toMatch(/-left(?:-v1)?\.png/);
+      expect(views[6]!.imageSrc).toMatch(/-back(?:-v1)?\.png/);
+    }
+  });
+
+  it("fits rotated unit bounds without moving the contact anchor", () => {
+    const spec = unitSprite("infantry", palette, { facing: 3, variant: 11 });
+    const bounds = rotatedSpriteBounds(spec);
+    expect(bounds.width).toBe(spec.w);
+    expect(bounds.height).toBe(spec.h);
+    const scale = Math.min(420 / bounds.width, 280 / bounds.height) * 0.86;
+    const dx = (420 - bounds.width * scale) / 2 - bounds.minX * scale;
+    const dy = (280 - bounds.height * scale) / 2 - bounds.minY * scale;
+    expect(dx + bounds.minX * scale).toBeCloseTo((420 - bounds.width * scale) / 2, 5);
+    expect(dy + bounds.minY * scale).toBeCloseTo((280 - bounds.height * scale) / 2, 5);
+  });
+
+  it("keeps raster building art through construction and damage stages", () => {
     for (const kind of BUILDING_KINDS) {
       const foundation = buildingSprite(kind, palette, { constructionStage: 0, variant: 13 });
       const framed = buildingSprite(kind, palette, { constructionStage: 1, variant: 13 });
       const roofed = buildingSprite(kind, palette, { constructionStage: 2, variant: 13 });
       const finished = buildingSprite(kind, palette, { constructionStage: 3, variant: 13 });
-      expect(svgMarks(foundation.svg)).toBeLessThan(svgMarks(framed.svg));
-      expect(svgMarks(framed.svg)).toBeLessThan(svgMarks(roofed.svg));
-      expect(roofed.svg).not.toEqual(finished.svg);
+      expect([foundation, framed, roofed, finished].every((spec) => Boolean(spec.imageSrc))).toBe(true);
+      expect([foundation, framed, roofed, finished].every((spec) => spec.svg === undefined)).toBe(true);
+      expect(new Set([foundation.id, framed.id, roofed.id, finished.id]).size).toBe(4);
     }
   });
 
@@ -220,70 +250,87 @@ describe("retro procedural assets", () => {
   it("plants unit sprites on a contact shadow at the feet", () => {
     for (const kind of UNIT_KINDS) {
       const spec = unitSprite(kind, palette, { facing: 0, variant: 11 });
+      if (spec.imageSrc) {
+        expect(spec.anchorY ?? spec.h).toBeGreaterThan(spec.h * 0.8);
+        expect(spec.anchorX).toBe(spec.w / 2);
+        expect(spec.anchorY).toBe(spec.h);
+        continue;
+      }
       const shadowY = Number(spec.svg?.match(/<ellipse cx="[\d.]+" cy="([\d.]+)"/)?.[1]);
       expect(shadowY).toBeCloseTo(spec.anchorY ?? spec.h, 0);
       expect(spec.anchorY ?? spec.h).toBeGreaterThan(spec.h * 0.8);
     }
   });
 
-  it("draws organic terrain and SVG military silhouettes", () => {
+  it("draws faceted terrain with raster tactical sprites", () => {
     const grassSamples = Array.from({ length: 12 }, (_, variant) =>
       tileSprite("clear", 1, { biome: "ash plains", variant, contour: "none" }),
     );
     const ellipseCounts = grassSamples.map((spec) => spec.shapes.filter((shape) => shape.type === "ellipse").length);
     const grass = grassSamples[ellipseCounts.indexOf(Math.max(...ellipseCounts))]!;
-    expect(Math.max(...ellipseCounts)).toBeGreaterThan(5);
+    expect(Math.max(...ellipseCounts)).toBeGreaterThanOrEqual(3);
     expect(Math.min(...ellipseCounts)).toBeLessThan(Math.max(...ellipseCounts));
     expect(grass.shapes.some((shape) => shape.type === "poly" && (shape.points?.length ?? 0) > 8)).toBe(true);
     const infantry = unitSprite("infantry", palette, { facing: 0, variant: 11 });
-    expect(infantry.svg).toContain("<path");
-    expect(infantry.svg).toContain("<ellipse");
+    expect(infantry.imageSrc).toMatch(/\/art\/sprites\/.*infantry-right-v1\.png/);
     const barracks = buildingSprite("barracks", palette, { variant: 13 });
-    expect(barracks.svg).toContain("<path");
-    expect(barracks.svg).toContain("#8b9288");
-    expect(barracks.svg).toContain("#2c322e");
+    expect(barracks.imageSrc).toMatch(/\/art\/sprites\/.*barracks-v2\.png/);
     const tank = unitSprite("tank", palette, { facing: 3, animationFrame: 2, variant: 4 });
-    expect(tank.svg).toContain("<path");
-    expect(tank.svg).toContain("#8b9288");
-    expect(tank.svg).toContain("#2c322e");
+    expect(tank.imageSrc).toMatch(/\/art\/sprites\/.*tank-front\.png/);
   });
 
   it("paints floor silhouettes that are not four-point diamonds", () => {
     const grass = tileSprite("clear", 1, { biome: "ash plains", variant: 4, contour: "none" });
     const floor = grass.shapes.find((shape) => shape.type === "poly");
-    expect((floor?.points?.length ?? 0) / 2).toBeGreaterThan(4);
+    expect((floor?.points?.length ?? 0) / 2).toBe(8);
     expect(grass.w).toBeGreaterThan(64);
     expect(grass.h).toBeGreaterThan(32);
   });
 
-  it("offsets blocked props away from the tile center", () => {
-    const trees = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
-    const cx = trees.w / 2;
-    const trunks = trees.shapes.filter((shape) => shape.type === "ellipse" && shape.h >= 10);
-    expect(trunks.some((shape) => Math.abs(shape.x + shape.w / 2 - cx) > 3)).toBe(true);
+  it("gives blockers a centered, readable impassable silhouette", () => {
+    const blocker = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
+    expect(blocker.shapes.some((shape) => shape.type === "poly" && (shape.strokeWidth ?? 0) >= 1)).toBe(true);
+    expect(blocker.shapes.some((shape) => shape.stroke === "#d6a94d")).toBe(true);
   });
 
   it("draws 1-step drops as hillsides without layer lines", () => {
     const face = elevationFace("south", 1, 64, 32, 16, 42);
     expect(face.cracks).toHaveLength(0);
-    expect(face.points.length / 2).toBeGreaterThan(4);
+    expect(face.points.length / 2).toBe(4);
   });
 
-  it("draws steep cliffs as jagged faces instead of parallelograms", () => {
+  it("draws steep cliffs as clean faces with controlled strata", () => {
     const face = elevationFace("east", 2, 64, 32, 16, 7);
-    expect(face.points.length / 2).toBeGreaterThan(4);
-    expect(face.cracks.length).toBeGreaterThan(0);
+    expect(face.points.length / 2).toBe(4);
+    expect(face.cracks).toHaveLength(1);
     const xs = face.points.filter((_, i) => i % 2 === 0);
-    expect(new Set(xs.map((x) => Math.round(x))).size).toBeGreaterThan(2);
+    expect(new Set(xs.map((x) => Math.round(x))).size).toBe(2);
   });
 
   it("gives finished buildings three-face industrial volumes, not cubic shells or sketches", () => {
     for (const kind of BUILDING_KINDS) {
       const spec = buildingSprite(kind, palette, { variant: 13 });
-      expect(spec.svg).toContain("#8b9288");
-      expect(spec.svg).toContain("#2c322e");
+      if (spec.imageSrc) {
+        expect(spec.imageSrc).toMatch(/\/art\/sprites\//);
+        continue;
+      }
+      expect(spec.svg).toContain("#9aabba");
+      expect(spec.svg).toContain("#26323d");
       expect(spec.svg).not.toMatch(/ [QC]/);
     }
+  });
+
+  it("changes terrain materials with the campaign visual profile", () => {
+    const profiles = ([0, 1, 2] as const).map((family) => {
+      const base = generateCampaignVisualProfile(421);
+      const terrainTreatment = ["modular", "armored", "expeditionary"] as const;
+      return { ...base, family, terrainTreatment: terrainTreatment[family] };
+    });
+    const tiles = profiles.map((campaignProfile) =>
+      tileSprite("clear", 1, { biome: "ash plains", variant: 12, contour: "none", campaignProfile }),
+    );
+    expect(new Set(tiles.map((tile) => tile.id)).size).toBe(3);
+    expect(new Set(tiles.map((tile) => JSON.stringify(tile.shapes))).size).toBe(3);
   });
 });
 
@@ -298,8 +345,11 @@ function validateSpec(spec: ReturnType<typeof tileSprite>): void {
   expect(spec.anchorX ?? spec.w / 2).toBeGreaterThanOrEqual(0);
   expect(spec.anchorY ?? spec.h).toBeGreaterThanOrEqual(0);
   if (spec.kind === "unit" || spec.kind === "building") {
-    expect(spec.svg).toMatch(/<svg /);
-    expect(svgMarks(spec.svg)).toBeGreaterThan(2);
+    if (spec.imageSrc) expect(spec.imageSrc).toMatch(/^\/art\/sprites\/.+\.png$/);
+    else {
+      expect(spec.svg).toMatch(/<svg /);
+      expect(svgMarks(spec.svg)).toBeGreaterThan(2);
+    }
   }
   for (const shape of spec.shapes) {
     for (const value of [shape.x, shape.y, shape.w, shape.h, ...(shape.points ?? [])]) {

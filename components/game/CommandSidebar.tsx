@@ -1,7 +1,7 @@
 import type { PointerEventHandler, Ref } from "react";
 import { BUILDING_STATS, UNIT_STATS, buildingCameoStatus, unitCameoStatus } from "@/lib/catalog";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
-import type { BuildingKind, Entity, Palette, SimState, UnitKind } from "@/lib/types";
+import type { BuildingKind, Entity, FactionVisualProfile, Palette, SimState, UnitKind } from "@/lib/types";
 import { CameoGrid } from "./CameoGrid";
 import { CommandTabs } from "./CommandTabs";
 import { CommandCameo } from "./CommandCameo";
@@ -17,6 +17,7 @@ export function CommandSidebar({
   factionName,
   state,
   palette,
+  profile,
   selected,
   placeKind,
   repairMode,
@@ -42,6 +43,7 @@ export function CommandSidebar({
   factionName: string;
   state: SimState;
   palette: Palette;
+  profile: FactionVisualProfile;
   selected: Entity | undefined;
   placeKind: BuildingKind | null;
   repairMode: boolean;
@@ -112,6 +114,7 @@ export function CommandSidebar({
                   key={kind}
                   kind={kind}
                   palette={palette}
+                  profile={profile}
                   cost={BUILDING_STATS[kind].cost}
                   disabled={cameo.phase === "idle" && state.credits[0] < BUILDING_STATS[kind].cost}
                   active={placeKind === kind}
@@ -134,6 +137,7 @@ export function CommandSidebar({
                   key={unit}
                   kind={unit}
                   palette={palette}
+                  profile={profile}
                   cost={UNIT_STATS[unit].cost}
                   disabled={cameo.phase === "idle" && !canBuy}
                   cameo={cameo}
@@ -148,7 +152,7 @@ export function CommandSidebar({
       </section>
 
       <div className={styles.selected}>
-        <SelectionPanel selected={selected} palette={palette} />
+        <SelectionPanel selected={selected} palette={palette} profile={profile} />
       </div>
     </aside>
   );
