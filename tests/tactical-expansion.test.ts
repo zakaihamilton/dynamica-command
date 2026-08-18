@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createMission, tick } from "../lib/sim/api";
+import { createMission, issue, tick } from "../lib/sim/api";
 import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
+import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 
 describe("tactical expansion", () => {
   it("gates tutorial orders until the matching stage", () => {
@@ -18,9 +19,37 @@ describe("tactical expansion", () => {
     expect(neutral).toBeDefined();
     if (state.missionKind === "escort") {
       expect(neutral?.path.at(-1)).toEqual(expect.objectContaining({ x: state.runtime?.zone?.x, y: state.runtime?.zone?.y }));
+    } else {
+      expect(neutral?.path).toEqual([]);
     }
     const hostile = state.entities.find((entity) => entity.owner === 1 && entity.class === "unit");
     expect(hostile?.attackTarget).not.toBe(neutral?.id);
+  });
+
+  it("frees rescue actors when a player unit reaches them", () => {
+    const state = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 100 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const rescuer = addUnit(state, 0, "infantry", 2, 3);
+    const stranded = addUnit(state, 0, "infantry", 6, 3);
+    stranded.neutral = true;
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [stranded.id],
+      zone: { x: 0, y: 0 },
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    tick(state);
+    expect(stranded.neutral).toBe(true);
+    issue(state, { type: "move", unitIds: [rescuer.id], x: stranded.x, y: stranded.y });
+    for (let i = 0; i < 100; i++) tick(state);
+
+    expect(stranded.neutral).toBe(false);
+    expect(state.runtime.rescued).toBe(1);
   });
 
   it("recovers suppression on non-combat units and seeds classic secondary objectives", () => {

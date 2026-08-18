@@ -42,6 +42,45 @@ describe("pathfinding", () => {
     expect(Math.round(b.x) === 3 && Math.round(b.y) === 2).toBe(false);
   });
 
+  it("reroutes a combat unit when another unit steps into its existing route", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const infantry = addUnit(s, 0, "infantry", 2, 3);
+    issue(s, { type: "move", unitIds: [infantry.id], x: 6, y: 3 });
+    const blocker = addUnit(s, 0, "infantry", 3, 3);
+
+    tick(s);
+
+    expect(infantry.blockedTicks).toBeGreaterThanOrEqual(1);
+    expect(infantry.path[0]).not.toEqual({ x: Math.round(blocker.x), y: Math.round(blocker.y) });
+    for (let i = 0; i < 500; i++) tick(s);
+    expect(Math.round(infantry.x)).toBe(6);
+    expect(Math.round(infantry.y)).toBe(3);
+  });
+
+  it("reroutes an enemy combat unit around another enemy unit", () => {
+    const s = makeFixture({ width: 10, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const enemy = addUnit(s, 1, "infantry", 2, 6);
+    enemy.stance = "hold";
+    enemy.path = [
+      { x: 3, y: 6 },
+      { x: 4, y: 6 },
+      { x: 5, y: 6 },
+      { x: 6, y: 6 },
+    ];
+    const blocker = addUnit(s, 1, "tank", 3, 6);
+    blocker.stance = "hold";
+
+    tick(s);
+
+    expect(enemy.blockedTicks).toBeGreaterThanOrEqual(1);
+    expect(enemy.path[0]).not.toEqual({ x: Math.round(blocker.x), y: Math.round(blocker.y) });
+    for (let i = 0; i < 500; i++) tick(s);
+    expect(Math.round(enemy.x)).toBe(6);
+    expect(Math.round(enemy.y)).toBe(6);
+  });
+
   it("relocates a spawned unit when its requested square is occupied", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
     const first = addUnit(s, 0, "infantry", 2, 2);

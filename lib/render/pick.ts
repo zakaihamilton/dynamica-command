@@ -13,12 +13,12 @@ function fogVisible(state: SimState, e: Entity): boolean {
 }
 
 /** Screen-space pick: units first so vehicles overlapping a building stay selectable. */
-export function pickEntity(state: SimState, sx: number, sy: number, cam: Camera): Entity | undefined {
+export function pickEntity(state: SimState, sx: number, sy: number, cam: Camera, allowNeutral = false): Entity | undefined {
   let bestUnit: Entity | undefined;
   let bestD = Infinity;
   const z = cam.zoom;
   for (const e of state.entities) {
-    if (e.hp <= 0 || e.class !== "unit" || e.neutral || !fogVisible(state, e)) continue;
+    if (e.hp <= 0 || e.class !== "unit" || (!allowNeutral && e.neutral) || !fogVisible(state, e)) continue;
     const elev = groundHeight(state, e.x, e.y);
     const s = tileToScreen(e.x, e.y, cam, elev);
     const bodyX = s.x;

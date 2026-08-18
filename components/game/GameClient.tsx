@@ -635,10 +635,18 @@ export function GameClient({
 
   function entityAt(s: SimState, tx: number, ty: number) {
     const unit = s.entities.find(
-      (en) => en.hp > 0 && en.class === "unit" && !en.neutral && Math.round(en.x) === tx && Math.round(en.y) === ty,
+      (en) => en.hp > 0 && en.class === "unit" && (isRescueTarget(s, en) || !en.neutral) && Math.round(en.x) === tx && Math.round(en.y) === ty,
     );
     if (unit) return unit;
     return visibleBuildingAt(s, tx, ty);
+  }
+
+  function isRescueTarget(s: SimState, entity: SimState["entities"][number]): boolean {
+    return entity.neutral === true && s.runtime?.kind === "rescue" && s.runtime.targetIds.includes(entity.id);
+  }
+
+  function pickSelectableEntity(s: SimState, x: number, y: number, tx: number, ty: number) {
+    return pickEntity(s, x, y, camRef.current, s.runtime?.kind === "rescue") ?? entityAt(s, tx, ty);
   }
 
   const issueContextOrder = (s: SimState, p: { x: number; y: number }) => {
@@ -652,7 +660,7 @@ export function GameClient({
       return;
     }
     const ids = [...selected.current];
-    const target = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+    const target = pickSelectableEntity(s, p.x, p.y, tx, ty);
     if (target && target.owner === 1) cmdQ.current.push({ type: "attack", unitIds: ids, targetId: target.id });
     else if (s.tiles[ty * s.width + tx] === 2) cmdQ.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
     else cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
@@ -797,7 +805,7 @@ export function GameClient({
     const ty = Math.round(t.y);
     if (e.pointerType === "touch" && mobileCommand.current) {
       const command = mobileCommand.current;
-      const target = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      const target = pickSelectableEntity(s, p.x, p.y, tx, ty);
       const ids = [...selected.current];
       if (ids.length > 0) {
         if (command === "move") cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
@@ -833,7 +841,7 @@ export function GameClient({
     }
     if (repair.current) {
       box.current = null;
-      const hit = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      const hit = pickSelectableEntity(s, p.x, p.y, tx, ty);
       if (hit && hit.owner === 0 && hit.class === "building") {
         cmdQ.current.push({ type: "repair", buildingId: hit.id });
         beep("build");
@@ -842,7 +850,7 @@ export function GameClient({
     }
     if (sell.current) {
       box.current = null;
-      const hit = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      const hit = pickSelectableEntity(s, p.x, p.y, tx, ty);
       if (hit && hit.owner === 0 && hit.class === "building") {
         cmdQ.current.push({ type: "sell", buildingId: hit.id });
         beep("build");
@@ -859,14 +867,14 @@ export function GameClient({
       const x1 = Math.max(b.x0, b.x1);
       const y1 = Math.max(b.y0, b.y1);
       for (const en of s.entities) {
-        if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit") continue;
+        if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit" || (en.neutral && !isRescueTarget(s, en))) continue;
         const elev = heightAt(s, Math.round(en.x), Math.round(en.y));
         const sp = tileToScreen(en.x, en.y, camRef.current, elev);
         if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) ids.push(en.id);
       }
       commitSelection(ids);
     } else {
-      const hit = pickEntity(s, p.x, p.y, camRef.current) ?? entityAt(s, tx, ty);
+      const hit = pickSelectableEntity(s, p.x, p.y, tx, ty);
       if (e.pointerType === "touch" && selected.current.size > 0 && !hit) {
         const ids = [...selected.current];
         const hasHarvester = ids.some((id) => s.entities.some((entity) => entity.id === id && entity.owner === 0 && entity.kind === "harvester"));
@@ -880,7 +888,7 @@ export function GameClient({
         cmdQ.current.push({ type: "attack", unitIds: [...selected.current], targetId: hit.id });
         beep("ack");
       } else {
-        commitSelection(hit && hit.owner === 0 && !hit.neutral ? [hit.id] : []);
+        commitSelection(hit && hit.owner === 0 && (!hit.neutral || isRescueTarget(s, hit)) ? [hit.id] : []);
         beep("select");
       }
     }

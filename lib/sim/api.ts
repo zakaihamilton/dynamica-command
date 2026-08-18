@@ -9,7 +9,7 @@ import { tickEconomy } from "./economy";
 import { makeFog, tickFog } from "./fog";
 import { applyCommands, issue } from "./orders";
 import { evaluateObjectives, inspect } from "./objectives";
-import { stepAlongPath } from "./pathfinding";
+import { findPath, stepAlongPath } from "./pathfinding";
 import { tickProduction } from "./production";
 import { tickRepair } from "./repair";
 import { emptyRoleCounts, spawnBuildingAt, spawnUnit } from "./world";
@@ -31,7 +31,23 @@ function tickMovement(state: SimState): void {
     const next = e.path[0];
     const targetKey = next ? key(Math.round(next.x), Math.round(next.y)) : currentKey;
     const claim = reserved.get(targetKey);
-    if (next && targetKey !== currentKey && (occupied.has(targetKey) || (claim !== undefined && claim !== e.id))) continue;
+    const blockedByUnit = next && targetKey !== currentKey && occupied.has(targetKey);
+    const blocked = blockedByUnit || (next && targetKey !== currentKey && claim !== undefined && claim !== e.id);
+    if (blocked) {
+      e.blockedTicks = (e.blockedTicks ?? 0) + 1;
+      if (e.blockedTicks === 1 || e.blockedTicks % 6 === 0) {
+        const destination = e.path[e.path.length - 1];
+        if (destination) {
+          const detour = findPath(state, e, destination);
+          const detourFirst = detour[0];
+          if (detourFirst && !occupied.has(key(Math.round(detourFirst.x), Math.round(detourFirst.y)))) {
+            e.path = detour;
+          }
+        }
+      }
+      continue;
+    }
+    e.blockedTicks = 0;
     if (next && targetKey !== currentKey) reserved.set(targetKey, e.id);
     const beforeKey = currentKey;
     stepAlongPath(e, speed);
@@ -166,8 +182,8 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
         const target = spawnUnit(state, 0, kind === "escort" ? "tank" : "infantry", point.x, point.y);
         target.neutral = kind !== "extraction";
         targetIds.push(target.id);
-        if (kind === "escort" || kind === "rescue") {
-          target.path = stepRoute(state, target, kind === "escort" ? map.enemyStart : map.playerStart);
+        if (kind === "escort") {
+          target.path = stepRoute(state, target, map.enemyStart);
         }
       }
     }
@@ -245,10 +261,16 @@ function tickScenario(state: SimState): void {
   const runtime = state.runtime;
   if (!runtime || runtime.phase === "complete") return;
   const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
-  if (runtime.kind === "rescue" && yard) {
+  if (runtime.kind === "rescue") {
+    const rescuers = state.entities.filter(
+      (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !e.neutral,
+    );
     for (const id of runtime.targetIds) {
       const e = state.entities.find((item) => item.id === id && item.hp > 0);
-      if (e?.neutral && Math.hypot(e.x - yard.x, e.y - yard.y) <= 3) {
+      if (!e?.neutral) continue;
+      e.path = [];
+      e.idle = true;
+      if (rescuers.some((rescuer) => Math.hypot(rescuer.x - e.x, rescuer.y - e.y) <= 2.5)) {
         e.neutral = false;
         runtime.rescued += 1;
       }

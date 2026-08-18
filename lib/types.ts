@@ -130,6 +130,7 @@ export type Entity = {
   armor?: ArmorType;
   weapon?: WeaponType;
   formation?: Formation;
+  blockedTicks?: number;
 };
 
 export type Palette = {

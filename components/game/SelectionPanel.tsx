@@ -15,7 +15,7 @@ export function SelectionPanel({
 }) {
   return (
     <section className={styles.section}>
-      <ConsoleLabel>Selected</ConsoleLabel>
+      <ConsoleLabel className={styles.label}>Selected</ConsoleLabel>
       {selected ? (
         <div className={styles.body}>
           <div className={styles.row}>
@@ -32,7 +32,9 @@ export function SelectionPanel({
                 {labelFor(selected.kind as BuildingKind | UnitKind)}
               </strong>
               <span className={styles.stat}>HP {Math.ceil(selected.hp)} / {selected.maxHp}</span>
-              {selected.class === "unit" ? <span className={styles.stat}>Stance {selected.stance ?? "aggressive"}</span> : null}
+              {selected.neutral ? (
+                <span className={styles.warning} data-testid="selected-status">Stranded — cannot move until freed</span>
+              ) : selected.class === "unit" ? <span className={styles.stat}>Stance {selected.stance ?? "aggressive"}</span> : null}
               {(selected.suppression ?? 0) > 0 ? <span className={styles.stat}>Suppressed {Math.ceil(selected.suppression ?? 0)}%</span> : null}
               {selected.kind === "harvester" ? (
                 <span className={styles.carry}>
