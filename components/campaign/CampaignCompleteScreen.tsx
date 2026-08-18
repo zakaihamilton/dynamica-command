@@ -91,7 +91,6 @@ export function CampaignCompleteScreen({ seed }: { seed: number }) {
 
           <div className={styles.actions}>
             <ConsoleButton onClick={() => router.push("/")} tooltip="Return to the main menu">Return to menu</ConsoleButton>
-            <ConsoleButton muted onClick={() => router.push(`/briefing?seed=${formatSeed(seed)}&mission=7`)} tooltip="Review the final operation">Review final briefing</ConsoleButton>
           </div>
         </MetalPanel>
       </div>
