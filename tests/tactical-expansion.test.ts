@@ -4,6 +4,7 @@ import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
 import { BUILDING_STATS, STARTING_CREDITS, UNIT_STATS } from "../lib/catalog";
+import { tooltipLines } from "../lib/render/renderer";
 
 describe("tactical expansion", () => {
   it("starts missions with more credits and half-cost units and buildings", () => {
@@ -123,6 +124,26 @@ describe("tactical expansion", () => {
     issue(state, { type: "move", unitIds: [asset.id], x: 9, y: 3 });
     for (let i = 0; i < 100; i++) tick(state);
     expect(asset.x).toBeGreaterThan(6);
+  });
+
+  it("labels locked rescue and extraction targets as stranded", () => {
+    for (const kind of ["rescue", "extraction"] as const) {
+      const state = makeFixture({ win: { kind, targetCount: 1, ticks: 100 } });
+      const stranded = addUnit(state, 0, "infantry", 6, 3);
+      stranded.neutral = true;
+      state.runtime = {
+        kind,
+        phase: "active",
+        targetIds: [stranded.id],
+        zone: { x: 0, y: 0 },
+        deadline: 100,
+        rescued: 0,
+        required: 1,
+        secondary: [],
+      };
+
+      expect(tooltipLines(state, stranded, {})).toContain("Stranded");
+    }
   });
 
   it("completes a rescue quota even when the timed secondary objective expired", () => {

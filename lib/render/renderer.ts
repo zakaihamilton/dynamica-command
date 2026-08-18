@@ -774,7 +774,7 @@ function tileTooltipLines(state: SimState, x: number, y: number): string[] {
   return lines;
 }
 
-function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): string[] {
+export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): string[] {
   const name = labelFor(e.kind as UnitKind | BuildingKind);
   const cls = e.class === "unit" ? "Unit" : "Building";
   const faction = state.factions[e.owner]?.name ?? (e.owner === 0 ? "Player" : "Enemy");
@@ -783,6 +783,7 @@ function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): string[
     `${e.owner === 0 ? "Friendly" : "Hostile"} · ${faction}`,
     `HP ${Math.max(0, Math.round(e.hp))} / ${e.maxHp}`,
   ];
+  if (isLockedContactUnit(state, e)) lines.push("Stranded");
   if (e.kind === "harvester") {
     lines.push(`Carry ${e.carry} / ${UNIT_STATS.harvester.carryMax}`);
   }
