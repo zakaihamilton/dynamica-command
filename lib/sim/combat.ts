@@ -1,8 +1,9 @@
 import { BUILDING_STATS, UNIT_STATS } from "../catalog";
-import type { BuildingKind, Entity, SimEvent, SimState, UnitKind } from "../types";
+import type { ArmorType, BuildingKind, Entity, SimEvent, SimState, UnitKind, WeaponType } from "../types";
 import { findPath } from "./pathfinding";
 import { byId, closestApproach, distToEntity, living } from "./world";
 import { rngFromState, type Rng } from "../seed/rng";
+import { suppressionApplied, unitDamage, unitSight } from "./upgrades";
 
 const CELL = 8;
 
@@ -11,17 +12,19 @@ type CombatGrid = {
   rows: number;
   cells: Entity[][];
   order: Map<number, number>;
+  all: Entity[];
 };
 
-function statsFor(e: Entity): { damage: number; range: number; cooldown: number } {
+function statsFor(e: Entity): { damage: number; range: number; cooldown: number; weapon: WeaponType; splashRadius: number; suppression: number } {
   if (e.class === "unit") return UNIT_STATS[e.kind as UnitKind];
   if (e.kind === "turret") {
-    return { damage: 9, range: 5.5, cooldown: 14 };
+    return { damage: 9, range: 5.5, cooldown: 14, weapon: "cannon", splashRadius: 0.5, suppression: 10 };
   }
-  return { damage: 0, range: 0, cooldown: 0 };
+  return { damage: 0, range: 0, cooldown: 0, weapon: "smallArms", splashRadius: 0, suppression: 0 };
 }
 
 function isCombatThreat(e: Entity): boolean {
+  if (e.neutral) return false;
   if (e.class === "building" && e.constructing > 0) return false;
   return statsFor(e).damage > 0;
 }
@@ -39,7 +42,7 @@ function buildGrid(state: SimState): CombatGrid {
     const cy = Math.max(0, Math.min(rows - 1, Math.floor(e.y / CELL)));
     cells[cy * cols + cx]!.push(e);
   }
-  return { cols, rows, cells, order };
+  return { cols, rows, cells, order, all };
 }
 
 function closestEnemy(
@@ -62,6 +65,7 @@ function closestEnemy(
       if (!bucket) continue;
       for (const o of bucket) {
         if (o.hp <= 0) continue;
+        if (o.neutral) continue;
         if (o.owner === e.owner) continue;
         if (threatsOnly && !isCombatThreat(o)) continue;
         const d = distToEntity(e, o);
@@ -78,33 +82,74 @@ function closestEnemy(
   return best;
 }
 
-function acquire(grid: CombatGrid, e: Entity, threatsOnly = false): Entity | undefined {
+function acquire(state: SimState, grid: CombatGrid, e: Entity, threatsOnly = false): Entity | undefined {
   const { range } = statsFor(e);
-  const sight = e.class === "unit" ? UNIT_STATS[e.kind as UnitKind].sight : BUILDING_STATS[e.kind as BuildingKind].sight;
+  const sight = e.class === "unit" ? unitSight(state, e.owner, e.kind as UnitKind) : BUILDING_STATS[e.kind as BuildingKind].sight;
   return closestEnemy(grid, e, Math.max(range + 4, sight), threatsOnly);
 }
 
-function acquirePreferred(grid: CombatGrid, e: Entity): Entity | undefined {
-  return acquire(grid, e, true) ?? acquire(grid, e, false);
+function acquirePreferred(state: SimState, grid: CombatGrid, e: Entity): Entity | undefined {
+  return acquire(state, grid, e, true) ?? acquire(state, grid, e, false);
 }
 
 function pathDest(path: { x: number; y: number }[]): { x: number; y: number } | undefined {
   return path[path.length - 1];
 }
 
+function armorFor(e: Entity): ArmorType {
+  return e.armor ?? (e.class === "building" ? BUILDING_STATS[e.kind as BuildingKind].armor : UNIT_STATS[e.kind as UnitKind].armor);
+}
+
+function lineOfSight(state: SimState, from: Entity, to: Entity): boolean {
+  const steps = Math.max(1, Math.ceil(Math.hypot(from.x - to.x, from.y - to.y) * 2));
+  const source = state.heights[Math.round(from.y) * state.width + Math.round(from.x)] ?? 1;
+  const target = state.heights[Math.round(to.y) * state.width + Math.round(to.x)] ?? 1;
+  const horizon = Math.max(source, target);
+  for (let i = 1; i < steps; i++) {
+    const x = Math.round(from.x + (to.x - from.x) * i / steps);
+    const y = Math.round(from.y + (to.y - from.y) * i / steps);
+    if ((state.heights[y * state.width + x] ?? 1) > horizon) return false;
+  }
+  return true;
+}
+
+function damageMultiplier(weapon: WeaponType, armor: ArmorType): number {
+  if (weapon === "smallArms") return armor === "light" ? 1 : armor === "heavy" ? 0.45 : 0.2;
+  if (weapon === "antiArmor") return armor === "heavy" ? 1.35 : armor === "structure" ? 0.95 : 0.9;
+  return armor === "light" ? 1.15 : 1;
+}
+
+function heightMultiplier(state: SimState, from: Entity, to: Entity): number {
+  const source = state.heights[Math.round(from.y) * state.width + Math.round(from.x)] ?? 1;
+  const target = state.heights[Math.round(to.y) * state.width + Math.round(to.x)] ?? 1;
+  return source > target ? 1.12 : source < target ? 0.9 : 1;
+}
+
 function strike(
   state: SimState,
   e: Entity,
   target: Entity,
-  damage: number,
-  cooldown: number,
+  stats: ReturnType<typeof statsFor>,
   rng: Rng,
   events: SimEvent[],
 ): void {
   if (e.cooldown > 0) return;
   const jitter = 0.85 + rng.next() * 0.3;
-  target.hp -= damage * jitter;
-  e.cooldown = cooldown;
+  const baseDamage = e.class === "unit" ? unitDamage(state, e.owner, e.kind as UnitKind) : stats.damage;
+  const damage = baseDamage * jitter * damageMultiplier(stats.weapon, armorFor(target)) * heightMultiplier(state, e, target);
+  target.hp -= damage;
+  e.cooldown = stats.cooldown;
+  if (target.class === "unit") {
+    target.suppression = Math.min(100, (target.suppression ?? 0) + suppressionApplied(state, target.owner, stats.suppression));
+  }
+  if (stats.splashRadius > 0) {
+    for (const splash of living(state)) {
+      if (splash.id === target.id || splash.hp <= 0 || splash.owner === e.owner || splash.neutral) continue;
+      if (Math.hypot(splash.x - target.x, splash.y - target.y) > stats.splashRadius) continue;
+      splash.hp -= damage * 0.35;
+      if (splash.class === "unit") splash.suppression = Math.min(100, (splash.suppression ?? 0) + suppressionApplied(state, splash.owner, Math.round(stats.suppression * 0.35)));
+    }
+  }
   if (target.hp > 0) return;
   target.hp = 0;
   if (target.class === "unit") state.losses.units[target.owner] += 1;
@@ -125,8 +170,9 @@ export function tickCombat(state: SimState): SimEvent[] {
   const rng = rngFromState(state.rngState);
   const grid = buildGrid(state);
   for (const e of living(state)) {
+    if (e.class === "unit") e.suppression = Math.max(0, (e.suppression ?? 0) - 1);
     const st = statsFor(e);
-    if (st.damage <= 0) continue;
+    if (st.damage <= 0 || e.neutral) continue;
     if (e.constructing > 0) continue;
     if (e.cooldown > 0) e.cooldown -= 1;
 
@@ -140,7 +186,7 @@ export function tickCombat(state: SimState): SimEvent[] {
         const d = distToEntity(e, assigned);
         if (d <= st.range) {
           e.path = [];
-          strike(state, e, assigned, st.damage, st.cooldown, rng, events);
+          if (lineOfSight(state, e, assigned)) strike(state, e, assigned, st, rng, events);
           if (e.attackTarget === undefined) e.idle = true;
         } else {
           chase(state, e, assigned);
@@ -151,29 +197,29 @@ export function tickCombat(state: SimState): SimEvent[] {
 
     if (ordered && e.path.length > 0) {
       const opportunity = closestEnemy(grid, e, st.range, false);
-      if (opportunity) strike(state, e, opportunity, st.damage, st.cooldown, rng, events);
+      if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events);
       continue;
     }
 
     if (ordered) e.idle = true;
 
-    const inRangeThreat = closestEnemy(grid, e, st.range, true);
+    const inRangeThreat = e.stance === "hold" ? undefined : closestEnemy(grid, e, st.range, true);
     let target = inRangeThreat ?? (e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined);
     if (target && !isCombatThreat(target)) {
-      const threat = acquire(grid, e, true);
+      const threat = acquire(state, grid, e, true);
       if (threat) {
         target = threat;
         e.path = [];
       }
     }
-    if (!target) target = acquirePreferred(grid, e);
+    if (!target && e.stance !== "hold") target = acquirePreferred(state, grid, e);
     if (target) e.attackTarget = target.id;
     if (!target) continue;
 
     const d = distToEntity(e, target);
-    if (d <= st.range) {
+    if (d <= st.range && lineOfSight(state, e, target)) {
       e.path = [];
-      strike(state, e, target, st.damage, st.cooldown, rng, events);
+      strike(state, e, target, st, rng, events);
       continue;
     }
 

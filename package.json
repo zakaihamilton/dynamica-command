@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "inspect": "tsx scripts/inspect.ts",
     "sim": "tsx scripts/sim.ts",
+    "balance": "tsx scripts/balance.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

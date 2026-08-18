@@ -48,9 +48,9 @@ export function CreditsCounter({ value }: { value: number }) {
     };
   }, [value]);
   return (
-    <div className={cx(styles.counter, flash === "up" && styles.up, flash === "down" && styles.down)} aria-label={`${value} credits`}>
+    <div className={cx(styles.counter, flash === "up" && styles.up, flash === "down" && styles.down)} aria-label={`${value} available credits`}>
       <CreditsIcon />
-      <span className={styles.label}>Credits</span>
+      <span className={styles.label}>Available</span>
       <div className={styles.lcd}>
         <span className={styles.currency}>$</span>
         <span className={styles.readout}>

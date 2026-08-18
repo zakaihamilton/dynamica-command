@@ -9,6 +9,8 @@ import { createCampaign } from "@/lib/gen/campaign";
 import { missionObjectives } from "@/lib/gen/story";
 import { biomeArt } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
+import { localStorageAdapter } from "@/lib/persist/save";
+import { freshCampaignProgress, readCampaignProgress } from "@/lib/persist/campaign";
 import type { BriefingLine } from "@/lib/types";
 import { briefingCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
 import { BriefingMast } from "./BriefingMast";
@@ -20,6 +22,7 @@ import styles from "./BriefingScreen.module.css";
 export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: number; mission: number; returnToGame?: boolean }) {
   const router = useRouter();
   const campaign = useMemo(() => createCampaign(seed), [seed]);
+  const progress = useMemo(() => typeof window === "undefined" ? freshCampaignProgress(seed) : readCampaignProgress(localStorageAdapter(), seed), [seed]);
   const def = campaign.missions[mission];
   const [shown, setShown] = useState(0);
   const [playId, setPlayId] = useState(0);
@@ -32,7 +35,6 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   );
 
   useEffect(() => {
-    setShown(0);
     const id = setInterval(() => {
       setShown((n) => {
         if (n >= totalChars) {
@@ -65,6 +67,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
         return;
       }
       if (command.type === "replay") {
+        setShown(0);
         setPlayId((n) => n + 1);
         return;
       }
@@ -76,6 +79,9 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
 
   if (!def) {
     return <div className={styles.missing}>Mission missing.</div>;
+  }
+  if (!returnToGame && mission > progress.unlockedMission) {
+    return <div className={styles.missing}>Mission locked. Complete the previous operation first.</div>;
   }
 
   const talking = shown > 0 && shown < totalChars;

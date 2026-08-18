@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEventHandler, ReactNode, Ref } from "react";
+import type { CSSProperties, PointerEventHandler, ReactNode, Ref } from "react";
 import type { PanAvailability, PanDir } from "@/lib/render/camera";
 import { formatSeed } from "@/lib/seed/rng";
 import { biomeArt } from "@/lib/gen/visualAssets";
@@ -20,10 +20,10 @@ export function Battlefield({
   objective,
   biome,
   children,
-  onMouseDown,
-  onMouseMove,
-  onMouseLeave,
-  onMouseUp,
+  onPointerDown,
+  onPointerMove,
+  onPointerLeave,
+  onPointerUp,
 }: {
   hostRef: Ref<HTMLDivElement>;
   canvasRef: Ref<HTMLCanvasElement>;
@@ -38,10 +38,10 @@ export function Battlefield({
   objective: string;
   biome: BiomeName;
   children?: ReactNode;
-  onMouseDown: MouseEventHandler<HTMLCanvasElement>;
-  onMouseMove: MouseEventHandler<HTMLCanvasElement>;
-  onMouseLeave: MouseEventHandler<HTMLCanvasElement>;
-  onMouseUp: MouseEventHandler<HTMLCanvasElement>;
+  onPointerDown: PointerEventHandler<HTMLCanvasElement>;
+  onPointerMove: PointerEventHandler<HTMLCanvasElement>;
+  onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
+  onPointerUp: PointerEventHandler<HTMLCanvasElement>;
 }) {
   return (
     <div
@@ -54,10 +54,10 @@ export function Battlefield({
         width={width}
         height={height}
         className={styles.canvas}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseLeave={onMouseLeave}
-        onMouseUp={onMouseUp}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
+        onPointerUp={onPointerUp}
       />
       <ScrollArrow dir="left" available={panAvail.left} hot={hotPan === "left"} />
       <ScrollArrow dir="right" available={panAvail.right} hot={hotPan === "right"} />

@@ -4,6 +4,8 @@ import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import type { Palette } from "@/lib/types";
+import type { CampaignProgress, UpgradeId } from "@/lib/types";
+import { UpgradePanel } from "./UpgradePanel";
 import styles from "./PauseMenu.module.css";
 
 export function PauseMenu({
@@ -22,8 +24,11 @@ export function PauseMenu({
   onToggleSound,
   onBack,
   onCloseAssets,
+  progress,
+  onUpgrades,
+  onBuyUpgrade,
 }: {
-  view: "main" | "options" | "assets";
+  view: "main" | "options" | "assets" | "upgrades";
   notice: string;
   soundEnabled: boolean;
   palette: Palette;
@@ -38,11 +43,16 @@ export function PauseMenu({
   onToggleSound: () => void;
   onBack: () => void;
   onCloseAssets: () => void;
+  progress: CampaignProgress;
+  onUpgrades: () => void;
+  onBuyUpgrade: (id: UpgradeId) => void;
 }) {
   return (
     <div className={styles.overlay} data-testid="pause-menu">
       {view === "assets" ? (
         <AssetsBrowser palette={palette} onClose={onCloseAssets} />
+      ) : view === "upgrades" ? (
+        <UpgradePanel progress={progress} onBuy={onBuyUpgrade} onBack={onBack} />
       ) : (
         <MetalPanel className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="pause-title">
           {view === "main" ? (
@@ -56,6 +66,7 @@ export function PauseMenu({
                 <ConsoleButton className={styles.action} tooltip="Open the mission briefing" shortcut={SHORTCUT.briefing} onClick={onBriefing}>Mission Briefing</ConsoleButton>
                 <ConsoleButton className={styles.action} tooltip="Start this mission over from the beginning" shortcut={SHORTCUT.restart} onClick={onRestart}>Restart Mission</ConsoleButton>
                 <ConsoleButton className={styles.action} tooltip="Inspect generated sprites and animations" shortcut={SHORTCUT.assets} onClick={onAssets}>Assets</ConsoleButton>
+                <ConsoleButton className={styles.action} tooltip="Spend first-time mission research points" onClick={onUpgrades}>Upgrades</ConsoleButton>
                 <ConsoleButton className={styles.action} tooltip="Audio and game options" shortcut={SHORTCUT.options} onClick={onOptions}>Options</ConsoleButton>
                 <ConsoleButton muted className={styles.action} tooltip="Leave the theater" shortcut={SHORTCUT.menu} onClick={onMenu}>Escape to Menu</ConsoleButton>
               </div>

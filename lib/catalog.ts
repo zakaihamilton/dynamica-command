@@ -1,4 +1,4 @@
-import type { BuildingKind, UnitKind } from "./types";
+import type { ArmorType, BuildingKind, UnitKind, UpgradeId, WeaponType } from "./types";
 
 export const TICKS_PER_SECOND = 12;
 export const MAX_PRODUCTION_QUEUE = 10;
@@ -31,6 +31,10 @@ export type UnitStats = {
   buildTicks: number;
   sight: number;
   carryMax: number;
+  armor: ArmorType;
+  weapon: WeaponType;
+  splashRadius: number;
+  suppression: number;
 };
 
 export type Footprint = { w: number; h: number };
@@ -42,6 +46,8 @@ export type BuildingStats = {
   power: number;
   sight: number;
   footprint: Footprint;
+  armor: ArmorType;
+  weapon?: WeaponType;
 };
 
 export const UNIT_STATS: Record<UnitKind, UnitStats> = {
@@ -55,6 +61,10 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     buildTicks: 216,
     sight: 5,
     carryMax: 100,
+    armor: "light",
+    weapon: "smallArms",
+    splashRadius: 0,
+    suppression: 0,
   },
   infantry: {
     hp: 70,
@@ -66,6 +76,10 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     buildTicks: 96,
     sight: 6,
     carryMax: 0,
+    armor: "light",
+    weapon: "smallArms",
+    splashRadius: 0,
+    suppression: 8,
   },
   antiArmor: {
     hp: 95,
@@ -77,6 +91,10 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     buildTicks: 144,
     sight: 6,
     carryMax: 0,
+    armor: "light",
+    weapon: "antiArmor",
+    splashRadius: 0,
+    suppression: 14,
   },
   tank: {
     hp: 320,
@@ -88,17 +106,33 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     buildTicks: 240,
     sight: 7,
     carryMax: 0,
+    armor: "heavy",
+    weapon: "cannon",
+    splashRadius: 1,
+    suppression: 12,
   },
 };
 
 export const BUILDING_STATS: Record<BuildingKind, BuildingStats> = {
-  constructionYard: { hp: 3200, cost: 0, buildTicks: 0, power: 20, sight: 8, footprint: { w: 2, h: 2 } },
-  power: { hp: 520, cost: 600, buildTicks: 180, power: 100, sight: 4, footprint: { w: 2, h: 2 } },
-  refinery: { hp: 1100, cost: 1000, buildTicks: 240, power: -10, sight: 5, footprint: { w: 3, h: 2 } },
-  barracks: { hp: 900, cost: 750, buildTicks: 216, power: -10, sight: 5, footprint: { w: 2, h: 2 } },
-  factory: { hp: 1300, cost: 1600, buildTicks: 360, power: -15, sight: 5, footprint: { w: 3, h: 2 } },
-  turret: { hp: 480, cost: 550, buildTicks: 168, power: -8, sight: 7, footprint: { w: 1, h: 1 } },
-  objective: { hp: 1800, cost: 0, buildTicks: 0, power: 0, sight: 3, footprint: { w: 2, h: 2 } },
+  constructionYard: { hp: 3200, cost: 0, buildTicks: 0, power: 20, sight: 8, footprint: { w: 2, h: 2 }, armor: "structure" },
+  power: { hp: 520, cost: 600, buildTicks: 180, power: 100, sight: 4, footprint: { w: 2, h: 2 }, armor: "structure" },
+  refinery: { hp: 1100, cost: 1000, buildTicks: 240, power: -10, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },
+  barracks: { hp: 900, cost: 750, buildTicks: 216, power: -10, sight: 5, footprint: { w: 2, h: 2 }, armor: "structure" },
+  factory: { hp: 1300, cost: 1600, buildTicks: 360, power: -15, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },
+  turret: { hp: 480, cost: 550, buildTicks: 168, power: -8, sight: 7, footprint: { w: 1, h: 1 }, armor: "structure", weapon: "cannon" },
+  objective: { hp: 1800, cost: 0, buildTicks: 0, power: 0, sight: 3, footprint: { w: 2, h: 2 }, armor: "structure" },
+};
+
+export const UPGRADE_COST: Record<UpgradeId, number> = {
+  "logistics-cargo": 1, "logistics-drills": 2, "logistics-unload": 3, "logistics-cache": 4,
+  "arsenal-barrels": 1, "arsenal-plating": 2, "arsenal-targeting": 3, "arsenal-shock": 4,
+  "engineering-frames": 1, "engineering-grid": 2, "engineering-repair": 3, "engineering-fabrication": 4,
+};
+
+export const UPGRADE_PREREQUISITE: Partial<Record<UpgradeId, UpgradeId>> = {
+  "logistics-drills": "logistics-cargo", "logistics-unload": "logistics-drills", "logistics-cache": "logistics-unload",
+  "arsenal-plating": "arsenal-barrels", "arsenal-targeting": "arsenal-plating", "arsenal-shock": "arsenal-targeting",
+  "engineering-grid": "engineering-frames", "engineering-repair": "engineering-grid", "engineering-fabrication": "engineering-repair",
 };
 
 export const UNIT_LABELS: Record<UnitKind, string> = {
@@ -235,4 +269,11 @@ export const WIN_KIND_ORDER: import("./types").WinCategoryKind[] = [
   "decapitate",
   "annihilate",
   "holdTheLine",
+];
+
+export const NEW_MISSION_KINDS: import("./types").MissionKind[] = [
+  "escort",
+  "sabotage",
+  "rescue",
+  "extraction",
 ];

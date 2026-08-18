@@ -409,6 +409,27 @@ export function renderWorld(
     }
   }
 
+  for (const id of selected) {
+    const selectedEntity = entityById.get(id);
+    if (!selectedEntity || selectedEntity.hp <= 0 || selectedEntity.class !== "unit") continue;
+    const center = tileToScreen(selectedEntity.x, selectedEntity.y, cam, entityElev(state, selectedEntity));
+    const range = UNIT_STATS[selectedEntity.kind as UnitKind].range;
+    if (range > 0) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(245, 230, 168, 0.28)";
+      ctx.setLineDash([4 * z, 4 * z]);
+      ctx.lineWidth = Math.max(1, z);
+      ctx.beginPath();
+      ctx.ellipse(center.x, center.y + TILE_H * z * 0.5, range * TILE_W * z * 0.5, range * TILE_H * z * 0.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if ((selectedEntity.suppression ?? 0) > 0) {
+      ctx.fillStyle = "#d6a45b";
+      ctx.fillRect(center.x - 12 * z, center.y - 22 * z, 24 * z * (selectedEntity.suppression ?? 0) / 100, 2 * z);
+    }
+  }
+
   drawCombatEffects(ctx, state, cam, clock);
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
   drawSelectBox(ctx, extras.selectBox);

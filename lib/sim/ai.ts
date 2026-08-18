@@ -21,6 +21,7 @@ export function tickAi(state: SimState): void {
   const enemyBuildings = living(state).filter((e) => e.owner === 1 && e.class === "building");
   const yard = enemyBuildings.find((e) => e.kind === "constructionYard");
   if (!yard) {
+    state.aiState = "retreat";
     state.rngState = rng.state;
     return;
   }
@@ -30,7 +31,9 @@ export function tickAi(state: SimState): void {
   if (state.tick > 0 && state.tick % produceEvery === 0) {
     const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0 && !e.producing);
     const barracks = enemyBuildings.find((e) => e.kind === "barracks" && e.constructing === 0 && !e.producing);
-    const want: UnitKind = rng.chance(0.4) ? "tank" : rng.chance(0.5) ? "antiArmor" : "infantry";
+    const playerTanks = living(state).filter((entity) => entity.owner === 0 && entity.kind === "tank").length;
+    const playerInfantry = living(state).filter((entity) => entity.owner === 0 && entity.kind === "infantry").length;
+    const want: UnitKind = playerTanks > playerInfantry ? "antiArmor" : rng.chance(0.4) ? "tank" : "infantry";
     const producer = want === "infantry" || want === "antiArmor" ? barracks : factory;
     const cost = UNIT_STATS[want].cost;
     const power = powerFor(state, 1);
@@ -81,6 +84,13 @@ export function tickAi(state: SimState): void {
     yard,
     (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester",
   );
+  const enemyUnits = living(state).filter((e) => e.owner === 1 && e.class === "unit" && e.kind !== "harvester");
+  const averageHealth = enemyUnits.length ? enemyUnits.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / enemyUnits.length : 1;
+  if (averageHealth < 0.35) state.aiState = "retreat";
+  else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";
+  else if (playerYard && state.tick > waveEvery) state.aiState = "assault";
+  else if (enemyUnits.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
+  else state.aiState = "economy";
   if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) {
     for (const u of living(state)) {
       if (u.owner !== 1 || u.class !== "unit" || u.kind === "harvester") continue;
@@ -90,7 +100,7 @@ export function tickAi(state: SimState): void {
     }
   }
 
-  if (playerYard && state.tick > 0 && state.tick % waveEvery === 0) {
+  if (playerYard && state.aiState !== "retreat" && state.tick > 0 && state.tick % waveEvery === 0) {
     for (const u of living(state)) {
       if (u.owner !== 1 || u.class !== "unit" || u.kind === "harvester") continue;
       if (u.attackTarget) continue;

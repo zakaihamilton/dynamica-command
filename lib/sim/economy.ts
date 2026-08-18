@@ -1,10 +1,9 @@
-import { HARVEST_PER_TICK, UNIT_STATS } from "../catalog";
 import { TILE_RESOURCE } from "../types";
 import type { Entity, SimEvent, SimState } from "../types";
 import { findPath } from "./pathfinding";
 import { at, closestApproach, dist, distToEntity, living, nearest, tileAt } from "./world";
+import { harvestAmount, harvesterCapacity } from "./upgrades";
 
-const CARRY_MAX = UNIT_STATS.harvester.carryMax;
 const resourceIndex = new WeakMap<SimState, number[]>();
 
 function resourceTiles(state: SimState): number[] {
@@ -50,7 +49,8 @@ export function tickEconomy(state: SimState): SimEvent[] {
   const events: SimEvent[] = [];
   for (const e of living(state)) {
     if (e.kind !== "harvester" || e.hp <= 0) continue;
-    if (e.carry >= CARRY_MAX) {
+    const carryMax = harvesterCapacity(state, e.owner);
+    if (e.carry >= carryMax) {
       const ref = nearest(
         state,
         e,
@@ -86,7 +86,7 @@ export function tickEconomy(state: SimState): SimEvent[] {
     }
     if (dist(e, { x: gx, y: gy }) <= 0.6) {
       const i = at(state, gx, gy);
-      const take = Math.min(HARVEST_PER_TICK, state.resourceAmount[i]!, CARRY_MAX - e.carry);
+      const take = Math.min(harvestAmount(state, e.owner), state.resourceAmount[i]!, carryMax - e.carry);
       state.resourceAmount[i]! -= take;
       e.carry += take;
       e.path = [];

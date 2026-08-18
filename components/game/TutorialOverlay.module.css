@@ -1,0 +1,22 @@
+.card {
+  position: absolute;
+  z-index: 25;
+  left: 50%;
+  bottom: 1rem;
+  width: min(30rem, calc(100% - 2rem));
+  padding: 0.8rem;
+  transform: translateX(-50%);
+  border: 1px solid var(--chrome-cyan);
+  background: color-mix(in srgb, var(--chrome-void) 92%, transparent);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.7), inset 0 0 0 1px var(--chrome-inset);
+}
+
+.kicker, .prompt { margin: 0; }
+.kicker { color: var(--chrome-cyan); font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.prompt { margin-top: 0.35rem; color: var(--chrome-text); }
+.actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+
+@media (max-width: 799px) {
+  .card { bottom: 0.5rem; }
+  .actions > * { min-height: 44px; }
+}

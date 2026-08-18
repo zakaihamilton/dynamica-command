@@ -131,7 +131,11 @@ function normalizeState(value: unknown): SimState {
     if (!e.queue) e.queue = [];
     if (e.facing === undefined) e.facing = e.owner === 0 ? 0 : 4;
     if (e.repairing === undefined) e.repairing = false;
+    if (e.stance === undefined) e.stance = "aggressive";
+    if (e.suppression === undefined) e.suppression = 0;
   }
+  if (!s.appliedUpgrades) s.appliedUpgrades = [];
+  if (!s.aiState) s.aiState = "economy";
   return s;
 }
 

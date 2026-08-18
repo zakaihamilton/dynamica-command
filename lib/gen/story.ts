@@ -41,6 +41,14 @@ function objectivePhrase(win: WinCategory): string {
       return "wipe out every enemy unit and building";
     case "holdTheLine":
       return `hold this ground for ${holdDurationLabel(win.ticks ?? 0)}`;
+    case "escort":
+      return `escort ${win.targetCount ?? 1} convoy units to extraction`;
+    case "sabotage":
+      return `sabotage ${win.targetCount ?? 1} enemy systems before the deadline`;
+    case "rescue":
+      return `rescue ${win.targetCount ?? 1} stranded units`;
+    case "extraction":
+      return `extract ${win.targetCount ?? 1} assets before the deadline`;
     default:
       return "complete the assigned objective";
   }
@@ -85,6 +93,14 @@ export function missionObjectives(
         return `Wipe out all ${them.name} forces`;
       case "holdTheLine":
         return `Hold ${place} for ${holdDurationLabel(win.ticks ?? 0)}`;
+      case "escort":
+        return `Escort the convoy through ${place}`;
+      case "sabotage":
+        return `Sabotage ${win.targetCount ?? 1} enemy systems`;
+      case "rescue":
+        return `Rescue ${win.targetCount ?? 1} stranded units`;
+      case "extraction":
+        return `Extract ${win.targetCount ?? 1} assets from ${place}`;
       default:
         return "Complete the assigned objective";
     }
@@ -130,6 +146,14 @@ export function generateBriefing(
         return `${you}, wipe the ${them.name} off ${place}. No units. No buildings.`;
       case "holdTheLine":
         return `${you}, hold ${place} for ${holdDurationLabel(win.ticks ?? 0)}. Stay alive. Don't give ${foe} the ${biome}.`;
+      case "escort":
+        return `${you}, escort ${win.targetCount ?? 1} convoy units through ${place}. ${foe} will try to cut the route. Keep the construction yard standing.`;
+      case "sabotage":
+        return `${you}, sabotage ${win.targetCount ?? 1} enemy systems in ${place}. ${foe} is protecting the construction yard, so move fast.`;
+      case "rescue":
+        return `${you}, rescue ${win.targetCount ?? 1} stranded units from ${place}. ${foe} is sweeping the area. Protect the construction yard.`;
+      case "extraction":
+        return `${you}, extract ${win.targetCount ?? 1} assets from ${place}. ${foe} is closing the route. Keep the construction yard standing.`;
       default:
         return `${you}, the ${us.name} must ${objectivePhrase(win)}.`;
     }
@@ -153,6 +177,14 @@ export function generateBriefing(
         return `${analyst} is right. Wipe ${foe} out. The construction yard does not fall.`;
       case "holdTheLine":
         return `${analyst} has the timer. We hold against ${foe}. Keep the construction yard up until time runs out.`;
+      case "escort":
+        return `${analyst} marked the convoy route. Keep the escorts alive and reach extraction. ${foe} will hunt the convoy. Protect the construction yard.`;
+      case "sabotage":
+        return `${analyst} has the enemy systems mapped. Hit them before ${foe} closes the window. Protect the construction yard.`;
+      case "rescue":
+        return `${analyst} found survivors in the ${biome}. Bring them home before the line collapses. ${foe} is sweeping the construction yard.`;
+      case "extraction":
+        return `${analyst} has the payload route. Secure the assets and get them out. Keep the construction yard standing.`;
       default:
         return `${analyst} is clear. Don't lose the construction yard to ${foe}.`;
     }
@@ -176,6 +208,14 @@ export function generateBriefing(
         return `You want total war, ${you}? The ${them.name} will finish it. Stay off ${place}.`;
       case "holdTheLine":
         return `Hold as long as you want, ${you}. The ${them.name} can wait. ${place} is already ours.`;
+      case "escort":
+        return `The convoy will not leave ${place}, ${you}. The ${them.name} owns the route and your construction yard will fall.`;
+      case "sabotage":
+        return `Touch our systems and the ${them.name} will answer, ${you}. Your construction yard cannot hide you.`;
+      case "rescue":
+        return `Your stranded units belong to the ${them.name}, ${you}. We will surround your construction yard next.`;
+      case "extraction":
+        return `You will not extract anything from ${place}, ${you}. The ${them.name} will leave your construction yard in ruins.`;
       default:
         return `The ${them.name} already holds the ${biome}. ${you} won't take ${place}.`;
     }

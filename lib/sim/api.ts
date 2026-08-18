@@ -1,6 +1,6 @@
 import { UNIT_STATS } from "../catalog";
 import { createRng, mixSeed } from "../seed/rng";
-import type { BuildingKind, SimEvent, SimState, UnitKind } from "../types";
+import type { BuildingKind, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
 import { createCampaign } from "../gen/campaign";
 import { generateMap } from "../gen/map";
 import { tickAi } from "./ai";
@@ -26,7 +26,7 @@ function tickMovement(state: SimState): void {
   }
   for (const e of state.entities) {
     if (e.hp <= 0 || e.class !== "unit") continue;
-    const speed = UNIT_STATS[e.kind as UnitKind].speed;
+    const speed = UNIT_STATS[e.kind as UnitKind].speed * (1 - Math.min(0.4, (e.suppression ?? 0) / 250));
     const currentKey = key(Math.round(e.x), Math.round(e.y));
     const next = e.path[0];
     const targetKey = next ? key(Math.round(next.x), Math.round(next.y)) : currentKey;
@@ -77,6 +77,9 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     rngState: mixSeed(opts.seed, `sim:${opts.missionIndex}`) || 1,
     factions: campaign.factions,
     missionName: mission.name,
+    missionKind: mission.win.kind,
+    appliedUpgrades: [],
+    aiState: "economy",
   };
 
   const p = map.playerStart;
@@ -147,6 +150,61 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     state.win.targetIds = ids;
   }
 
+  if (["escort", "sabotage", "rescue", "extraction"].includes(mission.win.kind)) {
+    const kind = mission.win.kind;
+    const targetIds: number[] = [];
+    const count = mission.win.targetCount ?? 2;
+    if (kind === "sabotage") {
+      for (let i = 0; i < count; i++) {
+        const spot = map.markedSpots[i] ?? { x: e.x - 4 - i * 3, y: e.y - 5 + (i % 2) * 2 };
+        const objective = spawnBuildingAt(state, 1, "objective", spot.x, spot.y, 0, true);
+        if (objective) targetIds.push(objective.id);
+      }
+    } else {
+      for (let i = 0; i < count; i++) {
+        const point = centerPoint(map, i, count);
+        const target = spawnUnit(state, 0, kind === "escort" ? "tank" : "infantry", point.x, point.y);
+        target.neutral = kind !== "extraction";
+        targetIds.push(target.id);
+        if (kind === "escort" || kind === "rescue") {
+          target.path = stepRoute(state, target, kind === "escort" ? map.enemyStart : map.playerStart);
+        }
+      }
+    }
+    const runtime: MissionRuntime = {
+      kind,
+      phase: "active",
+      targetIds,
+      zone: kind === "rescue" ? map.playerStart : map.enemyStart,
+      deadline: state.tick + (mission.win.ticks ?? 3600),
+      rescued: 0,
+      required: count,
+      secondary: [
+        { id: "yard", kind: "preserveYard", label: "Keep the construction yard standing" },
+        { id: "time", kind: "completeBefore", label: "Complete the operation before the deadline", target: mission.win.ticks ?? 3600 },
+      ],
+    };
+    state.runtime = runtime;
+    state.win.targetIds = targetIds;
+  }
+
+  if (!state.runtime) {
+    const secondary = rng.chance(0.5)
+      ? { id: "survivors", kind: "keepUnits" as const, label: "Keep at least one combat unit alive", target: 1 }
+      : { id: "tempo", kind: "completeBefore" as const, label: "Complete the operation before the final push", target: (mission.win.ticks ?? 3600) + 1 };
+    state.runtime = {
+      kind: mission.win.kind,
+      phase: "active",
+      targetIds: mission.win.targetIds ?? [],
+      rescued: 0,
+      required: mission.win.targetCount ?? 1,
+      secondary: [
+        { id: "yard", kind: "preserveYard", label: "Keep the construction yard standing" },
+        secondary,
+      ],
+    };
+  }
+
   tickFog(state);
   return state;
 }
@@ -163,8 +221,54 @@ export function tick(state: SimState, commands?: Command[]): { state: SimState; 
   tickAi(state);
   tickFog(state);
   state.tick += 1;
+  tickScenario(state);
   events.push(...evaluateObjectives(state));
   return { state, events };
+}
+
+function centerPoint(map: { playerStart: { x: number; y: number }; enemyStart: { x: number; y: number } }, index: number, count: number) {
+  const t = (index + 1) / (count + 1);
+  return {
+    x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * t),
+    y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * t),
+  };
+}
+
+function stepRoute(state: SimState, from: { x: number; y: number }, to: { x: number; y: number }) {
+  return [...Array.from({ length: 3 }, (_, i) => ({
+    x: Math.round(from.x + (to.x - from.x) * (i + 1) / 4),
+    y: Math.round(from.y + (to.y - from.y) * (i + 1) / 4),
+  })), { x: to.x, y: to.y }];
+}
+
+function tickScenario(state: SimState): void {
+  const runtime = state.runtime;
+  if (!runtime || runtime.phase === "complete") return;
+  const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
+  if (runtime.kind === "rescue" && yard) {
+    for (const id of runtime.targetIds) {
+      const e = state.entities.find((item) => item.id === id && item.hp > 0);
+      if (e?.neutral && Math.hypot(e.x - yard.x, e.y - yard.y) <= 3) {
+        e.neutral = false;
+        runtime.rescued += 1;
+      }
+    }
+  }
+  if (runtime.kind === "escort" || runtime.kind === "extraction") {
+    const zone = runtime.zone;
+    if (zone) {
+      runtime.rescued = runtime.targetIds.filter((id) => {
+        const e = state.entities.find((item) => item.id === id && item.hp > 0);
+        return !!e && Math.hypot(e.x - zone.x, e.y - zone.y) <= 4;
+      }).length;
+    }
+  }
+  const preserve = runtime.secondary.find((objective) => objective.kind === "preserveYard");
+  if (preserve) preserve.completed = !!yard;
+  const timed = runtime.secondary.find((objective) => objective.kind === "completeBefore");
+  if (timed && timed.target !== undefined) timed.completed = state.tick < timed.target;
+  const keepUnits = runtime.secondary.find((objective) => objective.kind === "keepUnits");
+  if (keepUnits) keepUnits.completed = state.entities.some((entity) => entity.owner === 0 && entity.class === "unit" && entity.hp > 0 && !entity.neutral);
 }
 
 export function createCampaignAndMission(seed: number, missionIndex: number) {
