@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
@@ -32,6 +32,10 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     () => (def ? missionObjectives(def, campaign) : []),
     [def, campaign],
   );
+  const replayTransmission = useCallback(() => {
+    setShown(0);
+    setPlayId((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -66,15 +70,14 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
         return;
       }
       if (command.type === "replay") {
-        setShown(0);
-        setPlayId((n) => n + 1);
+        replayTransmission();
         return;
       }
       router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [shown, totalChars, router, seed, mission, returnToGame]);
+  }, [shown, totalChars, router, seed, mission, replayTransmission, returnToGame]);
 
   if (!def) {
     return <div className={styles.missing}>Mission missing.</div>;
@@ -140,7 +143,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
             <ConsoleButton
               tooltip="Replay the incoming transmission"
               shortcut={SHORTCUT.replay}
-              onClick={() => setPlayId((n) => n + 1)}
+              onClick={replayTransmission}
             >
               Replay
             </ConsoleButton>

@@ -14,6 +14,7 @@ import { tickProduction } from "./production";
 import { tickRepair } from "./repair";
 import { emptyRoleCounts, spawnBuildingAt, spawnUnit } from "./world";
 import type { Command } from "../types";
+import { missionDifficulty } from "./difficulty";
 
 export { issue, inspect };
 
@@ -66,6 +67,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
   if (!mission) throw new Error(`No mission ${opts.missionIndex}`);
   const map = generateMap(opts.seed, mission);
   const rng = createRng(opts.seed, `mission-spawn:${opts.missionIndex}`);
+  const difficulty = missionDifficulty(mission.index);
 
   const state: SimState = {
     seed: opts.seed,
@@ -105,15 +107,22 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
   spawnBuildingAt(state, 0, "refinery", p.x, p.y + 3);
   spawnUnit(state, 0, "harvester", p.x + 3, p.y + 3);
   spawnUnit(state, 0, "infantry", p.x + 5, p.y + 2);
+  if (mission.index === 0) {
+    spawnBuildingAt(state, 0, "barracks", p.x + 3, p.y - 3);
+  }
 
   spawnBuildingAt(state, 1, "constructionYard", e.x, e.y);
   spawnBuildingAt(state, 1, "power", e.x - 3, e.y);
   spawnBuildingAt(state, 1, "refinery", e.x - 2, e.y - 3);
   spawnBuildingAt(state, 1, "barracks", e.x - 5, e.y - 3);
-  spawnBuildingAt(state, 1, "turret", e.x - 5, e.y);
+  if (difficulty.startingTurret) {
+    spawnBuildingAt(state, 1, "turret", e.x - 5, e.y);
+  }
   spawnUnit(state, 1, "harvester", e.x + 1, e.y - 3);
   spawnUnit(state, 1, "infantry", e.x - 1, e.y + 2);
-  spawnUnit(state, 1, "tank", e.x - 4, e.y + 1);
+  if (difficulty.startingTank) {
+    spawnUnit(state, 1, "tank", e.x - 4, e.y + 1);
+  }
 
   const extraGuards = Math.floor(mission.index / 2);
   for (let i = 0; i < extraGuards; i++) {
@@ -129,15 +138,17 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     mission.win.kind === "decapitate" ||
     mission.win.kind === "annihilate" ||
     mission.win.kind === "destroyMarked";
-  if (assault) {
+  if (assault && difficulty.assaultSupport) {
     spawnBuildingAt(state, 1, "turret", e.x + 2, e.y);
     spawnUnit(state, 1, "tank", e.x - 2, e.y + 2);
   }
 
   if (mission.win.kind === "holdTheLine") {
-    spawnUnit(state, 1, "infantry", e.x - 6, e.y);
-    spawnUnit(state, 1, "antiArmor", e.x - 6, e.y - 1);
-    spawnUnit(state, 1, "tank", e.x - 7, e.y);
+    const holdLineKinds: UnitKind[] = ["infantry", "antiArmor", "tank", "infantry"];
+    for (let i = 0; i < difficulty.holdLineReinforcements; i++) {
+      const kind = holdLineKinds[i]!;
+      spawnUnit(state, 1, kind, e.x - 6 - (i % 2), e.y - (i % 3));
+    }
   }
 
   if (mission.win.kind === "destroyMarked") {

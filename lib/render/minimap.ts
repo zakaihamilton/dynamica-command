@@ -2,16 +2,6 @@ import type { Entity, SimState } from "../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
 
-function shade(hex: string, amount: number): string {
-  const raw = hex.replace("#", "");
-  if (raw.length < 6) return hex;
-  const n = parseInt(raw.slice(0, 6), 16);
-  const r = Math.max(0, Math.min(255, ((n >> 16) & 255) + amount));
-  const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amount));
-  const b = Math.max(0, Math.min(255, (n & 255) + amount));
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
-}
-
 function entityColor(e: Entity, state: SimState): string {
   if (e.marked) return "#ffe066";
   const pal = state.factions[e.owner]?.palette;
@@ -22,7 +12,7 @@ function entityColor(e: Entity, state: SimState): string {
     return pal.primary;
   }
   if (e.kind === "harvester") return pal.accent;
-  return shade(pal.light, e.kind === "tank" ? -12 : 8);
+  return pal.light;
 }
 
 let lastMinimapKey = "";

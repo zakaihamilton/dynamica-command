@@ -2,6 +2,10 @@
   margin-top: 1.25rem;
 }
 
+.heading {
+  color: var(--chrome-text);
+}
+
 .listWrap {
   margin-top: 0.5rem;
   height: 7rem;

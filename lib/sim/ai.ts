@@ -3,6 +3,7 @@ import type { SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
 import { closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
 import { rngFromState } from "../seed/rng";
+import { missionDifficulty } from "./difficulty";
 
 const YARD_DEFENSE_RANGE = 14;
 
@@ -26,9 +27,12 @@ export function tickAi(state: SimState): void {
     return;
   }
 
-  const missionScale = 1 + state.missionIndex * 0.12;
-  const produceEvery = Math.max(48, Math.round(96 / missionScale));
-  if (state.tick > 0 && state.tick % produceEvery === 0) {
+  const difficulty = missionDifficulty(state.missionIndex);
+  const productionWindow =
+    state.tick >= difficulty.enemyProductionStart &&
+    (state.tick - difficulty.enemyProductionStart) % difficulty.enemyProductionEvery === 0;
+  const powerDeficit = powerFor(state, 1) < 0;
+  if (productionWindow || powerDeficit) {
     const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0 && !e.producing);
     const barracks = enemyBuildings.find((e) => e.kind === "barracks" && e.constructing === 0 && !e.producing);
     const playerTanks = living(state).filter((entity) => entity.owner === 0 && entity.kind === "tank").length;
@@ -59,7 +63,7 @@ export function tickAi(state: SimState): void {
     }
   }
 
-  if (state.win.kind === "holdTheLine" && state.tick > 0 && state.tick % Math.max(240, 420 - state.missionIndex * 24) === 0) {
+  if (state.win.kind === "holdTheLine" && state.tick > 0 && state.tick % difficulty.enemyAssaultEvery === 0) {
     const fp = footprintOf("constructionYard");
     const spot = { x: yard.x - 1, y: yard.y + fp.h };
     trySpawnUnit(state, 1, rng.chance(0.45) ? "tank" : "infantry", spot.x, spot.y);
@@ -73,7 +77,7 @@ export function tickAi(state: SimState): void {
     yard,
     (e) => e.owner === 0 && e.kind === "constructionYard",
   );
-  const waveEvery = Math.max(240, 480 - state.missionIndex * 30);
+  const waveEvery = difficulty.enemyAssaultEvery;
   for (const b of enemyBuildings) {
     if (b.constructing > 0 || b.hp <= 0) continue;
     if (b.hp < b.maxHp) b.repairing = true;
@@ -88,7 +92,7 @@ export function tickAi(state: SimState): void {
   const averageHealth = enemyUnits.length ? enemyUnits.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / enemyUnits.length : 1;
   if (averageHealth < 0.35) state.aiState = "retreat";
   else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";
-  else if (playerYard && state.tick > waveEvery) state.aiState = "assault";
+  else if (playerYard && state.tick >= waveEvery) state.aiState = "assault";
   else if (enemyUnits.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
   else state.aiState = "economy";
   if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) {

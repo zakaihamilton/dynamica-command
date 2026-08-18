@@ -24,7 +24,7 @@ export function ResumeList({
   return (
     <>
       <div className={styles.block}>
-      <ConsoleLabel as="h2">Resume campaign</ConsoleLabel>
+      <ConsoleLabel as="h2" className={styles.heading}>Resume campaign</ConsoleLabel>
       <div className={styles.listWrap}>
         {saves.length === 0 ? (
           <p className={styles.empty}>No saved campaigns.</p>
