@@ -105,6 +105,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   return (
     <div
       className={styles.screen}
+      data-testid="briefing-screen"
       style={{ "--scene-art": `url("${biomeArt(campaign.world.biome)}")` } as CSSProperties}
     >
       <div className={styles.inner}>

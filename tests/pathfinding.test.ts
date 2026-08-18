@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { findPath } from "../lib/sim/pathfinding";
 import { TILE_BLOCKED, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
 import { issue, tick } from "../lib/sim/api";
-import { buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, unitAt } from "../lib/sim/world";
+import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
@@ -164,9 +164,25 @@ describe("building footprints", () => {
 
   it("rejects placement that straddles a cliff", () => {
     const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
     setHeight(s, 3, 2, 2);
     expect(canPlaceBuilding(s, "power", 2, 2)).toBe(false);
     expect(canPlaceBuilding(s, "power", 5, 5)).toBe(true);
+  });
+
+  it("requires every new building, including turrets, to join the owner building network", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 1, "constructionYard", 16, 16);
+
+    expect(canPlaceBuilding(s, "power", 3, 0)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 8, 0)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 11, 0)).toBe(false);
+    expect(canPlaceBuilding(s, "turret", 16, 16)).toBe(false);
+    expect(issue(s, { type: "build", building: "turret", x: 11, y: 0 })).toEqual([
+      { type: "commandRejected", reason: "invalid placement" },
+    ]);
+    expect(BUILDING_PLACEMENT_RADIUS).toBe(8);
   });
 });
 

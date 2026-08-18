@@ -2,7 +2,9 @@
   box-sizing: border-box;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 1.25rem 1rem;
+  padding: clamp(0.75rem, 2.5vh, 1.25rem) 1rem;
+  overflow-y: auto;
+  scrollbar-color: var(--chrome-bevel) var(--chrome-steel-lo);
   color: var(--chrome-body);
   background:
     repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0,0,0,0.16) 3px 4px),
@@ -16,7 +18,7 @@
   max-width: 72rem;
   width: 100%;
   display: grid;
-  gap: 1.25rem 1.75rem;
+  gap: clamp(0.75rem, 2.5vh, 1.25rem) 1.75rem;
 }
 
 .mast {
@@ -45,15 +47,15 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1.25rem;
+  gap: clamp(0.75rem, 2vh, 1rem);
+  padding: clamp(1rem, 3vh, 1.5rem);
   min-height: 0;
   min-width: 0;
 }
 
 .comms {
   flex-shrink: 0;
-  padding: 1rem;
+  padding: clamp(0.75rem, 2vh, 1rem);
   border: 1px solid var(--chrome-inset);
   background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
   background:
@@ -96,32 +98,21 @@
     padding-right: 2rem;
   }
 
-  .panel {
-    padding: 1.5rem;
-  }
 }
 
 @media (min-width: 1024px) {
   .screen {
-    position: fixed;
-    inset: 0;
-    height: auto;
-    min-height: 0;
-    max-height: none;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    padding-top: clamp(0.75rem, 2.5vh, 1.25rem);
+    padding-bottom: clamp(0.75rem, 2.5vh, 1.25rem);
   }
 
   .inner {
-    flex: 1;
-    min-height: 0;
     grid-template-columns: 168px minmax(0, 1fr) 168px;
     grid-template-areas:
       "mast mast mast"
       "portraits panel enemy";
     column-gap: 2rem;
-    row-gap: 1.25rem;
+    row-gap: clamp(0.75rem, 2.5vh, 1.25rem);
     align-items: start;
   }
 
@@ -136,7 +127,7 @@
 
   .panel {
     grid-area: panel;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .enemy {

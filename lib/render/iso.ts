@@ -6,7 +6,7 @@ export type Camera = {
 
 export const TILE_W = 64;
 export const TILE_H = 32;
-export const HEIGHT_STEP = 16;
+export const HEIGHT_STEP = 22;
 
 export function createCamera(): Camera {
   return { x: 400, y: 80, zoom: 1 };

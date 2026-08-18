@@ -1,5 +1,6 @@
-import { UNIT_STATS } from "../catalog";
+import { STARTING_CREDITS, UNIT_STATS } from "../catalog";
 import { createRng, mixSeed } from "../seed/rng";
+import { RESCUE_CONTACT_RADIUS } from "../types";
 import type { BuildingKind, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
 import { createCampaign } from "../gen/campaign";
 import { generateMap } from "../gen/map";
@@ -83,7 +84,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     fog: makeFog(map.width, map.height, 0),
     entities: [],
     nextId: 1,
-    credits: [1000, 1400],
+    credits: [STARTING_CREDITS.player, STARTING_CREDITS.enemy],
     creditsEarned: [0, 0],
     unitsProduced: [0, 0],
     unitsProducedByRole: emptyRoleCounts(),
@@ -191,7 +192,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
       for (let i = 0; i < count; i++) {
         const point = centerPoint(map, i, count);
         const target = spawnUnit(state, 0, kind === "escort" ? "tank" : "infantry", point.x, point.y);
-        target.neutral = kind !== "extraction";
+        target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
         targetIds.push(target.id);
         if (kind === "escort") {
           target.path = stepRoute(state, target, map.enemyStart);
@@ -272,7 +273,7 @@ function tickScenario(state: SimState): void {
   const runtime = state.runtime;
   if (!runtime || runtime.phase === "complete") return;
   const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
-  if (runtime.kind === "rescue") {
+  if (runtime.kind === "rescue" || runtime.kind === "extraction") {
     const rescuers = state.entities.filter(
       (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !e.neutral,
     );
@@ -281,9 +282,9 @@ function tickScenario(state: SimState): void {
       if (!e?.neutral) continue;
       e.path = [];
       e.idle = true;
-      if (rescuers.some((rescuer) => Math.hypot(rescuer.x - e.x, rescuer.y - e.y) <= 2.5)) {
+      if (rescuers.some((rescuer) => Math.hypot(rescuer.x - e.x, rescuer.y - e.y) <= RESCUE_CONTACT_RADIUS)) {
         e.neutral = false;
-        runtime.rescued += 1;
+        if (runtime.kind === "rescue") runtime.rescued += 1;
       }
     }
   }

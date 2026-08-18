@@ -3,8 +3,36 @@ import { createMission, issue, tick } from "../lib/sim/api";
 import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
+import { BUILDING_STATS, STARTING_CREDITS, UNIT_STATS } from "../lib/catalog";
+import { tooltipLines } from "../lib/render/renderer";
 
 describe("tactical expansion", () => {
+  it("starts missions with more credits and half-cost units and buildings", () => {
+    const state = createMission({ seed: 421, missionIndex: 0 });
+
+    expect(state.credits).toEqual([STARTING_CREDITS.player, STARTING_CREDITS.enemy]);
+    expect(UNIT_STATS.harvester.cost).toBe(450);
+    expect(UNIT_STATS.harvester.carryMax).toBe(250);
+    expect(UNIT_STATS.infantry.cost).toBe(75);
+    expect(UNIT_STATS.antiArmor.cost).toBe(160);
+    expect(UNIT_STATS.tank.cost).toBe(425);
+    expect(BUILDING_STATS.power.cost).toBe(300);
+    expect(BUILDING_STATS.refinery.cost).toBe(500);
+    expect(BUILDING_STATS.barracks.cost).toBe(375);
+    expect(BUILDING_STATS.factory.cost).toBe(800);
+    expect(BUILDING_STATS.turret.cost).toBe(275);
+    expect(BUILDING_STATS.power.power).toBe(50);
+    expect(UNIT_STATS.harvester.buildTicks).toBe(108);
+    expect(UNIT_STATS.infantry.buildTicks).toBe(48);
+    expect(UNIT_STATS.antiArmor.buildTicks).toBe(72);
+    expect(UNIT_STATS.tank.buildTicks).toBe(120);
+    expect(BUILDING_STATS.power.buildTicks).toBe(90);
+    expect(BUILDING_STATS.refinery.buildTicks).toBe(120);
+    expect(BUILDING_STATS.barracks.buildTicks).toBe(108);
+    expect(BUILDING_STATS.factory.buildTicks).toBe(180);
+    expect(BUILDING_STATS.turret.buildTicks).toBe(84);
+  });
+
   it("ramps enemy pressure across the campaign instead of starting at endgame strength", () => {
     const opening = createMission({ seed: 421, missionIndex: 0 });
     const finale = createMission({ seed: 421, missionIndex: 7 });
@@ -64,6 +92,58 @@ describe("tactical expansion", () => {
 
     expect(stranded.neutral).toBe(false);
     expect(state.runtime.rescued).toBe(1);
+  });
+
+  it("keeps extraction assets stationary until a player unit reaches them", () => {
+    const state = makeFixture({ win: { kind: "extraction", targetCount: 1, ticks: 100 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const escort = addUnit(state, 0, "infantry", 2, 3);
+    const asset = addUnit(state, 0, "infantry", 6, 3);
+    asset.neutral = true;
+    state.runtime = {
+      kind: "extraction",
+      phase: "active",
+      targetIds: [asset.id],
+      zone: { x: 0, y: 0 },
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    issue(state, { type: "move", unitIds: [asset.id], x: 9, y: 3 });
+    for (let i = 0; i < 10; i++) tick(state);
+    expect(asset.neutral).toBe(true);
+    expect(asset.x).toBe(6);
+    expect(asset.y).toBe(3);
+
+    issue(state, { type: "move", unitIds: [escort.id], x: asset.x, y: asset.y });
+    for (let i = 0; i < 100 && asset.neutral; i++) tick(state);
+    expect(asset.neutral).toBe(false);
+
+    issue(state, { type: "move", unitIds: [asset.id], x: 9, y: 3 });
+    for (let i = 0; i < 100; i++) tick(state);
+    expect(asset.x).toBeGreaterThan(6);
+  });
+
+  it("labels locked rescue and extraction targets as stranded", () => {
+    for (const kind of ["rescue", "extraction"] as const) {
+      const state = makeFixture({ win: { kind, targetCount: 1, ticks: 100 } });
+      const stranded = addUnit(state, 0, "infantry", 6, 3);
+      stranded.neutral = true;
+      state.runtime = {
+        kind,
+        phase: "active",
+        targetIds: [stranded.id],
+        zone: { x: 0, y: 0 },
+        deadline: 100,
+        rescued: 0,
+        required: 1,
+        secondary: [],
+      };
+
+      expect(tooltipLines(state, stranded, {})).toContain("Stranded");
+    }
   });
 
   it("completes a rescue quota even when the timed secondary objective expired", () => {

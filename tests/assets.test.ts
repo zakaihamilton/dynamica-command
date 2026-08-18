@@ -37,6 +37,15 @@ describe("retro procedural assets", () => {
     );
   });
 
+  it("separates mid and high elevation surfaces visually", () => {
+    const low = tileSprite("clear", 1, { biome: "ash plains", variant: 3, contour: "none" });
+    const mid = tileSprite("clear", 2, { biome: "ash plains", variant: 3, contour: "none" });
+    const high = tileSprite("clear", 3, { biome: "ash plains", variant: 3, contour: "none" });
+    expect(mid.palette.primary).not.toBe(low.palette.primary);
+    expect(high.palette.primary).not.toBe(mid.palette.primary);
+    expect(mid.palette.secondary).not.toBe(low.palette.secondary);
+  });
+
   it("paints grass, trees, and rocks as detailed floor props", () => {
     const grass = tileSprite("clear", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
     const trees = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });

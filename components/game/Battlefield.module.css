@@ -78,7 +78,7 @@
 
 @media (max-width: 799px) {
   .root {
-    min-height: 58vh;
+    min-height: 0;
   }
 
   .status {

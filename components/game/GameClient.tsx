@@ -635,18 +635,20 @@ export function GameClient({
 
   function entityAt(s: SimState, tx: number, ty: number) {
     const unit = s.entities.find(
-      (en) => en.hp > 0 && en.class === "unit" && (isRescueTarget(s, en) || !en.neutral) && Math.round(en.x) === tx && Math.round(en.y) === ty,
+      (en) => en.hp > 0 && en.class === "unit" && (isContactTarget(s, en) || !en.neutral) && Math.round(en.x) === tx && Math.round(en.y) === ty,
     );
     if (unit) return unit;
     return visibleBuildingAt(s, tx, ty);
   }
 
-  function isRescueTarget(s: SimState, entity: SimState["entities"][number]): boolean {
-    return entity.neutral === true && s.runtime?.kind === "rescue" && s.runtime.targetIds.includes(entity.id);
+  function isContactTarget(s: SimState, entity: SimState["entities"][number]): boolean {
+    return entity.neutral === true
+      && (s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction")
+      && s.runtime.targetIds.includes(entity.id);
   }
 
   function pickSelectableEntity(s: SimState, x: number, y: number, tx: number, ty: number) {
-    return pickEntity(s, x, y, camRef.current, s.runtime?.kind === "rescue") ?? entityAt(s, tx, ty);
+    return pickEntity(s, x, y, camRef.current, s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction") ?? entityAt(s, tx, ty);
   }
 
   const issueContextOrder = (s: SimState, p: { x: number; y: number }) => {
@@ -867,7 +869,7 @@ export function GameClient({
       const x1 = Math.max(b.x0, b.x1);
       const y1 = Math.max(b.y0, b.y1);
       for (const en of s.entities) {
-        if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit" || (en.neutral && !isRescueTarget(s, en))) continue;
+        if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit" || (en.neutral && !isContactTarget(s, en))) continue;
         const elev = heightAt(s, Math.round(en.x), Math.round(en.y));
         const sp = tileToScreen(en.x, en.y, camRef.current, elev);
         if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) ids.push(en.id);
@@ -888,7 +890,7 @@ export function GameClient({
         cmdQ.current.push({ type: "attack", unitIds: [...selected.current], targetId: hit.id });
         beep("ack");
       } else {
-        commitSelection(hit && hit.owner === 0 && (!hit.neutral || isRescueTarget(s, hit)) ? [hit.id] : []);
+        commitSelection(hit && hit.owner === 0 && (!hit.neutral || isContactTarget(s, hit)) ? [hit.id] : []);
         beep("select");
       }
     }

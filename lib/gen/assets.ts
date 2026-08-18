@@ -102,6 +102,18 @@ function signed(v: number, lane: number, span: number): number {
   return pick(v, lane, span * 2 + 1) - span;
 }
 
+function mixHex(a: string, b: string, amount: number): string {
+  const parse = (value: string): [number, number, number] => [
+    Number.parseInt(value.slice(1, 3), 16),
+    Number.parseInt(value.slice(3, 5), 16),
+    Number.parseInt(value.slice(5, 7), 16),
+  ];
+  const from = parse(a);
+  const to = parse(b);
+  const t = Math.max(0, Math.min(1, amount));
+  return `#${[0, 1, 2].map((i) => Math.round(from[i]! + (to[i]! - from[i]!) * t).toString(16).padStart(2, "0")).join("")}`;
+}
+
 const TERRAIN: Record<BiomeName, [string, string, string, string]> = {
   "ash plains": ["#4f5a43", "#3e4736", "#6a7558", "#2c3328"],
   "crystal flats": ["#5a6a58", "#465448", "#7a8a72", "#313c34"],
@@ -129,13 +141,15 @@ const ORE = {
 
 function terrainPalette(biome: BiomeName, elev: number): Palette {
   const [base, dark, light, outline] = TERRAIN[biome];
-  const high = elev >= 3;
+  const tier = Math.max(0, Math.min(3, elev));
+  const mid = tier === 2;
+  const high = tier >= 3;
   return {
-    primary: high ? light : elev <= 0 ? dark : base,
-    secondary: high ? base : dark,
+    primary: high ? light : mid ? mixHex(base, light, 0.34) : tier === 0 ? dark : base,
+    secondary: high ? base : mid ? mixHex(dark, base, 0.42) : dark,
     accent: light,
     outline,
-    light: high ? "#c6c4b4" : light,
+    light: high ? mixHex(light, "#f4f1d8", 0.28) : mid ? mixHex(light, "#e7e2c2", 0.12) : light,
     dark,
   };
 }
@@ -147,12 +161,14 @@ export function cliffFaces(biome: BiomeName, elev: number): {
   eastInk: string;
 } {
   const [base, dark, , outline] = TERRAIN[biome];
-  const high = elev >= 3;
+  const tier = Math.max(0, Math.min(3, elev));
+  const mid = tier === 2;
+  const high = tier >= 3;
   return {
-    south: high ? dark : outline,
-    east: high ? base : dark,
+    south: high ? dark : mid ? mixHex(outline, dark, 0.35) : outline,
+    east: high ? base : mid ? mixHex(dark, base, 0.4) : dark,
     southInk: outline,
-    eastInk: high ? dark : outline,
+    eastInk: high ? dark : mid ? mixHex(outline, dark, 0.45) : outline,
   };
 }
 
@@ -175,7 +191,7 @@ export function elevationFace(
   seed: number,
 ): ElevationFace {
   const hillside = dropSteps <= 1;
-  const drop = dropSteps * heightStep * (hillside ? 0.72 : 1);
+  const drop = dropSteps * heightStep * (hillside ? 0.86 : 1);
   const inset = hillside ? heightStep * 0.4 : 0;
   const jx = faceJitter(seed, 0, Math.max(2, Math.round(tw * 0.04)));
   const jy = faceJitter(seed, 1, Math.max(1, Math.round(th * 0.06)));
@@ -319,7 +335,7 @@ export function tileSprite(
   const variant = opts.variant ?? 0;
   const v = hash(variant + elev * 17);
   const contour = opts.contour ?? defaultContour(kind, elev);
-  const floorElev = contour === "ridge" ? Math.min(elev, 1) : contour === "bank" || kind === "water" ? 0 : elev;
+  const floorElev = contour === "bank" || kind === "water" ? 0 : elev;
   const p = terrainPalette(biome, floorElev);
   const cx = tileCx();
   const cy = tileCy();
