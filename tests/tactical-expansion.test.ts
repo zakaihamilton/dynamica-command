@@ -20,6 +20,15 @@ describe("tactical expansion", () => {
     expect(BUILDING_STATS.factory.cost).toBe(800);
     expect(BUILDING_STATS.turret.cost).toBe(275);
     expect(BUILDING_STATS.power.power).toBe(50);
+    expect(UNIT_STATS.harvester.buildTicks).toBe(108);
+    expect(UNIT_STATS.infantry.buildTicks).toBe(48);
+    expect(UNIT_STATS.antiArmor.buildTicks).toBe(72);
+    expect(UNIT_STATS.tank.buildTicks).toBe(120);
+    expect(BUILDING_STATS.power.buildTicks).toBe(90);
+    expect(BUILDING_STATS.refinery.buildTicks).toBe(120);
+    expect(BUILDING_STATS.barracks.buildTicks).toBe(108);
+    expect(BUILDING_STATS.factory.buildTicks).toBe(180);
+    expect(BUILDING_STATS.turret.buildTicks).toBe(84);
   });
 
   it("ramps enemy pressure across the campaign instead of starting at endgame strength", () => {
