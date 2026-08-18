@@ -83,7 +83,8 @@ export function rotatedSpriteBounds(spec: Pick<SpriteSpec, "w" | "h" | "rotation
 }
 
 function rasterCacheKey(spec: SpriteSpec): string {
-  return `image:${spec.imageSrc}:${spec.imageTint ?? ""}:${spec.w}x${spec.h}`;
+  const crop = spec.imageCrop ? `${spec.imageCrop.x},${spec.imageCrop.y},${spec.imageCrop.w},${spec.imageCrop.h}` : "";
+  return `image:${spec.imageSrc}:${spec.imageTint ?? ""}:${crop}:${spec.w}x${spec.h}`;
 }
 
 function notifyImageReady(key: string): void {
@@ -148,13 +149,24 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
     image.decoding = "async";
     const paintImage = () => {
       const inset = Math.max(1, Math.round(Math.min(c.width, c.height) * 0.025));
-      const scale = Math.min((c.width - inset * 2) / image.naturalWidth, (c.height - inset * 2) / image.naturalHeight);
-      const dw = Math.round(image.naturalWidth * scale);
-      const dh = Math.round(image.naturalHeight * scale);
+      const crop = spec.imageCrop ?? { x: 0, y: 0, w: image.naturalWidth, h: image.naturalHeight };
+      const scale = Math.min((c.width - inset * 2) / crop.w, (c.height - inset * 2) / crop.h);
+      const dw = Math.round(crop.w * scale);
+      const dh = Math.round(crop.h * scale);
       ctx.clearRect(0, 0, c.width, c.height);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(image, Math.round((c.width - dw) / 2), Math.round(c.height - dh - inset * 0.25), dw, dh);
+      ctx.drawImage(
+        image,
+        crop.x,
+        crop.y,
+        crop.w,
+        crop.h,
+        Math.round((c.width - dw) / 2),
+        Math.round(c.height - dh - inset * 0.25),
+        dw,
+        dh,
+      );
       if (spec.imageTint) {
         ctx.globalCompositeOperation = "source-atop";
         ctx.fillStyle = spec.imageTint;

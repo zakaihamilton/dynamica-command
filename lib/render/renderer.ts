@@ -363,7 +363,7 @@ export function renderWorld(
       ? unitSprite(e.kind as UnitKind, pal, {
           variant: entityVariant(state, e),
           facing,
-          animationFrame: uAnim!.frame,
+          animationFrame: uAnim?.frame,
           damageStage,
           profile,
         })

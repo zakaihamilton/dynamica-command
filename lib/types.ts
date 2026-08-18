@@ -230,6 +230,15 @@ export type ShapeSpec = {
   points?: number[];
 };
 
+export type SpriteCrop = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  sourceW: number;
+  sourceH: number;
+};
+
 export type SpriteSpec = {
   id: string;
   kind: "unit" | "building" | "tile";
@@ -242,6 +251,8 @@ export type SpriteSpec = {
   imageSrc?: string;
   /** Seeded campaign-grade color treatment composited over a pre-rendered sprite. */
   imageTint?: string;
+  /** Optional source-image crop used to remove adjacent artwork from generated raster assets. */
+  imageCrop?: SpriteCrop;
   /** A subtle material plate composited into procedural terrain without replacing map geometry. */
   imageTextureSrc?: string;
   imageTextureOpacity?: number;

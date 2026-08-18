@@ -1,5 +1,5 @@
 import { BUILDING_STATS } from "../catalog";
-import { SPRITE_ART, UNIT_DIRECTION_ART, unitViewForFacing } from "./visualAssets";
+import { SPRITE_ART, UNIT_DIRECTION_ART, UNIT_DIRECTION_CROPS, unitViewForFacing } from "./visualAssets";
 import type {
   BuildingKind,
   BuildingSpriteOptions,
@@ -27,7 +27,6 @@ const BRASS = "#c3a65d";
 const GOLD = "#d3b846";
 const RIM = "#c8cec4";
 const SOFT = "#3a423c";
-const SKINS = ["#b58d68", "#c68642", "#e8c39e", "#8d5524", "#d4a574"];
 
 const DEFAULT_PROFILE: FactionVisualProfile = {
   designFamily: 0,
@@ -159,303 +158,26 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
   const variant = options.variant ?? 0;
   const dmg = options.damageStage ?? 0;
   const profile = options.profile ?? DEFAULT_PROFILE;
+  const view = unitViewForFacing(facing);
   // Raster units are bottom-aligned inside their logical frame. The rotation
   // pivot must be the contact point at the feet/base, not the visual center.
   const ground = h;
   return {
-    id: `unit:directional-v1:${kind}:${facing}:${unitViewForFacing(facing)}:${palette.primary}:${visualKey(profile)}:${variant}:${frame}:${dmg}`,
+    id: `unit:directional-v1:${kind}:${facing}:${view}:${palette.primary}:${visualKey(profile)}:${variant}:${frame}:${dmg}`,
     kind: "unit",
     w,
     h,
     palette,
     shapes: [],
-    imageSrc: UNIT_DIRECTION_ART[kind][unitViewForFacing(facing)],
+    imageSrc: UNIT_DIRECTION_ART[kind][view],
     imageTint: rasterTreatment(profile),
-    anchorX: w / 2,
-    anchorY: ground,
-    pixelScale: 1,
-  };
-  const svg = new Svg();
-  const cx = w / 2;
-  const cy = infantry ? ground - 21 : ground - 13;
-  svg.ellipse(cx, ground, infantry ? 7.5 : 15, infantry ? 2.8 : 4.2, "rgba(8,10,12,0.55)");
-  if (kind === "harvester") paintHarvester(svg, cx, cy, facing, frame, palette, profile);
-  else if (kind === "tank") paintTank(svg, cx, cy, facing, frame, palette, profile);
-  else paintInfantry(svg, kind, cx, cy, facing, frame, variant, palette, profile);
-  paintUnitIdentity(svg, kind, cx, cy, facing, variant, palette, profile);
-  paintUnitFinish(svg, kind, cx, cy, facing, variant, palette, profile);
-  if (variant % 3 === 1) svg.ellipse(cx - 14, cy, 2, 1.2, GOLD);
-  if (dmg > 0) svg.ellipse(cx - 4, cy, 8, 3.5, "rgba(30,24,18,0.7)");
-  if (dmg > 1) {
-    svg.line(cx - 8, cy - 4, cx + 4, cy + 6, "#1b1714", 2);
-    svg.ellipse(cx + 6, cy - 8, 6, 7, "rgba(58,58,54,0.45)");
-  }
-  return {
-    id: `unit:${ART_REV}:${kind}:${palette.primary}:${visualKey(profile)}:${variant}:${facing}:${frame}:${dmg}`,
-    kind: "unit",
-    w,
-    h,
-    palette,
-    shapes: [],
-    svg: svg.toString(w, h),
+    imageCrop: UNIT_DIRECTION_CROPS[kind]?.[view],
     anchorX: w / 2,
     anchorY: ground,
     pixelScale: 1,
   };
 }
 
-function paintUnitIdentity(
-  svg: Svg,
-  kind: UnitKind,
-  cx: number,
-  cy: number,
-  facing: Facing,
-  variant: number,
-  pal: Palette,
-  profile: FactionVisualProfile,
-): void {
-  const dir = facingVector(facing);
-  const infantry = kind === "infantry" || kind === "antiArmor";
-  const metal = profileMetal(profile);
-  const light = profile.lightRig === "amber" ? "#ffd27a" : profile.lightRig === "red" ? "#ff8068" : "#8eeff1";
-  if (infantry) {
-    const shoulder = veh(cx, cy, -1, profile.designFamily === 1 ? 7 : 5, 17, facing);
-    svg.path(d(octagon(shoulder[0], shoulder[1], profile.designFamily === 1 ? 4.8 : 3.4, 2.4)), pal.primary, INK, 1);
-    if (profile.designFamily === 2) {
-      const pack = veh(cx, cy, -4, 0, 14, facing);
-      svg.path(d(octagon(pack[0], pack[1], 4.2, 5)), STEEL_DARK, INK, 1);
-      svg.line(pack[0], pack[1] - 4, pack[0] - dir.x * 3, pack[1] - 9, STEEL_LIGHT, 1);
-    }
-  } else if (profile.designFamily === 0) {
-    const nose = veh(cx, cy, 10, 0, 9, facing);
-    svg.path(d(octagon(nose[0], nose[1], 5.6, 3.2)), pal.primary, INK, 1);
-    svg.line(nose[0] - dir.y * 4, nose[1] + dir.x * 2, nose[0] + dir.y * 4, nose[1] - dir.x * 2, pal.light, 1);
-  } else if (profile.designFamily === 1) {
-    for (const side of [-1, 1]) {
-      const pod = veh(cx, cy, -3, side * 8, 7, facing);
-      svg.path(d(octagon(pod[0], pod[1], 5, 3.4)), STEEL_DARK, INK, 1);
-      svg.path(d(octagon(pod[0], pod[1] - 1, 3.2, 2)), pal.primary, INK, 1);
-    }
-  } else {
-    const drum = veh(cx, cy, -10, 0, 13, facing);
-    svg.path(d(octagon(drum[0], drum[1], 8, 5)), RUST, INK, 1.2);
-    svg.path(d(octagon(drum[0], drum[1] - 2, 6, 3.1)), RUST_LIGHT, INK, 1);
-    for (const side of [-1, 1]) {
-      const stack = veh(cx, cy, -12, side * 6, 15, facing);
-      svg.line(stack[0], stack[1] + 3, stack[0], stack[1] - 8 - (side + 1), metal.dark, 2.2);
-      svg.ellipse(stack[0], stack[1] - 9 - (side + 1), 2.8, 1.6, side > 0 ? light : metal.trim, INK, 1);
-    }
-    const railA = veh(cx, cy, -6, -9, 16, facing);
-    const railB = veh(cx, cy, -6, 9, 16, facing);
-    svg.line(railA[0], railA[1], railB[0], railB[1], metal.trim, 2);
-    svg.line(railA[0], railA[1], railA[0], railA[1] + 7, metal.dark, 1.5);
-    svg.line(railB[0], railB[1], railB[0], railB[1] + 7, metal.dark, 1.5);
-    svg.line(cx - 14, cy - 18, cx + 12, cy - 18, metal.trim, 3);
-    svg.line(cx - 14, cy - 18, cx - 14, cy + 1, metal.dark, 2);
-    svg.line(cx + 12, cy - 18, cx + 12, cy - 2, metal.dark, 2);
-    svg.path(d(octagon(cx - 13, cy - 8, 7, 4)), RUST, INK, 1.2);
-    svg.path(d(octagon(cx - 13, cy - 10, 5, 2.5)), RUST_LIGHT, INK, 1);
-    for (let i = 0; i < 4; i++) {
-      const x = cx - 10 + i * 6;
-      svg.line(x, cy - 20, x + 3, cy - 17, i % 2 ? "#1c201d" : pal.accent, 2);
-    }
-  }
-  const mark = veh(cx, cy, infantry ? 0 : 2, 0, infantry ? 19 : 11, facing);
-  if (profile.insignia % 2 === 0) svg.path(d(diamond(mark[0], mark[1], 4, 2.8)), pal.accent, INK, 0.7);
-  else svg.ellipse(mark[0], mark[1], 2.2, 1.5, light, INK, 0.7);
-  if (profile.weathering >= 2) {
-    const scratch = veh(cx, cy, ((variant >>> 3) % 7) - 3, 0, infantry ? 13 : 7, facing);
-    svg.line(scratch[0] - 3, scratch[1] - 2, scratch[0] + 3, scratch[1] + 1, RUST_LIGHT, 0.8);
-  }
-}
-
-function paintUnitFinish(
-  svg: Svg,
-  kind: UnitKind,
-  cx: number,
-  cy: number,
-  facing: Facing,
-  variant: number,
-  pal: Palette,
-  profile: FactionVisualProfile,
-): void {
-  const dir = facingVector(facing);
-  const metal = profileMetal(profile);
-  const light = profile.lightRig === "amber" ? "#ffd27a" : profile.lightRig === "red" ? "#ff8068" : "#8eeff1";
-  const infantry = kind === "infantry" || kind === "antiArmor";
-  const z = infantry ? 12 : 9;
-  if (profile.designFamily === 0) {
-    const railA = veh(cx, cy, infantry ? -3 : -9, -5, z, facing);
-    const railB = veh(cx, cy, infantry ? 4 : 11, -5, z, facing);
-    svg.line(railA[0], railA[1], railB[0], railB[1], metal.trim, 1.2);
-    const sensor = veh(cx, cy, infantry ? 1 : 7, 0, z + 4, facing);
-    svg.ellipse(sensor[0], sensor[1], infantry ? 1.6 : 2.4, 1.25, light, INK, 0.6);
-  } else if (profile.designFamily === 1) {
-    for (const side of [-1, 1]) {
-      const plate = veh(cx, cy, infantry ? -1 : -2, side * (infantry ? 5 : 8), z, facing);
-      svg.path(d(octagon(plate[0], plate[1], infantry ? 2.2 : 3.4, infantry ? 1.4 : 2)), metal.light, INK, 0.65);
-    }
-    const brace = veh(cx, cy, infantry ? 1 : -5, 0, z + 1, facing);
-    svg.line(brace[0] - dir.y * 4, brace[1] + dir.x * 2, brace[0] + dir.y * 4, brace[1] - dir.x * 2, pal.accent, 1.1);
-  } else {
-    const panel = veh(cx, cy, infantry ? 0 : -6, 0, z, facing);
-    svg.path(d(octagon(panel[0], panel[1], infantry ? 3 : 5.5, infantry ? 1.8 : 2.6)), metal.trim, INK, 0.7);
-    for (let i = -1; i <= 1; i++) {
-      const a = veh(cx, cy, infantry ? i * 2 : i * 4, -4, z + 1, facing);
-      const b = veh(cx, cy, infantry ? i * 2 : i * 4, 4, z + 1, facing);
-      svg.line(a[0], a[1], b[0], b[1], i === 0 ? pal.primary : metal.dark, 0.9);
-    }
-    if ((variant & 3) === 0) svg.ellipse(panel[0] + dir.x * 3, panel[1] + dir.y * 2 - 2, 1.6, 1, light, INK, 0.5);
-  }
-}
-
-function paintTreads(svg: Svg, cx: number, cy: number, facing: Facing, frame: number, length: number, width: number): void {
-  const tread = [0, 1, 0, -1][frame] ?? 0;
-  const gy = cy + 9;
-  const pad = hull(cx, gy, facing, length + 6, width + 7, 1, -1);
-  svg.path(d(pad), STEEL_DARK, INK, 1);
-  const inner = hull(cx, gy, facing, length + 2, width + 4, 0.5, 0);
-  svg.path(d(inner), "#1e221f", INK, 1);
-  for (let i = 0; i < 7; i++) {
-    const t = (i - 3) / 3.2;
-    const a = veh(cx, gy, t * length * 0.42, -width * 0.28, ((i + tread) & 1) * 0.6, facing);
-    const b = veh(cx, gy, t * length * 0.42, width * 0.28, ((i + tread) & 1) * 0.6, facing);
-    svg.line(a[0], a[1], b[0], b[1], i % 2 ? STEEL : "#1a1e1a", 1);
-  }
-}
-
-function paintHarvester(
-  svg: Svg,
-  cx: number,
-  cy: number,
-  facing: Facing,
-  frame: number,
-  pal: Palette,
-  profile: FactionVisualProfile,
-): void {
-  const dir = facingVector(facing);
-  const metal = profileMetal(profile);
-  const family = profile.designFamily;
-  const length = family === 0 ? 40 : family === 1 ? 34 : 37;
-  const width = family === 1 ? 21 : family === 2 ? 17 : 14;
-  paintTreads(svg, cx, cy, facing, frame, length, width);
-  svg.path(d(hull(cx, cy + 1, facing, length - 3, width + 1, family === 1 ? 7 : 5, 3)), metal.dark, INK, 1.2);
-  svg.path(d(hull(cx + dir.x * 2, cy - 1, facing, length - 9, width - 3, 4, 6)), metal.body, INK, 1);
-  svg.path(d(hull(cx + dir.x * (family === 0 ? 7 : 0), cy - 3, facing, family === 0 ? 23 : 18, family === 1 ? 10 : 7, 2, 8)), pal.primary, INK, 1.2);
-  if (family === 0) {
-    const prow = veh(cx, cy, 18, 0, 8, facing);
-    svg.path(d(hull(prow[0], prow[1], facing, 15, 17, 3, 3)), metal.light, INK, 1.2);
-    svg.line(prow[0] - dir.y * 8, prow[1] + dir.x * 4, prow[0] + dir.y * 8, prow[1] - dir.x * 4, pal.light, 2);
-  } else if (family === 1) {
-    for (const side of [-1, 1]) {
-      const bin = veh(cx, cy, -4, side * 10, 9, facing);
-      svg.path(d(octagon(bin[0], bin[1], 8, 5)), metal.dark, INK, 1.2);
-      svg.path(d(octagon(bin[0], bin[1] - 2, 6, 3.2)), pal.primary, INK, 1);
-    }
-  } else {
-    const gantryA = veh(cx, cy, -12, -8, 15, facing);
-    const gantryB = veh(cx, cy, -12, 8, 15, facing);
-    svg.line(gantryA[0], gantryA[1], gantryB[0], gantryB[1], metal.trim, 2);
-    svg.line(gantryA[0], gantryA[1], gantryA[0], gantryA[1] - 7, metal.dark, 2);
-    svg.line(gantryB[0], gantryB[1], gantryB[0], gantryB[1] - 7, metal.dark, 2);
-  }
-  const grate = hull(cx - dir.x * 5, cy - 4 - dir.y * 3, facing, 10, 6, 1, 11);
-  svg.line(grate[0]![0], grate[0]![1], grate[2]![0], grate[2]![1], SOFT, 1);
-  svg.line(grate[1]![0], grate[1]![1], grate[4]![0], grate[4]![1], SOFT, 1);
-  const exhaust = veh(cx, cy, -10, 5, 10, facing);
-  svg.path(d(octagon(exhaust[0], exhaust[1], 2.4, 1.7)), RUST, INK, 1);
-  svg.path(d(hull(cx - dir.x * 5, cy - 3 - dir.y * 3, facing, 16, 12, 6, 8)), RUST, INK, 1);
-  svg.path(d(hull(cx - dir.x * 5, cy - 4 - dir.y * 3, facing, 12, 8, 3, 10)), RUST_LIGHT, INK, 1);
-  const cab = hull(cx + dir.x * 8, cy - 5 + dir.y * 6, facing, 12, 11, 7, 9);
-  svg.path(d(cab), STEEL_DARK, INK, 1);
-  svg.path(d(hull(cx + dir.x * 8, cy - 6 + dir.y * 6, facing, 9, 8, 5, 11)), STEEL_LIGHT, INK, 1);
-  const wx = cx + dir.x * 8;
-  const wy = cy - 6 + dir.y * 5;
-  svg.path(d([[wx - 3, wy - 1], [wx + 3, wy - 1], [wx + 3, wy + 2], [wx - 3, wy + 2]]), GLASS, INK, 1);
-  svg.path(d([[wx - 2, wy], [wx + 1, wy], [wx + 1, wy + 1], [wx - 2, wy + 1]]), pal.light);
-  const scoop = 7 + ([0, 2, 4, 2][frame] ?? 0);
-  const sx = cx + dir.x * 16;
-  const sy = cy + dir.y * 14 + 2;
-  svg.path(
-    d([
-      [sx - dir.y * 7, sy + dir.x * 4],
-      [sx + dir.x * scoop, sy + dir.y * scoop],
-      [sx + dir.y * 7, sy - dir.x * 4],
-      [sx + dir.x * 2, sy + dir.y * 2],
-    ]),
-    "#474b46",
-    INK,
-    1,
-  );
-  svg.path(
-    d([
-      [sx + dir.x * scoop - 2, sy + dir.y * scoop - 1],
-      [sx + dir.x * scoop + 2, sy + dir.y * scoop],
-      [sx + dir.x * scoop, sy + dir.y * scoop + 2],
-    ]),
-    STEEL_DARK,
-    INK,
-    1,
-  );
-  svg.path(d([[cx - 2, cy - 12], [cx + 2, cy - 12], [cx + 2, cy - 8], [cx - 2, cy - 8]]), RUST, INK, 1);
-  svg.path(d([[cx - 1, cy - 13], [cx + 1, cy - 13], [cx + 1, cy - 11], [cx - 1, cy - 11]]), STEEL_LIGHT);
-}
-
-function paintTank(
-  svg: Svg,
-  cx: number,
-  cy: number,
-  facing: Facing,
-  frame: number,
-  pal: Palette,
-  profile: FactionVisualProfile,
-): void {
-  const dir = facingVector(facing);
-  const metal = profileMetal(profile);
-  const family = profile.designFamily;
-  const length = family === 0 ? 38 : family === 1 ? 31 : 35;
-  const width = family === 1 ? 21 : family === 2 ? 16 : 13;
-  paintTreads(svg, cx, cy, facing, frame, length, width);
-  svg.path(d(hull(cx, cy, facing, length - 3, width, family === 1 ? 7 : 5, 3)), metal.dark, INK, 1.2);
-  svg.path(d(hull(cx + dir.x * (family === 0 ? 3 : 0), cy - 2, facing, length - 9, width - 4, 4, 6)), metal.body, INK, 1);
-  svg.path(d(hull(cx + dir.x * 5, cy - 3, facing, family === 0 ? 23 : 18, family === 1 ? 11 : 7, 2, 8)), pal.primary, INK, 1.2);
-  if (family === 0) {
-    const nose = veh(cx, cy, 18, 0, 7, facing);
-    svg.path(d(hull(nose[0], nose[1], facing, 13, 16, 2, 3)), metal.light, INK, 1);
-    svg.line(nose[0] - dir.y * 7, nose[1] + dir.x * 4, nose[0] + dir.y * 7, nose[1] - dir.x * 4, pal.light, 2);
-  } else if (family === 1) {
-    for (const side of [-1, 1]) {
-      const sponson = veh(cx, cy, 1, side * 10, 9, facing);
-      svg.path(d(octagon(sponson[0], sponson[1], 7, 4.5)), metal.dark, INK, 1.2);
-      svg.ellipse(sponson[0], sponson[1] - 2, 3.5, 2, pal.accent, INK, 1);
-    }
-  } else {
-    const engine = veh(cx, cy, -13, 0, 12, facing);
-    svg.path(d(octagon(engine[0], engine[1], 8, 5)), RUST, INK, 1.2);
-    for (let i = -1; i <= 1; i++) svg.line(engine[0] - 5, engine[1] + i * 2, engine[0] + 5, engine[1] + i * 2, metal.trim, 1);
-  }
-  const seam = hull(cx, cy - 1, facing, 20, 9, 2, 5);
-  svg.line(seam[0]![0], seam[0]![1], seam[3]![0], seam[3]![1], SOFT, 1);
-  svg.line(seam[1]![0], seam[1]![1], seam[4]![0], seam[4]![1], SOFT, 1);
-  const ex = veh(cx, cy, -12, 4, 8, facing);
-  svg.path(d(octagon(ex[0], ex[1], 2.2, 1.6)), RUST, INK, 1);
-  const ant = veh(cx, cy, -8, -3, 12, facing);
-  svg.line(ant[0], ant[1], ant[0], ant[1] - 6, STEEL_DARK, 1);
-  const tx = cx + dir.x;
-  const ty = cy - 7;
-  const turretW = family === 0 ? 12 : family === 1 ? 10 : 8.5;
-  const turretH = family === 1 ? 8 : family === 2 ? 6 : 5.5;
-  svg.path(d(octagon(tx, ty + 1, turretW, turretH)), metal.dark, INK, 1.2);
-  svg.path(d(octagon(tx + dir.x * (family === 0 ? 2 : 0), ty - 1, turretW - 2.5, turretH - 2)), metal.light, INK, 1);
-  svg.path(d(octagon(tx + dir.x * 2, ty, family === 1 ? 6.5 : 5.5, family === 1 ? 4 : 3.2)), pal.primary, INK, 1);
-  const bx = tx;
-  const by = ty + 2;
-  svg.line(bx, by, bx + dir.x * 22, by + dir.y * 22, STEEL_DARK, 3);
-  svg.line(bx, by - 1, bx + dir.x * 20, by - 1 + dir.y * 20, STEEL_LIGHT, 1);
-  svg.path(d(octagon(bx + dir.x * 21, by + dir.y * 21, 2.4, 1.8)), STEEL, INK, 1);
-  svg.path(d([[tx + 2, ty - 2], [tx + 4, ty - 2], [tx + 4, ty], [tx + 2, ty]]), pal.light);
-  svg.path(d(octagon(tx - 1, ty - 5, 3.2, 2.2)), STEEL_DARK, INK, 1);
-}
 
 function octagon(cx: number, cy: number, rx: number, ry: number): Array<[number, number]> {
   const k = 0.41;
@@ -471,126 +193,6 @@ function octagon(cx: number, cy: number, rx: number, ry: number): Array<[number,
   ];
 }
 
-function paintInfantry(
-  svg: Svg,
-  kind: UnitKind,
-  cx: number,
-  cy: number,
-  facing: Facing,
-  frame: number,
-  variant: number,
-  pal: Palette,
-  profile: FactionVisualProfile,
-): void {
-  const dir = facingVector(facing);
-  const heavy = kind === "antiArmor";
-  const left = [2, 0, -2, 0][frame] ?? 0;
-  const right = [-2, 0, 2, 0][frame] ?? 0;
-  const bob = frame % 2 === 0 ? 0 : 1;
-  const lean = dir.x * 2;
-  const y = cy + bob;
-  const skin = SKINS[variant % SKINS.length]!;
-  const metal = profileMetal(profile);
-  const family = profile.designFamily;
-  const gx = cx + lean + 1;
-  const gy = y + 4;
-  const gun = () => {
-    if (heavy) {
-      svg.path(
-        d([
-          [gx, gy - 1],
-          [gx + dir.x * 16, gy + dir.y * 16 - 1],
-          [gx + dir.x * 16, gy + dir.y * 16 + 2],
-          [gx, gy + 2],
-        ]),
-        STEEL_DARK,
-        INK,
-        1,
-      );
-      svg.path(d([[gx - 4, gy - 2], [gx - 1, gy - 2], [gx - 1, gy + 2], [gx - 4, gy + 2]]), RUST, INK, 1);
-    } else {
-      svg.line(gx, gy, gx + dir.x * 14, gy + dir.y * 14, INK, 2);
-      svg.line(gx, gy - 1, gx + dir.x * 13, gy - 1 + dir.y * 13, pal.light, 1);
-      svg.path(d([[gx - 2, gy - 1], [gx + 1, gy - 1], [gx + 1, gy + 1], [gx - 2, gy + 1]]), STEEL_DARK, INK, 1);
-    }
-  };
-  if (dir.y < -0.05) gun();
-  svg.path(
-    d([
-      [cx - 4 + lean, y + 12],
-      [cx - 3 + left, y + 12],
-      [cx - 5 + left, y + 20],
-      [cx - 7 + left, y + 20],
-    ]),
-    STEEL_DARK,
-    INK,
-    1,
-  );
-  svg.path(
-    d([
-      [cx + 2 + lean, y + 12],
-      [cx + 4 + lean, y + 12],
-      [cx + 6 + right, y + 20],
-      [cx + 4 + right, y + 20],
-    ]),
-    STEEL_DARK,
-    INK,
-    1,
-  );
-  svg.path(d([[cx - 5 + left, y + 19], [cx - 1 + left, y + 19], [cx - 1 + left, y + 21], [cx - 5 + left, y + 21]]), STEEL, INK, 1);
-  svg.path(d([[cx + 2 + right, y + 19], [cx + 6 + right, y + 19], [cx + 6 + right, y + 21], [cx + 2 + right, y + 21]]), STEEL, INK, 1);
-  const bw = heavy ? 8 : 6.5;
-  svg.path(
-    d([
-      [cx - bw + lean, y + 12],
-      [cx + bw + lean, y + 12],
-      [cx + bw - 1 + lean, y + 2],
-      [cx - bw + 1 + lean, y + 2],
-    ]),
-    heavy ? metal.dark : metal.body,
-    INK,
-    1,
-  );
-  if (family === 0) {
-    svg.path(d([[cx - bw - 3 + lean, y + 2], [cx - bw + 1 + lean, y - 2], [cx - bw + 2 + lean, y + 5], [cx - bw - 2 + lean, y + 7]]), pal.primary, INK, 1);
-    svg.path(d([[cx + bw + 3 + lean, y + 2], [cx + bw - 1 + lean, y - 2], [cx + bw - 2 + lean, y + 5], [cx + bw + 2 + lean, y + 7]]), pal.primary, INK, 1);
-  } else if (family === 1) {
-    svg.path(d(octagon(cx - 8 + lean, y + 4, 5, 4)), metal.dark, INK, 1.2);
-    svg.path(d(octagon(cx + 8 + lean, y + 4, 5, 4)), metal.dark, INK, 1.2);
-  } else {
-    svg.path(d([[cx - 7 + lean, y + 12], [cx - 4 + lean, y - 1], [cx + 4 + lean, y - 1], [cx + 7 + lean, y + 12]]), RUST, INK, 1);
-    svg.line(cx - 5 + lean, y + 3, cx + 5 + lean, y + 3, metal.trim, 1);
-    svg.line(cx - 5 + lean, y + 7, cx + 5 + lean, y + 7, metal.trim, 1);
-  }
-  svg.path(
-    d([
-      [cx - bw + 1 + lean, y + 2],
-      [cx + bw - 1 + lean, y + 2],
-      [cx + 3 + lean, y - 2],
-      [cx - 3 + lean, y - 2],
-    ]),
-    pal.primary,
-    INK,
-    1,
-  );
-  if (heavy) svg.path(d([[cx - bw - 1 + lean, y + 3], [cx - bw + 2 + lean, y + 3], [cx - bw + 2 + lean, y + 10], [cx - bw - 1 + lean, y + 10]]), RUST, INK, 1);
-  svg.ellipse(cx + lean, y - 7, 4.6, 5.4, skin, INK, 1);
-  svg.path(
-    d([
-      [cx - 5 + lean, y - 8],
-      [cx + 5 + lean, y - 8],
-      [cx + 4 + lean, y - 14],
-      [cx - 4 + lean, y - 14],
-    ]),
-    heavy ? metal.dark : family === 0 ? pal.primary : metal.dark,
-    INK,
-    1,
-  );
-  svg.path(d([[cx - 4 + lean, y - 9], [cx + 4 + lean, y - 9], [cx + 3 + lean, y - 7], [cx - 3 + lean, y - 7]]), "#1a1e1b");
-  svg.path(d([[cx - 2 + lean, y - 9], [cx + 1 + lean, y - 9], [cx + 1 + lean, y - 7], [cx - 2 + lean, y - 7]]), pal.primary);
-  if (variant % 4 === 2) svg.line(cx + 5 + lean, y - 10, cx + 7 + lean, y - 16, STEEL, 1);
-  if (dir.y >= -0.05) gun();
-}
 
 type Iso = { ox: number; oy: number; w: number; h: number; fw: number; fh: number };
 

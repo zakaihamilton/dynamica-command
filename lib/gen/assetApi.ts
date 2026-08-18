@@ -165,7 +165,9 @@ function spriteViewport(spec: SpriteSpec): SvgViewport {
 export function spriteSpecToSvg(spec: SpriteSpec, imageUrl?: string): string {
   const shapes = spec.shapes.map(shapeToSvg).join("");
   const image = spec.imageSrc && imageUrl
-    ? `<image href="${escapeXml(imageUrl)}" x="0" y="0" width="${spec.w}" height="${spec.h}" preserveAspectRatio="xMidYMax meet"${spec.rotation ? ` transform="rotate(${spec.rotation * 180 / Math.PI} ${spec.anchorX ?? spec.w / 2} ${spec.anchorY ?? spec.h})"` : ""}/>`
+    ? spec.imageCrop
+      ? `<svg x="0" y="0" width="${spec.w}" height="${spec.h}" viewBox="${spec.imageCrop.x} ${spec.imageCrop.y} ${spec.imageCrop.w} ${spec.imageCrop.h}" preserveAspectRatio="xMidYMax meet"><image href="${escapeXml(imageUrl)}" x="0" y="0" width="${spec.imageCrop.sourceW}" height="${spec.imageCrop.sourceH}" preserveAspectRatio="none"/></svg>`
+      : `<image href="${escapeXml(imageUrl)}" x="0" y="0" width="${spec.w}" height="${spec.h}" preserveAspectRatio="xMidYMax meet"${spec.rotation ? ` transform="rotate(${spec.rotation * 180 / Math.PI} ${spec.anchorX ?? spec.w / 2} ${spec.anchorY ?? spec.h})"` : ""}/>`
     : "";
   const viewport = spriteViewport(spec);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${viewport.width}" height="${viewport.height}" viewBox="${viewport.minX} ${viewport.minY} ${viewport.width} ${viewport.height}">${shapes}${image}</svg>`;

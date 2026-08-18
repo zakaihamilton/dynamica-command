@@ -1,4 +1,4 @@
-import type { BiomeName, Facing, UnitKind } from "../types";
+import type { BiomeName, Facing, SpriteCrop, UnitKind } from "../types";
 
 export type RasterArtKey = "menu" | "victory" | "defeat" | BiomeName;
 export type TextureArtKey = "brushed" | "worn" | "crt";
@@ -27,9 +27,9 @@ export type UnitView = "front" | "right" | "back" | "left";
 export const UNIT_DIRECTION_ART: Record<UnitKind, Record<UnitView, string>> = {
   harvester: {
     front: "/art/sprites/sleek-modular/harvester-front.png",
-    right: "/art/sprites/sleek-modular/harvester-right.png",
+    right: "/art/sprites/sleek-modular/harvester-right-v2.png",
     back: "/art/sprites/sleek-modular/harvester-back.png",
-    left: "/art/sprites/sleek-modular/harvester-left.png",
+    left: "/art/sprites/sleek-modular/harvester-left-v2.png",
   },
   infantry: {
     front: "/art/sprites/sleek-modular/infantry-front-v1.png",
@@ -48,6 +48,18 @@ export const UNIT_DIRECTION_ART: Record<UnitKind, Record<UnitView, string>> = {
     right: "/art/sprites/sleek-modular/tank-right.png",
     back: "/art/sprites/sleek-modular/tank-back.png",
     left: "/art/sprites/sleek-modular/tank-left.png",
+  },
+};
+
+/** Generated direction sheets contain a few neighboring partial renders at the edge. */
+export const UNIT_DIRECTION_CROPS: Partial<Record<UnitKind, Partial<Record<UnitView, SpriteCrop>>>> = {
+  harvester: {
+    front: { x: 0, y: 0, w: 535, h: 580, sourceW: 627, sourceH: 580 },
+    back: { x: 0, y: 0, w: 535, h: 588, sourceW: 627, sourceH: 588 },
+  },
+  tank: {
+    front: { x: 0, y: 0, w: 555, h: 502, sourceW: 683, sourceH: 502 },
+    back: { x: 0, y: 0, w: 565, h: 511, sourceW: 687, sourceH: 511 },
   },
 };
 

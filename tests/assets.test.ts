@@ -182,13 +182,23 @@ describe("tactical procedural assets", () => {
     expect(new Set(buildingFingerprints).size).toBe(BUILDING_KINDS.length);
   });
 
-  it("changes unit tread and walk art across animation frames", () => {
+  it("keeps the directional raster art for every unit animation frame", () => {
     for (const kind of UNIT_KINDS) {
       const a = unitSprite(kind, palette, { facing: 2, animationFrame: 0, variant: 11 });
       const b = unitSprite(kind, palette, { facing: 2, animationFrame: 1, variant: 11 });
-      if (a.imageSrc) expect(a.id).not.toEqual(b.id);
-      else expect(a.svg).not.toEqual(b.svg);
+      expect(a.imageSrc).toBeDefined();
+      expect(b.imageSrc).toBe(a.imageSrc);
+      expect(a.svg).toBeUndefined();
+      expect(b.svg).toBeUndefined();
+      expect(a.id).not.toEqual(b.id);
     }
+  });
+
+  it("crops generated neighboring artwork from affected direction assets", () => {
+    const harvester = unitSprite("harvester", palette, { facing: 2 });
+    const tank = unitSprite("tank", palette, { facing: 6 });
+    expect(harvester.imageCrop?.w).toBeLessThan(627);
+    expect(tank.imageCrop?.w).toBeLessThan(687);
   });
 
   it("selects directional unit views instead of rotating one raster", () => {
@@ -197,9 +207,9 @@ describe("tactical procedural assets", () => {
         unitSprite(kind, palette, { facing: facing as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 }),
       );
       expect(views.every((spec) => spec.rotation === undefined)).toBe(true);
-      expect(views[0]!.imageSrc).toMatch(/-right(?:-v1)?\.png/);
+      expect(views[0]!.imageSrc).toMatch(/-right(?:-v[12])?\.png/);
       expect(views[2]!.imageSrc).toMatch(/-front(?:-v1)?\.png/);
-      expect(views[4]!.imageSrc).toMatch(/-left(?:-v1)?\.png/);
+      expect(views[4]!.imageSrc).toMatch(/-left(?:-v[12])?\.png/);
       expect(views[6]!.imageSrc).toMatch(/-back(?:-v1)?\.png/);
     }
   });
