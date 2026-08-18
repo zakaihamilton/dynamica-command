@@ -135,10 +135,14 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
       if (state.tick >= (w.ticks ?? Infinity) && playerCy) won = true;
       break;
     case "escort":
-    case "rescue":
     case "extraction":
       won = (state.runtime?.rescued ?? 0) >= (w.targetCount ?? state.runtime?.required ?? Infinity);
       if (state.tick >= (w.ticks ?? Infinity)) won = false;
+      break;
+    case "rescue":
+      // Rescue quota completion is the primary objective. The deadline is tracked
+      // as a secondary objective, so reaching 3/3 must still finish the mission.
+      won = (state.runtime?.rescued ?? 0) >= (w.targetCount ?? state.runtime?.required ?? Infinity);
       break;
     case "sabotage":
       won = (w.targetIds ?? []).length > 0 && (w.targetIds ?? []).every((id) => !state.entities.some((e) => e.id === id && e.hp > 0));

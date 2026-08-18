@@ -933,7 +933,7 @@ export function GameClient({
         <MissionResult
           state={s}
           onNextBriefing={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex + 1}`)}
-          onCampaignVictory={() => router.push("/")}
+          onCampaignVictory={() => router.push(`/campaign-complete?seed=${formatSeed(s.seed)}`)}
           onRetry={() => router.push(`/briefing?seed=${formatSeed(s.seed)}&mission=${s.missionIndex}`)}
           onMenu={() => router.push("/")}
         />

@@ -52,6 +52,24 @@ describe("tactical expansion", () => {
     expect(state.runtime.rescued).toBe(1);
   });
 
+  it("completes a rescue quota even when the timed secondary objective expired", () => {
+    const state = makeFixture({ win: { kind: "rescue", targetCount: 3, ticks: 10 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    state.tick = 10;
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [],
+      rescued: 3,
+      required: 3,
+      secondary: [{ id: "time", kind: "completeBefore", label: "Complete before deadline", target: 10 }],
+    };
+
+    tick(state);
+
+    expect(state.result).toBe("won");
+  });
+
   it("recovers suppression on non-combat units and seeds classic secondary objectives", () => {
     const state = createMission({ seed: 0, missionIndex: 2 });
     const harvester = state.entities.find((entity) => entity.owner === 0 && entity.kind === "harvester")!;

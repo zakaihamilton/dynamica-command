@@ -9,8 +9,6 @@ import { createCampaign } from "@/lib/gen/campaign";
 import { missionObjectives } from "@/lib/gen/story";
 import { biomeArt } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
-import { localStorageAdapter } from "@/lib/persist/save";
-import { freshCampaignProgress, readCampaignProgress } from "@/lib/persist/campaign";
 import type { BriefingLine } from "@/lib/types";
 import { briefingCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
 import { BriefingMast } from "./BriefingMast";
@@ -18,11 +16,12 @@ import { BriefingObjectives } from "./BriefingObjectives";
 import { BriefingStory } from "./BriefingStory";
 import { Portrait } from "./Portrait";
 import styles from "./BriefingScreen.module.css";
+import { useCampaignProgress } from "../campaign/useCampaignProgress";
 
 export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: number; mission: number; returnToGame?: boolean }) {
   const router = useRouter();
   const campaign = useMemo(() => createCampaign(seed), [seed]);
-  const progress = useMemo(() => typeof window === "undefined" ? freshCampaignProgress(seed) : readCampaignProgress(localStorageAdapter(), seed), [seed]);
+  const progress = useCampaignProgress(seed);
   const def = campaign.missions[mission];
   const [shown, setShown] = useState(0);
   const [playId, setPlayId] = useState(0);
