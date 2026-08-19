@@ -247,6 +247,7 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     `${e.owner === 0 ? "Friendly" : "Hostile"} · ${faction}`,
     `HP ${Math.max(0, Math.round(e.hp))} / ${e.maxHp}`,
   ];
+  if ((e.suppression ?? 0) > 0) lines.push(`Suppressed ${Math.ceil(e.suppression ?? 0)}%`);
   if (isLockedContactUnit(state, e)) lines.push("Stranded");
   if (isExtractableUnit(state, e) && !e.neutral) {
     lines.push("Return to extraction zone");

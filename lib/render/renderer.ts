@@ -11,7 +11,7 @@ import {
 } from "./anim";
 import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
 import { drawSprite, rasterize } from "./sprites";
-import { paintUnitMovementFx } from "./unitMotion";
+import { drawUnitShadow, paintUnitMovementFx } from "./unitMotion";
 import { canPlaceBuilding, heightAt } from "../sim/world";
 import { canRepair } from "../sim/repair";
 import { canSell } from "../sim/sell";
@@ -226,18 +226,26 @@ export function renderWorld(
     const ay = (spec.anchorY ?? spec.h) * z;
     const dir = facingVector(facing);
     const recoil = uAnim?.recoil ?? 0;
-    const dx = Math.round(s.x - ax + (uAnim?.swayX ?? 0) * z - dir.x * recoil * 3 * z);
-    const dy = Math.round(s.y + (TILE_H / 2) * z - ay - (uAnim?.bobY ?? 0) * z + dir.y * recoil * 3 * z);
+    const groundX = s.x;
+    const groundY = s.y + (TILE_H / 2) * z;
+
     if (e.class === "building") {
       drawBuildingShadow(ctx, state, cam, e, z);
+    } else {
+      drawUnitShadow(
+        ctx,
+        e.kind as UnitKind,
+        groundX,
+        groundY,
+        z,
+        entityAlpha,
+        uAnim?.pose === "move",
+      );
     }
-    const spriteAlpha = entityAlpha;
-    if (isExtractableUnit(state, e)) {
-      drawUnitGlow(ctx, spec, img, dx, dy, spec.w * z, spec.h * z, timeMs, spriteAlpha, z);
-    }
-    ctx.globalAlpha = spriteAlpha;
-    drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
-    ctx.globalAlpha = 1;
+
+    const dx = Math.round(s.x - ax - dir.x * recoil * 3 * z);
+    const dy = Math.round(groundY - ay - (uAnim?.bobY ?? 0) * z + dir.y * recoil * 3 * z);
+
     if (uAnim?.pose === "move") {
       paintUnitMovementFx(
         ctx,
@@ -246,12 +254,24 @@ export function renderWorld(
         dy,
         spec.w * z,
         spec.h * z,
-        s.y + (TILE_H / 2) * z,
+        groundY,
         z,
         uAnim.frame,
         entityAlpha,
+        {
+          strideRatio: uAnim.strideRatio,
+          stridePhase: uAnim.stridePhase,
+        },
       );
     }
+
+    const spriteAlpha = entityAlpha;
+    if (isExtractableUnit(state, e)) {
+      drawUnitGlow(ctx, spec, img, dx, dy, spec.w * z, spec.h * z, timeMs, spriteAlpha, z);
+    }
+    ctx.globalAlpha = spriteAlpha;
+    drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
+    ctx.globalAlpha = 1;
     if (e.class !== "building") {
       drawDamageOverlay(
         ctx,
@@ -309,7 +329,7 @@ export function renderWorld(
         ctx.globalAlpha = spriteAlpha;
         ctx.fillStyle = "rgba(8, 12, 14, 0.85)";
         ctx.fillRect(suppX - 1, suppY - 1, suppW + 2, 3);
-        ctx.fillStyle = "#d6a45b";
+        ctx.fillStyle = "#5b9ae8";
         ctx.fillRect(suppX, suppY, Math.round((suppW * (e.suppression ?? 0)) / 100), 2);
         ctx.restore();
       }

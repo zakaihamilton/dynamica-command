@@ -9,7 +9,8 @@ export type UnitAnim = {
   pose: UnitPose;
   frame: AnimFrame;
   bobY: number;
-  swayX: number;
+  stridePhase: number;
+  strideRatio: number;
   recoil: number;
 };
 
@@ -46,15 +47,22 @@ export function facingVector(facing: Facing): { x: number; y: number } {
   return { x: Math.cos(angle), y: Math.sin(angle) * 0.52 };
 }
 
-export function unitMovementOffset(kind: UnitKind, frame: AnimFrame): { bobY: number; swayX: number } {
+export function unitMovementOffset(
+  kind: UnitKind,
+  frame: AnimFrame,
+  stridePhase?: number,
+): { bobY: number; strideRatio: number } {
   const infantry = kind === "infantry" || kind === "antiArmor";
-  const gait = [0, 1, 0, -1][frame] ?? 0;
+  if (!infantry) {
+    return { bobY: 0, strideRatio: 0 };
+  }
+  const phase = stridePhase !== undefined ? stridePhase : (frame / 4) * Math.PI * 2;
+  const isHeavy = kind === "antiArmor";
+  const compression = isHeavy ? 0.25 : 0.15;
+  const bob = -Math.abs(Math.sin(phase)) * compression;
   return {
-    // Keep the unit's contact point close to the ground. Infantry gets a
-    // restrained step bob; tracked vehicles stay level and sell movement
-    // through their tread animation instead of hovering up and down.
-    bobY: infantry ? gait * 0.55 : 0,
-    swayX: infantry ? gait * 0.25 : 0,
+    bobY: bob,
+    strideRatio: Math.sin(phase),
   };
 }
 
@@ -69,14 +77,23 @@ export function unitPose(e: Entity): UnitPose {
 export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
   const t = animClock(tick, clockMs);
   const pose = unitPose(e);
+  const kind = e.kind as UnitKind;
+  const isInfantry = kind === "infantry";
+  const isHeavy = kind === "antiArmor";
+
   if (pose === "move") {
-    const frame = animFrame(t, 90, 4, e.id);
-    const offset = unitMovementOffset(e.kind as UnitKind, frame);
+    const period = isHeavy ? 105 : isInfantry ? 80 : 90;
+    const frame = animFrame(t, period, 4, e.id);
+    const strideCycleMs = period * 4;
+    const stridePhase = (((t + e.id * 73) % strideCycleMs) / strideCycleMs) * Math.PI * 2;
+    const offset = unitMovementOffset(kind, frame, stridePhase);
+
     return {
       pose,
       frame,
       bobY: offset.bobY,
-      swayX: offset.swayX,
+      stridePhase,
+      strideRatio: offset.strideRatio,
       recoil: 0,
     };
   }
@@ -86,19 +103,28 @@ export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
       pose,
       frame: recoil > 0 ? 2 : 0,
       bobY: 0,
-      swayX: 0,
+      stridePhase: 0,
+      strideRatio: 0,
       recoil,
     };
   }
   if (pose === "work") {
     const frame = animFrame(t, 140, 4, e.id);
-    return { pose, frame, bobY: 0, swayX: 0, recoil: 0 };
+    return {
+      pose,
+      frame,
+      bobY: 0,
+      stridePhase: 0,
+      strideRatio: 0,
+      recoil: 0,
+    };
   }
   return {
     pose: "idle",
     frame: 0,
     bobY: 0,
-    swayX: 0,
+    stridePhase: 0,
+    strideRatio: 0,
     recoil: 0,
   };
 }

@@ -237,4 +237,12 @@ describe("tactical expansion", () => {
     expect(state.runtime?.secondary).toHaveLength(2);
     expect(state.runtime?.secondary[1]?.target).toBeDefined();
   });
+
+  it("shows suppression on the unit hover tooltip", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const unit = addUnit(state, 0, "infantry", 4, 4);
+    expect(tooltipLines(state, unit, {}).some((line) => line.startsWith("Suppressed"))).toBe(false);
+    unit.suppression = 42.2;
+    expect(tooltipLines(state, unit, {})).toContain("Suppressed 43%");
+  });
 });

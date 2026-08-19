@@ -14,6 +14,7 @@ import {
   mergeMeshes,
   parseObjModel,
 } from "../lib/render/gl/modelLoader";
+import { draw3dModel } from "../lib/render/gl/modelRenderer";
 
 describe("modelLoader 3D meshes and parser", () => {
   it("creates box meshes with proper vertex and index counts", () => {
@@ -103,5 +104,34 @@ describe("modelLoader 3D meshes and parser", () => {
     expect(buildUnitModel("infantry").nodes.length).toBeGreaterThan(1);
     expect(buildUnitModel("antiArmor").nodes.length).toBeGreaterThan(1);
     expect(buildUnitModel("turret").nodes.length).toBeGreaterThan(1);
+  });
+
+  it("renders 3D soldier model with articulated leg transformations without throwing", () => {
+    const infantry = buildInfantryModel();
+    const calls: string[] = [];
+    const fakeCtx = {
+      save: () => calls.push("save"),
+      restore: () => calls.push("restore"),
+      beginPath: () => calls.push("beginPath"),
+      closePath: () => calls.push("closePath"),
+      moveTo: () => calls.push("moveTo"),
+      lineTo: () => calls.push("lineTo"),
+      fill: () => calls.push("fill"),
+      stroke: () => calls.push("stroke"),
+      set lineWidth(val: number) {},
+      set lineJoin(val: CanvasLineJoin) {},
+      set shadowColor(val: string) {},
+      set shadowBlur(val: number) {},
+      set fillStyle(val: string | CanvasGradient | CanvasPattern) {},
+      set strokeStyle(val: string | CanvasGradient | CanvasPattern) {},
+    } as unknown as CanvasRenderingContext2D;
+
+    draw3dModel(fakeCtx, infantry, 100, 100, 1.0, 0, undefined, {
+      legLAngle: 0.5,
+      legRAngle: -0.5,
+    });
+
+    expect(calls).toContain("fill");
+    expect(calls).toContain("stroke");
   });
 });

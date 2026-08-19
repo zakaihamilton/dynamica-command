@@ -1,66 +1,91 @@
 import type { AnimFrame, UnitKind } from "../types";
 
+export const GROUND_DUST_FILL = "rgba(140, 130, 115, 0.25)";
+export const UNIT_SHADOW_FILL = "#000";
+export const UNIT_SHADOW_ALPHA = 0.32;
+export const UNIT_SHADOW_MOVE_ALPHA = 0.36;
+export const UNIT_SHADOW_OFFSET_X = 5;
+export const UNIT_SHADOW_OFFSET_Y = 4;
+
+export type UnitMotionOptions = {
+  strideRatio?: number;
+  stridePhase?: number;
+};
+
+export function unitShadowRadii(kind: UnitKind, scale: number): { radX: number; radY: number } {
+  if (kind === "infantry") return { radX: 10 * scale, radY: 5 * scale };
+  if (kind === "antiArmor") return { radX: 12 * scale, radY: 6 * scale };
+  if (kind === "tank") return { radX: 18 * scale, radY: 9 * scale };
+  return { radX: 16 * scale, radY: 8 * scale };
+}
+
+/**
+ * Draw a planted isometric contact shadow under a unit.
+ * Rendered underneath the unit before drawing sprite geometry.
+ */
+export function drawUnitShadow(
+  ctx: CanvasRenderingContext2D,
+  kind: UnitKind,
+  cx: number,
+  groundY: number,
+  scale: number,
+  alpha: number = 1,
+  isMoving: boolean = false,
+): void {
+  const { radX, radY } = unitShadowRadii(kind, scale);
+  ctx.save();
+  ctx.translate(UNIT_SHADOW_OFFSET_X * scale, UNIT_SHADOW_OFFSET_Y * scale);
+  ctx.globalAlpha = alpha * (isMoving ? UNIT_SHADOW_MOVE_ALPHA : UNIT_SHADOW_ALPHA);
+  ctx.fillStyle = UNIT_SHADOW_FILL;
+  ctx.beginPath();
+  ctx.ellipse(cx, groundY, radX, radY, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function strideRatioFromOptions(frame: AnimFrame, options: UnitMotionOptions): number {
+  if (options.strideRatio !== undefined) return options.strideRatio;
+  const phase = options.stridePhase !== undefined
+    ? options.stridePhase
+    : (frame / 4) * Math.PI * 2;
+  return Math.sin(phase);
+}
+
+/**
+ * Paint ground dust under moving units. Never draws onto sprite pixels.
+ */
 export function paintUnitMovementFx(
   ctx: CanvasRenderingContext2D,
   kind: UnitKind,
   dx: number,
-  dy: number,
+  _dy: number,
   dw: number,
-  dh: number,
+  _dh: number,
   groundY: number,
   scale: number,
   frame: AnimFrame,
   alpha: number,
+  options: UnitMotionOptions = {},
 ): void {
-  const infantry = kind === "infantry" || kind === "antiArmor";
+  const isWalker = kind === "infantry" || kind === "antiArmor";
+  const ratio = strideRatioFromOptions(frame, options);
+  const cx = dx + dw * 0.5;
+
   ctx.save();
-  // The ground contact stays fixed while the sprite animates above it. This
-  // gives the eye a stable reference and prevents movement marks from making
-  // the unit look like it is drifting.
-  ctx.globalAlpha = alpha * (infantry ? 0.2 : 0.28);
-  ctx.fillStyle = "#05090c";
-  ctx.beginPath();
-  ctx.ellipse(
-    dx + dw * 0.5,
-    groundY + scale * 1.5,
-    dw * (infantry ? 0.18 : 0.34),
-    scale * (infantry ? 1.8 : 3.2),
-    0,
-    0,
-    Math.PI * 2,
-  );
-  ctx.fill();
-  ctx.beginPath();
-  ctx.rect(dx, dy, dw, dh);
-  ctx.clip();
-  ctx.globalAlpha = alpha * (infantry ? 0.36 : 0.22);
-  ctx.lineCap = "square";
-  if (infantry) {
-    ctx.strokeStyle = "#a9c1c4";
-    ctx.lineWidth = Math.max(1, scale * 0.8);
-    const stride = frame === 1 ? 1 : frame === 3 ? -1 : 0;
-    const y = dy + dh * 0.91;
-    for (const leg of [0.39, 0.61]) {
-      const x = dx + dw * leg + stride * scale;
+  ctx.fillStyle = GROUND_DUST_FILL;
+  ctx.globalAlpha = alpha;
+
+  if (isWalker) {
+    if (Math.abs(ratio) < 0.18) {
       ctx.beginPath();
-      ctx.moveTo(x - 2 * scale, y);
-      ctx.lineTo(x + 2 * scale, y);
-      ctx.stroke();
+      ctx.ellipse(cx, groundY, 4.2 * scale, 2.1 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
   } else {
-    ctx.fillStyle = "#b7d6d7";
-    // Keep small horizontal highlights inside the visible tread band. The
-    // old diagonal strokes could land in transparent padding and read as
-    // stray lines beside the unit.
-    const treadY = dy + dh * 0.78;
-    const left = dx + dw * 0.3;
-    const right = dx + dw * 0.7;
-    const spacing = Math.max(6 * scale, dw * 0.14);
-    const offset = (frame % 2) * spacing * 0.5;
-    for (let x = left - spacing + offset; x < right + spacing; x += spacing) {
-      const width = Math.min(4 * scale, spacing * 0.55);
-      ctx.fillRect(Math.round(x), Math.round(treadY), Math.max(1, Math.round(width)), Math.max(1, Math.round(scale * 0.7)));
-    }
+    ctx.beginPath();
+    ctx.ellipse(cx, groundY + 1 * scale, dw * 0.38, 2.5 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
+
   ctx.restore();
 }

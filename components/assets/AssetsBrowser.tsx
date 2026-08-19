@@ -6,7 +6,7 @@ import { listGeneratedAssets } from "@/lib/gen/assetCatalog";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { unitMovementOffset } from "@/lib/render/anim";
 import { drawSprite, rasterize, rotatedSpriteBounds } from "@/lib/render/sprites";
-import { paintUnitMovementFx } from "@/lib/render/unitMotion";
+import { drawUnitShadow } from "@/lib/render/unitMotion";
 import { assetsCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
@@ -111,16 +111,35 @@ export function AssetsBrowser({
       const dh = Math.max(1, Math.round(spec.h * scale));
       const dx = Math.round((canvas.width - bounds.width * scale) / 2 - bounds.minX * scale);
       const dy = Math.round((canvas.height - bounds.height * scale) / 2 - bounds.minY * scale);
+
+      const isWalker = selected.kind === "infantry" || selected.kind === "antiArmor";
+      const isHeavy = selected.kind === "antiArmor";
+      const period = isHeavy ? 105 : isWalker ? 80 : 90;
+      const strideCycleMs = period * 4;
+      const stridePhase = playing ? ((animTime % strideCycleMs) / strideCycleMs) * Math.PI * 2 : 0;
       const movement = selected.category === "unit"
-        ? unitMovementOffset(selected.kind as UnitKind, frame)
+        ? unitMovementOffset(selected.kind as UnitKind, frame, stridePhase)
         : null;
-      const renderDx = dx + (movement?.swayX ?? 0) * scale;
-      const renderDy = dy - (movement?.bobY ?? 0) * scale;
+
+      const bob = playing ? (movement?.bobY ?? 0) * scale : 0;
+      const renderDx = dx;
+      const renderDy = dy - bob;
+      const groundX = dx + dw * 0.5;
       const groundY = dy + dh;
-      drawSprite(ctx, spec, image, renderDx, renderDy, dw, dh);
-      if (movement && selected.category === "unit") {
-        paintUnitMovementFx(ctx, selected.kind as UnitKind, renderDx, renderDy, dw, dh, groundY, scale, frame, 1);
+
+      if (selected.category === "unit") {
+        drawUnitShadow(
+          ctx,
+          selected.kind as UnitKind,
+          groundX,
+          groundY,
+          scale,
+          1,
+          playing,
+        );
       }
+
+      drawSprite(ctx, spec, image, renderDx, renderDy, dw, dh);
       if (selected.category === "building") {
         paintBuildingAssetOverlay(
           ctx,

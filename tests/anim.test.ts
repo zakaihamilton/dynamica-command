@@ -101,4 +101,29 @@ describe("animation helpers", () => {
     expect(damageFlicker(400, 2, 0)).toBe(1);
     expect(damageFlicker(400, 2, 2)).toBeLessThan(1);
   });
+
+  it("calculates a tiny grounded step bob and stride ratio for moving soldiers", () => {
+    const s = makeFixture({ win: { kind: "annihilate" } });
+    const soldier = addUnit(s, 0, "infantry", 3, 3);
+    soldier.facing = 0;
+    soldier.path = [{ x: 4, y: 3 }];
+
+    const movingAnim = unitAnim(soldier, 10, 100);
+    expect(movingAnim.pose).toBe("move");
+    expect(movingAnim.bobY).toBeLessThanOrEqual(0);
+    expect(movingAnim.bobY).toBeGreaterThanOrEqual(-0.25);
+    expect(movingAnim.strideRatio).toBeGreaterThanOrEqual(-1);
+    expect(movingAnim.strideRatio).toBeLessThanOrEqual(1);
+
+    const heavySoldier = addUnit(s, 0, "antiArmor", 5, 5);
+    heavySoldier.path = [{ x: 6, y: 5 }];
+    const heavyAnim = unitAnim(heavySoldier, 10, 100);
+    expect(heavyAnim.bobY).toBeLessThanOrEqual(0);
+    expect(heavyAnim.bobY).toBeGreaterThanOrEqual(-0.25);
+
+    soldier.path = [];
+    const idleAnim = unitAnim(soldier, 10, 100);
+    expect(idleAnim.bobY).toBe(0);
+    expect(idleAnim.strideRatio).toBe(0);
+  });
 });

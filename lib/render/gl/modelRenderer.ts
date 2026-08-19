@@ -50,6 +50,14 @@ const HALF_DIR: [number, number, number] = [
   (SUN_DIR[2] + VIEW_DIR[2]) / Math.hypot(SUN_DIR[0] + VIEW_DIR[0], SUN_DIR[1] + VIEW_DIR[1], SUN_DIR[2] + VIEW_DIR[2]),
 ];
 
+export type DrawModelOptions = {
+  recoil?: number;
+  legLAngle?: number;
+  legRAngle?: number;
+  scoopAngle?: number;
+  barrelPitch?: number;
+};
+
 export function draw3dModel(
   ctx: CanvasRenderingContext2D,
   model: UnitModel,
@@ -58,8 +66,17 @@ export function draw3dModel(
   scale: number,
   yawAngle: number,
   palette?: Palette,
-  recoil: number = 0,
+  recoilOrOptions?: number | DrawModelOptions,
 ): void {
+  const options: DrawModelOptions = typeof recoilOrOptions === "number"
+    ? { recoil: recoilOrOptions }
+    : recoilOrOptions ?? {};
+  const recoil = options.recoil ?? 0;
+  const legLAngle = options.legLAngle ?? 0;
+  const legRAngle = options.legRAngle ?? 0;
+  const scoopAngle = options.scoopAngle ?? 0;
+  const barrelPitch = options.barrelPitch ?? 0;
+
   const cos = Math.cos(yawAngle);
   const sin = Math.sin(yawAngle);
 
@@ -80,6 +97,11 @@ export function draw3dModel(
 
   for (const node of model.nodes) {
     const isBarrel = node.name === "barrel";
+    const isLegL = node.name === "legL";
+    const isLegR = node.name === "legR";
+    const isScoop = node.name === "scoop";
+    const pivot = node.pivot ?? [0, 0, 0];
+
     const { positions, normals, masks, indices } = node.mesh;
     const count = indices.length;
 
@@ -108,11 +130,43 @@ export function draw3dModel(
       for (let v = 0; v < numVerts; v++) {
         const vi = vertIndices[v]!;
         let x = positions[vi * 3]!;
-        const y = positions[vi * 3 + 1]!;
-        const z = positions[vi * 3 + 2]!;
+        let y = positions[vi * 3 + 1]!;
+        let z = positions[vi * 3 + 2]!;
 
-        if (isBarrel && recoil > 0) {
-          x -= recoil * 0.10;
+        // Articulated node transformations around pivot
+        if (isLegL && legLAngle !== 0) {
+          const rx0 = x - pivot[0];
+          const rz0 = z - pivot[2];
+          const cosA = Math.cos(legLAngle);
+          const sinA = Math.sin(legLAngle);
+          x = pivot[0] + rx0 * cosA + rz0 * sinA;
+          z = pivot[2] - rx0 * sinA + rz0 * cosA;
+        } else if (isLegR && legRAngle !== 0) {
+          const rx0 = x - pivot[0];
+          const rz0 = z - pivot[2];
+          const cosA = Math.cos(legRAngle);
+          const sinA = Math.sin(legRAngle);
+          x = pivot[0] + rx0 * cosA + rz0 * sinA;
+          z = pivot[2] - rx0 * sinA + rz0 * cosA;
+        } else if (isScoop && scoopAngle !== 0) {
+          const rx0 = x - pivot[0];
+          const rz0 = z - pivot[2];
+          const cosA = Math.cos(scoopAngle);
+          const sinA = Math.sin(scoopAngle);
+          x = pivot[0] + rx0 * cosA + rz0 * sinA;
+          z = pivot[2] - rx0 * sinA + rz0 * cosA;
+        } else if (isBarrel) {
+          if (recoil > 0) {
+            x -= recoil * 0.10;
+          }
+          if (barrelPitch !== 0) {
+            const rx0 = x - pivot[0];
+            const rz0 = z - pivot[2];
+            const cosA = Math.cos(barrelPitch);
+            const sinA = Math.sin(barrelPitch);
+            x = pivot[0] + rx0 * cosA - rz0 * sinA;
+            z = pivot[2] + rx0 * sinA + rz0 * cosA;
+          }
         }
 
         // Rotate around Z axis by yawAngle

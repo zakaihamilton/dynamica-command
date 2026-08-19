@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { unitMovementOffset } from "@/lib/render/anim";
 import { buildingSprite, unitSprite } from "@/lib/gen/assets";
 import { buildTurretHeadModel, type UnitModel } from "@/lib/render/gl/modelLoader";
 import { draw3dModel } from "@/lib/render/gl/modelRenderer";
 import { rasterize, spriteContentBounds } from "@/lib/render/sprites";
+import { drawUnitShadow } from "@/lib/render/unitMotion";
 import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import styles from "./SpritePreview.module.css";
@@ -55,17 +57,37 @@ export function SpritePreview({
       const dh = Math.max(1, Math.round(bounds.height * scale));
       ctx.imageSmoothingEnabled = true;
       if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
+
+      const movement = isUnit ? unitMovementOffset(kind as UnitKind, animationFrame) : null;
+      const renderDx = Math.round((canvas.width - dw) / 2);
+      const renderDy = Math.round((canvas.height - dh) / 2) - (movement?.bobY ?? 0) * scale;
+      const groundX = Math.round(canvas.width / 2);
+      const groundY = Math.round((canvas.height + dh) / 2);
+
+      if (isUnit) {
+        drawUnitShadow(
+          ctx,
+          kind as UnitKind,
+          groundX,
+          groundY,
+          scale,
+          1,
+          true,
+        );
+      }
+
       ctx.drawImage(
         image,
         bounds.minX,
         bounds.minY,
         bounds.width,
         bounds.height,
-        Math.round((canvas.width - dw) / 2),
-        Math.round((canvas.height - dh) / 2),
+        renderDx,
+        renderDy,
         dw,
         dh,
       );
+
       if (kind === "turret") {
         const model = getTurretModel();
         const modelScale = scale * 1.5;
