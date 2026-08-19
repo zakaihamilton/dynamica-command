@@ -150,6 +150,44 @@ describe("combat targeting", () => {
     expect(attacker.idle).toBe(false);
   });
 
+  it("lets an enemy raid stop to shoot a turret on the way to the yard", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const raider = addUnit(s, 1, "tank", 4, 4);
+    const yard = addBuilding(s, 0, "constructionYard", 14, 4);
+    const turret = addBuilding(s, 0, "turret", 6, 4);
+    raider.attackTarget = yard.id;
+    raider.idle = false;
+    raider.path = [
+      { x: 5, y: 4 },
+      { x: 6, y: 4 },
+      { x: 7, y: 4 },
+    ];
+    const hp = turret.hp;
+    tickCombat(s);
+    expect(raider.attackTarget).toBe(turret.id);
+    expect(raider.path).toEqual([]);
+    expect(turret.hp).toBeLessThan(hp);
+  });
+
+  it("lets an enemy raid stop to shoot a combat unit on the way to a harvester", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const raider = addUnit(s, 1, "tank", 4, 4);
+    const harvester = addUnit(s, 0, "harvester", 14, 4);
+    const guard = addUnit(s, 0, "infantry", 5, 4);
+    raider.attackTarget = harvester.id;
+    raider.idle = false;
+    raider.path = [
+      { x: 5, y: 4 },
+      { x: 6, y: 4 },
+      { x: 7, y: 4 },
+    ];
+    const hp = guard.hp;
+    tickCombat(s);
+    expect(raider.attackTarget).toBe(guard.id);
+    expect(raider.path).toEqual([]);
+    expect(guard.hp).toBeLessThan(hp);
+  });
+
   it("lets a defending unit fire in range without chasing", () => {
     const close = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
     const defender = addUnit(close, 0, "infantry", 4, 4);

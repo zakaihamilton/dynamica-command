@@ -218,7 +218,16 @@ export function tickCombat(state: SimState): SimEvent[] {
           if (lineOfSight(state, e, assigned)) strike(state, e, assigned, st, rng, events, pending);
           if (e.attackTarget === undefined) e.idle = true;
         } else {
-          chase(state, e, assigned);
+          const intercept = e.owner === 1 && !isCombatThreat(assigned)
+            ? closestEnemy(grid, e, st.range, true)
+            : undefined;
+          if (intercept && lineOfSight(state, e, intercept)) {
+            e.attackTarget = intercept.id;
+            e.path = [];
+            strike(state, e, intercept, st, rng, events, pending);
+          } else {
+            chase(state, e, assigned);
+          }
         }
         continue;
       }
