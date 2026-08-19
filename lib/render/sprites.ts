@@ -125,7 +125,10 @@ export function rotatedSpriteBounds(spec: Pick<SpriteSpec, "w" | "h" | "rotation
 
 function rasterCacheKey(spec: SpriteSpec): string {
   const crop = spec.imageCrop ? `${spec.imageCrop.x},${spec.imageCrop.y},${spec.imageCrop.w},${spec.imageCrop.h}` : "";
-  return `image:${spec.imageSrc}:${spec.imageTint ?? ""}:${crop}:${spec.w}x${spec.h}`;
+  const texture = spec.imageTextureSrc
+    ? `${spec.imageTextureSrc}:${spec.imageTextureOpacity ?? ""}:${spec.imageTextureOffset ?? 0}`
+    : "";
+  return `image:${spec.imageSrc}:${spec.imageTint ?? ""}:${crop}:${spec.w}x${spec.h}:${texture}`;
 }
 
 function notifyImageReady(key: string): void {
@@ -214,6 +217,7 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
         ctx.fillRect(0, 0, c.width, c.height);
         ctx.globalCompositeOperation = "source-over";
       }
+      paintTexture(ctx, c, spec);
       notifyImageReady(key);
     };
     if (!imageCache.has(spec.imageSrc)) {

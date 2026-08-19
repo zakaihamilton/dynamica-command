@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
+import { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
 import { listGeneratedAssets } from "@/lib/gen/assetCatalog";
-import { generateCampaignVisualProfile, generateVisualProfile } from "@/lib/gen/visualProfile";
+import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { buildingAnim, unitMovementOffset } from "@/lib/render/anim";
 import { drawSprite, rasterize, rotatedSpriteBounds } from "@/lib/render/sprites";
 import { paintUnitMovementFx } from "@/lib/render/unitMotion";
@@ -94,15 +94,9 @@ export function AssetsBrowser({
   const [playing, setPlaying] = useState(true);
   const [construction, setConstruction] = useState<0 | 1 | 2 | 3>(3);
   const [damage, setDamage] = useState<0 | 1 | 2>(0);
-  const [variant, setVariant] = useState(4);
   const [designFamily, setDesignFamily] = useState<FactionVisualProfile["designFamily"]>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const profile = useMemo(() => ({ ...generateVisualProfile(421, 0), designFamily }), [designFamily]);
-  const campaignProfile = useMemo(() => {
-    const base = generateCampaignVisualProfile(421);
-    const terrainTreatment = ["modular", "armored", "expeditionary"] as const;
-    return { ...base, family: designFamily, terrainTreatment: terrainTreatment[designFamily] };
-  }, [designFamily]);
 
   const selectAsset = (id: string) => {
     setSelectedId(id);
@@ -117,12 +111,28 @@ export function AssetsBrowser({
       const command = assetsCommandFromKey(e, { typing: isEditableTarget(e.target) });
       if (!command) return;
       e.preventDefault();
-      if (command.type === "close") onClose();
-      else setPlaying((v) => !v);
+      if (command.type === "close") {
+        onClose();
+        return;
+      }
+      if (command.type === "togglePlay") {
+        setPlaying((v) => !v);
+        return;
+      }
+      const index = assets.findIndex((a) => a.id === selectedId);
+      const from = index < 0 ? 0 : index;
+      const next = from + (command.type === "nextAsset" ? 1 : -1);
+      const nextId = assets[Math.min(assets.length - 1, Math.max(0, next))]?.id;
+      if (!nextId || nextId === selectedId) return;
+      setSelectedId(nextId);
+      setFacing(0);
+      setConstruction(3);
+      setDamage(0);
+      setPlaying(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [assets, onClose, selectedId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -144,15 +154,8 @@ export function AssetsBrowser({
                 profile,
               })
             : selected.category === "wreck"
-              ? wreckSprite(selected.kind as UnitKind, palette)
-              : selected.category === "rubble"
-                ? rubbleSprite(selected.kind as BuildingKind, palette)
-                : tileSprite(selected.tileKind ?? "clear", 1, {
-                    biome: selected.biome ?? "ash plains",
-                    variant,
-                    contour: selected.tileKind === "water" ? "bank" : "none",
-                    campaignProfile,
-                  });
+              ? wreckSprite(selected.kind as UnitKind, palette, { profile })
+              : rubbleSprite(selected.kind as BuildingKind, palette, { profile });
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const image = rasterize(spec);
       const bounds = rotatedSpriteBounds(spec);
@@ -186,7 +189,7 @@ export function AssetsBrowser({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [campaignProfile, construction, damage, facing, palette, playing, profile, selected, variant]);
+  }, [construction, damage, facing, palette, playing, profile, selected]);
 
   if (!selected) return null;
 
@@ -213,13 +216,11 @@ export function AssetsBrowser({
           playing={playing}
           construction={construction}
           damage={damage}
-          variant={variant}
           designFamily={designFamily}
           onFacing={setFacing}
           onPlaying={() => setPlaying((v) => !v)}
           onConstruction={setConstruction}
           onDamage={setDamage}
-          onVariant={setVariant}
           onDesignFamily={setDesignFamily}
         />
       </div>

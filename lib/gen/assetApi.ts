@@ -1,7 +1,7 @@
 import { BUILDING_STATS, UNIT_STATS } from "../catalog";
-import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "./assets";
+import { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "./assets";
 import { listGeneratedAssets, type CatalogAsset } from "./assetCatalog";
-import { generateCampaignVisualProfile, generateVisualProfile } from "./visualProfile";
+import { generateVisualProfile } from "./visualProfile";
 import { generateFactions } from "./factions";
 import { rotatedSpriteBounds } from "../render/sprites";
 import type { Facing, ShapeSpec, SpriteSpec } from "../types";
@@ -10,7 +10,6 @@ export const ASSET_API_VERSION = 1;
 const DEFAULT_SEED = 421;
 const DEFAULT_PALETTE = generateFactions(DEFAULT_SEED)[0].palette;
 const DEFAULT_PROFILE = { ...generateVisualProfile(DEFAULT_SEED, 0), designFamily: 0 as const };
-const DEFAULT_CAMPAIGN_PROFILE = generateCampaignVisualProfile(DEFAULT_SEED);
 export const ASSET_FACINGS: Facing[] = [0, 1, 2, 3, 4, 5, 6, 7];
 
 export type AssetDirection = {
@@ -55,25 +54,18 @@ export function assetPreviewSpec(asset: CatalogAsset, facing: Facing = 0): Sprit
     });
   }
   if (asset.category === "wreck") {
-    return wreckSprite(asset.kind as Parameters<typeof wreckSprite>[0], DEFAULT_PALETTE);
+    return wreckSprite(asset.kind as Parameters<typeof wreckSprite>[0], DEFAULT_PALETTE, {
+      profile: DEFAULT_PROFILE,
+    });
   }
-  if (asset.category === "rubble") {
-    return rubbleSprite(asset.kind as Parameters<typeof rubbleSprite>[0], DEFAULT_PALETTE);
-  }
-  return tileSprite(asset.tileKind ?? "clear", 1, {
-    biome: asset.biome,
-    variant: 4,
-    contour: asset.tileKind === "water" ? "bank" : "none",
-    campaignProfile: DEFAULT_CAMPAIGN_PROFILE,
+  return rubbleSprite(asset.kind as Parameters<typeof rubbleSprite>[0], DEFAULT_PALETTE, {
+    profile: DEFAULT_PROFILE,
   });
 }
 
 function detailsFor(asset: CatalogAsset): Record<string, unknown> {
   if (asset.category === "unit") return { stats: UNIT_STATS[asset.kind as keyof typeof UNIT_STATS] };
   if (asset.category === "building") return { stats: BUILDING_STATS[asset.kind as keyof typeof BUILDING_STATS] };
-  if (asset.category === "tile") {
-    return { biome: asset.biome, tileKind: asset.tileKind, elevation: 1, variant: 4 };
-  }
   return { baseAssetId: `${asset.category === "wreck" ? "unit" : "building"}:${asset.kind}` };
 }
 

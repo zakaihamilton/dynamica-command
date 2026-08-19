@@ -1,4 +1,4 @@
-import type { BiomeName, Facing, SpriteCrop, UnitKind } from "../types";
+import type { BiomeName, BuildingKind, Facing, SpriteCrop, UnitKind } from "../types";
 
 export type RasterArtKey = "menu" | "victory" | "defeat" | BiomeName;
 export type TextureArtKey = "brushed" | "worn" | "crt";
@@ -8,7 +8,7 @@ export type TextureArtKey = "brushed" | "worn" | "crt";
  * scene art. They are loaded into the canvas renderer at runtime, preserving
  * the existing simulation-facing sprite dimensions and anchors.
  */
-export const SPRITE_ART = {
+export const SPRITE_ART: Record<BuildingKind, string> = {
   constructionYard: "/art/sprites/sleek-modular/construction-yard-v2.png",
   power: "/art/sprites/sleek-modular/power-v2.png",
   refinery: "/art/sprites/sleek-modular/refinery-v2.png",
@@ -16,11 +16,7 @@ export const SPRITE_ART = {
   factory: "/art/sprites/sleek-modular/factory-v2.png",
   turret: "/art/sprites/sleek-modular/turret-v2.png",
   objective: "/art/sprites/sleek-modular/objective-v2.png",
-  harvester: "/art/sprites/sleek-modular/harvester-v2.png",
-  infantry: "/art/sprites/sleek-modular/infantry-single-v1.png",
-  antiArmor: "/art/sprites/sleek-modular/anti-armor-single-v1.png",
-  tank: "/art/sprites/sleek-modular/tank-v2.png",
-} as const;
+};
 
 export type UnitView =
   | "right"

@@ -1,10 +1,10 @@
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
 import { buildingSprite, cliffFaces, elevationFace, rubbleSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
-import { UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
+import { SPRITE_ART, UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
 import { opaquePixelBounds, rotatedSpriteBounds } from "../lib/render/sprites";
 
 describe("tactical procedural assets", () => {
@@ -117,6 +117,17 @@ describe("tactical procedural assets", () => {
     }
   });
 
+  it("does not keep unused sleek-modular sprites in the asset bay", () => {
+    const used = new Set([
+      ...Object.values(SPRITE_ART).map((src) => basename(src)),
+      ...Object.values(UNIT_DIRECTION_ART).flatMap((views) => Object.values(views).map((src) => basename(src))),
+    ]);
+    const dir = resolve(process.cwd(), "public/art/sprites/sleek-modular");
+    for (const file of readdirSync(dir).filter((name) => name.endsWith(".png"))) {
+      expect(used.has(file), file).toBe(true);
+    }
+  });
+
   it("fits rotated unit bounds without moving the contact anchor", () => {
     const spec = unitSprite("infantry", palette, { facing: 3, variant: 11 });
     const bounds = rotatedSpriteBounds(spec);
@@ -141,17 +152,30 @@ describe("tactical procedural assets", () => {
     }
   });
 
-  it("paints wreckage and rubble as distinct deterministic sprites", () => {
+  it("paints wreckage and rubble from the live rasters with a scorched treatment", () => {
     for (const kind of UNIT_KINDS) {
+      const live = unitSprite(kind, palette, { facing: 2, variant: 11 });
       const a = wreckSprite(kind, palette);
       const b = wreckSprite(kind, palette);
       expect(a).toEqual(b);
+      expect(a.imageSrc).toBe(live.imageSrc);
+      expect(a.imageCrop).toEqual(live.imageCrop);
+      expect(a.svg).toBeUndefined();
+      expect(a.imageTint).not.toBe(live.imageTint);
+      expect(a.imageTextureSrc).toMatch(/worn-panel/);
+      expect(a.id).not.toBe(live.id);
       validateSpec(a);
     }
     for (const kind of BUILDING_KINDS) {
+      const live = buildingSprite(kind, palette, { variant: 13 });
       const a = rubbleSprite(kind, palette);
       const b = rubbleSprite(kind, palette);
       expect(a).toEqual(b);
+      expect(a.imageSrc).toBe(live.imageSrc);
+      expect(a.svg).toBeUndefined();
+      expect(a.imageTint).not.toBe(live.imageTint);
+      expect(a.imageTextureSrc).toMatch(/worn-panel/);
+      expect(a.id).not.toBe(live.id);
       validateSpec(a);
     }
     const wreckIds = new Set(UNIT_KINDS.map((kind) => wreckSprite(kind, palette).id));

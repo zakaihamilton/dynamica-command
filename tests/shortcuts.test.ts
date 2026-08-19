@@ -81,4 +81,12 @@ describe("shortcut matching", () => {
     expect(assetsCommandFromKey({ key: "Escape" }, { typing: false })).toEqual({ type: "close" });
     expect(assetsCommandFromKey({ key: " " }, { typing: false })).toEqual({ type: "togglePlay" });
   });
+
+  it("steps through the asset bay with up and down arrows", () => {
+    expect(assetsCommandFromKey({ key: "ArrowUp" }, { typing: false })).toEqual({ type: "prevAsset" });
+    expect(assetsCommandFromKey({ key: "ArrowDown" }, { typing: false })).toEqual({ type: "nextAsset" });
+    expect(assetsCommandFromKey({ key: "ArrowDown", repeat: true }, { typing: false })).toEqual({ type: "nextAsset" });
+    expect(assetsCommandFromKey({ key: "ArrowUp" }, { typing: true })).toBeNull();
+    expect(assetsCommandFromKey({ key: "ArrowDown", ctrlKey: true }, { typing: false })).toBeNull();
+  });
 });

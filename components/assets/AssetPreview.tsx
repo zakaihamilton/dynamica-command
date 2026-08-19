@@ -19,13 +19,11 @@ export function AssetPreview({
   playing,
   construction,
   damage,
-  variant,
   designFamily,
   onFacing,
   onPlaying,
   onConstruction,
   onDamage,
-  onVariant,
   onDesignFamily,
 }: {
   selected: CatalogAsset;
@@ -34,13 +32,11 @@ export function AssetPreview({
   playing: boolean;
   construction: 0 | 1 | 2 | 3;
   damage: 0 | 1 | 2;
-  variant: number;
   designFamily: FactionVisualProfile["designFamily"];
   onFacing: (dir: Facing) => void;
   onPlaying: () => void;
   onConstruction: (stage: 0 | 1 | 2 | 3) => void;
   onDamage: (stage: 0 | 1 | 2) => void;
-  onVariant: (value: number) => void;
   onDesignFamily: (value: FactionVisualProfile["designFamily"]) => void;
 }) {
   const showFacing = selected.category === "unit";
@@ -133,24 +129,6 @@ export function AssetPreview({
               ))}
             </div>
           </>
-        ) : null}
-
-        {selected.category === "tile" ? (
-          <div className={styles.group}>
-            <ConsoleLabel>Variant</ConsoleLabel>
-            <div className={styles.chips}>
-              {[0, 2, 4, 7, 11].map((v) => (
-                <AssetChip
-                  key={v}
-                  active={variant === v}
-                  tooltip={`Terrain variant ${v}`}
-                  onClick={() => onVariant(v)}
-                >
-                  {String(v)}
-                </AssetChip>
-              ))}
-            </div>
-          </div>
         ) : null}
       </div>
     </div>

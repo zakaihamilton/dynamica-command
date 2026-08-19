@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
 import { assetById, assetPreviewSpec, spriteSpecToSvg, toAssetApiItem } from "../lib/gen/assetApi";
 import { listGeneratedAssets } from "../lib/gen/assetCatalog";
 
@@ -7,7 +8,7 @@ describe("asset API contract", () => {
     const assets = listGeneratedAssets();
     const items = assets.map((asset) => toAssetApiItem(asset, "https://example.test/"));
 
-    expect(items).toHaveLength(54);
+    expect(items).toHaveLength(UNIT_KINDS.length * 2 + BUILDING_KINDS.length * 2);
     expect(items.every((item) => item.metadataUrl.startsWith("https://example.test/api/assets/"))).toBe(true);
     expect(items.every((item) => item.previewUrl.endsWith("/preview"))).toBe(true);
     expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
@@ -19,13 +20,15 @@ describe("asset API contract", () => {
     expect(items.find((item) => item.id === "building:power")!.render.directions).toHaveLength(0);
   });
 
-  it("returns renderable SVG for procedural assets", () => {
-    const asset = assetById("tile:resource:ash plains");
+  it("renders wrecks from the same raster plate as the live unit", () => {
+    const asset = assetById("wreck:infantry");
     expect(asset).toBeDefined();
     const spec = assetPreviewSpec(asset!);
-    const svg = spriteSpecToSvg(spec);
-    expect(svg).toContain("<svg");
-    expect(svg).toContain("<polygon");
+    expect(spec.imageSrc).toMatch(/\/art\/sprites\/.+\.png$/);
+    expect(spec.svg).toBeUndefined();
+    const live = assetPreviewSpec(assetById("unit:infantry")!, 2);
+    expect(spec.imageSrc).toBe(live.imageSrc);
+    expect(spec.imageTint).not.toBe(live.imageTint);
   });
 
   it("applies each facing to unit previews", () => {

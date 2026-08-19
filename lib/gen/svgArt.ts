@@ -1,5 +1,5 @@
 import { BUILDING_STATS } from "../catalog";
-import { SPRITE_ART, UNIT_DIRECTION_ART, UNIT_DIRECTION_CROPS, unitViewForFacing } from "./visualAssets";
+import { SPRITE_ART, TEXTURE_ART, UNIT_DIRECTION_ART, UNIT_DIRECTION_CROPS, unitViewForFacing } from "./visualAssets";
 import type {
   BuildingKind,
   BuildingSpriteOptions,
@@ -41,6 +41,20 @@ function rasterTreatment(profile: FactionVisualProfile): string {
   if (profile.designFamily === 1) return "rgba(187, 102, 67, 0.13)";
   if (profile.designFamily === 2) return "rgba(176, 137, 77, 0.11)";
   return "rgba(66, 190, 205, 0.1)";
+}
+
+function wreckTreatment(): string {
+  return "rgba(46, 26, 16, 0.52)";
+}
+
+function rubbleTreatment(): string {
+  return "rgba(38, 24, 16, 0.58)";
+}
+
+function kindOffset(kind: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < kind.length; i++) h = Math.imul(h ^ kind.charCodeAt(i), 16777619);
+  return h >>> 0;
 }
 
 function visualKey(profile: FactionVisualProfile): string {
@@ -846,80 +860,29 @@ function paintBuildingMass(
   }
 }
 
-export function wreckSprite(kind: UnitKind, palette: Palette): SpriteSpec {
-  const infantry = kind === "infantry" || kind === "antiArmor";
-  const w = infantry ? 50 : 56;
-  const h = infantry ? 36 : 38;
-  const cx = w / 2;
-  const ground = h - 4;
-  const cy = ground - 8;
-  const svg = new Svg();
-  svg.ellipse(cx, ground, infantry ? 8 : 14, infantry ? 2.6 : 3.6, "rgba(12,10,8,0.55)");
-  if (infantry) {
-    svg.path(d([[cx - 8, cy + 6], [cx + 6, cy + 6], [cx + 4, cy + 10], [cx - 6, cy + 10]]), STEEL_DARK, INK, 1);
-    svg.path(d([[cx - 10, cy + 6], [cx - 2, cy - 2], [cx + 8, cy + 4], [cx + 4, cy + 8]]), "#3a322c", INK, 1);
-    svg.path(d(octagon(cx, cy, 4, 3)), "#6a4a32", INK, 1);
-    svg.line(cx + 4, cy, cx + 14, cy + 4, STEEL, 2);
-  } else {
-    svg.path(d(hull(cx, cy + 4, 1, 26, 13, 1, 0)), "#2a2e2a", INK, 1);
-    svg.path(d(hull(cx + 2, cy + 2, 7, 18, 9, 1, 1)), STEEL_DARK, INK, 1);
-    svg.path(d([[cx - 8, cy], [cx + 4, cy - 6], [cx + 12, cy + 2], [cx + 2, cy + 6]]), "#3a322c", INK, 1);
-    svg.path(d(octagon(cx - 2, cy, 5, 2.6)), RUST, INK, 1);
-    if (kind === "harvester") svg.path(d([[cx + 8, cy], [cx + 18, cy + 6], [cx + 10, cy + 8]]), "#474b46", INK, 1);
-    else svg.line(cx, cy, cx + 12, cy + 4, STEEL_DARK, 3);
-  }
-  svg.ellipse(cx + 2, cy - 6, 6, 5, "rgba(58,58,54,0.4)");
+export function wreckSprite(kind: UnitKind, palette: Palette, options: UnitSpriteOptions = {}): SpriteSpec {
+  const facing = options.facing ?? 2;
+  const profile = options.profile ?? DEFAULT_PROFILE;
+  const live = unitSprite(kind, palette, { ...options, facing, animationFrame: 0, profile });
   return {
-    id: `wreck:${kind}:${palette.primary}`,
-    kind: "unit",
-    w,
-    h,
-    palette,
-    shapes: [],
-    svg: svg.toString(w, h),
-    anchorX: w / 2,
-    anchorY: ground,
-    pixelScale: 1,
+    ...live,
+    id: `wreck:raster-v1:${kind}:${facing}:${palette.primary}:${visualKey(profile)}`,
+    imageTint: wreckTreatment(),
+    imageTextureSrc: TEXTURE_ART.worn,
+    imageTextureOpacity: 0.4,
+    imageTextureOffset: kindOffset(kind),
   };
 }
 
-export function rubbleSprite(kind: BuildingKind, palette: Palette): SpriteSpec {
-  const fp = BUILDING_STATS[kind].footprint;
-  const gw = (fp.w + fp.h) * (TW / 2);
-  const gh = (fp.w + fp.h) * (TH / 2);
-  const w = gw + 8;
-  const h = Math.max(28, gh + 16);
-  const mx = w / 2;
-  const my = h - gh / 2 - 6;
-  const svg = new Svg();
-  svg.ellipse(mx, h - 9, gw * 0.28, 5, "rgba(12,10,8,0.5)");
-  svg.path(d([
-    [mx - gw * 0.32, my + 6],
-    [mx, my - 4],
-    [mx + gw * 0.28, my + 8],
-    [mx + 8, my + 14],
-    [mx - 10, my + 12],
-  ]), "#3a322c", INK, 1);
-  svg.path(d([[mx - 14, my + 4], [mx - 2, my - 8], [mx + 10, my + 2]]), STEEL_DARK, INK, 1);
-  svg.path(d([[mx + 4, my + 2], [mx + 18, my - 2], [mx + 22, my + 8], [mx + 8, my + 10]]), "#2c2824", INK, 1);
-  if (kind === "turret") {
-    svg.path(d(octagon(mx, my + 2, 10, 5)), STEEL_DARK, INK, 1);
-    svg.line(mx, my + 2, mx + 14, my + 6, STEEL, 3);
-  } else if (kind === "power") {
-    svg.path(d(octagon(mx - 8, my - 2, 5, 8)), STEEL_DARK, INK, 1);
-    svg.path(d(octagon(mx + 8, my, 4, 6)), "#2a2e2a", INK, 1);
-  }
-  svg.ellipse(mx + 4, my - 8, 8, 6, "rgba(58,60,56,0.35)");
+export function rubbleSprite(kind: BuildingKind, palette: Palette, options: BuildingSpriteOptions = {}): SpriteSpec {
+  const profile = options.profile ?? DEFAULT_PROFILE;
+  const live = buildingSprite(kind, palette, { ...options, constructionStage: 3, profile });
   return {
-    id: `rubble:${kind}:${palette.primary}`,
-    kind: "building",
-    w,
-    h,
-    palette,
-    shapes: [],
-    svg: svg.toString(w, h),
-    anchorX: w / 2,
-    anchorY: h - 2 - gh / 2,
-    pixelScale: 1,
+    ...live,
+    id: `rubble:raster-v1:${kind}:${palette.primary}:${visualKey(profile)}`,
+    imageTint: rubbleTreatment(),
+    imageTextureSrc: TEXTURE_ART.worn,
+    imageTextureOpacity: 0.44,
+    imageTextureOffset: kindOffset(kind) ^ 0x9e3779b9,
   };
 }
