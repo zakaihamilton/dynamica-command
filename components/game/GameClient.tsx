@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { setMuted } from "@/lib/audio/synth";
+import { setMusicDucked } from "@/lib/audio/music";
+import { setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
 import { createCampaign } from "@/lib/gen/campaign";
 import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
@@ -10,6 +11,8 @@ import { renderMinimap } from "@/lib/render/minimap";
 import { renderWorld, type RenderExtras } from "@/lib/render/renderer";
 import { preloadRasterSources } from "@/lib/render/sprites";
 import { cullFx, type FxBurst } from "@/lib/render/fx";
+import { localStorageAdapter } from "@/lib/persist/save";
+import { readSettings } from "@/lib/persist/settings";
 import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import { powerBreakdown } from "@/lib/sim/world";
 import type { Command, SimState } from "@/lib/types";
@@ -55,9 +58,14 @@ export function GameClient({
   const [pauseView, setPauseView] = useState<PauseView>("main");
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [sfxEnabled, setSfxEnabled] = useState(() => {
+    const settings = readSettings(localStorageAdapter());
+    applySfxEnabled(settings.sfxEnabled);
+    return settings.sfxEnabled;
+  });
+  const [musicEnabled, setMusicEnabled] = useState(() => readSettings(localStorageAdapter()).musicEnabled);
   const [combatAlert, setCombatAlert] = useState<string | null>(null);
-  const combatAlertClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const combatAlertClearRef = useRef<number | null>(null);
   const cmdQ = useRef<Command[]>([]);
   const fxRef = useRef<FxBurst[]>([]);
   const fxSeq = useRef(1);
@@ -189,7 +197,10 @@ export function GameClient({
     setPauseNotice,
     campaignRecordedRef,
     terminalSaveRef,
-    setSoundEnabled,
+    sfxEnabled,
+    musicEnabled,
+    setSfxEnabled,
+    setMusicEnabled,
   });
 
   const { keys } = useGameKeyboard({
@@ -217,6 +228,7 @@ export function GameClient({
     viewMissionBriefing: session.viewMissionBriefing,
     restartMission: session.restartMission,
     toggleSound: session.toggleSound,
+    toggleMusic: session.toggleMusic,
     resultPrimary: session.resultPrimary,
     onNavigateHome: session.goHome,
   });
@@ -263,7 +275,13 @@ export function GameClient({
     pauseViewRef.current = pauseView;
   }, [pauseView]);
 
-  useEffect(() => () => setMuted(false), []);
+  useEffect(() => {
+    setMusicDucked(paused);
+  }, [paused]);
+
+  useEffect(() => () => {
+    setMusicDucked(false);
+  }, []);
 
   useEffect(() => () => {
     if (combatAlertClearRef.current) window.clearTimeout(combatAlertClearRef.current);
@@ -354,7 +372,8 @@ export function GameClient({
         <PauseMenu
           view={pauseView}
           notice={pauseNotice}
-          soundEnabled={soundEnabled}
+          sfxEnabled={sfxEnabled}
+          musicEnabled={musicEnabled}
           palette={pal}
           onResume={session.resumeMission}
           onSave={session.saveMission}
@@ -371,6 +390,7 @@ export function GameClient({
           }}
           onMenu={session.goMenu}
           onToggleSound={session.toggleSound}
+          onToggleMusic={session.toggleMusic}
           onBack={() => setPauseView("main")}
           onCloseAssets={() => setPauseView("main")}
         />

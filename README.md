@@ -13,7 +13,7 @@ yarn
 yarn dev
 ```
 
-Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. Pause opens save/load, briefing, sound, and an **assets browser** for generated sprites.
+Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. Pause opens save/load, briefing, **music and sound toggles**, and an **assets browser** for generated sprites.
 
 | Script | What it does |
 | --- | --- |
@@ -26,7 +26,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Pr
 
 ## How a seed works
 
-The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Campaign content is **never stored** — it is regenerated. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `genesis-protocol:save:0421`.
+The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Campaign content is **never stored** — it is regenerated. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `genesis-protocol:save:0421`. Audio preferences (`music` / `sound effects`) persist separately as `genesis-protocol:settings`.
 
 ```text
 seed 0421
@@ -104,12 +104,13 @@ lib/seed       4-digit seed → mulberry32 forks
 lib/gen        world, factions, maps, story, sprite specs
 lib/sim        tick, pathfinding, economy, combat, repair, AI, objectives
 lib/render     isometric camera, sprites, minimap, CPU 3D turret/preview
-lib/persist    save/load (localStorage or in-memory)
+lib/audio      generated SFX + seeded background music (Web Audio)
+lib/persist    save/load + audio settings (localStorage or in-memory)
 scripts/       inspect + headless sim
 tests/         Vitest
 ```
 
-Sprites, biome tiles, roads, cliffs, portraits, and SFX are **generated** (native-resolution shape specs + seeded palettes + Web Audio). The generated art is deterministic per seed, rendered on a minimum 640×480 surface, and uses no stock unit art.
+Sprites, biome tiles, roads, cliffs, portraits, SFX, and **background music** are **generated** (native-resolution shape specs + seeded palettes + Web Audio). The generated art is deterministic per seed, rendered on a minimum 640×480 surface, and uses no stock unit art. Pause **Options** toggles music and sound effects independently.
 
 ### Headless API
 

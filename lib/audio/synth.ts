@@ -1,27 +1,22 @@
+import { getAudioContext, resumeAudio } from "./context";
+
 export type BeepKind = "select" | "ack" | "build" | "alert" | "win" | "lose";
 
-let ctx: AudioContext | null = null;
-let muted = false;
+let sfxEnabled = true;
 
-export function setMuted(value: boolean): void {
-  muted = value;
+export function setSfxEnabled(value: boolean): void {
+  sfxEnabled = value;
 }
 
-function ac(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!ctx) {
-    const C = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!C) return null;
-    ctx = new C();
-  }
-  return ctx;
+export function isSfxEnabled(): boolean {
+  return sfxEnabled;
 }
 
 export function beep(kind: BeepKind): void {
-  if (muted) return;
-  const audio = ac();
+  if (!sfxEnabled) return;
+  const audio = getAudioContext();
   if (!audio) return;
-  void audio.resume();
+  resumeAudio();
   const o = audio.createOscillator();
   const g = audio.createGain();
   o.connect(g);

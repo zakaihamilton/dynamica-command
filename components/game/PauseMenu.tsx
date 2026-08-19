@@ -9,7 +9,8 @@ import styles from "./PauseMenu.module.css";
 export function PauseMenu({
   view,
   notice,
-  soundEnabled,
+  sfxEnabled,
+  musicEnabled,
   palette,
   onResume,
   onSave,
@@ -20,12 +21,14 @@ export function PauseMenu({
   onOptions,
   onMenu,
   onToggleSound,
+  onToggleMusic,
   onBack,
   onCloseAssets,
 }: {
   view: PauseView;
   notice: string;
-  soundEnabled: boolean;
+  sfxEnabled: boolean;
+  musicEnabled: boolean;
   palette: Palette;
   onResume: () => void;
   onSave: () => void;
@@ -36,6 +39,7 @@ export function PauseMenu({
   onOptions: () => void;
   onMenu: () => void;
   onToggleSound: () => void;
+  onToggleMusic: () => void;
   onBack: () => void;
   onCloseAssets: () => void;
 }) {
@@ -57,7 +61,13 @@ export function PauseMenu({
               onMenu={onMenu}
             />
           ) : (
-            <PauseOptions soundEnabled={soundEnabled} onToggleSound={onToggleSound} onBack={onBack} />
+            <PauseOptions
+              sfxEnabled={sfxEnabled}
+              musicEnabled={musicEnabled}
+              onToggleSound={onToggleSound}
+              onToggleMusic={onToggleMusic}
+              onBack={onBack}
+            />
           )}
           {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
           <p className={styles.hint}>{view === "main" ? "Escape resumes the mission" : "Escape returns to the pause menu"}</p>

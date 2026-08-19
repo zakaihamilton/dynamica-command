@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AudioRoot } from "@/components/audio/AudioRoot";
 import { TooltipLayer } from "@/components/TooltipLayer";
 import styles from "./layout.module.css";
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${styles.html}`}
     >
       <body className={styles.body}>
+        <AudioRoot />
         {children}
         <TooltipLayer />
       </body>

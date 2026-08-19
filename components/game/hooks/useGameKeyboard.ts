@@ -28,6 +28,7 @@ export function useGameKeyboard({
   viewMissionBriefing,
   restartMission,
   toggleSound,
+  toggleMusic,
   resultPrimary,
   onNavigateHome,
 }: {
@@ -55,6 +56,7 @@ export function useGameKeyboard({
   viewMissionBriefing: () => void;
   restartMission: () => void;
   toggleSound: () => void;
+  toggleMusic: () => void;
   resultPrimary: () => void;
   onNavigateHome: () => void;
 }) {
@@ -108,6 +110,7 @@ export function useGameKeyboard({
         setPauseNotice("");
       } else if (command.type === "menu") onNavigateHome();
       else if (command.type === "toggleSound") toggleSound();
+      else if (command.type === "toggleMusic") toggleMusic();
       else if (command.type === "resultPrimary") resultPrimary();
       else if (command.type === "resultMenu") onNavigateHome();
     };
@@ -148,6 +151,7 @@ export function useGameKeyboard({
     toggleRepair,
     toggleSell,
     toggleSound,
+    toggleMusic,
     viewMissionBriefing,
   ]);
 

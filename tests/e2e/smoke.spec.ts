@@ -49,6 +49,10 @@ test("pauses and resumes from the battlefield", async ({ page }) => {
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("pause-menu")).toBeVisible();
+  await page.getByRole("button", { name: "Options" }).click();
+  await expect(page.getByRole("button", { name: "Music: On" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sound effects: On" })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("button", { name: "Resume Mission" }).click();
   await expect(page.getByTestId("pause-menu")).toHaveCount(0);
   await expect(page.getByTestId("command-sidebar")).toBeVisible();

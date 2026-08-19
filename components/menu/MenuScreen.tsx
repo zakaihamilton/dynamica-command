@@ -6,9 +6,10 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
-import { formatSeed, parseSeed } from "@/lib/seed/rng";
+import { TITLE_MUSIC_SEED, setMusicCue } from "@/lib/audio/music";
 import { listSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
+import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey, SHORTCUT } from "@/lib/ui/shortcuts";
 import { MenuBackdrop } from "./MenuBackdrop";
 import { MenuHero } from "./MenuHero";
@@ -32,6 +33,11 @@ export function MenuScreen() {
     const frame = requestAnimationFrame(() => setSaves(listSaves(localStorageAdapter())));
     return () => cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    const n = parseSeed(code);
+    setMusicCue("menu", n !== null && code.length === 4 ? n : TITLE_MUSIC_SEED);
+  }, [code]);
 
   const preview = useMemo(() => {
     const n = parseSeed(code);

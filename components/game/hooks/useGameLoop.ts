@@ -1,5 +1,6 @@
 import { useEffect, type MutableRefObject } from "react";
 import { beep } from "@/lib/audio/synth";
+import { setMusicCue } from "@/lib/audio/music";
 import { startLoop } from "@/lib/game/loop";
 import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { localStorageAdapter, writeSave } from "@/lib/persist/save";
@@ -58,8 +59,14 @@ export function useGameLoop({
       onTick: (next, events, now) => {
         if (next.tick % 48 === 0) writeSave(localStorageAdapter(), next);
         if (next.tick % 6 === 0) setState({ ...next, entities: [...next.entities] });
-        if (events.some((e) => e.type === "won")) beep("win");
-        if (events.some((e) => e.type === "lost")) beep("lose");
+        if (events.some((e) => e.type === "won")) {
+          beep("win");
+          setMusicCue("victory", next.seed);
+        }
+        if (events.some((e) => e.type === "lost")) {
+          beep("lose");
+          setMusicCue("defeat", next.seed);
+        }
         if (events.some((e) => e.type === "commandRejected")) beep("alert");
         const alert = events.find((e) => e.type === "alert");
         if (alert && alert.type === "alert") {

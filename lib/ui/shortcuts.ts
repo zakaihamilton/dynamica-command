@@ -31,6 +31,7 @@ export type GameCommand =
   | { type: "options" }
   | { type: "menu" }
   | { type: "toggleSound" }
+  | { type: "toggleMusic" }
   | { type: "resultPrimary" }
   | { type: "resultMenu" };
 
@@ -70,6 +71,7 @@ export const SHORTCUT = {
   options: "O",
   menu: "M",
   mute: "M",
+  music: "U",
   newGame: "N",
   randomize: "R",
   deploy: "Enter",
@@ -142,6 +144,7 @@ export function gameCommandFromKey(
     if (ctx.pauseView === "options") {
       if (isEscape(e)) return { type: "pauseBack" };
       if (key === "m") return { type: "toggleSound" };
+      if (key === "u") return { type: "toggleMusic" };
       return null;
     }
     if (isEscape(e)) return { type: "resume" };
