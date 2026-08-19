@@ -5,7 +5,7 @@ import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
 import { buildingSprite, cliffFaces, elevationFace, rubbleSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
 import { UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
-import { rotatedSpriteBounds } from "../lib/render/sprites";
+import { opaquePixelBounds, rotatedSpriteBounds } from "../lib/render/sprites";
 
 describe("tactical procedural assets", () => {
   const palette = generateFactions(421)[0].palette;
@@ -200,6 +200,17 @@ describe("tactical procedural assets", () => {
       expect(spec.svg).toContain("#26323d");
       expect(spec.svg).not.toMatch(/ [QC]/);
     }
+  });
+
+  it("measures the opaque box so sidebar previews can center the graphic", () => {
+    const width = 8;
+    const height = 6;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (const [x, y] of [[2, 1], [3, 1], [2, 2], [3, 2]] as const) {
+      data[(y * width + x) * 4 + 3] = 255;
+    }
+    expect(opaquePixelBounds(data, width, height)).toEqual({ minX: 2, minY: 1, width: 2, height: 2 });
+    expect(opaquePixelBounds(new Uint8ClampedArray(width * height * 4), width, height)).toBeUndefined();
   });
 });
 

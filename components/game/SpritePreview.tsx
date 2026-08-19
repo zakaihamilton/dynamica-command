@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { buildingSprite, unitSprite } from "@/lib/gen/assets";
-import { drawSprite, rasterize } from "@/lib/render/sprites";
+import { rasterize, spriteContentBounds } from "@/lib/render/sprites";
 import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import styles from "./SpritePreview.module.css";
@@ -39,10 +39,23 @@ export function SpritePreview({
       const image = rasterize(spec, () => {
         if (!disposed) paint(animationFrame);
       });
-      const scale = Math.min(canvas.width / spec.w, canvas.height / spec.h) * 0.9;
-      const dw = Math.max(1, Math.round(spec.w * scale));
-      const dh = Math.max(1, Math.round(spec.h * scale));
-      drawSprite(ctx, spec, image, Math.round((canvas.width - dw) / 2), Math.round((canvas.height - dh) / 2), dw, dh);
+      const bounds = spriteContentBounds(image) ?? { minX: 0, minY: 0, width: image.width, height: image.height };
+      const scale = Math.min(canvas.width / bounds.width, canvas.height / bounds.height) * 0.86;
+      const dw = Math.max(1, Math.round(bounds.width * scale));
+      const dh = Math.max(1, Math.round(bounds.height * scale));
+      ctx.imageSmoothingEnabled = true;
+      if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(
+        image,
+        bounds.minX,
+        bounds.minY,
+        bounds.width,
+        bounds.height,
+        Math.round((canvas.width - dw) / 2),
+        Math.round((canvas.height - dh) / 2),
+        dw,
+        dh,
+      );
     };
     paint(0);
     if (!isUnit) return;

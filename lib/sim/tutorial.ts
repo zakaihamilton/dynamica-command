@@ -7,7 +7,6 @@ export function createTutorialMission(seed: number): SimState {
   state.missionKind = "holdTheLine";
   state.tutorialStage = "select";
   state.win = { kind: "holdTheLine", ticks: 12 * 60 * 60 };
-  state.appliedUpgrades = [];
   return state;
 }
 

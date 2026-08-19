@@ -1,6 +1,13 @@
 import { MAP_SKIRT } from "../gen/map";
-import type { Entity, SimState } from "../types";
-import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
+import {
+  missionUsesObjectiveZone,
+  OBJECTIVE_ZONE_RADIUS,
+  TILE_BLOCKED,
+  TILE_RESOURCE,
+  TILE_WATER,
+  type Entity,
+  type SimState,
+} from "../types";
 import { fogAt } from "../sim/fog";
 import { atlasPixelAtTile, fogTerrainGain, getTerrainAtlas, terrainColors } from "./terrainAtlas";
 
@@ -105,6 +112,22 @@ export function renderMinimap(
     const bw = e.class === "building" ? 6 : 3;
     const bh = e.class === "building" ? 6 : 3;
     ctx.fillRect(e.x * sx - 1, e.y * sy - 1, bw, bh);
+  }
+  const zone = state.runtime?.zone;
+  if (zone && missionUsesObjectiveZone(state.runtime?.kind)) {
+    ctx.strokeStyle = "#e8c86a";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(
+      zone.x * sx,
+      zone.y * sy,
+      Math.max(3, OBJECTIVE_ZONE_RADIUS * sx),
+      Math.max(3, OBJECTIVE_ZONE_RADIUS * sy),
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
   }
   if (view.length >= 2) {
     ctx.beginPath();

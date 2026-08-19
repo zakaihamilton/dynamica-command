@@ -6,9 +6,14 @@ import type { BiomeName, CampaignVisualProfile, SurfaceKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 
 export const ATLAS_CELL = 8;
-export const TERRAIN_ATLAS_REV = "world-atlas-v2";
+export const TERRAIN_ATLAS_REV = "world-atlas-v4";
 export const ORE_GLINT_RIDGE = 0.55;
+export const ORE_CRYSTAL_MIN_AMOUNT = 50;
+export const CONCRETE_STEEL = { r: 89, g: 104, b: 117 };
+export const CONCRETE_STEEL_LIGHT = { r: 154, g: 171, b: 186 };
+export const CONCRETE_STEEL_DARK = { r: 38, g: 50, b: 61 };
 const ORE_CELL_CLASS = 3;
+const CONCRETE_CELL_CLASS = 2;
 
 export type AtlasWorld = SceneryWorld & {
   seed: number;
@@ -44,12 +49,19 @@ export type OreShardPose = {
   rise: number;
   half: number;
   buried: number;
+  twist: number;
+};
+
+export type OreBurstOrigin = {
+  dx: number;
+  dy: number;
 };
 
 export type OreCrystalCluster = {
   fx: number;
   fy: number;
   intensity: number;
+  bursts: OreBurstOrigin[];
   shards: OreShardPose[];
 };
 
@@ -97,7 +109,7 @@ const BIOME_MATERIALS: Record<BiomeName, BiomeMaterials> = {
     waterHi: rgb(122, 176, 178),
     shore: rgb(138, 128, 96),
     road: rgb(86, 74, 58),
-    concrete: rgb(72, 80, 76),
+    concrete: rgb(89, 104, 117),
     ore: rgb(168, 132, 52),
     blocked: rgb(42, 50, 44),
   },
@@ -112,7 +124,7 @@ const BIOME_MATERIALS: Record<BiomeName, BiomeMaterials> = {
     waterHi: rgb(150, 214, 208),
     shore: rgb(118, 148, 142),
     road: rgb(70, 88, 86),
-    concrete: rgb(62, 88, 88),
+    concrete: rgb(89, 104, 117),
     ore: rgb(176, 196, 92),
     blocked: rgb(40, 66, 64),
   },
@@ -127,7 +139,7 @@ const BIOME_MATERIALS: Record<BiomeName, BiomeMaterials> = {
     waterHi: rgb(132, 176, 168),
     shore: rgb(156, 118, 78),
     road: rgb(96, 62, 44),
-    concrete: rgb(98, 72, 56),
+    concrete: rgb(89, 104, 117),
     ore: rgb(196, 132, 48),
     blocked: rgb(64, 38, 30),
   },
@@ -142,7 +154,7 @@ const BIOME_MATERIALS: Record<BiomeName, BiomeMaterials> = {
     waterHi: rgb(132, 186, 158),
     shore: rgb(122, 122, 80),
     road: rgb(74, 70, 52),
-    concrete: rgb(64, 80, 70),
+    concrete: rgb(89, 104, 117),
     ore: rgb(168, 148, 64),
     blocked: rgb(38, 54, 42),
   },
@@ -157,7 +169,7 @@ const BIOME_MATERIALS: Record<BiomeName, BiomeMaterials> = {
     waterHi: rgb(150, 214, 200),
     shore: rgb(196, 176, 124),
     road: rgb(118, 96, 68),
-    concrete: rgb(132, 118, 90),
+    concrete: rgb(89, 104, 117),
     ore: rgb(196, 160, 64),
     blocked: rgb(86, 70, 48),
   },
@@ -172,7 +184,7 @@ const BIOME_MATERIALS: Record<BiomeName, BiomeMaterials> = {
     waterHi: rgb(176, 216, 222),
     shore: rgb(148, 160, 156),
     road: rgb(68, 88, 94),
-    concrete: rgb(70, 92, 98),
+    concrete: rgb(89, 104, 117),
     ore: rgb(176, 168, 84),
     blocked: rgb(48, 64, 70),
   },
@@ -187,7 +199,7 @@ const BIOME_MATERIALS: Record<BiomeName, BiomeMaterials> = {
     waterHi: rgb(118, 186, 154),
     shore: rgb(92, 86, 52),
     road: rgb(62, 54, 38),
-    concrete: rgb(52, 68, 56),
+    concrete: rgb(89, 104, 117),
     ore: rgb(168, 148, 48),
     blocked: rgb(30, 48, 32),
   },
@@ -202,7 +214,7 @@ const BIOME_MATERIALS: Record<BiomeName, BiomeMaterials> = {
     waterHi: rgb(128, 156, 158),
     shore: rgb(102, 86, 70),
     road: rgb(78, 50, 44),
-    concrete: rgb(58, 52, 52),
+    concrete: rgb(89, 104, 117),
     ore: rgb(196, 124, 48),
     blocked: rgb(48, 34, 34),
   },
@@ -340,42 +352,114 @@ export function oreShardCount(amount: number): number {
   return 5;
 }
 
-const ORE_SHARD_SLOTS: ReadonlyArray<readonly [number, number]> = [
-  [0.22, 0.28],
-  [0.50, 0.22],
-  [0.78, 0.28],
-  [0.28, 0.50],
-  [0.50, 0.48],
-  [0.72, 0.50],
-  [0.22, 0.72],
-  [0.50, 0.78],
-  [0.78, 0.72],
+function variantMod(v: number, shift: number, mod: number): number {
+  return ((v >>> (shift & 31)) % mod);
+}
+
+const ORE_BURST_SLOTS: ReadonlyArray<readonly [number, number]> = [
+  [0.20, 0.20],
+  [0.52, 0.18],
+  [0.82, 0.24],
+  [0.18, 0.52],
+  [0.50, 0.50],
+  [0.84, 0.54],
+  [0.22, 0.80],
+  [0.50, 0.84],
+  [0.80, 0.78],
+];
+
+const ORE_BURST_SETS_2: ReadonlyArray<readonly [number, number]> = [
+  [0, 5],
+  [0, 8],
+  [1, 6],
+  [2, 6],
+  [2, 7],
+  [3, 5],
+  [3, 8],
+  [1, 8],
+];
+
+const ORE_BURST_SETS_3: ReadonlyArray<readonly [number, number, number]> = [
+  [0, 2, 6],
+  [0, 2, 7],
+  [0, 5, 6],
+  [1, 6, 8],
+  [2, 3, 7],
+  [2, 3, 8],
+  [1, 5, 6],
+  [0, 5, 7],
+];
+
+const ORE_BURST_DIRS: ReadonlyArray<readonly [number, number]> = [
+  [-1.00, 0.38],
+  [-0.68, 0.82],
+  [-0.22, 1.00],
+  [0.26, 0.96],
+  [0.64, 0.78],
+  [0.98, 0.40],
+  [-0.86, 0.22],
+  [0.88, 0.24],
+  [-0.48, 0.58],
+  [0.42, 0.52],
 ];
 
 export function oreCrystalCluster(state: AtlasWorld, x: number, y: number): OreCrystalCluster | null {
-  const peak = oreVeinPeak(state, x, y);
-  if (peak.intensity < ORE_GLINT_RIDGE) return null;
   const amount = resourceAt(state, x, y);
+  if (amount <= ORE_CRYSTAL_MIN_AMOUNT) return null;
+  const peak = oreVeinPeak(state, x, y);
   const v = tileVariant(state.seed, x, y);
-  const count = oreShardCount(amount);
-  const start = v % ORE_SHARD_SLOTS.length;
+  const v2 = tileVariant(state.seed ^ 0x9e3779b9, x * 3 + 1, y * 5 + 2);
+  const burstCount = 2 + variantMod(v, 11, 2);
+  let count = oreShardCount(amount) + variantMod(v, 7, 3) - 1;
+  if (count < burstCount + 2) count = burstCount + 2;
+  const set = burstCount === 3
+    ? ORE_BURST_SETS_3[variantMod(v, 0, ORE_BURST_SETS_3.length)]!
+    : ORE_BURST_SETS_2[variantMod(v, 0, ORE_BURST_SETS_2.length)]!;
+  const shiftU = (variantMod(v, 21, 7) - 3) * 0.028;
+  const shiftV = (variantMod(v2, 21, 7) - 3) * 0.028;
+  const bursts: OreBurstOrigin[] = [];
   const shards: OreShardPose[] = [];
-  for (let i = 0; i < count; i++) {
-    const slot = ORE_SHARD_SLOTS[(start + i * 4) % ORE_SHARD_SLOTS.length]!;
-    const jitterU = (((v >> (i * 3)) % 7) - 3) * 0.018;
-    const jitterV = (((v >> (i * 5)) % 7) - 3) * 0.018;
-    const u = Math.min(0.84, Math.max(0.16, slot[0] + jitterU));
-    const vv = Math.min(0.84, Math.max(0.16, slot[1] + jitterV));
-    const dx = (u - vv) * 32;
-    const dy = (u + vv) * 16;
-    const lean = ((u - 0.5) * 4.4) + (((v >> (i + 3)) % 5) - 2) * 0.35;
-    const rise = 9 + ((v >> (i * 4)) % 4) + (i === 0 ? 2.4 : 0) + Math.min(2.5, amount / 360);
-    const half = 8.4 + ((v >> (i + 6)) % 4) * 1.2 + (i === 0 ? 1.8 : 0);
-    const buried = 5.2 + (i % 2) * 0.8;
-    shards.push({ dx, dy, lean, rise, half, buried });
+  let remaining = count;
+  let shardIndex = 0;
+  for (let b = 0; b < burstCount; b++) {
+    const slot = ORE_BURST_SLOTS[set[b]!]!;
+    const jitterU = (variantMod(v, 3 + b * 5, 11) - 5) * 0.03;
+    const jitterV = (variantMod(v2, 2 + b * 5, 11) - 5) * 0.03;
+    const u = Math.min(0.86, Math.max(0.14, slot[0] + shiftU + jitterU));
+    const vv = Math.min(0.86, Math.max(0.14, slot[1] + shiftV + jitterV));
+    const originDx = (u - vv) * 32;
+    const originDy = (u + vv) * 16;
+    bursts.push({ dx: originDx, dy: originDy });
+    const left = burstCount - b;
+    const n = b === burstCount - 1
+      ? remaining
+      : Math.min(remaining - (left - 1), Math.max(1, 1 + variantMod(v2, b * 4, 3)));
+    remaining -= n;
+    const leanSign = variantMod(v, 17 + b, 2) === 0 ? -1 : 1;
+    const dirStart = variantMod(v2, 8 + b * 6, ORE_BURST_DIRS.length);
+    const dirStride = 1 + variantMod(v, 20 + b, 3);
+    const scale = 0.78 + variantMod(v2, 14 + b * 3, 7) * 0.055;
+    for (let k = 0; k < n; k++) {
+      const dir = ORE_BURST_DIRS[(dirStart + k * dirStride) % ORE_BURST_DIRS.length]!;
+      const spin = (variantMod(v, k * 3 + b * 7, 7) - 3) * 0.18;
+      const dirX = dir[0] + spin * dir[1];
+      const dirY = Math.max(0.2, dir[1] - spin * dir[0] * 0.4);
+      const lengthT = variantMod(v2, shardIndex * 5 + 1, 32) / 31;
+      const length = (3.5 + lengthT * 9.4 + Math.min(1.2, amount / 600)) * scale;
+      const lean = dirX * length * leanSign;
+      const rise = Math.max(2.4, dirY * length + 0.7);
+      const push = 1.05 + k * 0.38 + variantMod(v, shardIndex + 9, 3) * 0.2;
+      const dx = originDx + lean * (push / length);
+      const dy = originDy - rise * (push / length) * 0.35;
+      const half = 2.05 + variantMod(v2, shardIndex + 6, 5) * 0.36 + (k === 0 ? 0.35 : 0);
+      const buried = 1.2 + variantMod(v, shardIndex + 4, 3) * 0.35;
+      const twist = (variantMod(v2, shardIndex + 2, 5) - 2) * 0.22;
+      shards.push({ dx, dy, lean, rise, half, buried, twist });
+      shardIndex += 1;
+    }
   }
   shards.sort((a, b) => a.dy - b.dy);
-  return { fx: 0, fy: 0, intensity: peak.intensity, shards };
+  return { fx: 0, fy: 0, intensity: peak.intensity, bursts, shards };
 }
 
 export function resourceSignature(amounts: number[]): number {
@@ -450,8 +534,8 @@ export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: num
     color = shore ? mixRgb(mats.waterMid, mats.shore, 0.28) : mixRgb(mats.waterDeep, mats.waterMid, 0.35 + grain * 0.4);
     color = mixRgb(color, mats.waterHi, grain * 0.18);
   } else if (surface === SURFACE_CONCRETE) {
-    color = mixRgb(mats.concrete, mats.dark, 0.18 + grain * 0.2);
-    color = mixRgb(color, mats.light, micro * 0.12);
+    color = mixRgb(CONCRETE_STEEL, CONCRETE_STEEL_DARK, 0.05 + micro * 0.08);
+    color = mixRgb(color, CONCRETE_STEEL_LIGHT, 0.04 + hash2(x, y, salt) * 0.05);
   } else if (surface === SURFACE_ROAD) {
     color = mixRgb(mats.road, mats.dark, 0.16 + grain * 0.22);
     color = mixRgb(color, mats.light, 0.06 + micro * 0.08);
@@ -496,7 +580,7 @@ function cellClass(state: AtlasWorld, x: number, y: number): number {
   if (scenery.kind === TILE_WATER) return 0;
   const surface = surfaceAt(state, x, y);
   if (surface === SURFACE_ROAD) return 1;
-  if (surface === SURFACE_CONCRETE) return 2;
+  if (surface === SURFACE_CONCRETE) return CONCRETE_CELL_CLASS;
   if (scenery.kind === TILE_RESOURCE) return ORE_CELL_CLASS;
   return 4;
 }
@@ -530,8 +614,9 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
       const baseG = colors[i + 1]!;
       const baseB = colors[i + 2]!;
       const same = classes[row * cols + col]!;
-      const blendE = col + 1 < cols && classes[row * cols + col + 1] === same;
-      const blendS = row + 1 < rows && classes[(row + 1) * cols + col] === same;
+      const canBlend = same !== CONCRETE_CELL_CLASS;
+      const blendE = canBlend && col + 1 < cols && classes[row * cols + col + 1] === same;
+      const blendS = canBlend && row + 1 < rows && classes[(row + 1) * cols + col] === same;
       const eastR = blendE ? colors[i + 3]! : baseR;
       const eastG = blendE ? colors[i + 4]! : baseG;
       const eastB = blendE ? colors[i + 5]! : baseB;
@@ -555,8 +640,17 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
             g += (metal.g - g) * t;
             b += (metal.b - b) * t;
           }
+          if (same === CONCRETE_CELL_CLASS) {
+            const edge = lx === 0 || ly === 0 || lx === ATLAS_CELL - 1 || ly === ATLAS_CELL - 1;
+            if (edge) {
+              const t = 0.42;
+              r += (CONCRETE_STEEL_DARK.r - r) * t;
+              g += (CONCRETE_STEEL_DARK.g - g) * t;
+              b += (CONCRETE_STEEL_DARK.b - b) * t;
+            }
+          }
           const px = col * ATLAS_CELL + lx;
-          const grain = (hash2(px, py, salt) - 0.5) * 16;
+          const grain = (hash2(px, py, salt) - 0.5) * (same === CONCRETE_CELL_CLASS ? 5 : 16);
           const o = (py * width + px) * 4;
           data[o] = clampByte(r + grain);
           data[o + 1] = clampByte(g + grain * 0.82);

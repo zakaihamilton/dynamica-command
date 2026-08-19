@@ -36,6 +36,8 @@ export function SelectionPanel({
               <span className={styles.stat}>HP {Math.ceil(selected.hp)} / {selected.maxHp}</span>
               {selected.neutral ? (
                 <span className={styles.warning} data-testid="selected-status">Stranded — cannot move until freed</span>
+              ) : selected.marked && selected.class === "unit" ? (
+                <span className={styles.warning} data-testid="selected-status">Cargo — return to extraction zone</span>
               ) : selected.class === "unit" ? <span className={styles.stat}>Stance {selected.stance ?? "aggressive"}</span> : null}
               {(selected.suppression ?? 0) > 0 ? <span className={styles.stat}>Suppressed {Math.ceil(selected.suppression ?? 0)}%</span> : null}
               {selected.kind === "harvester" ? (

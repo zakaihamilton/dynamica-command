@@ -184,7 +184,7 @@ export function generateBriefing(
       case "rescue":
         return `${analyst} found survivors in the ${biome}. Bring them home before the line collapses. ${foe} is sweeping the construction yard.`;
       case "extraction":
-        return `${analyst} has the payload route. Secure the assets and get them out. Keep the construction yard standing.`;
+        return `${analyst} has the payload route. Secure the assets and bring them back to our construction yard. Keep the yard standing.`;
       default:
         return `${analyst} is clear. Don't lose the construction yard to ${foe}.`;
     }

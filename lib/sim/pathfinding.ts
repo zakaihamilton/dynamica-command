@@ -1,9 +1,9 @@
-import type { SimState, Vec2 } from "../types";
-import { canClimb, inBounds, isWalkable } from "./world";
+import type { Entity, SimState, Vec2 } from "../types";
+import { canClimb, inBounds, isStaticWalkable, makeUnitOccupancy } from "./world";
 
 type Node = { x: number; y: number; g: number; f: number; px: number; py: number; seq: number };
 
-const DIRS: Vec2[] = [
+export const PATH_DIRS: Vec2[] = [
   { x: 1, y: 0 },
   { x: -1, y: 0 },
   { x: 0, y: 1 },
@@ -13,6 +13,13 @@ const DIRS: Vec2[] = [
   { x: -1, y: 1 },
   { x: -1, y: -1 },
 ];
+
+export type FindPathOptions = {
+  maxNodes?: number;
+  avoidUnits?: boolean;
+  ignoreId?: number;
+  occupancy?: Uint8Array;
+};
 
 class MinHeap {
   private items: Node[] = [];
@@ -78,11 +85,30 @@ class MinHeap {
   }
 }
 
+function ignoreIdOf(from: Vec2, opts?: FindPathOptions): number | undefined {
+  if (opts?.ignoreId !== undefined) return opts.ignoreId;
+  const maybe = from as Vec2 & Partial<Entity>;
+  return typeof maybe.id === "number" ? maybe.id : undefined;
+}
+
+function occupancyAt(occupancy: Uint8Array, w: number, x: number, y: number): boolean {
+  return occupancy[y * w + x] === 1;
+}
+
+export function diagonalCornerBlocked(state: SimState, x0: number, y0: number, x1: number, y1: number): boolean {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  if (dx === 0 || dy === 0) return false;
+  if (!isStaticWalkable(state, x0 + dx, y0) || !canClimb(state, x0, y0, x0 + dx, y0)) return true;
+  if (!isStaticWalkable(state, x0, y0 + dy) || !canClimb(state, x0, y0, x0, y0 + dy)) return true;
+  return false;
+}
+
 export function findPath(
   state: SimState,
   from: Vec2,
   to: Vec2,
-  maxNodes = 2500,
+  opts?: FindPathOptions,
 ): Vec2[] {
   const sx = Math.round(from.x);
   const sy = Math.round(from.y);
@@ -91,11 +117,26 @@ export function findPath(
   if (sx === gx && sy === gy) return [];
   if (!inBounds(state, gx, gy)) return [];
 
-  const walkableGoal = isWalkable(state, gx, gy);
+  const ignoreId = ignoreIdOf(from, opts);
+  const avoidUnits = opts?.avoidUnits === true;
+  const occupancy = avoidUnits
+    ? (opts?.occupancy ?? makeUnitOccupancy(state, ignoreId))
+    : undefined;
+  const w = state.width;
+  const startKey = sy * w + sx;
+  const unitBlocked = (x: number, y: number) => {
+    if (!avoidUnits || !occupancy) return false;
+    const k = y * w + x;
+    if (k === startKey) return false;
+    return occupancyAt(occupancy, w, x, y);
+  };
+  const passable = (x: number, y: number) => isStaticWalkable(state, x, y) && !unitBlocked(x, y);
+
+  const walkableGoal = passable(gx, gy);
   const goalOk = (x: number, y: number) =>
     walkableGoal ? x === gx && y === gy : Math.max(Math.abs(x - gx), Math.abs(y - gy)) === 1;
 
-  const w = state.width;
+  const maxNodes = opts?.maxNodes ?? w * state.height;
   const key = (x: number, y: number) => y * w + x;
   const open = new MinHeap();
   let seq = 0;
@@ -103,6 +144,8 @@ export function findPath(
   const came = new Map<number, Node>();
   const gScore = new Map<number, number>([[key(sx, sy), 0]]);
   let explored = 0;
+  let best: Node | undefined;
+  let bestH = Infinity;
 
   while (open.length && explored < maxNodes) {
     const current = open.pop()!;
@@ -110,18 +153,22 @@ export function findPath(
     if (current.g > (gScore.get(currentKey) ?? Infinity)) continue;
     explored++;
     came.set(currentKey, current);
+    const h = heuristic(current.x, current.y, gx, gy);
+    if (h < bestH && !(current.x === sx && current.y === sy)) {
+      bestH = h;
+      best = current;
+    }
     if (goalOk(current.x, current.y) && !(current.x === sx && current.y === sy && !walkableGoal)) {
       if (current.x === sx && current.y === sy) continue;
       return reconstruct(came, current, w);
     }
-    for (const d of DIRS) {
+    for (const d of PATH_DIRS) {
       const nx = current.x + d.x;
       const ny = current.y + d.y;
       if (!inBounds(state, nx, ny)) continue;
-      const isGoal = nx === gx && ny === gy;
-      const goalOverride = isGoal && !walkableGoal;
-      if (!isWalkable(state, nx, ny) && !goalOverride) continue;
-      if (!canClimb(state, current.x, current.y, nx, ny) && !goalOverride) continue;
+      if (!passable(nx, ny)) continue;
+      if (!canClimb(state, current.x, current.y, nx, ny)) continue;
+      if (diagonalCornerBlocked(state, current.x, current.y, nx, ny)) continue;
       const step = d.x !== 0 && d.y !== 0 ? 1.414 : 1;
       const tentative = current.g + step;
       const k = key(nx, ny);
@@ -138,6 +185,7 @@ export function findPath(
       });
     }
   }
+  if (best && best.px >= 0) return reconstruct(came, best, w);
   return [];
 }
 

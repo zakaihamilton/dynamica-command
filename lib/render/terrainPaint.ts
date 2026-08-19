@@ -2,12 +2,15 @@ import { cliffFaces, drawElevationFaces } from "../gen/assets";
 import { MAP_SKIRT, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import { generateCampaignVisualProfile } from "../gen/visualProfile";
 import type { BuildingKind, Entity, SimState } from "../types";
-import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
+import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, SURFACE_CONCRETE } from "../types";
 import { fogAt } from "../sim/fog";
-import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
+import { HEIGHT_STEP, TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, tileToScreen, type Camera } from "./iso";
 import {
   atlasRectForTile,
   biomeMaterials,
+  CONCRETE_STEEL,
+  CONCRETE_STEEL_DARK,
+  CONCRETE_STEEL_LIGHT,
   fogTerrainGain,
   getTerrainAtlas,
   oreCrystalCluster,
@@ -31,6 +34,10 @@ function memoScenery(state: SimState, x: number, y: number): ScenerySample {
   return sample;
 }
 
+const SHROUD_FILL = "#080d11";
+const TERRAIN_COVER = 1.08;
+const ATLAS_SAMPLE_PAD = 1;
+
 function isoDiamondPath(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -44,6 +51,223 @@ function isoDiamondPath(
   ctx.lineTo(x, y + h);
   ctx.lineTo(x - w / 2, y + h / 2);
   ctx.closePath();
+}
+
+function paintShroudFace(
+  ctx: CanvasRenderingContext2D,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  drop: number,
+  seal: boolean,
+): void {
+  if (drop <= 0) return;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(bx, by);
+  ctx.lineTo(bx, by + drop);
+  ctx.lineTo(ax, ay + drop);
+  ctx.closePath();
+  ctx.fill();
+  if (seal) ctx.stroke();
+}
+
+function paintShroudMaskTile(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  tw: number,
+  th: number,
+  dropE: number,
+  dropS: number,
+  step: number,
+  gain: number,
+  z: number,
+): void {
+  const shroudGain = fogTerrainGain(0);
+  if (gain <= shroudGain + 0.005) return;
+  const srcAlpha = 1 - (1 - gain) / (1 - shroudGain);
+  if (srcAlpha <= 0.01) return;
+  ctx.globalAlpha = srcAlpha;
+  ctx.fillStyle = "#000000";
+  ctx.strokeStyle = "#000000";
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(1.35, 1.25 * z);
+  const cover = expandIsoDiamond(sx, sy, tw, th, srcAlpha >= 0.98 ? TERRAIN_COVER : 1);
+  isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
+  ctx.fill();
+  if (srcAlpha >= 0.98) ctx.stroke();
+  paintShroudFace(ctx, sx - tw / 2, sy + th / 2, sx, sy + th, dropS * step, srcAlpha >= 0.98);
+  paintShroudFace(ctx, sx + tw / 2, sy + th / 2, sx, sy + th, dropE * step, srcAlpha >= 0.98);
+}
+
+function paintShroudOverlay(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  tw: number,
+  th: number,
+  dropE: number,
+  dropS: number,
+  step: number,
+  gain: number,
+  z: number,
+): void {
+  if (gain >= 0.98) return;
+  ctx.save();
+  ctx.globalAlpha = 1 - gain;
+  ctx.fillStyle = SHROUD_FILL;
+  ctx.strokeStyle = SHROUD_FILL;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(1.35, 1.25 * z);
+  const cover = expandIsoDiamond(sx, sy, tw, th, TERRAIN_COVER);
+  isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
+  ctx.fill();
+  ctx.stroke();
+  paintShroudFace(ctx, sx - tw / 2, sy + th / 2, sx, sy + th, dropS * step, true);
+  paintShroudFace(ctx, sx + tw / 2, sy + th / 2, sx, sy + th, dropE * step, true);
+  ctx.restore();
+}
+
+function drawAtlasDiamond(
+  ctx: CanvasRenderingContext2D,
+  atlas: TerrainAtlas,
+  x: number,
+  y: number,
+  sx: number,
+  sy: number,
+  tw: number,
+  th: number,
+): void {
+  if (!atlas.canvas) return;
+  const rect = atlasRectForTile(x, y, atlas.mapWidth);
+  const pad = ATLAS_SAMPLE_PAD;
+  const sx0 = Math.max(0, rect.sx - pad);
+  const sy0 = Math.max(0, rect.sy - pad);
+  const sx1 = Math.min(atlas.width, rect.sx + rect.sw + pad);
+  const sy1 = Math.min(atlas.height, rect.sy + rect.sh + pad);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.transform(...isoAtlasTransform(sx, sy, tw, th, rect.sw, rect.sh));
+  ctx.drawImage(atlas.canvas, sx0, sy0, sx1 - sx0, sy1 - sy0, sx0 - rect.sx, sy0 - rect.sy, sx1 - sx0, sy1 - sy0);
+}
+
+const SLAB_RUST = { r: 117, g: 81, b: 59 };
+const SLAB_RUST_LIGHT = { r: 189, g: 130, b: 88 };
+
+function mixTone(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  t: number,
+): { r: number; g: number; b: number } {
+  const u = t < 0 ? 0 : t > 1 ? 1 : t;
+  return {
+    r: a.r + (b.r - a.r) * u,
+    g: a.g + (b.g - a.g) * u,
+    b: a.b + (b.b - a.b) * u,
+  };
+}
+
+function rgbCss(color: { r: number; g: number; b: number }): string {
+  return `rgb(${Math.round(color.r)},${Math.round(color.g)},${Math.round(color.b)})`;
+}
+
+function slabBit(v: number, shift: number, mod: number): number {
+  return ((v >>> shift) % mod + mod) % mod;
+}
+
+function drawConcreteSlab(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  tw: number,
+  th: number,
+  z: number,
+  variant: number,
+  alpha: number,
+): void {
+  const v = variant >>> 0;
+  const age = slabBit(v, 3, 10) / 9;
+  const polish = (slabBit(v, 7, 7) - 3) / 3;
+  let face = mixTone(CONCRETE_STEEL, CONCRETE_STEEL_LIGHT, 0.12 + polish * 0.08);
+  face = mixTone(face, CONCRETE_STEEL_DARK, 0.08 + age * 0.28);
+  if (age > 0.62) face = mixTone(face, SLAB_RUST, 0.06 + (age - 0.62) * 0.1);
+  const grout = mixTone(CONCRETE_STEEL_DARK, CONCRETE_STEEL, 0.22);
+  const joint = Math.max(1.15, 1.45 * z);
+  const iw = tw - joint * 2;
+  const ih = th - joint;
+  const iy = sy + joint * 0.5;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  isoDiamondPath(ctx, sx, sy, tw, th);
+  ctx.fillStyle = rgbCss(grout);
+  ctx.fill();
+  isoDiamondPath(ctx, sx, iy, iw, ih);
+  ctx.fillStyle = rgbCss(face);
+  ctx.fill();
+  ctx.save();
+  isoDiamondPath(ctx, sx, iy, iw, ih);
+  ctx.clip();
+
+  const bloomX = sx + (slabBit(v, 0, 9) - 4) * 3.2 * z;
+  const bloomY = iy + ih * (0.38 + slabBit(v, 4, 5) * 0.06);
+  ctx.globalAlpha = alpha * (0.1 + age * 0.18);
+  ctx.fillStyle = rgbCss(mixTone(CONCRETE_STEEL_DARK, SLAB_RUST, age * 0.4));
+  ctx.beginPath();
+  ctx.ellipse(bloomX, bloomY, iw * (0.2 + slabBit(v, 2, 4) * 0.04), ih * (0.16 + slabBit(v, 8, 3) * 0.03), 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const grain = 2 + slabBit(v, 1, 3);
+  const lean = (slabBit(v, 1, 2) === 0 ? 1 : -1) * iw * 0.38;
+  ctx.lineCap = "butt";
+  ctx.lineWidth = Math.max(0.7, 0.85 * z);
+  for (let i = 0; i < grain; i++) {
+    const t = (i + 0.35) / grain - 0.5;
+    const gy = iy + ih * (0.32 + t * 0.42) + (slabBit(v, 10 + i, 5) - 2) * 0.45 * z;
+    ctx.globalAlpha = alpha * (i === 1 ? 0.22 : 0.12);
+    ctx.strokeStyle = rgbCss(i % 2 ? CONCRETE_STEEL_LIGHT : CONCRETE_STEEL_DARK);
+    ctx.beginPath();
+    ctx.moveTo(sx - lean, gy - ih * 0.12);
+    ctx.lineTo(sx + lean, gy + ih * 0.12);
+    ctx.stroke();
+  }
+
+  if (slabBit(v, 5, 5) >= 2) {
+    const stains = 1 + slabBit(v, 11, 2);
+    for (let i = 0; i < stains; i++) {
+      const rx = sx + (slabBit(v, 8 + i * 4, 11) - 5) * 2.4 * z;
+      const ry = iy + ih * (0.34 + slabBit(v, 12 + i, 5) * 0.07);
+      ctx.globalAlpha = alpha * (0.18 + age * 0.2);
+      ctx.fillStyle = rgbCss(mixTone(i === 0 ? SLAB_RUST : SLAB_RUST_LIGHT, face, 0.28));
+      ctx.beginPath();
+      ctx.ellipse(rx, ry, (2.8 + i) * z, 1.25 * z, -0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = alpha * (0.16 + age * 0.14);
+      ctx.strokeStyle = rgbCss(SLAB_RUST);
+      ctx.lineWidth = Math.max(0.7, 0.9 * z);
+      ctx.beginPath();
+      ctx.moveTo(rx - 0.4 * z, ry);
+      ctx.lineTo(rx + 1.6 * z, ry + 5.2 * z);
+      ctx.stroke();
+    }
+  }
+
+  const pits = slabBit(v, 9, 4);
+  ctx.fillStyle = rgbCss(mixTone(CONCRETE_STEEL_DARK, SLAB_RUST, 0.2));
+  for (let i = 0; i < pits; i++) {
+    const px = sx + (slabBit(v, 14 + i * 3, 13) - 6) * 2.1 * z;
+    const py = iy + ih * (0.28 + slabBit(v, 16 + i, 6) * 0.08);
+    ctx.globalAlpha = alpha * 0.28;
+    ctx.beginPath();
+    ctx.ellipse(px, py, 0.9 * z, 0.45 * z, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+  ctx.restore();
 }
 
 function smoothFogGain(state: SimState, x: number, y: number): number {
@@ -117,8 +341,7 @@ function rgbMix(
   b: { r: number; g: number; b: number },
   t: number,
 ): string {
-  const u = t < 0 ? 0 : t > 1 ? 1 : t;
-  return `rgb(${Math.round(a.r + (b.r - a.r) * u)},${Math.round(a.g + (b.g - a.g) * u)},${Math.round(a.b + (b.b - a.b) * u)})`;
+  return rgbCss(mixTone(a, b, t));
 }
 
 function drawOreCrystals(
@@ -140,58 +363,84 @@ function drawOreCrystals(
   ctx.save();
   ctx.translate(s.x, s.y);
   const alpha = ctx.globalAlpha;
+  ctx.fillStyle = `rgb(${mats.dark.r},${mats.dark.g},${mats.dark.b})`;
+  for (const burst of cluster.bursts) {
+    ctx.globalAlpha = alpha * 0.32;
+    ctx.beginPath();
+    ctx.ellipse(burst.dx * z, burst.dy * z + 1.1 * z, 6.2 * z, 2.35 * z, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = alpha;
   for (const shard of cluster.shards) {
-    const dx = shard.dx * z;
-    const dy = shard.dy * z;
-    const lean = shard.lean * z;
-    const rise = shard.rise * z;
+    const ox = shard.dx * z;
+    const oy = shard.dy * z;
+    const tipX = ox + shard.lean * z;
+    const tipY = oy - shard.rise * z;
+    const vx = tipX - ox;
+    const vy = tipY - oy;
+    const len = Math.hypot(vx, vy);
+    if (len < 0.5 * z) continue;
+    const ux = vx / len;
+    const uy = vy / len;
+    const px = -uy;
+    const py = ux;
     const half = shard.half * z;
     const buried = shard.buried * z;
-    const tipX = dx + lean;
-    const tipY = dy - rise;
-    ctx.globalAlpha = alpha * 0.38;
-    ctx.fillStyle = `rgb(${mats.dark.r},${mats.dark.g},${mats.dark.b})`;
-    ctx.beginPath();
-    ctx.ellipse(dx, dy + 1.2 * z, half * 1.7, half * 0.48, lean * 0.03, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = alpha;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(dx - half * 5, dy - rise - 8 * z, half * 10, rise + 2.4 * z);
-    ctx.clip();
+    const midT = 0.34 + shard.twist * 0.05;
+    const bx = ox - ux * buried;
+    const by = oy - uy * buried;
+    const mx = bx + (tipX - bx) * midT;
+    const my = by + (tipY - by) * midT;
+    const ntx = tipX - ux * 0.55 * z;
+    const nty = tipY - uy * 0.55 * z;
+    const baseW = half * 0.42;
+    const midW = half;
+    const tipW = half * 0.16;
+    const baseL = { x: bx + px * baseW, y: by + py * baseW };
+    const baseR = { x: bx - px * baseW, y: by - py * baseW };
+    const midL = { x: mx + px * midW, y: my + py * midW };
+    const midR = { x: mx - px * midW, y: my - py * midW };
+    const tipL = { x: ntx + px * tipW, y: nty + py * tipW };
+    const tipR = { x: ntx - px * tipW, y: nty - py * tipW };
     ctx.fillStyle = gemDark;
     ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(dx + half, dy + 1.6 * z);
-    ctx.lineTo(dx + half * 0.2, dy + buried);
-    ctx.lineTo(dx - half * 0.12, dy + buried);
+    ctx.moveTo(baseL.x, baseL.y);
+    ctx.lineTo(midL.x, midL.y);
+    ctx.lineTo(tipL.x, tipL.y);
+    ctx.lineTo(tipR.x, tipR.y);
+    ctx.lineTo(midR.x, midR.y);
+    ctx.lineTo(baseR.x, baseR.y);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = gem;
     ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(dx - half, dy + 1.6 * z);
-    ctx.lineTo(dx - half * 0.18, dy + buried);
-    ctx.lineTo(dx + half * 0.2, dy + buried);
+    ctx.moveTo(baseL.x, baseL.y);
+    ctx.lineTo(midL.x, midL.y);
+    ctx.lineTo(tipL.x, tipL.y);
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(bx + ux * buried * 0.2, by + uy * buried * 0.2);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = gemHi;
-    ctx.globalAlpha = alpha * 0.72;
+    ctx.globalAlpha = alpha * 0.7;
+    const hx = bx + ux * len * 0.14;
+    const hy = by + uy * len * 0.14;
     ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(dx - half * 0.22, dy + 0.8 * z);
-    ctx.lineTo(dx + half * 0.1, dy + 0.8 * z);
+    ctx.moveTo(hx + px * half * 0.12, hy + py * half * 0.12);
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(hx - px * half * 0.22, hy - py * half * 0.22);
     ctx.closePath();
     ctx.fill();
-    ctx.globalAlpha = alpha * 0.85;
+    ctx.globalAlpha = alpha * 0.82;
     ctx.strokeStyle = gemHi;
-    ctx.lineWidth = Math.max(1, 0.85 * z);
+    ctx.lineWidth = Math.max(0.65, 0.55 * z);
     ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(dx - half * 0.18, dy + 0.4 * z);
+    ctx.moveTo(hx, hy);
     ctx.lineTo(tipX, tipY);
     ctx.stroke();
-    ctx.restore();
+    ctx.globalAlpha = alpha;
   }
   ctx.restore();
 }
@@ -210,7 +459,9 @@ function paintCell(
   const z = cam.zoom;
   const tw = TILE_W * z;
   const th = TILE_H * z;
-  const overlap = 1.14;
+  const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
+  const concrete = inMap && state.surfaces[y * state.width + x] === SURFACE_CONCRETE;
+  const cover = expandIsoDiamond(s.x, s.y, tw, th, concrete ? 1 : TERRAIN_COVER);
   const east = memoScenery(state, x + 1, y).elev;
   const south = memoScenery(state, x, y + 1).elev;
   const dropE = Math.max(0, elev - east);
@@ -228,7 +479,6 @@ function paintCell(
   }
   if (dropE > 0 || dropS > 0) {
     ctx.save();
-    ctx.globalAlpha = gain;
     drawElevationFaces(
       ctx,
       s.x,
@@ -245,33 +495,37 @@ function paintCell(
   }
 
   ctx.save();
-  isoDiamondPath(ctx, s.x, s.y, tw * overlap, th * overlap);
+  isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
   ctx.clip();
-  const destW = tw * overlap;
-  const destH = th * overlap;
-  const dx = s.x - destW / 2;
-  const dy = s.y;
-  if (atlas.canvas) {
-    const rect = atlasRectForTile(x, y, state.width);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(atlas.canvas, rect.sx, rect.sy, rect.sw, rect.sh, dx, dy, destW, destH);
+  if (concrete) {
+    drawConcreteSlab(ctx, s.x, s.y, tw, th, z, tileVariant(state.seed, x, y), 1);
+  } else if (atlas.canvas) {
+    drawAtlasDiamond(ctx, atlas, x, y, s.x, s.y, tw, th);
   } else {
     const mats = biomeMaterials(state.biome);
     ctx.fillStyle = scenery.kind === TILE_WATER
       ? `rgb(${mats.waterMid.r},${mats.waterMid.g},${mats.waterMid.b})`
       : `rgb(${mats.mid.r},${mats.mid.g},${mats.mid.b})`;
-    ctx.fillRect(dx, dy, destW, destH);
-  }
-  if (gain < 0.98) {
-    ctx.globalAlpha = 1 - gain;
-    ctx.fillStyle = "#080d11";
-    ctx.fillRect(dx, dy, destW, destH);
+    isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
+    ctx.fill();
   }
   ctx.restore();
+}
 
+function paintCellProps(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  x: number,
+  y: number,
+): void {
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
   if (!inMap || fogAt(state, x, y) === 0) return;
+  const scenery = memoScenery(state, x, y);
+  const elev = scenery.elev;
+  const s = tileToScreen(x, y, cam, elev);
+  const z = cam.zoom;
+  const gain = smoothFogGain(state, x, y);
   ctx.save();
   ctx.globalAlpha = gain;
   if (scenery.kind === TILE_BLOCKED && !isMountainScenery(scenery)) {
@@ -283,21 +537,14 @@ function paintCell(
   ctx.restore();
 }
 
-export function paintTerrainWorld(
+function visitVisibleTiles(
   ctx: CanvasRenderingContext2D,
   state: SimState,
   cam: Camera,
+  visit: (x: number, y: number) => void,
 ): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
-  sceneryMemo.clear();
-  const atlas = getTerrainAtlas(state);
-  const mats = biomeMaterials(state.biome);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.fillStyle = `rgb(${mats.dark.r},${mats.dark.g},${mats.dark.b})`;
-  ctx.fillRect(0, 0, w, h);
-
   const margin = TILE_W * cam.zoom * 2;
   const x0 = -MAP_SKIRT;
   const y0 = -MAP_SKIRT;
@@ -313,9 +560,94 @@ export function paintTerrainWorld(
       const elev = memoScenery(state, x, y).elev;
       const s = tileToScreen(x, y, cam, elev);
       if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
-      paintCell(ctx, state, cam, atlas, x, y);
+      visit(x, y);
     }
   }
+}
+
+let shroudMask: HTMLCanvasElement | null = null;
+
+function paintShroudLayer(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+): void {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const z = cam.zoom;
+  const tw = TILE_W * z;
+  const th = TILE_H * z;
+  const step = HEIGHT_STEP * z;
+  if (typeof document === "undefined") {
+    visitVisibleTiles(ctx, state, cam, (x, y) => {
+      const scenery = memoScenery(state, x, y);
+      const s = tileToScreen(x, y, cam, scenery.elev);
+      const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
+      const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
+      paintShroudOverlay(ctx, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z);
+    });
+    return;
+  }
+  if (!shroudMask) shroudMask = document.createElement("canvas");
+  if (shroudMask.width !== w || shroudMask.height !== h) {
+    shroudMask.width = w;
+    shroudMask.height = h;
+  }
+  const fog = shroudMask.getContext("2d");
+  if (!fog) {
+    visitVisibleTiles(ctx, state, cam, (x, y) => {
+      const scenery = memoScenery(state, x, y);
+      const s = tileToScreen(x, y, cam, scenery.elev);
+      const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
+      const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
+      paintShroudOverlay(ctx, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z);
+    });
+    return;
+  }
+  fog.setTransform(1, 0, 0, 1, 0, 0);
+  fog.globalCompositeOperation = "source-over";
+  fog.globalAlpha = 1;
+  fog.clearRect(0, 0, w, h);
+  const overlay = 1 - fogTerrainGain(0);
+  fog.fillStyle = `rgba(8, 13, 17, ${overlay})`;
+  fog.fillRect(0, 0, w, h);
+  fog.globalCompositeOperation = "destination-out";
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    const scenery = memoScenery(state, x, y);
+    const s = tileToScreen(x, y, cam, scenery.elev);
+    const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
+    const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
+    paintShroudMaskTile(fog, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z);
+  });
+  fog.globalCompositeOperation = "source-over";
+  fog.globalAlpha = 1;
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.drawImage(shroudMask, 0, 0);
+  ctx.restore();
+}
+
+export function paintTerrainWorld(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+): void {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  sceneryMemo.clear();
+  const atlas = getTerrainAtlas(state);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = SHROUD_FILL;
+  ctx.fillRect(0, 0, w, h);
+
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    paintCell(ctx, state, cam, atlas, x, y);
+  });
+  paintShroudLayer(ctx, state, cam);
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    paintCellProps(ctx, state, cam, x, y);
+  });
 }
 
 export function paintBuildingPlates(
@@ -326,7 +658,6 @@ export function paintBuildingPlates(
   entityVisible: (state: SimState, e: Entity) => boolean,
   entityElev: (state: SimState, e: Entity) => number,
 ): void {
-  const mats = biomeMaterials(state.biome);
   const z = cam.zoom;
   for (const e of state.entities) {
     if (e.hp <= 0 || e.class !== "building" || !entityVisible(state, e)) continue;
@@ -335,30 +666,17 @@ export function paintBuildingPlates(
     const fp = footprintOf(e.kind as BuildingKind);
     const alpha = fogTerrainGain(fog) * 0.92;
     const elev = entityElev(state, e);
-    const n = tileToScreen(e.x, e.y, cam, elev);
-    const east = tileToScreen(e.x + fp.w - 1, e.y, cam, elev);
-    const south = tileToScreen(e.x + fp.w - 1, e.y + fp.h - 1, cam, elev);
-    const west = tileToScreen(e.x, e.y + fp.h - 1, cam, elev);
     const tw = TILE_W * z;
     const th = TILE_H * z;
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.88;
-    ctx.fillStyle = `rgb(${mats.concrete.r},${mats.concrete.g},${mats.concrete.b})`;
-    ctx.beginPath();
-    ctx.moveTo(n.x, n.y);
-    ctx.lineTo(east.x + tw / 2, east.y + th / 2);
-    ctx.lineTo(south.x, south.y + th);
-    ctx.lineTo(west.x - tw / 2, west.y + th / 2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = alpha * 0.22;
-    ctx.fillStyle = `rgb(${mats.light.r},${mats.light.g},${mats.light.b})`;
-    ctx.beginPath();
-    ctx.moveTo(n.x, n.y + 2 * z);
-    ctx.lineTo(east.x + tw / 2 - 4 * z, east.y + th / 2);
-    ctx.lineTo(n.x + 6 * z, n.y + th * 0.45);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    const ox0 = Math.round(e.x);
+    const oy0 = Math.round(e.y);
+    for (let oy = 0; oy < fp.h; oy++) {
+      for (let ox = 0; ox < fp.w; ox++) {
+        const tx = ox0 + ox;
+        const ty = oy0 + oy;
+        const p = tileToScreen(tx, ty, cam, elev);
+        drawConcreteSlab(ctx, p.x, p.y, tw, th, z, tileVariant(state.seed, tx, ty), alpha);
+      }
+    }
   }
 }

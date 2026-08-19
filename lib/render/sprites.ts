@@ -53,6 +53,47 @@ export type SpriteBounds = {
   height: number;
 };
 
+const CONTENT_ALPHA_MIN = 12;
+const contentBoundsCache = new WeakMap<HTMLCanvasElement, SpriteBounds>();
+
+export function opaquePixelBounds(
+  data: ArrayLike<number>,
+  width: number,
+  height: number,
+  alphaMin = CONTENT_ALPHA_MIN,
+): SpriteBounds | undefined {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if ((data[(y * width + x) * 4 + 3] ?? 0) < alphaMin) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX < minX) return undefined;
+  return { minX, minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+}
+
+/** Tight box around painted pixels so sidebar previews can center the graphic, not the battlefield frame. */
+export function spriteContentBounds(image: HTMLCanvasElement): SpriteBounds | undefined {
+  const hit = contentBoundsCache.get(image);
+  if (hit) return hit;
+  const ctx = image.getContext("2d");
+  if (!ctx || image.width <= 0 || image.height <= 0) return undefined;
+  try {
+    const bounds = opaquePixelBounds(ctx.getImageData(0, 0, image.width, image.height).data, image.width, image.height);
+    if (bounds) contentBoundsCache.set(image, bounds);
+    return bounds;
+  } catch {
+    return undefined;
+  }
+}
+
 export function rotatedSpriteBounds(spec: Pick<SpriteSpec, "w" | "h" | "rotation" | "anchorX" | "anchorY">): SpriteBounds {
   if (!spec.rotation) return { minX: 0, minY: 0, width: spec.w, height: spec.h };
 

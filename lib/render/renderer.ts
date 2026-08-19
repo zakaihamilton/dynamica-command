@@ -2,8 +2,8 @@ import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor, se
 import { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "../gen/assets";
 import { generateVisualProfile } from "../gen/visualProfile";
 import { isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
-import { RESCUE_CONTACT_RADIUS } from "../types";
-import type { BuildingKind, Entity, Facing, SimState, UnitKind } from "../types";
+import { inObjectiveZone, missionUsesObjectiveZone, OBJECTIVE_ZONE_RADIUS, RESCUE_CONTACT_RADIUS } from "../types";
+import type { BuildingKind, Entity, Facing, SimState, SpriteSpec, UnitKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import {
   animClock,
@@ -27,7 +27,7 @@ import { resourceSignature, terrainGrainGeneration } from "./terrainAtlas";
 import { paintBuildingPlates, paintTerrainWorld } from "./terrainPaint";
 import { paintOreGlints, paintTerrainWeather, paintWaterFx } from "./terrainWeather";
 
-const TERRAIN_RENDER_REV = "world-atlas-v6";
+const TERRAIN_RENDER_REV = "world-atlas-v11";
 
 function entityElev(state: SimState, e: Entity): number {
   return e.class === "unit" ? groundHeight(state, e.x, e.y) : heightAt(state, Math.round(e.x), Math.round(e.y));
@@ -230,6 +230,7 @@ export function renderWorld(
   paintOreGlints(ctx, state, cam, timeMs);
   paintTerrainWeather(ctx, state, cam, timeMs);
   paintBuildingPlates(ctx, state, cam, footprintOf, entityVisible, entityElev);
+  drawObjectiveZone(ctx, state, cam, timeMs);
 
   if (extras.placeKind && hoverTile) {
     const fp = footprintOf(extras.placeKind);
@@ -306,7 +307,11 @@ export function renderWorld(
     if (e.class === "building") {
       drawBuildingShadow(ctx, state, cam, e, z);
     }
-    ctx.globalAlpha = entityAlpha * (e.constructing > 0 ? 0.72 : 1);
+    const spriteAlpha = entityAlpha * (e.constructing > 0 ? 0.72 : 1);
+    if (isExtractableUnit(state, e)) {
+      drawUnitGlow(ctx, spec, img, dx, dy, spec.w * z, spec.h * z, timeMs, spriteAlpha, z);
+    }
+    ctx.globalAlpha = spriteAlpha;
     drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
     ctx.globalAlpha = 1;
     if (uAnim?.pose === "move") {
@@ -358,7 +363,7 @@ export function renderWorld(
       }
       ctx.globalAlpha = 1;
     }
-    if (e.marked) {
+    if (e.marked && e.class === "building") {
       ctx.strokeStyle = "#ffcf33";
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.65 + selectionPulse(timeMs + e.id * 40) * 0.35;
@@ -463,30 +468,88 @@ function isLockedContactUnit(state: SimState, e: Entity): boolean {
     && state.runtime.targetIds.includes(e.id);
 }
 
-function drawRescueHalo(ctx: CanvasRenderingContext2D, x: number, y: number, z: number, timeMs: number): void {
+function isExtractableUnit(state: SimState, e: Entity): boolean {
+  return e.class === "unit"
+    && state.runtime?.kind === "extraction"
+    && state.runtime.targetIds.includes(e.id)
+    && !(state.runtime.extractedIds ?? []).includes(e.id);
+}
+
+function drawUnitGlow(
+  ctx: CanvasRenderingContext2D,
+  spec: SpriteSpec,
+  img: CanvasImageSource,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  timeMs: number,
+  alpha: number,
+  z: number,
+): void {
+  const pulse = selectionPulse(timeMs);
+  ctx.save();
+  ctx.globalAlpha = alpha * (0.72 + pulse * 0.28);
+  ctx.shadowColor = "#f6e39a";
+  ctx.shadowBlur = (14 + pulse * 10) * Math.max(1, z);
+  drawSprite(ctx, spec, img, dx, dy, dw, dh);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.shadowBlur = (7 + pulse * 5) * Math.max(1, z);
+  ctx.globalAlpha = alpha * (0.28 + pulse * 0.22);
+  drawSprite(ctx, spec, img, dx, dy, dw, dh);
+  ctx.restore();
+}
+
+function drawZoneHalo(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  z: number,
+  timeMs: number,
+  radius: number,
+  color: string,
+): void {
   const pulse = selectionPulse(timeMs);
   ctx.save();
   ctx.globalAlpha = 0.14 + pulse * 0.08;
-  ctx.fillStyle = "#67e0d0";
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.ellipse(
     x,
     y + (TILE_H / 2) * z,
-    RESCUE_CONTACT_RADIUS * (TILE_W / 2) * z,
-    RESCUE_CONTACT_RADIUS * (TILE_H / 2) * z,
+    radius * (TILE_W / 2) * z,
+    radius * (TILE_H / 2) * z,
     0,
     0,
     Math.PI * 2,
   );
   ctx.fill();
   ctx.globalAlpha = 0.8 + pulse * 0.2;
-  ctx.strokeStyle = "#67e0d0";
+  ctx.strokeStyle = color;
   ctx.lineWidth = Math.max(2, 2.5 * z);
-  ctx.shadowColor = "#67e0d0";
+  ctx.shadowColor = color;
   ctx.shadowBlur = 7 * z;
   ctx.setLineDash([4 * z, 4 * z]);
   ctx.stroke();
   ctx.restore();
+}
+
+function drawRescueHalo(ctx: CanvasRenderingContext2D, x: number, y: number, z: number, timeMs: number): void {
+  drawZoneHalo(ctx, x, y, z, timeMs, RESCUE_CONTACT_RADIUS, "#67e0d0");
+}
+
+function drawObjectiveZone(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  timeMs: number,
+): void {
+  const runtime = state.runtime;
+  const zone = runtime?.zone;
+  if (!zone || !missionUsesObjectiveZone(runtime?.kind)) return;
+  if (runtime.kind === "escort" && fogAt(state, Math.round(zone.x), Math.round(zone.y)) === 0) return;
+  const s = tileToScreen(zone.x, zone.y, cam, heightAt(state, Math.round(zone.x), Math.round(zone.y)));
+  drawZoneHalo(ctx, s.x, s.y, cam.zoom, timeMs, OBJECTIVE_ZONE_RADIUS, "#e8c86a");
 }
 
 function entityVariant(state: SimState, e: Entity): number {
@@ -695,7 +758,7 @@ function footprintPath(
   ctx.closePath();
 }
 
-function tileTooltipLines(state: SimState, x: number, y: number): string[] {
+export function tileTooltipLines(state: SimState, x: number, y: number): string[] {
   if (x < 0 || y < 0 || x >= state.width || y >= state.height) return ["Map edge"];
   const fog = fogAt(state, x, y);
   if (fog === 0) return ["Unexplored"];
@@ -713,6 +776,9 @@ function tileTooltipLines(state: SimState, x: number, y: number): string[] {
   if (scenery.kind === TILE_RESOURCE) lines.push(`Ore ${state.resourceAmount[y * state.width + x] ?? 0}`);
   if (!access.buildable) lines.push("Construction blocked");
   if (fog === 1) lines.push("Shrouded");
+  if (missionUsesObjectiveZone(state.runtime?.kind) && inObjectiveZone(x, y, state.runtime?.zone)) {
+    lines.push(state.runtime?.kind === "escort" ? "Convoy destination" : "Extraction zone");
+  }
   return lines;
 }
 
@@ -726,6 +792,9 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     `HP ${Math.max(0, Math.round(e.hp))} / ${e.maxHp}`,
   ];
   if (isLockedContactUnit(state, e)) lines.push("Stranded");
+  if (isExtractableUnit(state, e) && !e.neutral) {
+    lines.push("Return to extraction zone");
+  }
   if (e.kind === "harvester") {
     lines.push(`Carry ${e.carry} / ${UNIT_STATS.harvester.carryMax}`);
   }
@@ -738,7 +807,7 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     if (queued > 0) lines.push(`Queued ${queued}`);
   }
   if (e.repairing) lines.push("Repairing");
-  if (e.marked) lines.push("Marked objective");
+  if (e.marked && e.class === "building") lines.push("Marked objective");
   if (extras.sellMode && e.owner === 0 && canSell(e)) {
     lines.push(`Sell for ${sellRefundFor(e.kind as BuildingKind, e.hp)}`);
   }

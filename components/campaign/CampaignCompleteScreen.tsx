@@ -8,24 +8,8 @@ import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
-import type { UpgradeId } from "@/lib/types";
 import styles from "./CampaignCompleteScreen.module.css";
 import { useCampaignProgress } from "./useCampaignProgress";
-
-const UPGRADE_LABELS: Record<UpgradeId, string> = {
-  "logistics-cargo": "Expanded Cargo",
-  "logistics-drills": "Deep Drills",
-  "logistics-unload": "Rapid Unload",
-  "logistics-cache": "Forward Cache",
-  "arsenal-barrels": "Improved Barrels",
-  "arsenal-plating": "Combat Plating",
-  "arsenal-targeting": "Targeting Optics",
-  "arsenal-shock": "Shock Discipline",
-  "engineering-frames": "Rapid Frames",
-  "engineering-grid": "Stable Grid",
-  "engineering-repair": "Efficient Repair",
-  "engineering-fabrication": "Lean Fabrication",
-};
 
 export function CampaignCompleteScreen({ seed }: { seed: number }) {
   const router = useRouter();
@@ -54,8 +38,6 @@ export function CampaignCompleteScreen({ seed }: { seed: number }) {
           <section className={styles.summary} aria-label="Campaign summary">
             <div><span>Missions</span><strong>{completed} / {campaign.missions.length}</strong></div>
             <div><span>Medals</span><strong>{totalMedals} / {possibleMedals}</strong></div>
-            <div><span>Research points</span><strong>{progress.researchPoints}</strong></div>
-            <div><span>Upgrades</span><strong>{progress.upgrades.length} / 12</strong></div>
           </section>
 
           <section className={styles.section} aria-labelledby="mission-record-title">
@@ -77,16 +59,6 @@ export function CampaignCompleteScreen({ seed }: { seed: number }) {
                 );
               })}
             </div>
-          </section>
-
-          <section className={styles.section} aria-labelledby="upgrade-record-title">
-            <ConsoleLabel as="h2">Research division</ConsoleLabel>
-            <h2 id="upgrade-record-title" className={styles.sectionTitle}>Installed upgrades</h2>
-            {progress.upgrades.length > 0 ? (
-              <ul className={styles.upgrades}>
-                {progress.upgrades.map((id) => <li key={id}>{UPGRADE_LABELS[id]}</li>)}
-              </ul>
-            ) : <p className={styles.empty}>No upgrades installed.</p>}
           </section>
 
           <div className={styles.actions}>

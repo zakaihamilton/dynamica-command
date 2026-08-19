@@ -3,15 +3,17 @@ import { makeFixture, setTile } from "../lib/sim/fixtures";
 import { minimapRegionForCell, terrainColors } from "../lib/render/minimap";
 import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../lib/types";
 import { generateMap } from "../lib/gen/map";
+import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform } from "../lib/render/iso";
 import {
+  ATLAS_CELL,
   atlasPixelAtTile,
   atlasRectForTile,
   bakeTerrainAtlasData,
   fogTerrainGain,
   oreCrystalCluster,
-  oreShardCount,
   oreVeinAt,
   oreVeinPeak,
+  ORE_CRYSTAL_MIN_AMOUNT,
   ORE_GLINT_RIDGE,
   ORE_VEIN_PROBES,
   resourceSignature,
@@ -85,6 +87,28 @@ describe("seeded terrain atlas", () => {
     expect(sampleTerrainMaterial(state, 2.4, 2.4).ore).toBe(true);
   });
 
+  it("bakes a dark grout seam around each concrete pad", () => {
+    const state = makeFixture({ width: 10, height: 10, win: { kind: "annihilate" }, seed: 832 });
+    state.surfaces[7 * state.width + 7] = SURFACE_CONCRETE;
+    state.surfaces[8 * state.width + 7] = SURFACE_CONCRETE;
+    const atlas = bakeTerrainAtlasData(state);
+    const rect = atlasRectForTile(7, 7, atlas.mapWidth);
+    const lum = (lx: number, ly: number): number => {
+      const i = ((rect.sy + ly) * atlas.width + (rect.sx + lx)) * 4;
+      return (atlas.data[i] ?? 0) + (atlas.data[i + 1] ?? 0) + (atlas.data[i + 2] ?? 0);
+    };
+    const center = lum(ATLAS_CELL >> 1, ATLAS_CELL >> 1);
+    expect(lum(0, ATLAS_CELL >> 1)).toBeLessThan(center);
+    expect(lum(ATLAS_CELL - 1, ATLAS_CELL >> 1)).toBeLessThan(center);
+    expect(lum(ATLAS_CELL >> 1, 0)).toBeLessThan(center);
+    expect(lum(ATLAS_CELL >> 1, ATLAS_CELL - 1)).toBeLessThan(center);
+    const [r, g, b] = atlasPixelAtTile(atlas, 7, 7);
+    expect(Math.abs(r - 89)).toBeLessThan(22);
+    expect(Math.abs(g - 104)).toBeLessThan(22);
+    expect(Math.abs(b - 117)).toBeLessThan(22);
+    expect(b).toBeGreaterThan(r);
+  });
+
   it("keeps unexplored terrain present while fog only darkens it", () => {
     expect(fogTerrainGain(2)).toBe(1);
     expect(fogTerrainGain(1)).toBe(0.55);
@@ -93,6 +117,20 @@ describe("seeded terrain atlas", () => {
     const visible = sampleTerrainMaterial(state, 3, 3);
     expect(visible.r + visible.g + visible.b).toBeGreaterThan(0);
     expect(fogTerrainGain(0) * visible.r).toBeGreaterThan(0);
+  });
+
+  it("maps atlas cells onto isometric diamond vertices", () => {
+    const [a, b, c, d, e, f] = isoAtlasTransform(100, 50, TILE_W, TILE_H, 8, 8);
+    const map = (u: number, v: number) => ({ x: a * u + c * v + e, y: b * u + d * v + f });
+    expect(map(0, 0)).toEqual({ x: 100, y: 50 });
+    expect(map(8, 0)).toEqual({ x: 132, y: 66 });
+    expect(map(0, 8)).toEqual({ x: 68, y: 66 });
+    expect(map(8, 8)).toEqual({ x: 100, y: 82 });
+  });
+
+  it("expands an isometric diamond about its center", () => {
+    const box = expandIsoDiamond(100, 50, 64, 32, 1.5);
+    expect(box).toEqual({ x: 100, y: 42, w: 96, h: 48 });
   });
 
   it("invalidates the atlas when any resource cell is harvested", () => {
@@ -156,16 +194,50 @@ describe("ore veins", () => {
     const cluster = oreCrystalCluster(state, 3, 2);
     expect(cluster).not.toBeNull();
     expect(oreCrystalCluster(state, 3, 2)).toEqual(cluster);
-    expect(cluster!.shards).toHaveLength(oreShardCount(800));
-    expect(cluster!.shards[0]!.rise).toBeGreaterThan(8);
-    expect(cluster!.shards[0]!.rise).toBeLessThan(18);
-    expect(cluster!.shards[0]!.half).toBeGreaterThan(8);
+    expect(cluster!.bursts.length).toBeGreaterThanOrEqual(2);
+    expect(cluster!.bursts.length).toBeLessThanOrEqual(3);
+    expect(cluster!.shards.length).toBeGreaterThanOrEqual(5);
+    expect(cluster!.shards.length).toBeLessThanOrEqual(11);
+    expect(Math.min(...cluster!.shards.map((s) => s.rise))).toBeGreaterThan(2);
+    expect(Math.max(...cluster!.shards.map((s) => s.rise))).toBeGreaterThan(6);
+    expect(Math.max(...cluster!.shards.map((s) => s.rise))).toBeLessThan(20);
+    const lengths = cluster!.shards.map((s) => Math.hypot(s.lean, s.rise));
+    expect(Math.max(...lengths) - Math.min(...lengths)).toBeGreaterThan(2);
+    expect(Math.min(...cluster!.shards.map((s) => s.half))).toBeGreaterThan(2);
+    expect(Math.max(...cluster!.shards.map((s) => s.half))).toBeLessThan(5);
     const spanX = Math.max(...cluster!.shards.map((s) => s.dx)) - Math.min(...cluster!.shards.map((s) => s.dx));
     const spanY = Math.max(...cluster!.shards.map((s) => s.dy)) - Math.min(...cluster!.shards.map((s) => s.dy));
-    expect(spanX).toBeGreaterThan(24);
-    expect(spanY).toBeGreaterThan(12);
-    state.resourceAmount[2 * state.width + 3] = 50;
+    expect(Math.hypot(spanX, spanY)).toBeGreaterThan(16);
+    const originSpan = Math.hypot(
+      Math.max(...cluster!.bursts.map((b) => b.dx)) - Math.min(...cluster!.bursts.map((b) => b.dx)),
+      Math.max(...cluster!.bursts.map((b) => b.dy)) - Math.min(...cluster!.bursts.map((b) => b.dy)),
+    );
+    expect(originSpan).toBeGreaterThan(14);
+    const grouped = cluster!.bursts.every((burst) => (
+      cluster!.shards.some((shard) => Math.hypot(shard.dx - burst.dx, shard.dy - burst.dy) < 6)
+    ));
+    expect(grouped).toBe(true);
+    state.resourceAmount[2 * state.width + 3] = ORE_CRYSTAL_MIN_AMOUNT;
     expect(oreCrystalCluster(state, 3, 2)).toBeNull();
+  });
+
+  it("varies burst layout across neighboring ore tiles", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    const clusters = [];
+    for (let y = 1; y < 6; y++) {
+      for (let x = 1; x < 6; x++) {
+        setTile(state, x, y, TILE_RESOURCE, 800);
+        const cluster = oreCrystalCluster(state, x, y);
+        expect(cluster).not.toBeNull();
+        expect(cluster!.shards.length).toBeGreaterThanOrEqual(4);
+        clusters.push(cluster!);
+      }
+    }
+    const signatures = new Set(clusters.map((cluster) => JSON.stringify({
+      bursts: cluster.bursts,
+      shards: cluster.shards,
+    })));
+    expect(signatures.size).toBe(clusters.length);
   });
 });
 

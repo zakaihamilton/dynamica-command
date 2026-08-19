@@ -1,4 +1,4 @@
-import type { ArmorType, BuildingKind, UnitKind, UpgradeId, WeaponType } from "./types";
+import type { ArmorType, BuildingKind, UnitKind, WeaponType } from "./types";
 
 export const TICKS_PER_SECOND = 12;
 export const MAX_PRODUCTION_QUEUE = 10;
@@ -122,18 +122,6 @@ export const BUILDING_STATS: Record<BuildingKind, BuildingStats> = {
   factory: { hp: 1300, cost: 800, buildTicks: 180, power: -15, sight: 5, footprint: { w: 3, h: 2 }, armor: "structure" },
   turret: { hp: 480, cost: 275, buildTicks: 84, power: -8, sight: 7, footprint: { w: 1, h: 1 }, armor: "structure", weapon: "cannon" },
   objective: { hp: 1800, cost: 0, buildTicks: 0, power: 0, sight: 3, footprint: { w: 2, h: 2 }, armor: "structure" },
-};
-
-export const UPGRADE_COST: Record<UpgradeId, number> = {
-  "logistics-cargo": 1, "logistics-drills": 2, "logistics-unload": 3, "logistics-cache": 4,
-  "arsenal-barrels": 1, "arsenal-plating": 2, "arsenal-targeting": 3, "arsenal-shock": 4,
-  "engineering-frames": 1, "engineering-grid": 2, "engineering-repair": 3, "engineering-fabrication": 4,
-};
-
-export const UPGRADE_PREREQUISITE: Partial<Record<UpgradeId, UpgradeId>> = {
-  "logistics-drills": "logistics-cargo", "logistics-unload": "logistics-drills", "logistics-cache": "logistics-unload",
-  "arsenal-plating": "arsenal-barrels", "arsenal-targeting": "arsenal-plating", "arsenal-shock": "arsenal-targeting",
-  "engineering-grid": "engineering-frames", "engineering-repair": "engineering-grid", "engineering-fabrication": "engineering-repair",
 };
 
 export const UNIT_LABELS: Record<UnitKind, string> = {

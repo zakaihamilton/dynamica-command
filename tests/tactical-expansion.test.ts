@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createMission, issue, tick } from "../lib/sim/api";
+import { createMission, issue, tick, inspect } from "../lib/sim/api";
 import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
 import { BUILDING_STATS, STARTING_CREDITS, UNIT_STATS } from "../lib/catalog";
-import { tooltipLines } from "../lib/render/renderer";
+import { tooltipLines, tileTooltipLines } from "../lib/render/renderer";
+import { objectiveProgress } from "../lib/sim/objectives";
 
 describe("tactical expansion", () => {
   it("starts missions with more credits and half-cost units and buildings", () => {
@@ -124,6 +125,69 @@ describe("tactical expansion", () => {
     issue(state, { type: "move", unitIds: [asset.id], x: 9, y: 3 });
     for (let i = 0; i < 100; i++) tick(state);
     expect(asset.x).toBeGreaterThan(6);
+  });
+
+  it("counts extraction assets only after they reach the home zone", () => {
+    const state = makeFixture({ win: { kind: "extraction", targetCount: 2, ticks: 5000 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const escort = addUnit(state, 0, "infantry", 2, 3);
+    const first = addUnit(state, 0, "infantry", 8, 3);
+    const second = addUnit(state, 0, "infantry", 8, 5);
+    first.neutral = true;
+    first.marked = true;
+    second.neutral = true;
+    second.marked = true;
+    state.runtime = {
+      kind: "extraction",
+      phase: "active",
+      targetIds: [first.id, second.id],
+      zone: { x: 0, y: 0 },
+      deadline: 100,
+      rescued: 0,
+      required: 2,
+      secondary: [],
+    };
+
+    issue(state, { type: "move", unitIds: [escort.id], x: first.x, y: first.y });
+    for (let i = 0; i < 100 && first.neutral; i++) tick(state);
+    expect(first.neutral).toBe(false);
+    tick(state);
+    expect(state.runtime.rescued).toBe(0);
+    expect(tooltipLines(state, first, {})).toContain("Return to extraction zone");
+    expect(tileTooltipLines(state, 0, 0)).toContain("Extraction zone");
+
+    state.runtime.zone = { x: 9, y: 9 };
+    first.x = 1;
+    first.y = 1;
+    tick(state);
+    expect(state.runtime.zone).toEqual({ x: 0, y: 0 });
+    expect(state.runtime.rescued).toBe(1);
+    expect(first.marked).toBe(false);
+    expect(objectiveProgress(state).label).toBe("Extracted 1 / 2");
+    expect(tooltipLines(state, first, {})).not.toContain("Return to extraction zone");
+
+    first.x = 8;
+    first.y = 3;
+    tick(state);
+    expect(state.runtime.rescued).toBe(1);
+
+    issue(state, { type: "move", unitIds: [escort.id], x: second.x, y: second.y });
+    for (let i = 0; i < 100 && second.neutral; i++) tick(state);
+    second.x = 0;
+    second.y = 1;
+    tick(state);
+    expect(state.runtime.rescued).toBe(2);
+    expect(objectiveProgress(state).label).toBe("Extracted 2 / 2");
+    expect(inspect(state).result).toBe("won");
+  });
+
+  it("places extraction drop-off at the player construction yard", () => {
+    const state = createMission({ seed: 3209, missionIndex: 0 });
+    expect(state.missionKind).toBe("extraction");
+    const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
+    expect(yard).toBeDefined();
+    expect(state.runtime?.zone).toEqual({ x: yard!.x, y: yard!.y });
+    expect(state.entities.some((entity) => entity.marked && entity.neutral)).toBe(true);
   });
 
   it("labels locked rescue and extraction targets as stranded", () => {

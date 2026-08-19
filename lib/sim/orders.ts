@@ -1,10 +1,9 @@
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, producerFor, productionQueueSize, sellRefundFor } from "../catalog";
-import type { BuildingKind, Command, Entity, Formation, SimEvent, SimState, UnitKind } from "../types";
+import { TILE_RESOURCE, type BuildingKind, type Command, type Entity, type Formation, type SimEvent, type SimState, type UnitKind } from "../types";
 import { findPath } from "./pathfinding";
 import { canRepair } from "./repair";
 import { canSell } from "./sell";
-import { byId, canPlaceBuilding, closestApproach, powerFor, spawnBuilding } from "./world";
-import { buildingBuildTicks, buildingCost, unitBuildTicks } from "./upgrades";
+import { byId, canPlaceBuilding, closestApproach, inBounds, isStaticWalkable, powerFor, spawnBuilding, tileAt } from "./world";
 
 export function issue(state: SimState, command: Command): SimEvent[] {
   if (state.result !== "playing") return [];
@@ -55,39 +54,139 @@ export function issue(state: SimState, command: Command): SimEvent[] {
 function moveUnits(state: SimState, ids: number[], x: number, y: number, formation?: Formation): SimEvent[] {
   const tx = Math.round(x);
   const ty = Math.round(y);
-  ids.forEach((id, index) => {
-    const e = byId(state, id);
-    if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral) return;
+  const movers = collectMovers(state, ids, false);
+  const dests = destinationsForGroup(state, movers, tx, ty, formation);
+  movers.forEach((e, index) => {
     e.attackTarget = undefined;
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
-    e.formation = formation;
-    e.path = findPath(state, e, formationDestination(tx, ty, formation, index, ids.length));
+    if (formation) e.formation = formation;
+    e.path = findPath(state, e, dests[index] ?? { x: tx, y: ty });
   });
   return [];
 }
 
 function attackMoveUnits(state: SimState, ids: number[], x: number, y: number, formation?: Formation): SimEvent[] {
-  ids.forEach((id, index) => {
-    const e = byId(state, id);
-    if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral || e.kind === "harvester") return;
+  const tx = Math.round(x);
+  const ty = Math.round(y);
+  const movers = collectMovers(state, ids, true);
+  const dests = destinationsForGroup(state, movers, tx, ty, formation);
+  movers.forEach((e, index) => {
     e.attackTarget = undefined;
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
-    e.formation = formation;
-    e.path = findPath(state, e, formationDestination(Math.round(x), Math.round(y), formation, index, ids.length));
+    if (formation) e.formation = formation;
+    e.path = findPath(state, e, dests[index] ?? { x: tx, y: ty });
   });
   return [];
 }
 
-function formationDestination(x: number, y: number, formation: Formation | undefined, index: number, count: number): { x: number; y: number } {
-  if (!formation || count <= 1) return { x, y };
+function collectMovers(state: SimState, ids: number[], attackMove: boolean): Entity[] {
+  const movers: Entity[] = [];
+  for (const id of ids) {
+    const e = byId(state, id);
+    if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral) continue;
+    if (attackMove && e.kind === "harvester") continue;
+    movers.push(e);
+  }
+  return movers;
+}
+
+function formationDestination(x: number, y: number, formation: Formation, index: number, count: number): { x: number; y: number } {
   const centered = index - (count - 1) / 2;
   if (formation === "column") return { x: x + Math.round(centered), y };
   if (formation === "wedge") return { x: x + Math.round(centered), y: y + Math.abs(Math.round(centered)) };
   return { x, y: y + Math.round(centered) };
+}
+
+function nearbyWalkableSlots(state: SimState, x: number, y: number, count: number): { x: number; y: number }[] {
+  const slots: { x: number; y: number }[] = [];
+  const seen = new Set<number>();
+  const take = (sx: number, sy: number) => {
+    if (!inBounds(state, sx, sy) || !isStaticWalkable(state, sx, sy)) return;
+    const key = sy * state.width + sx;
+    if (seen.has(key)) return;
+    seen.add(key);
+    slots.push({ x: sx, y: sy });
+  };
+  for (let r = 0; r <= 16 && slots.length < count; r++) {
+    if (r === 0) {
+      take(x, y);
+      continue;
+    }
+    for (let dy = -r; dy <= r && slots.length < count; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        take(x + dx, y + dy);
+        if (slots.length >= count) break;
+      }
+    }
+  }
+  return slots;
+}
+
+function snapUnique(state: SimState, x: number, y: number, taken: Set<number>): { x: number; y: number } {
+  for (let r = 0; r <= 8; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (r > 0 && Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const sx = x + dx;
+        const sy = y + dy;
+        if (!inBounds(state, sx, sy) || !isStaticWalkable(state, sx, sy)) continue;
+        const key = sy * state.width + sx;
+        if (taken.has(key)) continue;
+        taken.add(key);
+        return { x: sx, y: sy };
+      }
+    }
+  }
+  return { x, y };
+}
+
+function assignNearest(units: Entity[], slots: { x: number; y: number }[]): { x: number; y: number }[] {
+  const dests: { x: number; y: number }[] = units.map(() => slots[0] ?? { x: 0, y: 0 });
+  const pairs: { ui: number; si: number; d: number }[] = [];
+  for (let ui = 0; ui < units.length; ui++) {
+    for (let si = 0; si < slots.length; si++) {
+      const slot = slots[si]!;
+      pairs.push({ ui, si, d: Math.hypot(units[ui]!.x - slot.x, units[ui]!.y - slot.y) });
+    }
+  }
+  pairs.sort((a, b) => a.d - b.d || a.ui - b.ui || a.si - b.si);
+  const unitTaken = new Set<number>();
+  const slotTaken = new Set<number>();
+  for (const pair of pairs) {
+    if (unitTaken.has(pair.ui) || slotTaken.has(pair.si)) continue;
+    unitTaken.add(pair.ui);
+    slotTaken.add(pair.si);
+    dests[pair.ui] = slots[pair.si]!;
+  }
+  return dests;
+}
+
+function destinationsForGroup(
+  state: SimState,
+  units: Entity[],
+  x: number,
+  y: number,
+  commandFormation?: Formation,
+): { x: number; y: number }[] {
+  if (units.length === 0) return [];
+  if (units.length === 1) return [{ x, y }];
+  const shared = units.every((e) => e.formation && e.formation === units[0]!.formation)
+    ? units[0]!.formation
+    : undefined;
+  const formation = commandFormation ?? shared;
+  if (formation) {
+    const taken = new Set<number>();
+    return units.map((_, index) => {
+      const raw = formationDestination(x, y, formation, index, units.length);
+      return snapUnique(state, raw.x, raw.y, taken);
+    });
+  }
+  return assignNearest(units, nearbyWalkableSlots(state, x, y, units.length));
 }
 
 function stopUnits(state: SimState, ids: number[]): SimEvent[] {
@@ -139,6 +238,27 @@ function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent
   return [];
 }
 
+/** Right-click / tap ground: harvest ore with harvesters, move everyone else onto the tile. */
+export function groundOrders(state: SimState, ids: number[], x: number, y: number): Command[] {
+  const tx = Math.round(x);
+  const ty = Math.round(y);
+  if (!inBounds(state, tx, ty) || tileAt(state, tx, ty) !== TILE_RESOURCE) {
+    return [{ type: "move", unitIds: ids, x: tx, y: ty }];
+  }
+  const harvesters: number[] = [];
+  const movers: number[] = [];
+  for (const id of ids) {
+    const e = byId(state, id);
+    if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral) continue;
+    if (e.kind === "harvester") harvesters.push(id);
+    else movers.push(id);
+  }
+  const commands: Command[] = [];
+  if (harvesters.length) commands.push({ type: "harvest", unitIds: harvesters, x: tx, y: ty });
+  if (movers.length) commands.push({ type: "move", unitIds: movers, x: tx, y: ty });
+  return commands;
+}
+
 function harvestUnits(state: SimState, ids: number[], x: number, y: number): SimEvent[] {
   for (const id of ids) {
     const e = byId(state, id);
@@ -161,10 +281,10 @@ function startBuild(state: SimState, kind: BuildingKind, x: number, y: number): 
     (e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0 && e.constructing === 0,
   );
   if (!yard) return [{ type: "commandRejected", reason: "construction yard unavailable" }];
-  const cost = buildingCost(state, 0, kind);
+  const cost = BUILDING_STATS[kind].cost;
   if (state.credits[0] < cost) return [{ type: "commandRejected", reason: "insufficient credits" }];
   state.credits[0] -= cost;
-  spawnBuilding(state, 0, kind, tx, ty, buildingBuildTicks(state, 0, kind));
+  spawnBuilding(state, 0, kind, tx, ty, BUILDING_STATS[kind].buildTicks);
   return [];
 }
 
@@ -179,7 +299,7 @@ function startProduce(state: SimState, fromId: number, unit: UnitKind): SimEvent
   if (powerFor(state, 0) < 0) return [{ type: "commandRejected", reason: "power shortage" }];
   state.credits[0] -= stats.cost;
   if (!b.producing) {
-    b.producing = { kind: unit, remaining: unitBuildTicks(state, 0, unit) };
+    b.producing = { kind: unit, remaining: stats.buildTicks };
   } else {
     b.queue.push(unit);
   }

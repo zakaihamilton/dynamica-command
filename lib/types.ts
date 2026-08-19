@@ -29,10 +29,6 @@ export type WeaponType = "smallArms" | "antiArmor" | "cannon";
 export type ArmorType = "light" | "heavy" | "structure";
 export type TutorialStage = "select" | "move" | "harvest" | "build" | "produce" | "attack" | "repair" | "complete";
 export type AiBehavior = "economy" | "defense" | "assault" | "retreat" | "regroup";
-export type UpgradeId =
-  | "logistics-cargo" | "logistics-drills" | "logistics-unload" | "logistics-cache"
-  | "arsenal-barrels" | "arsenal-plating" | "arsenal-targeting" | "arsenal-shock"
-  | "engineering-frames" | "engineering-grid" | "engineering-repair" | "engineering-fabrication";
 
 export type SecondaryObjective = {
   id: string;
@@ -51,10 +47,25 @@ export type MissionRuntime = {
   deadline?: number;
   rescued: number;
   required: number;
+  extractedIds?: number[];
   secondary: SecondaryObjective[];
 };
 
 export const RESCUE_CONTACT_RADIUS = 2.5;
+export const OBJECTIVE_ZONE_RADIUS = 6;
+
+export function inObjectiveZone(
+  x: number,
+  y: number,
+  zone: Vec2 | undefined,
+  radius = OBJECTIVE_ZONE_RADIUS,
+): boolean {
+  return !!zone && Math.hypot(x - zone.x, y - zone.y) <= radius;
+}
+
+export function missionUsesObjectiveZone(kind: MissionKind | undefined): boolean {
+  return kind === "escort" || kind === "extraction";
+}
 
 export type CampaignProgress = {
   version: 1;
@@ -64,8 +75,6 @@ export type CampaignProgress = {
   completedMissions: number[];
   medals: Record<string, number>;
   bestScores: Record<string, number>;
-  researchPoints: number;
-  upgrades: UpgradeId[];
 };
 
 export type WinCategory = {
@@ -327,7 +336,6 @@ export type SimState = {
   missionName: string;
   missionKind?: MissionKind;
   runtime?: MissionRuntime;
-  appliedUpgrades?: UpgradeId[];
   tutorialStage?: TutorialStage;
   aiState?: AiBehavior;
 };

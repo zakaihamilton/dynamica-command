@@ -1,5 +1,4 @@
-import type { CampaignProgress, UpgradeId } from "../types";
-import { UPGRADE_PREREQUISITE } from "../catalog";
+import type { CampaignProgress } from "../types";
 import type { StorageAdapter } from "./save";
 import { formatSeed } from "../seed/rng";
 
@@ -19,13 +18,7 @@ export function freshCampaignProgress(seed: number): CampaignProgress {
     completedMissions: [],
     medals: {},
     bestScores: {},
-    researchPoints: 0,
-    upgrades: [],
   };
-}
-
-function isUpgrade(value: unknown): value is UpgradeId {
-  return typeof value === "string" && /^(logistics|arsenal|engineering)-/.test(value);
 }
 
 function normalize(value: unknown, seed: number): CampaignProgress {
@@ -42,8 +35,6 @@ function normalize(value: unknown, seed: number): CampaignProgress {
       : [],
     medals: raw.medals && typeof raw.medals === "object" ? { ...raw.medals } : {},
     bestScores: raw.bestScores && typeof raw.bestScores === "object" ? { ...raw.bestScores } : {},
-    researchPoints: Math.max(0, Number.isFinite(raw.researchPoints) ? Number(raw.researchPoints) : 0),
-    upgrades: Array.isArray(raw.upgrades) ? raw.upgrades.filter(isUpgrade) : [],
   };
 }
 
@@ -75,23 +66,11 @@ export function completeMission(
 ): CampaignProgress {
   const key = String(missionIndex);
   const firstCompletion = !progress.completedMissions.includes(missionIndex);
-  const next: CampaignProgress = {
+  return {
     ...progress,
     completedMissions: firstCompletion ? [...progress.completedMissions, missionIndex].sort((a, b) => a - b) : progress.completedMissions,
     unlockedMission: Math.max(progress.unlockedMission, Math.min(7, missionIndex + 1)),
     medals: { ...progress.medals, [key]: Math.max(progress.medals[key] ?? 0, medals) },
     bestScores: { ...progress.bestScores, [key]: Math.max(progress.bestScores[key] ?? 0, score) },
-    researchPoints: progress.researchPoints + (firstCompletion ? medals : 0),
-  };
-  return next;
-}
-
-export function buyUpgrade(progress: CampaignProgress, id: UpgradeId, cost: number): CampaignProgress | null {
-  const prerequisite = UPGRADE_PREREQUISITE[id];
-  if (progress.upgrades.includes(id) || progress.researchPoints < cost || (prerequisite && !progress.upgrades.includes(prerequisite))) return null;
-  return {
-    ...progress,
-    researchPoints: progress.researchPoints - cost,
-    upgrades: [...progress.upgrades, id],
   };
 }

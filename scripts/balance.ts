@@ -2,9 +2,8 @@ import { createCampaign } from "../lib/gen/campaign";
 import { generateMap } from "../lib/gen/map";
 import { parseSeed } from "../lib/seed/rng";
 import { createMission, tick } from "../lib/sim/api";
-import { applyUpgradeSnapshot } from "../lib/sim/upgrades";
 import { powerBreakdown } from "../lib/sim/world";
-import { TILE_BLOCKED, TILE_WATER, type Command, type UpgradeId } from "../lib/types";
+import { TILE_BLOCKED, TILE_WATER, type Command } from "../lib/types";
 
 function arg(name: string, fallback: string): string {
   const index = process.argv.indexOf(`--${name}`);
@@ -15,7 +14,6 @@ const from = Number(arg("from", "0"));
 const to = Number(arg("to", "9999"));
 const missionArg = arg("mission", "all");
 const maxTicks = Number(arg("ticks", "1200"));
-const requestedUpgrades = arg("upgrades", "").split(",").filter(Boolean) as UpgradeId[];
 const missionIndexes = missionArg === "all" ? [...Array(8).keys()] : [Number(missionArg)];
 
 type RecordResult = {
@@ -30,7 +28,6 @@ type RecordResult = {
   powerDeficit: boolean;
   casualties: number;
   secondaryCompleted: number;
-  upgradeImpact: number;
   mapValid: boolean;
 };
 
@@ -64,10 +61,6 @@ function runScenario(state: ReturnType<typeof createMission>, map: ReturnType<ty
   return powerDeficit;
 }
 
-function outcomeScore(state: ReturnType<typeof createMission>): number {
-  return (state.result === "won" ? 1000 : 0) + state.credits[0] - state.losses.units[0] * 100;
-}
-
 const records: RecordResult[] = [];
 for (let seed = Math.max(0, from); seed <= Math.min(9999, to); seed++) {
   const parsed = parseSeed(String(seed).padStart(4, "0"));
@@ -78,11 +71,8 @@ for (let seed = Math.max(0, from); seed <= Math.min(9999, to); seed++) {
     if (!definition) continue;
     const map = generateMap(parsed, definition);
     const valid = validMap(map);
-    const baseline = createMission({ seed: parsed, missionIndex: mission });
     const state = createMission({ seed: parsed, missionIndex: mission });
-    if (requestedUpgrades.length) applyUpgradeSnapshot(state, requestedUpgrades);
-    const baselinePowerDeficit = runScenario(baseline, map);
-    const upgradedPowerDeficit = runScenario(state, map);
+    const powerDeficit = runScenario(state, map);
     records.push({
       seed: campaign.seed,
       mission,
@@ -92,10 +82,9 @@ for (let seed = Math.max(0, from); seed <= Math.min(9999, to); seed++) {
       credits: state.credits[0],
       unitsProduced: state.unitsProduced[0],
       aiUnitsProduced: state.unitsProduced[1],
-      powerDeficit: upgradedPowerDeficit || baselinePowerDeficit,
+      powerDeficit,
       casualties: state.losses.units[0],
       secondaryCompleted: state.result === "won" ? state.runtime?.secondary.filter((objective) => objective.completed).length ?? 0 : 0,
-      upgradeImpact: outcomeScore(state) - outcomeScore(baseline),
       mapValid: valid,
     });
   }
@@ -105,7 +94,6 @@ const wins = records.filter((record) => record.result === "won").length;
 console.log(JSON.stringify({
   range: { from, to },
   missions: missionIndexes,
-  upgrades: requestedUpgrades,
   ticks: maxTicks,
   samples: records.length,
   winRate: records.length ? wins / records.length : 0,
