@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buyUpgrade, completeMission, freshCampaignProgress, readCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
+import { completeMission, freshCampaignProgress, readCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
 import { memoryStorage } from "../lib/persist/save";
 
 describe("campaign progress", () => {
@@ -10,19 +10,16 @@ describe("campaign progress", () => {
     writeCampaignProgress(storage, first);
     const loaded = readCampaignProgress(storage, 42);
     expect(loaded.unlockedMission).toBe(1);
-    expect(loaded.researchPoints).toBe(3);
+    expect(loaded.completedMissions).toEqual([0]);
     expect(readCampaignProgress(storage, 43).completedMissions).toEqual([]);
   });
 
-  it("does not farm research points from replays and enforces branch prerequisites", () => {
+  it("does not duplicate completions on replay and keeps the best medal and score", () => {
     const progress = completeMission(freshCampaignProgress(7), 0, 2, 500);
-    expect(completeMission(progress, 0, 3, 700).researchPoints).toBe(2);
-    expect(buyUpgrade({ ...progress, researchPoints: 5 }, "arsenal-plating", 2)).toBeNull();
-    const purchased = buyUpgrade({ ...progress, researchPoints: 5 }, "arsenal-barrels", 1);
-    expect(purchased?.upgrades).toEqual(["arsenal-barrels"]);
-    expect(buyUpgrade({ ...(purchased ?? progress), researchPoints: 4 }, "arsenal-plating", 2)?.upgrades).toEqual([
-      "arsenal-barrels",
-      "arsenal-plating",
-    ]);
+    const replay = completeMission(progress, 0, 3, 700);
+    expect(replay.completedMissions).toEqual([0]);
+    expect(replay.unlockedMission).toBe(1);
+    expect(replay.medals["0"]).toBe(3);
+    expect(replay.bestScores["0"]).toBe(700);
   });
 });

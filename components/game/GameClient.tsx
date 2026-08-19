@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { MAX_PRODUCTION_QUEUE, UPGRADE_COST, buildingCameoStatus, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
+import { MAX_PRODUCTION_QUEUE, buildingCameoStatus, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
 import { beep, setMuted } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
 import { createCampaign } from "@/lib/gen/campaign";
+import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
-import { buyUpgrade, completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
-import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
+import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
+import { panAvailability, panCamera, panOffset, cameraPanBounds, clampCamera, panDirFromPointer, EDGE_PAN_BAND, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { cameraViewQuad, createCamera, screenToTile, tileToScreen, TILE_H } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { pickEntity } from "@/lib/render/pick";
@@ -16,13 +17,13 @@ import { renderWorld, pickTile, visibleBuildingAt, type RenderExtras } from "@/l
 import { burstsFromDestroyed, cullFx, type FxBurst } from "@/lib/render/fx";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission } from "@/lib/sim/api";
+import { groundOrders } from "@/lib/sim/orders";
 import { createTutorialMission, tutorialPrompt } from "@/lib/sim/tutorial";
 import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import { objectiveProgress } from "@/lib/sim/objectives";
 import { powerBreakdown, heightAt } from "@/lib/sim/world";
-import { applyUpgradeSnapshot } from "@/lib/sim/upgrades";
-import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind, UpgradeId } from "@/lib/types";
-import { gameCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
+import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
+import { gameCommandFromKey, isEditableTarget, type PauseView } from "@/lib/ui/shortcuts";
 import { Battlefield } from "./Battlefield";
 import { CommandSidebar } from "./CommandSidebar";
 import { MissionResult } from "./MissionResult";
@@ -49,9 +50,7 @@ function initialMission(seed: number, mission: number, resume: boolean, tutorial
     const saved = readSave(localStorageAdapter(), seed);
     if (saved) return saved;
   }
-  const fresh = createMission({ seed, missionIndex: mission });
-  applyUpgradeSnapshot(fresh, readCampaignProgress(localStorageAdapter(), seed).upgrades);
-  return fresh;
+  return createMission({ seed, missionIndex: mission });
 }
 
 export function GameClient({
@@ -67,6 +66,7 @@ export function GameClient({
 }) {
   const router = useRouter();
   const campaign = useMemo(() => createCampaign(seed), [seed]);
+  const playerVisualProfile = useMemo(() => generateVisualProfile(seed, 0), [seed]);
   const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume, tutorial));
   const stateRef = useRef<SimState>(state);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -91,14 +91,14 @@ export function GameClient({
   const pausedRef = useRef(false);
   const terminalSaveRef = useRef(false);
   const campaignRecordedRef = useRef(false);
-  const [pauseView, setPauseView] = useState<"main" | "options" | "assets" | "upgrades">("main");
+  const [pauseView, setPauseView] = useState<PauseView>("main");
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [campaignProgress, setCampaignProgress] = useState(() => readCampaignProgress(localStorageAdapter(), seed));
   const cmdQ = useRef<Command[]>([]);
   const minimapDragging = useRef(false);
   const panHold = useRef<PanDir | null>(null);
+  const edgePanHover = useRef<{ dir: PanDir; startedAt: number } | null>(null);
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ center: { x: number; y: number }; distance: number } | null>(null);
   const touchMultiTouch = useRef(false);
@@ -138,7 +138,13 @@ export function GameClient({
   }, [router, seed]);
 
   const applyEdgePan = useCallback((dir: PanDir | null) => {
-    panHold.current = dir;
+    if (dir === null) {
+      edgePanHover.current = null;
+      panHold.current = null;
+    } else if (edgePanHover.current?.dir !== dir) {
+      edgePanHover.current = { dir, startedAt: performance.now() };
+      panHold.current = null;
+    }
     setHotPan((prev) => (prev === dir ? prev : dir));
   }, []);
 
@@ -230,7 +236,7 @@ export function GameClient({
           fxRef.current.push(...spawned.bursts);
         }
       },
-      onFrame: (_now, s, paused) => {
+      onFrame: (now, s, paused) => {
         if (!paused) {
           const cam = camRef.current;
           const canvas = canvasRef.current;
@@ -241,7 +247,9 @@ export function GameClient({
           if (keys.current.s || keys.current.ArrowDown) panCamera(cam, 0, -10, bounds);
           if (keys.current.a || keys.current.ArrowLeft) panCamera(cam, 10, 0, bounds);
           if (keys.current.d || keys.current.ArrowRight) panCamera(cam, -10, 0, bounds);
-          const hold = panHold.current;
+          const hoveredEdge = edgePanHover.current;
+          const hold = hoveredEdge && now - hoveredEdge.startedAt >= EDGE_PAN_DELAY_MS ? hoveredEdge.dir : null;
+          panHold.current = hold;
           if (hold && bounds) {
             if (!panAvailability(cam, bounds)[hold]) applyEdgePan(null);
             else {
@@ -259,6 +267,11 @@ export function GameClient({
               setPanAvail(next);
             }
           }
+        } else {
+          // Require a fresh edge hover after closing the pause menu instead
+          // of immediately resuming a stale camera-pan hold.
+          edgePanHover.current = null;
+          panHold.current = null;
         }
         if (s.result !== "playing" && !terminalSaveRef.current) {
           terminalSaveRef.current = true;
@@ -301,23 +314,6 @@ export function GameClient({
     setPauseNotice("Mission saved.");
   }, []);
 
-  const openUpgrades = useCallback(() => {
-    setCampaignProgress(readCampaignProgress(localStorageAdapter(), seed));
-    setPauseView("upgrades");
-    setPauseNotice("");
-  }, [seed]);
-
-  const purchaseUpgrade = useCallback((id: UpgradeId) => {
-    const next = buyUpgrade(campaignProgress, id, UPGRADE_COST[id]);
-    if (!next) {
-      setPauseNotice("Upgrade locked or insufficient research points.");
-      return;
-    }
-    writeCampaignProgress(localStorageAdapter(), next);
-    setCampaignProgress(next);
-    setPauseNotice("Upgrade installed for the next mission.");
-  }, [campaignProgress]);
-
   const loadMission = useCallback(() => {
     const loaded = readSave(localStorageAdapter(), seed);
     if (!loaded) {
@@ -341,7 +337,6 @@ export function GameClient({
   const restartMission = useCallback(() => {
     const world = stateRef.current;
     const fresh = createMission({ seed: world.seed, missionIndex: world.missionIndex });
-    applyUpgradeSnapshot(fresh, world.appliedUpgrades ?? []);
     stateRef.current = fresh;
     terminalSaveRef.current = false;
     campaignRecordedRef.current = false;
@@ -664,8 +659,7 @@ export function GameClient({
     const ids = [...selected.current];
     const target = pickSelectableEntity(s, p.x, p.y, tx, ty);
     if (target && target.owner === 1) cmdQ.current.push({ type: "attack", unitIds: ids, targetId: target.id });
-    else if (s.tiles[ty * s.width + tx] === 2) cmdQ.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
-    else cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
+    else cmdQ.current.push(...groundOrders(s, ids, tx, ty));
     beep("ack");
   };
 
@@ -878,13 +872,7 @@ export function GameClient({
     } else {
       const hit = pickSelectableEntity(s, p.x, p.y, tx, ty);
       if (e.pointerType === "touch" && selected.current.size > 0 && !hit) {
-        const ids = [...selected.current];
-        const hasHarvester = ids.some((id) => s.entities.some((entity) => entity.id === id && entity.owner === 0 && entity.kind === "harvester"));
-        if (hasHarvester && s.tiles[ty * s.width + tx] === 2) {
-          cmdQ.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
-        } else {
-          cmdQ.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
-        }
+        cmdQ.current.push(...groundOrders(s, [...selected.current], tx, ty));
         beep("ack");
       } else if (e.pointerType === "touch" && selected.current.size > 0 && hit?.owner === 1 && !hit.neutral) {
         cmdQ.current.push({ type: "attack", unitIds: [...selected.current], targetId: hit.id });
@@ -964,6 +952,7 @@ export function GameClient({
         factionName={campaign.factions[0].name}
         state={s}
         palette={pal}
+        profile={playerVisualProfile}
         selected={selectedEnt}
         placeKind={placeKind}
         repairMode={repairMode}
@@ -1004,9 +993,6 @@ export function GameClient({
           onToggleSound={toggleSound}
           onBack={() => setPauseView("main")}
           onCloseAssets={() => setPauseView("main")}
-          progress={campaignProgress}
-          onUpgrades={openUpgrades}
-          onBuyUpgrade={purchaseUpgrade}
         />
       ) : null}
     </div>

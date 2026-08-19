@@ -1,7 +1,7 @@
 import { STARTING_CREDITS, UNIT_STATS } from "../catalog";
 import { createRng, mixSeed } from "../seed/rng";
-import { RESCUE_CONTACT_RADIUS } from "../types";
-import type { BuildingKind, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
+import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
+import type { BuildingKind, Entity, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
 import { createCampaign } from "../gen/campaign";
 import { generateMap } from "../gen/map";
 import { tickAi } from "./ai";
@@ -10,55 +10,183 @@ import { tickEconomy } from "./economy";
 import { makeFog, tickFog } from "./fog";
 import { applyCommands, issue } from "./orders";
 import { evaluateObjectives, inspect } from "./objectives";
-import { findPath, stepAlongPath } from "./pathfinding";
+import { PATH_DIRS, diagonalCornerBlocked, findPath, stepAlongPath } from "./pathfinding";
 import { tickProduction } from "./production";
 import { tickRepair } from "./repair";
-import { emptyRoleCounts, spawnBuildingAt, spawnUnit } from "./world";
+import { canClimb, emptyRoleCounts, inBounds, isStaticWalkable, makeUnitOccupancy, spawnBuildingAt, spawnUnit } from "./world";
 import type { Command } from "../types";
 import { missionDifficulty } from "./difficulty";
 
 export { issue, inspect };
 
-function tickMovement(state: SimState): void {
-  const occupied = new Set<string>();
-  const reserved = new Map<string, number>();
-  const key = (x: number, y: number) => `${x},${y}`;
-  for (const e of state.entities) {
-    if (e.hp > 0 && e.class === "unit") occupied.add(key(Math.round(e.x), Math.round(e.y)));
+function cellOf(state: SimState, x: number, y: number): number {
+  return Math.round(y) * state.width + Math.round(x);
+}
+
+function tileFree(
+  state: SimState,
+  occupancy: Uint8Array,
+  reserved: Map<number, number>,
+  e: Entity,
+  x: number,
+  y: number,
+): boolean {
+  if (!inBounds(state, x, y) || !isStaticWalkable(state, x, y)) return false;
+  const current = cellOf(state, e.x, e.y);
+  const target = y * state.width + x;
+  if (target === current) return true;
+  if (occupancy[target]) return false;
+  const claim = reserved.get(target);
+  return claim === undefined || claim === e.id;
+}
+
+function trySidestep(
+  state: SimState,
+  occupancy: Uint8Array,
+  reserved: Map<number, number>,
+  e: Entity,
+  blockedX: number,
+  blockedY: number,
+): boolean {
+  if (e.path.length <= 1) return false;
+  const cx = Math.round(e.x);
+  const cy = Math.round(e.y);
+  const dest = e.path[1] ?? e.path[e.path.length - 1]!;
+  const stayD = Math.hypot(cx - dest.x, cy - dest.y);
+  let best: { x: number; y: number; d: number } | undefined;
+  for (const d of PATH_DIRS) {
+    const nx = cx + d.x;
+    const ny = cy + d.y;
+    if (nx === blockedX && ny === blockedY) continue;
+    if (!tileFree(state, occupancy, reserved, e, nx, ny)) continue;
+    if (!canClimb(state, cx, cy, nx, ny)) continue;
+    if (diagonalCornerBlocked(state, cx, cy, nx, ny)) continue;
+    const dist = Math.hypot(nx - dest.x, ny - dest.y);
+    if (dist >= stayD) continue;
+    if (!best || dist < best.d) best = { x: nx, y: ny, d: dist };
   }
+  if (!best) return false;
+  e.path[0] = { x: best.x, y: best.y };
+  return true;
+}
+
+function nudgeIdle(
+  state: SimState,
+  occupancy: Uint8Array,
+  reserved: Map<number, number>,
+  blocker: Entity,
+): boolean {
+  if (blocker.path.length) return false;
+  const cx = Math.round(blocker.x);
+  const cy = Math.round(blocker.y);
+  for (const d of PATH_DIRS) {
+    const nx = cx + d.x;
+    const ny = cy + d.y;
+    if (!tileFree(state, occupancy, reserved, blocker, nx, ny)) continue;
+    if (!canClimb(state, cx, cy, nx, ny)) continue;
+    if (diagonalCornerBlocked(state, cx, cy, nx, ny)) continue;
+    blocker.path = [{ x: nx, y: ny }];
+    return true;
+  }
+  return false;
+}
+
+function tickMovement(state: SimState): void {
+  const occupancy = makeUnitOccupancy(state);
+  const atTile = new Map<number, Entity>();
+  const reserved = new Map<number, number>();
+  const swapped = new Set<number>();
   for (const e of state.entities) {
     if (e.hp <= 0 || e.class !== "unit") continue;
+    atTile.set(cellOf(state, e.x, e.y), e);
+  }
+
+  for (const e of state.entities) {
+    if (e.hp <= 0 || e.class !== "unit") continue;
+    if (swapped.has(e.id)) continue;
     const speed = UNIT_STATS[e.kind as UnitKind].speed * (1 - Math.min(0.4, (e.suppression ?? 0) / 250));
-    const currentKey = key(Math.round(e.x), Math.round(e.y));
+    const current = cellOf(state, e.x, e.y);
     const next = e.path[0];
-    const targetKey = next ? key(Math.round(next.x), Math.round(next.y)) : currentKey;
-    const claim = reserved.get(targetKey);
-    const blockedByUnit = next && targetKey !== currentKey && occupied.has(targetKey);
-    const blocked = blockedByUnit || (next && targetKey !== currentKey && claim !== undefined && claim !== e.id);
+    const nx = next ? Math.round(next.x) : Math.round(e.x);
+    const ny = next ? Math.round(next.y) : Math.round(e.y);
+    const target = ny * state.width + nx;
+    const claim = reserved.get(target);
+    const blocked = !!next && target !== current && (occupancy[target] === 1 || (claim !== undefined && claim !== e.id));
+
     if (blocked) {
-      e.blockedTicks = (e.blockedTicks ?? 0) + 1;
-      if (e.blockedTicks === 1 || e.blockedTicks % 6 === 0) {
-        const destination = e.path[e.path.length - 1];
-        if (destination) {
-          const detour = findPath(state, e, destination);
-          const detourFirst = detour[0];
-          if (detourFirst && !occupied.has(key(Math.round(detourFirst.x), Math.round(detourFirst.y)))) {
-            e.path = detour;
-          }
+      const blocker = atTile.get(target);
+      if (blocker && blocker.id !== e.id && !swapped.has(blocker.id)) {
+        const bNext = blocker.path[0];
+        if (bNext && Math.round(bNext.x) === Math.round(e.x) && Math.round(bNext.y) === Math.round(e.y)) {
+          const bCell = cellOf(state, blocker.x, blocker.y);
+          const ax = e.x;
+          const ay = e.y;
+          e.x = blocker.x;
+          e.y = blocker.y;
+          blocker.x = ax;
+          blocker.y = ay;
+          e.path.shift();
+          blocker.path.shift();
+          occupancy[current] = 1;
+          occupancy[bCell] = 1;
+          atTile.set(current, blocker);
+          atTile.set(bCell, e);
+          swapped.add(e.id);
+          swapped.add(blocker.id);
+          e.blockedTicks = 0;
+          blocker.blockedTicks = 0;
+          continue;
         }
       }
+
+      if (trySidestep(state, occupancy, reserved, e, nx, ny)) {
+        e.blockedTicks = 0;
+      } else {
+        if (blocker && blocker.id !== e.id) nudgeIdle(state, occupancy, reserved, blocker);
+        e.blockedTicks = (e.blockedTicks ?? 0) + 1;
+        if (e.blockedTicks === 1 || e.blockedTicks % 6 === 0) {
+          const destination = e.path[e.path.length - 1];
+          if (destination) {
+            const detour = findPath(state, e, destination, {
+              avoidUnits: true,
+              ignoreId: e.id,
+              occupancy,
+            });
+            const detourFirst = detour[0];
+            if (detourFirst) {
+              const dx = Math.round(detourFirst.x);
+              const dy = Math.round(detourFirst.y);
+              const sameBlocked = dx === nx && dy === ny;
+              if (!sameBlocked && tileFree(state, occupancy, reserved, e, dx, dy)) {
+                e.path = detour;
+              }
+            }
+          }
+        }
+        continue;
+      }
+    }
+
+    const stepTarget = e.path[0];
+    const stepX = stepTarget ? Math.round(stepTarget.x) : Math.round(e.x);
+    const stepY = stepTarget ? Math.round(stepTarget.y) : Math.round(e.y);
+    const stepCell = stepY * state.width + stepX;
+    if (stepTarget && stepCell !== current && !tileFree(state, occupancy, reserved, e, stepX, stepY)) {
+      e.blockedTicks = (e.blockedTicks ?? 0) + 1;
       continue;
     }
     e.blockedTicks = 0;
-    if (next && targetKey !== currentKey) reserved.set(targetKey, e.id);
-    const beforeKey = currentKey;
-    stepAlongPath(e, speed);
-    const afterKey = key(Math.round(e.x), Math.round(e.y));
-    if (afterKey !== beforeKey) {
-      occupied.delete(beforeKey);
-      occupied.add(afterKey);
+    if (stepTarget && stepCell !== current) reserved.set(stepCell, e.id);
+    const before = current;
+    stepAlongPath(e, speed, (x, y) => tileFree(state, occupancy, reserved, e, Math.round(x), Math.round(y)));
+    const after = cellOf(state, e.x, e.y);
+    if (after !== before) {
+      occupancy[before] = 0;
+      occupancy[after] = 1;
+      atTile.delete(before);
+      atTile.set(after, e);
     }
-    if (!e.path.length && next && reserved.get(targetKey) === e.id) reserved.delete(targetKey);
+    if (!e.path.length && stepTarget && reserved.get(stepCell) === e.id) reserved.delete(stepCell);
   }
 }
 
@@ -97,7 +225,6 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     factions: campaign.factions,
     missionName: mission.name,
     missionKind: mission.win.kind,
-    appliedUpgrades: [],
     aiState: "economy",
   };
 
@@ -193,6 +320,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
         const point = centerPoint(map, i, count);
         const target = spawnUnit(state, 0, kind === "escort" ? "tank" : "infantry", point.x, point.y);
         target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
+        if (kind === "extraction") target.marked = true;
         targetIds.push(target.id);
         if (kind === "escort") {
           target.path = stepRoute(state, target, map.enemyStart);
@@ -203,7 +331,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
       kind,
       phase: "active",
       targetIds,
-      zone: kind === "rescue" ? map.playerStart : map.enemyStart,
+      zone: kind === "escort" ? map.enemyStart : map.playerStart,
       deadline: state.tick + (mission.win.ticks ?? 3600),
       rescued: 0,
       required: count,
@@ -273,6 +401,9 @@ function tickScenario(state: SimState): void {
   const runtime = state.runtime;
   if (!runtime || runtime.phase === "complete") return;
   const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
+  if (runtime.kind === "extraction" && yard) {
+    runtime.zone = { x: yard.x, y: yard.y };
+  }
   if (runtime.kind === "rescue" || runtime.kind === "extraction") {
     const rescuers = state.entities.filter(
       (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !e.neutral,
@@ -291,10 +422,23 @@ function tickScenario(state: SimState): void {
   if (runtime.kind === "escort" || runtime.kind === "extraction") {
     const zone = runtime.zone;
     if (zone) {
-      runtime.rescued = runtime.targetIds.filter((id) => {
-        const e = state.entities.find((item) => item.id === id && item.hp > 0);
-        return !!e && Math.hypot(e.x - zone.x, e.y - zone.y) <= 4;
-      }).length;
+      if (runtime.kind === "extraction") {
+        const extracted = new Set(runtime.extractedIds ?? []);
+        for (const id of runtime.targetIds) {
+          if (extracted.has(id)) continue;
+          const e = state.entities.find((item) => item.id === id && item.hp > 0);
+          if (!e || e.neutral || !inObjectiveZone(e.x, e.y, zone)) continue;
+          extracted.add(id);
+          e.marked = false;
+        }
+        runtime.extractedIds = [...extracted];
+        runtime.rescued = extracted.size;
+      } else {
+        runtime.rescued = runtime.targetIds.filter((id) => {
+          const e = state.entities.find((item) => item.id === id && item.hp > 0);
+          return !!e && inObjectiveZone(e.x, e.y, zone);
+        }).length;
+      }
     }
   }
   const preserve = runtime.secondary.find((objective) => objective.kind === "preserveYard");

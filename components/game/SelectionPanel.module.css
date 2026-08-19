@@ -23,9 +23,13 @@
 }
 
 .portrait {
+  display: flex;
   width: 4rem;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  aspect-ratio: 80 / 56;
   border: 1px solid var(--chrome-inset);
   background: var(--chrome-void);
 }

@@ -1,135 +1,33 @@
+import { existsSync, readdirSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
-import { buildingSprite, elevationFace, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
+import {
+  CLIFF_EDGE_SAMPLES,
+  buildingSprite,
+  cliffCornerWedge,
+  cliffFaces,
+  elevationFace,
+  rubbleSprite,
+  tileCliffGeometry,
+  unitSprite,
+  wreckSprite,
+} from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
-import { BIOMES } from "../lib/gen/names";
-import { SURFACE_CONCRETE } from "../lib/types";
+import { SPRITE_ART, UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
+import { opaquePixelBounds, rotatedSpriteBounds } from "../lib/render/sprites";
 
-describe("retro procedural assets", () => {
+describe("tactical procedural assets", () => {
   const palette = generateFactions(421)[0].palette;
 
-  it("produces deterministic biome tile families", () => {
-    for (const biome of BIOMES) {
-      for (const kind of ["clear", "water", "resource", "blocked"] as const) {
-        const a = tileSprite(kind, 2, { biome, variant: 7, edgeMask: 5, surface: 1, resourceLevel: 3 });
-        const b = tileSprite(kind, 2, { biome, variant: 7, edgeMask: 5, surface: 1, resourceLevel: 3 });
-        expect(a).toEqual(b);
-        validateSpec(a);
-      }
-    }
-  });
-
-  it("renders rivers and mountains as edge contours instead of filled feature tiles", () => {
-    const waterInterior = tileSprite("water", 0, { biome: "ash plains", variant: 3, edgeMask: 0, contour: "bank" });
-    const waterEdge = tileSprite("water", 0, { biome: "ash plains", variant: 3, edgeMask: 5, contour: "bank" });
-    const ridgeInterior = tileSprite("clear", 3, { biome: "ash plains", variant: 3, edgeMask: 0, contour: "ridge" });
-    const ridgeEdge = tileSprite("clear", 3, { biome: "ash plains", variant: 3, edgeMask: 5, contour: "ridge" });
-    validateSpec(waterInterior);
-    validateSpec(waterEdge);
-    validateSpec(ridgeInterior);
-    validateSpec(ridgeEdge);
-    expect(waterEdge.shapes.some((shape) => shape.type === "line" && (shape.strokeWidth ?? 0) >= 2)).toBe(true);
-    expect(ridgeEdge.shapes.some((shape) => shape.type === "line" && (shape.strokeWidth ?? 0) >= 2)).toBe(true);
-    expect(waterInterior.shapes.some((shape) => shape.type === "line" && (shape.strokeWidth ?? 0) >= 2)).toBe(false);
-    expect(ridgeInterior.shapes.some((shape) => shape.type === "line" && (shape.strokeWidth ?? 0) >= 2)).toBe(false);
-    expect(waterEdge.shapes.filter((shape) => shape.type === "poly").length).toBeGreaterThan(
-      waterInterior.shapes.filter((shape) => shape.type === "poly").length,
-    );
-  });
-
-  it("separates mid and high elevation surfaces visually", () => {
-    const low = tileSprite("clear", 1, { biome: "ash plains", variant: 3, contour: "none" });
-    const mid = tileSprite("clear", 2, { biome: "ash plains", variant: 3, contour: "none" });
-    const high = tileSprite("clear", 3, { biome: "ash plains", variant: 3, contour: "none" });
-    expect(mid.palette.primary).not.toBe(low.palette.primary);
-    expect(high.palette.primary).not.toBe(mid.palette.primary);
-    expect(mid.palette.secondary).not.toBe(low.palette.secondary);
-  });
-
-  it("paints grass, trees, and rocks as detailed floor props", () => {
-    const grass = tileSprite("clear", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
-    const trees = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
-    const rocks = tileSprite("blocked", 1, { biome: "glass desert", variant: 4, contour: "none" });
-    const dirt = tileSprite("clear", 1, { biome: "ash plains", variant: 2, surface: 1, contour: "none" });
-    validateSpec(grass);
-    validateSpec(trees);
-    validateSpec(rocks);
-    validateSpec(dirt);
-    expect(grass.shapes.length).toBeGreaterThan(3);
-    expect(trees.shapes.length).toBeGreaterThan(grass.shapes.length);
-    expect(rocks.shapes.some((shape) => shape.type === "poly")).toBe(true);
-    expect(dirt.shapes.length).toBeGreaterThan(4);
-  });
-
-  it("scatters floor mottling so neighboring tiles do not share a highlight lattice", () => {
-    const tiles = [0, 1, 2, 3, 4, 5].map((variant) =>
-      tileSprite("clear", 1, { biome: "jungle wreckage", variant, contour: "none" }),
-    );
-    const fingerprints = tiles.map((spec) =>
-      spec.shapes
-        .filter((shape) => shape.type === "ellipse" && shape.w >= 10)
-        .map((shape) => `${Math.round(shape.x)},${Math.round(shape.y)},${Math.round(shape.w)}`)
-        .join("|"),
-    );
-    expect(new Set(fingerprints).size).toBeGreaterThan(3);
-    expect(tiles[0]!.shapes).not.toEqual(tiles[1]!.shapes);
-  });
-
-  it("gives concrete fields biome-specific materials and multiple slab layouts", () => {
-    const theaterFingerprints = BIOMES.map((biome) =>
-      tileSprite("clear", 1, { biome, variant: 12, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
-    );
-    expect(new Set(theaterFingerprints.map((shapes) => JSON.stringify(shapes))).size).toBe(BIOMES.length);
-
-    const jungleLayouts = Array.from({ length: 32 }, (_, variant) =>
-      tileSprite("clear", 1, { biome: "jungle wreckage", variant, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
-    );
-    expect(new Set(jungleLayouts.map((shapes) => JSON.stringify(shapes))).size).toBeGreaterThan(5);
-    const shapeCounts = jungleLayouts.map((shapes) => shapes.length);
-    expect(Math.min(...shapeCounts)).toBeLessThanOrEqual(5);
-    expect(Math.max(...shapeCounts) - Math.min(...shapeCounts)).toBeGreaterThan(3);
-  });
-
-  it("scatters distinct landmark families through continuous terrain fields", () => {
-    const concreteMarks = new Set(
-      Array.from({ length: 256 }, (_, variant) =>
-        tileSprite("clear", 1, { biome: "jungle wreckage", variant, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
-      ).flatMap((shapes) => shapes.flatMap((shape) => [shape.fill, shape.stroke].filter(Boolean))),
-    );
-    expect(concreteMarks).toContain("#172f2d"); // standing water
-    expect(concreteMarks).toContain("#66503b"); // wreck plate
-    expect(concreteMarks).toContain("#77a563"); // vine growth
-
-    const openMarks = new Set(
-      Array.from({ length: 256 }, (_, variant) =>
-        tileSprite("clear", 1, { biome: "jungle wreckage", variant, contour: "none" }).shapes,
-      ).flatMap((shapes) => shapes.flatMap((shape) => [shape.fill, shape.stroke].filter(Boolean))),
-    );
-    expect(openMarks).toContain("#18372f"); // forest pool
-    expect(openMarks).toContain("#5a4939"); // buried wreckage
-  });
-
-  it("varies tree size and placement across blocked tiles", () => {
-    const specs = [0, 1, 2, 3, 4, 5, 6, 7].map((variant) =>
-      tileSprite("blocked", 1, { biome: "jungle wreckage", variant, contour: "none" }),
-    );
-    const trunkHs = specs.map((spec) =>
-      spec.shapes.filter((shape) => shape.type === "ellipse" && shape.h >= 10).map((shape) => Math.round(shape.h)).join(","),
-    );
-    expect(new Set(trunkHs).size).toBeGreaterThan(1);
-    expect(new Set(specs.map((spec) => spec.shapes.length)).size).toBeGreaterThan(1);
-  });
-
-  it("paints ore fields as gold nugget beds that thin out when depleted", () => {
-    const rich = tileSprite("resource", 1, { biome: "ash plains", variant: 4, resourceLevel: 4, contour: "none" });
-    const poor = tileSprite("resource", 1, { biome: "ash plains", variant: 4, resourceLevel: 1, contour: "none" });
-    const other = tileSprite("resource", 1, { biome: "ash plains", variant: 11, resourceLevel: 4, contour: "none" });
-    validateSpec(rich);
-    validateSpec(poor);
-    expect(rich.shapes.length).toBeGreaterThan(poor.shapes.length);
-    expect(rich.shapes).not.toEqual(other.shapes);
-    expect(rich.shapes.some((shape) => shape.fill === "#e8c45a")).toBe(true);
-    expect(rich.shapes.filter((shape) => shape.type === "poly").length).toBeGreaterThan(8);
+  it("gives elevation faces stronger, deterministic material separation", () => {
+    const low = cliffFaces("tundra grid", 1);
+    const mid = cliffFaces("tundra grid", 2);
+    const high = cliffFaces("tundra grid", 3);
+    expect(low).toEqual(cliffFaces("tundra grid", 1));
+    expect(new Set([low.south, mid.south, high.south]).size).toBeGreaterThan(1);
+    expect(new Set([low.east, mid.east, high.east]).size).toBeGreaterThan(1);
+    expect(mid.south).not.toBe(high.south);
   });
 
   it("provides unique valid frames for every unit facing", () => {
@@ -152,7 +50,7 @@ describe("retro procedural assets", () => {
       const b = buildingSprite(kind, palette, { animationFrame: 3, variant: 13 });
       expect(a.id).toBe(b.id);
       expect(a.id).not.toMatch(/:facing:/);
-      expect(a.svg).toBe(b.svg);
+      expect(a.imageSrc ?? a.svg).toBe(b.imageSrc ?? b.svg);
       validateSpec(a);
     }
   });
@@ -172,43 +70,138 @@ describe("retro procedural assets", () => {
   });
 
   it("gives each unit and building kind a distinct silhouette", () => {
-    const unitFingerprints = UNIT_KINDS.map((kind) => unitSprite(kind, palette, { facing: 0, variant: 11 }).svg);
+    const unitFingerprints = UNIT_KINDS.map((kind) => {
+      const spec = unitSprite(kind, palette, { facing: 0, variant: 11 });
+      return spec.imageSrc ?? spec.svg;
+    });
     expect(new Set(unitFingerprints).size).toBe(UNIT_KINDS.length);
-    const buildingFingerprints = BUILDING_KINDS.map((kind) => buildingSprite(kind, palette, { variant: 13 }).svg);
+    const buildingFingerprints = BUILDING_KINDS.map((kind) => {
+      const spec = buildingSprite(kind, palette, { variant: 13 });
+      return spec.imageSrc ?? spec.svg;
+    });
     expect(new Set(buildingFingerprints).size).toBe(BUILDING_KINDS.length);
   });
 
-  it("changes unit tread and walk art across animation frames", () => {
+  it("keeps the directional raster art for every unit animation frame", () => {
     for (const kind of UNIT_KINDS) {
       const a = unitSprite(kind, palette, { facing: 2, animationFrame: 0, variant: 11 });
       const b = unitSprite(kind, palette, { facing: 2, animationFrame: 1, variant: 11 });
-      expect(a.svg).not.toEqual(b.svg);
+      expect(a.imageSrc).toBeDefined();
+      expect(b.imageSrc).toBe(a.imageSrc);
+      expect(a.svg).toBeUndefined();
+      expect(b.svg).toBeUndefined();
+      expect(a.id).not.toEqual(b.id);
     }
   });
 
-  it("builds construction stages as incomplete shells, not only scaffolding overlays", () => {
+  it("crops generated neighboring artwork from affected direction assets", () => {
+    const harvester = unitSprite("harvester", palette, { facing: 2 });
+    const tank = unitSprite("tank", palette, { facing: 6 });
+    expect(harvester.imageCrop?.w).toBeLessThan(627);
+    expect(tank.imageCrop?.w).toBeLessThan(687);
+  });
+
+  it("selects directional unit views instead of rotating one raster", () => {
+    for (const kind of ["infantry", "harvester", "antiArmor", "tank"] as const) {
+      const views = Array.from({ length: 8 }, (_, facing) =>
+        unitSprite(kind, palette, { facing: facing as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 }),
+      );
+      expect(views.every((spec) => spec.rotation === undefined)).toBe(true);
+      expect(new Set(views.map((spec) => spec.imageSrc)).size).toBe(8);
+      expect(views[0]!.imageSrc).toMatch(/-right(?:-v[12])?\.png/);
+      expect(views[1]!.imageSrc).toContain("-front-right-v1.png");
+      expect(views[2]!.imageSrc).toMatch(/-front(?:-v1)?\.png/);
+      expect(views[3]!.imageSrc).toContain("-front-left-v1.png");
+      expect(views[4]!.imageSrc).toMatch(/-left(?:-v[12])?\.png/);
+      expect(views[5]!.imageSrc).toContain("-back-left-v1.png");
+      expect(views[6]!.imageSrc).toMatch(/-back(?:-v1)?\.png/);
+      expect(views[7]!.imageSrc).toContain("-back-right-v1.png");
+    }
+  });
+
+  it("ships every mapped directional raster with the application", () => {
+    for (const kind of UNIT_KINDS) {
+      for (const source of Object.values(UNIT_DIRECTION_ART[kind])) {
+        expect(existsSync(resolve(process.cwd(), "public", source.slice(1)))).toBe(true);
+      }
+    }
+  });
+
+  it("does not keep unused sleek-modular sprites in the asset bay", () => {
+    const used = new Set([
+      ...Object.values(SPRITE_ART).map((src) => basename(src)),
+      ...Object.values(UNIT_DIRECTION_ART).flatMap((views) => Object.values(views).map((src) => basename(src))),
+    ]);
+    const dir = resolve(process.cwd(), "public/art/sprites/sleek-modular");
+    for (const file of readdirSync(dir).filter((name) => name.endsWith(".png"))) {
+      expect(used.has(file), file).toBe(true);
+    }
+  });
+
+  it("fits rotated unit bounds without moving the contact anchor", () => {
+    const spec = unitSprite("infantry", palette, { facing: 3, variant: 11 });
+    const bounds = rotatedSpriteBounds(spec);
+    expect(bounds.width).toBe(spec.w);
+    expect(bounds.height).toBe(spec.h);
+    const scale = Math.min(420 / bounds.width, 280 / bounds.height) * 0.86;
+    const dx = (420 - bounds.width * scale) / 2 - bounds.minX * scale;
+    const dy = (280 - bounds.height * scale) / 2 - bounds.minY * scale;
+    expect(dx + bounds.minX * scale).toBeCloseTo((420 - bounds.width * scale) / 2, 5);
+    expect(dy + bounds.minY * scale).toBeCloseTo((280 - bounds.height * scale) / 2, 5);
+  });
+
+  it("keeps raster building art through construction and damage stages", () => {
     for (const kind of BUILDING_KINDS) {
       const foundation = buildingSprite(kind, palette, { constructionStage: 0, variant: 13 });
       const framed = buildingSprite(kind, palette, { constructionStage: 1, variant: 13 });
       const roofed = buildingSprite(kind, palette, { constructionStage: 2, variant: 13 });
       const finished = buildingSprite(kind, palette, { constructionStage: 3, variant: 13 });
-      expect(svgMarks(foundation.svg)).toBeLessThan(svgMarks(framed.svg));
-      expect(svgMarks(framed.svg)).toBeLessThan(svgMarks(roofed.svg));
-      expect(roofed.svg).not.toEqual(finished.svg);
+      const damaged = buildingSprite(kind, palette, { constructionStage: 3, damageStage: 1, variant: 13 });
+      const wrecked = buildingSprite(kind, palette, { constructionStage: 3, damageStage: 2, variant: 13 });
+      expect([foundation, framed, roofed, finished, damaged, wrecked].every((spec) => Boolean(spec.imageSrc))).toBe(true);
+      expect([foundation, framed, roofed, finished, damaged, wrecked].every((spec) => spec.svg === undefined)).toBe(true);
+      expect(new Set([foundation.id, framed.id, roofed.id, finished.id, damaged.id, wrecked.id]).size).toBe(6);
+      expect(foundation.imageReveal).toBeLessThan(framed.imageReveal ?? 1);
+      expect(framed.imageReveal).toBeLessThan(roofed.imageReveal ?? 1);
+      expect(roofed.imageReveal).toBeLessThan(finished.imageReveal ?? 1);
+      expect(finished.imageReveal).toBe(1);
+      expect(foundation.imageTint).not.toBe(finished.imageTint);
+      expect(foundation.imageTextureSrc).toMatch(/worn-panel/);
+      expect(finished.imageTextureSrc).toBeUndefined();
+      expect(foundation.shapes.length).toBeGreaterThan(0);
+      expect(finished.shapes).toEqual([]);
+      expect(damaged.imageTint).not.toBe(finished.imageTint);
+      expect(damaged.imageTextureSrc).toMatch(/worn-panel/);
+      expect(damaged.shapes.length).toBeGreaterThan(0);
+      expect(wrecked.shapes.length).toBeGreaterThan(damaged.shapes.length);
+      expect(wrecked.imageTint).not.toBe(damaged.imageTint);
     }
   });
 
-  it("paints wreckage and rubble as distinct deterministic sprites", () => {
+  it("paints wreckage and rubble from the live rasters with a scorched treatment", () => {
     for (const kind of UNIT_KINDS) {
+      const live = unitSprite(kind, palette, { facing: 2, variant: 11 });
       const a = wreckSprite(kind, palette);
       const b = wreckSprite(kind, palette);
       expect(a).toEqual(b);
+      expect(a.imageSrc).toBe(live.imageSrc);
+      expect(a.imageCrop).toEqual(live.imageCrop);
+      expect(a.svg).toBeUndefined();
+      expect(a.imageTint).not.toBe(live.imageTint);
+      expect(a.imageTextureSrc).toMatch(/worn-panel/);
+      expect(a.id).not.toBe(live.id);
       validateSpec(a);
     }
     for (const kind of BUILDING_KINDS) {
+      const live = buildingSprite(kind, palette, { variant: 13 });
       const a = rubbleSprite(kind, palette);
       const b = rubbleSprite(kind, palette);
       expect(a).toEqual(b);
+      expect(a.imageSrc).toBe(live.imageSrc);
+      expect(a.svg).toBeUndefined();
+      expect(a.imageTint).not.toBe(live.imageTint);
+      expect(a.imageTextureSrc).toMatch(/worn-panel/);
+      expect(a.id).not.toBe(live.id);
       validateSpec(a);
     }
     const wreckIds = new Set(UNIT_KINDS.map((kind) => wreckSprite(kind, palette).id));
@@ -220,70 +213,84 @@ describe("retro procedural assets", () => {
   it("plants unit sprites on a contact shadow at the feet", () => {
     for (const kind of UNIT_KINDS) {
       const spec = unitSprite(kind, palette, { facing: 0, variant: 11 });
+      if (spec.imageSrc) {
+        expect(spec.anchorY ?? spec.h).toBeGreaterThan(spec.h * 0.8);
+        expect(spec.anchorX).toBe(spec.w / 2);
+        expect(spec.anchorY).toBe(spec.h);
+        continue;
+      }
       const shadowY = Number(spec.svg?.match(/<ellipse cx="[\d.]+" cy="([\d.]+)"/)?.[1]);
       expect(shadowY).toBeCloseTo(spec.anchorY ?? spec.h, 0);
       expect(spec.anchorY ?? spec.h).toBeGreaterThan(spec.h * 0.8);
     }
   });
 
-  it("draws organic terrain and SVG military silhouettes", () => {
-    const grassSamples = Array.from({ length: 12 }, (_, variant) =>
-      tileSprite("clear", 1, { biome: "ash plains", variant, contour: "none" }),
-    );
-    const ellipseCounts = grassSamples.map((spec) => spec.shapes.filter((shape) => shape.type === "ellipse").length);
-    const grass = grassSamples[ellipseCounts.indexOf(Math.max(...ellipseCounts))]!;
-    expect(Math.max(...ellipseCounts)).toBeGreaterThan(5);
-    expect(Math.min(...ellipseCounts)).toBeLessThan(Math.max(...ellipseCounts));
-    expect(grass.shapes.some((shape) => shape.type === "poly" && (shape.points?.length ?? 0) > 8)).toBe(true);
-    const infantry = unitSprite("infantry", palette, { facing: 0, variant: 11 });
-    expect(infantry.svg).toContain("<path");
-    expect(infantry.svg).toContain("<ellipse");
-    const barracks = buildingSprite("barracks", palette, { variant: 13 });
-    expect(barracks.svg).toContain("<path");
-    expect(barracks.svg).toContain("#8b9288");
-    expect(barracks.svg).toContain("#2c322e");
-    const tank = unitSprite("tank", palette, { facing: 3, animationFrame: 2, variant: 4 });
-    expect(tank.svg).toContain("<path");
-    expect(tank.svg).toContain("#8b9288");
-    expect(tank.svg).toContain("#2c322e");
-  });
-
-  it("paints floor silhouettes that are not four-point diamonds", () => {
-    const grass = tileSprite("clear", 1, { biome: "ash plains", variant: 4, contour: "none" });
-    const floor = grass.shapes.find((shape) => shape.type === "poly");
-    expect((floor?.points?.length ?? 0) / 2).toBeGreaterThan(4);
-    expect(grass.w).toBeGreaterThan(64);
-    expect(grass.h).toBeGreaterThan(32);
-  });
-
-  it("offsets blocked props away from the tile center", () => {
-    const trees = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
-    const cx = trees.w / 2;
-    const trunks = trees.shapes.filter((shape) => shape.type === "ellipse" && shape.h >= 10);
-    expect(trunks.some((shape) => Math.abs(shape.x + shape.w / 2 - cx) > 3)).toBe(true);
-  });
-
   it("draws 1-step drops as hillsides without layer lines", () => {
     const face = elevationFace("south", 1, 64, 32, 16, 42);
     expect(face.cracks).toHaveLength(0);
-    expect(face.points.length / 2).toBeGreaterThan(4);
+    const verts = face.points.length / 2;
+    expect(verts).toBeGreaterThanOrEqual(8);
+    expect(verts).toBeLessThanOrEqual(12);
+    expect(verts).toBe(CLIFF_EDGE_SAMPLES * 2);
+    const startBotX = face.points[face.points.length - 2]!;
+    expect(startBotX).toBeGreaterThan(-32);
+    const botYs = face.points.filter((_, i) => i % 2 === 1).slice(CLIFF_EDGE_SAMPLES);
+    expect(new Set(botYs.map((y) => Math.round(y * 10) / 10)).size).toBeGreaterThan(1);
   });
 
-  it("draws steep cliffs as jagged faces instead of parallelograms", () => {
+  it("draws steep cliffs as jagged faces with strata, not cube-aligned quads", () => {
     const face = elevationFace("east", 2, 64, 32, 16, 7);
-    expect(face.points.length / 2).toBeGreaterThan(4);
-    expect(face.cracks.length).toBeGreaterThan(0);
+    expect(face.points.length / 2).toBe(CLIFF_EDGE_SAMPLES * 2);
+    expect(face.cracks.length).toBeGreaterThanOrEqual(1);
     const xs = face.points.filter((_, i) => i % 2 === 0);
     expect(new Set(xs.map((x) => Math.round(x))).size).toBeGreaterThan(2);
+  });
+
+  it("keeps shared cliff vertices sealed across adjacent tiles", () => {
+    const a = elevationFace("south", 2, 64, 32, 16, 1, { tileX: 4, tileY: 7 });
+    const b = elevationFace("south", 2, 64, 32, 16, 99, { tileX: 5, tileY: 7 });
+    const aSouth = cliffBottomNearSouth(a);
+    const bWest = cliffBottomNearStart(b);
+    expect(aSouth[0]).toBeCloseTo(bWest[0] + 32, 5);
+    expect(aSouth[1]).toBeCloseTo(bWest[1] + 16, 5);
+  });
+
+  it("adds a convex corner wedge only when both south and east drop", () => {
+    expect(cliffCornerWedge(64, 32, 16, 0, 2, 3, 4, 7)).toBeNull();
+    expect(cliffCornerWedge(64, 32, 16, 2, 0, 3, 4, 7)).toBeNull();
+    const wedge = cliffCornerWedge(64, 32, 16, 2, 2, 3, 4, 7);
+    expect(wedge).not.toBeNull();
+    expect(wedge!.length / 2).toBeGreaterThanOrEqual(5);
+    const both = tileCliffGeometry(64, 32, 16, 1, 2, 9, 3, 8);
+    expect(both.south).not.toBeNull();
+    expect(both.east).not.toBeNull();
+    expect(both.wedge).toEqual(cliffCornerWedge(64, 32, 16, 1, 2, 9, 3, 8));
+    const southTop = both.south!.points[(CLIFF_EDGE_SAMPLES - 1) * 2]!;
+    expect(southTop).not.toBeCloseTo(0);
   });
 
   it("gives finished buildings three-face industrial volumes, not cubic shells or sketches", () => {
     for (const kind of BUILDING_KINDS) {
       const spec = buildingSprite(kind, palette, { variant: 13 });
-      expect(spec.svg).toContain("#8b9288");
-      expect(spec.svg).toContain("#2c322e");
+      if (spec.imageSrc) {
+        expect(spec.imageSrc).toMatch(/\/art\/sprites\//);
+        continue;
+      }
+      expect(spec.svg).toContain("#9aabba");
+      expect(spec.svg).toContain("#26323d");
       expect(spec.svg).not.toMatch(/ [QC]/);
     }
+  });
+
+  it("measures the opaque box so sidebar previews can center the graphic", () => {
+    const width = 8;
+    const height = 6;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (const [x, y] of [[2, 1], [3, 1], [2, 2], [3, 2]] as const) {
+      data[(y * width + x) * 4 + 3] = 255;
+    }
+    expect(opaquePixelBounds(data, width, height)).toEqual({ minX: 2, minY: 1, width: 2, height: 2 });
+    expect(opaquePixelBounds(new Uint8ClampedArray(width * height * 4), width, height)).toBeUndefined();
   });
 });
 
@@ -291,15 +298,28 @@ function svgMarks(svg: string | undefined): number {
   return (svg?.match(/<(path|ellipse|line|polygon)\b/g) ?? []).length;
 }
 
-function validateSpec(spec: ReturnType<typeof tileSprite>): void {
+function cliffBottomNearSouth(face: { points: number[] }): [number, number] {
+  const i = CLIFF_EDGE_SAMPLES * 2;
+  return [face.points[i]!, face.points[i + 1]!];
+}
+
+function cliffBottomNearStart(face: { points: number[] }): [number, number] {
+  const i = face.points.length - 2;
+  return [face.points[i]!, face.points[i + 1]!];
+}
+
+function validateSpec(spec: { w: number; h: number; pixelScale?: number; anchorX?: number; anchorY?: number; kind: string; imageSrc?: string; svg?: string; shapes: Array<{ x: number; y: number; w: number; h: number; points?: number[] }> }): void {
   expect(spec.w).toBeGreaterThan(0);
   expect(spec.h).toBeGreaterThan(0);
   expect(spec.pixelScale).toBe(1);
   expect(spec.anchorX ?? spec.w / 2).toBeGreaterThanOrEqual(0);
   expect(spec.anchorY ?? spec.h).toBeGreaterThanOrEqual(0);
   if (spec.kind === "unit" || spec.kind === "building") {
-    expect(spec.svg).toMatch(/<svg /);
-    expect(svgMarks(spec.svg)).toBeGreaterThan(2);
+    if (spec.imageSrc) expect(spec.imageSrc).toMatch(/^\/art\/sprites\/.+\.png$/);
+    else {
+      expect(spec.svg).toMatch(/<svg /);
+      expect(svgMarks(spec.svg)).toBeGreaterThan(2);
+    }
   }
   for (const shape of spec.shapes) {
     for (const value of [shape.x, shape.y, shape.w, shape.h, ...(shape.points ?? [])]) {

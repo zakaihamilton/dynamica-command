@@ -8,7 +8,7 @@ export type KeyEventLike = {
   shiftKey?: boolean;
 };
 
-export type PauseView = "main" | "options" | "assets" | "upgrades";
+export type PauseView = "main" | "options" | "assets";
 
 export type GameCommand =
   | { type: "pause" }
@@ -38,7 +38,11 @@ export type MenuCommand =
   | { type: "randomize" }
   | { type: "back" };
 export type BriefingCommand = { type: "launch" } | { type: "skip" } | { type: "replay" };
-export type AssetsCommand = { type: "close" } | { type: "togglePlay" };
+export type AssetsCommand =
+  | { type: "close" }
+  | { type: "togglePlay" }
+  | { type: "prevAsset" }
+  | { type: "nextAsset" };
 
 export const SHORTCUT = {
   pause: "Esc",
@@ -129,7 +133,7 @@ export function gameCommandFromKey(
   }
 
   if (ctx.paused) {
-    if (ctx.pauseView === "assets" || ctx.pauseView === "upgrades") return null;
+    if (ctx.pauseView === "assets") return null;
     if (ctrl) return null;
     if (ctx.pauseView === "options") {
       if (isEscape(e)) return { type: "pauseBack" };
@@ -199,7 +203,10 @@ export function briefingCommandFromKey(
 }
 
 export function assetsCommandFromKey(e: KeyEventLike, ctx: { typing: boolean }): AssetsCommand | null {
-  if (ctx.typing || e.repeat || modified(e)) return null;
+  if (ctx.typing || modified(e)) return null;
+  if (e.key === "ArrowUp") return { type: "prevAsset" };
+  if (e.key === "ArrowDown") return { type: "nextAsset" };
+  if (e.repeat) return null;
   if (isEscape(e)) return { type: "close" };
   if (isSpace(e)) return { type: "togglePlay" };
   return null;

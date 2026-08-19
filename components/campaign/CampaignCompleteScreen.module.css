@@ -67,7 +67,7 @@
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
   margin: 1rem 0;
 }
@@ -150,26 +150,9 @@
   font-size: 0.85rem;
 }
 
-.mission p,
-.empty {
+.mission p {
   margin: 0.35rem 0 0;
   color: var(--chrome-muted);
-  font-size: 0.68rem;
-}
-
-.upgrades {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.upgrades li {
-  padding: 0.45rem 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 45%, var(--chrome-inset));
-  color: var(--chrome-cyan);
   font-size: 0.68rem;
 }
 
@@ -197,10 +180,6 @@
   .panel {
     max-height: calc(100dvh - 1rem);
     padding: 1rem;
-  }
-
-  .summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .missions {

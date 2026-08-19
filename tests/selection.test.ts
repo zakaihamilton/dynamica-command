@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { TILE_H, createCamera, tileToScreen } from "../lib/render/iso";
 import { pickEntity } from "../lib/render/pick";
+import { pickTile } from "../lib/render/renderer";
 import { issue, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { heightAt } from "../lib/sim/world";
+import { setHeight } from "../lib/sim/fixtures";
 
 describe("harvester selection", () => {
   it("selects a harvester from a click on its sprite body", () => {
@@ -57,5 +59,13 @@ describe("harvester selection", () => {
     const pos = tileToScreen(u.x, u.y, cam, heightAt(s, 5, 5));
     const hit = pickEntity(s, pos.x, pos.y + TILE_H / 4, cam);
     expect(hit?.id).toBe(u.id);
+  });
+
+  it("picks an elevated top surface instead of the cliff face below it", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    setHeight(s, 6, 6, 3);
+    const cam = createCamera();
+    const top = tileToScreen(6, 6, cam, heightAt(s, 6, 6));
+    expect(pickTile(s, top.x, top.y + TILE_H / 2, cam)).toEqual({ x: 6, y: 6 });
   });
 });

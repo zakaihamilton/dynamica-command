@@ -1,12 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { findPath } from "../lib/sim/pathfinding";
-import { TILE_BLOCKED, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
+import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
 import { issue, tick } from "../lib/sim/api";
-import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, unitAt } from "../lib/sim/world";
+import { groundOrders } from "../lib/sim/orders";
+import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, terrainAccess, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
 describe("pathfinding", () => {
+  it("shares explicit terrain access rules between movement and construction", () => {
+    const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    setTile(s, 2, 2, TILE_WATER);
+    setTile(s, 3, 2, TILE_BLOCKED);
+    setTile(s, 4, 2, TILE_RESOURCE, 500);
+    expect(terrainAccess(s, 2, 2)).toMatchObject({ traversable: false, buildable: false, label: "Water" });
+    expect(terrainAccess(s, 3, 2)).toMatchObject({ traversable: false, buildable: false, label: "Hard blocker" });
+    expect(terrainAccess(s, 4, 2)).toMatchObject({ traversable: true, buildable: false, label: "Ore field" });
+  });
+
   it("routes around a blocking building", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
     addBuilding(s, 0, "constructionYard", 0, 0);
@@ -30,6 +41,36 @@ describe("pathfinding", () => {
     expect(Math.round(u.y)).toBe(2);
   });
 
+  it("moves a combat unit onto an ore field", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setTile(s, 6, 2, TILE_RESOURCE, 500);
+    const u = addUnit(s, 0, "infantry", 2, 2);
+    issue(s, { type: "move", unitIds: [u.id], x: 6, y: 2 });
+    expect(u.path.some((p) => p.x === 6 && p.y === 2)).toBe(true);
+    for (let i = 0; i < 400; i++) tick(s);
+    expect(Math.round(u.x)).toBe(6);
+    expect(Math.round(u.y)).toBe(2);
+  });
+
+  it("orders combat units onto ore while selected harvesters gather", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setTile(s, 6, 2, TILE_RESOURCE, 500);
+    const infantry = addUnit(s, 0, "infantry", 2, 2);
+    const harvester = addUnit(s, 0, "harvester", 2, 3);
+    const commands = groundOrders(s, [infantry.id, harvester.id], 6, 2);
+    expect(commands).toEqual([
+      { type: "harvest", unitIds: [harvester.id], x: 6, y: 2 },
+      { type: "move", unitIds: [infantry.id], x: 6, y: 2 },
+    ]);
+    for (const command of commands) issue(s, command);
+    expect(infantry.path.some((p) => p.x === 6 && p.y === 2)).toBe(true);
+    expect(harvester.gatherX).toBe(6);
+    expect(harvester.gatherY).toBe(2);
+    expect(harvester.path.length).toBeGreaterThan(0);
+  });
+
   it("keeps two units from entering the same square", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
     addBuilding(s, 0, "constructionYard", 0, 0);
@@ -51,7 +92,6 @@ describe("pathfinding", () => {
 
     tick(s);
 
-    expect(infantry.blockedTicks).toBeGreaterThanOrEqual(1);
     expect(infantry.path[0]).not.toEqual({ x: Math.round(blocker.x), y: Math.round(blocker.y) });
     for (let i = 0; i < 500; i++) tick(s);
     expect(Math.round(infantry.x)).toBe(6);
@@ -74,7 +114,6 @@ describe("pathfinding", () => {
 
     tick(s);
 
-    expect(enemy.blockedTicks).toBeGreaterThanOrEqual(1);
     expect(enemy.path[0]).not.toEqual({ x: Math.round(blocker.x), y: Math.round(blocker.y) });
     for (let i = 0; i < 500; i++) tick(s);
     expect(Math.round(enemy.x)).toBe(6);
@@ -130,7 +169,9 @@ describe("pathfinding", () => {
     const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
     for (let y = 0; y < 8; y++) setHeight(s, 3, y, 3);
     const path = findPath(s, { x: 1, y: 2 }, { x: 5, y: 2 });
-    expect(path.length).toBe(0);
+    const last = path[path.length - 1];
+    expect(path.some((p) => p.x === 3)).toBe(false);
+    expect(last && last.x === 5 && last.y === 2).toBe(false);
   });
 
   it("uses a hill ramp to reach a mountain", () => {
@@ -150,6 +191,87 @@ describe("pathfinding", () => {
     expect(path.some((p) => p.x === 4 && p.y >= 1 && p.y < 7)).toBe(false);
     expect(canPlaceBuilding(s, "power", 4, 2)).toBe(false);
   });
+
+  it("plans through idle friendlies so a boxed unit still gets a path", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const mover = addUnit(s, 0, "infantry", 4, 4);
+    for (const [x, y] of [
+      [3, 3],
+      [4, 3],
+      [5, 3],
+      [3, 4],
+      [5, 4],
+      [3, 5],
+      [4, 5],
+      [5, 5],
+    ] as const) {
+      addUnit(s, 0, "infantry", x, y);
+    }
+    issue(s, { type: "move", unitIds: [mover.id], x: 9, y: 4 });
+    expect(mover.path.length).toBeGreaterThan(0);
+    for (let i = 0; i < 900; i++) tick(s);
+    expect(Math.round(mover.x)).toBe(9);
+    expect(Math.round(mover.y)).toBe(4);
+  });
+
+  it("does not cut a diagonal through a building corner", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "turret", 3, 2);
+    const path = findPath(s, { x: 2, y: 2 }, { x: 3, y: 3 });
+    expect(path.length).toBeGreaterThan(0);
+    expect(path[0]).not.toEqual({ x: 3, y: 3 });
+    const last = path[path.length - 1]!;
+    expect(last.x).toBe(3);
+    expect(last.y).toBe(3);
+  });
+
+  it("swaps when two units meet in a one-tile corridor", () => {
+    const s = makeFixture({ width: 14, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    for (let x = 4; x <= 9; x++) {
+      setTile(s, x, 2, TILE_BLOCKED);
+      setTile(s, x, 4, TILE_BLOCKED);
+    }
+    const a = addUnit(s, 0, "infantry", 3, 3);
+    const b = addUnit(s, 0, "infantry", 10, 3);
+    issue(s, { type: "move", unitIds: [a.id], x: 10, y: 3 });
+    issue(s, { type: "move", unitIds: [b.id], x: 3, y: 3 });
+    for (let i = 0; i < 900; i++) tick(s);
+    expect(Math.round(a.x)).toBe(10);
+    expect(Math.round(a.y)).toBe(3);
+    expect(Math.round(b.x)).toBe(3);
+    expect(Math.round(b.y)).toBe(3);
+  });
+
+  it("spreads a group move across unique nearby tiles", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const a = addUnit(s, 0, "infantry", 2, 2);
+    const b = addUnit(s, 0, "infantry", 2, 3);
+    issue(s, { type: "move", unitIds: [a.id, b.id], x: 7, y: 3 });
+    const endA = a.path[a.path.length - 1];
+    const endB = b.path[b.path.length - 1];
+    expect(endA).toBeTruthy();
+    expect(endB).toBeTruthy();
+    expect(endA).not.toEqual(endB);
+  });
+
+  it("keeps a stored formation when the next move omits one", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const a = addUnit(s, 0, "infantry", 2, 2);
+    const b = addUnit(s, 0, "infantry", 2, 3);
+    issue(s, { type: "formation", unitIds: [a.id, b.id], formation: "line" });
+    issue(s, { type: "move", unitIds: [a.id, b.id], x: 7, y: 3 });
+    expect(a.formation).toBe("line");
+    expect(b.formation).toBe("line");
+    const endA = a.path[a.path.length - 1]!;
+    const endB = b.path[b.path.length - 1]!;
+    expect(endA.x).toBe(endB.x);
+    expect(endA.y).not.toBe(endB.y);
+  });
 });
 
 describe("building footprints", () => {
@@ -168,6 +290,24 @@ describe("building footprints", () => {
     setHeight(s, 3, 2, 2);
     expect(canPlaceBuilding(s, "power", 2, 2)).toBe(false);
     expect(canPlaceBuilding(s, "power", 5, 5)).toBe(true);
+  });
+
+  it("rejects turrets and buildings on ore fields while leaving them walkable", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setTile(s, 6, 4, TILE_RESOURCE, 500);
+    setTile(s, 7, 4, TILE_RESOURCE, 500);
+    expect(canPlaceBuilding(s, "turret", 6, 4)).toBe(false);
+    expect(canPlaceBuilding(s, "power", 6, 4)).toBe(false);
+    expect(issue(s, { type: "build", building: "turret", x: 6, y: 4 })).toEqual([
+      { type: "commandRejected", reason: "invalid placement" },
+    ]);
+    expect(issue(s, { type: "build", building: "power", x: 6, y: 4 })).toEqual([
+      { type: "commandRejected", reason: "invalid placement" },
+    ]);
+    const path = findPath(s, { x: 5, y: 4 }, { x: 8, y: 4 });
+    expect(path.some((p) => p.x === 6 && p.y === 4)).toBe(true);
   });
 
   it("requires every new building, including turrets, to join the owner building network", () => {

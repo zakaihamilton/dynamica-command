@@ -2,16 +2,18 @@ import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, TICKS_PER_SECOND, UNIT_STATS, lab
 import { ProgressMeter } from "@/components/ui/ProgressMeter";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
-import type { BuildingKind, Entity, Palette, UnitKind } from "@/lib/types";
+import type { BuildingKind, Entity, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import { SpritePreview } from "./SpritePreview";
 import styles from "./SelectionPanel.module.css";
 
 export function SelectionPanel({
   selected,
   palette,
+  profile,
 }: {
   selected: Entity | undefined;
   palette: Palette;
+  profile: FactionVisualProfile;
 }) {
   return (
     <section className={styles.section}>
@@ -20,7 +22,7 @@ export function SelectionPanel({
         <div className={styles.body}>
           <div className={styles.row}>
             <div className={styles.portrait}>
-              <SpritePreview kind={selected.kind as BuildingKind | UnitKind} palette={palette} />
+              <SpritePreview kind={selected.kind as BuildingKind | UnitKind} palette={palette} profile={profile} />
             </div>
             <div>
               <strong
@@ -34,6 +36,8 @@ export function SelectionPanel({
               <span className={styles.stat}>HP {Math.ceil(selected.hp)} / {selected.maxHp}</span>
               {selected.neutral ? (
                 <span className={styles.warning} data-testid="selected-status">Stranded — cannot move until freed</span>
+              ) : selected.marked && selected.class === "unit" ? (
+                <span className={styles.warning} data-testid="selected-status">Cargo — return to extraction zone</span>
               ) : selected.class === "unit" ? <span className={styles.stat}>Stance {selected.stance ?? "aggressive"}</span> : null}
               {(selected.suppression ?? 0) > 0 ? <span className={styles.stat}>Suppressed {Math.ceil(selected.suppression ?? 0)}%</span> : null}
               {selected.kind === "harvester" ? (

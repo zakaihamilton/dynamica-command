@@ -135,8 +135,8 @@ function normalizeState(value: unknown): SimState {
     if (e.stance === undefined) e.stance = "aggressive";
     if (e.suppression === undefined) e.suppression = 0;
   }
-  if (!s.appliedUpgrades) s.appliedUpgrades = [];
   if (!s.aiState) s.aiState = "economy";
+  delete (s as { appliedUpgrades?: unknown }).appliedUpgrades;
   return s;
 }
 

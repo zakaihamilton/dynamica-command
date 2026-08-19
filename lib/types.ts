@@ -29,10 +29,6 @@ export type WeaponType = "smallArms" | "antiArmor" | "cannon";
 export type ArmorType = "light" | "heavy" | "structure";
 export type TutorialStage = "select" | "move" | "harvest" | "build" | "produce" | "attack" | "repair" | "complete";
 export type AiBehavior = "economy" | "defense" | "assault" | "retreat" | "regroup";
-export type UpgradeId =
-  | "logistics-cargo" | "logistics-drills" | "logistics-unload" | "logistics-cache"
-  | "arsenal-barrels" | "arsenal-plating" | "arsenal-targeting" | "arsenal-shock"
-  | "engineering-frames" | "engineering-grid" | "engineering-repair" | "engineering-fabrication";
 
 export type SecondaryObjective = {
   id: string;
@@ -51,10 +47,25 @@ export type MissionRuntime = {
   deadline?: number;
   rescued: number;
   required: number;
+  extractedIds?: number[];
   secondary: SecondaryObjective[];
 };
 
 export const RESCUE_CONTACT_RADIUS = 2.5;
+export const OBJECTIVE_ZONE_RADIUS = 6;
+
+export function inObjectiveZone(
+  x: number,
+  y: number,
+  zone: Vec2 | undefined,
+  radius = OBJECTIVE_ZONE_RADIUS,
+): boolean {
+  return !!zone && Math.hypot(x - zone.x, y - zone.y) <= radius;
+}
+
+export function missionUsesObjectiveZone(kind: MissionKind | undefined): boolean {
+  return kind === "escort" || kind === "extraction";
+}
 
 export type CampaignProgress = {
   version: 1;
@@ -64,8 +75,6 @@ export type CampaignProgress = {
   completedMissions: number[];
   medals: Record<string, number>;
   bestScores: Record<string, number>;
-  researchPoints: number;
-  upgrades: UpgradeId[];
 };
 
 export type WinCategory = {
@@ -153,6 +162,14 @@ export type FactionVisualProfile = {
   lightRig: "cyan" | "amber" | "red";
 };
 
+export type CampaignArtFamily = 0 | 1 | 2;
+
+export type CampaignVisualProfile = {
+  family: CampaignArtFamily;
+  terrainTreatment: "modular" | "armored" | "expeditionary";
+  terrainAccent: "cyan" | "amber" | "red";
+};
+
 export type Faction = {
   id: Owner;
   name: string;
@@ -222,6 +239,15 @@ export type ShapeSpec = {
   points?: number[];
 };
 
+export type SpriteCrop = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  sourceW: number;
+  sourceH: number;
+};
+
 export type SpriteSpec = {
   id: string;
   kind: "unit" | "building" | "tile";
@@ -230,6 +256,20 @@ export type SpriteSpec = {
   palette: Palette;
   shapes: ShapeSpec[];
   svg?: string;
+  /** A project-local pre-rendered sprite. Kept optional for deterministic procedural fallbacks. */
+  imageSrc?: string;
+  /** Seeded campaign-grade color treatment composited over a pre-rendered sprite. */
+  imageTint?: string;
+  /** Optional source-image crop used to remove adjacent artwork from generated raster assets. */
+  imageCrop?: SpriteCrop;
+  /** A subtle material plate composited into procedural terrain without replacing map geometry. */
+  imageTextureSrc?: string;
+  imageTextureOpacity?: number;
+  imageTextureOffset?: number;
+  /** How much of a raster, from the ground up, is visible. Used for building construction. */
+  imageReveal?: number;
+  /** Screen-space turn applied around the sprite anchor (used by raster units). */
+  rotation?: number;
   anchorX?: number;
   anchorY?: number;
   pixelScale?: number;
@@ -241,9 +281,12 @@ export type TileSpriteOptions = {
   biome?: BiomeName;
   variant?: number;
   edgeMask?: number;
+  /** Cardinal boundary mask for contiguous roads/pads; used to avoid cell-by-cell seams. */
+  surfaceMask?: number;
   surface?: SurfaceKind;
   resourceLevel?: number;
   contour?: TileContour;
+  campaignProfile?: CampaignVisualProfile;
 };
 
 export type AnimFrame = 0 | 1 | 2 | 3;
@@ -295,7 +338,6 @@ export type SimState = {
   missionName: string;
   missionKind?: MissionKind;
   runtime?: MissionRuntime;
-  appliedUpgrades?: UpgradeId[];
   tutorialStage?: TutorialStage;
   aiState?: AiBehavior;
 };

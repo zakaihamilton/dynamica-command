@@ -1,16 +1,10 @@
 import { BUILDING_KINDS, UNIT_KINDS, labelFor } from "../catalog";
-import { BIOMES } from "./names";
-import type { BiomeName } from "../types";
-
-const TILE_KINDS = ["clear", "water", "resource", "blocked"] as const;
 
 export type CatalogAsset = {
   id: string;
-  category: "unit" | "building" | "tile" | "wreck" | "rubble";
+  category: "unit" | "building" | "wreck" | "rubble";
   label: string;
   kind: string;
-  biome?: BiomeName;
-  tileKind?: (typeof TILE_KINDS)[number];
 };
 
 export function listGeneratedAssets(): CatalogAsset[] {
@@ -20,18 +14,6 @@ export function listGeneratedAssets(): CatalogAsset[] {
   }
   for (const kind of BUILDING_KINDS) {
     assets.push({ id: `building:${kind}`, category: "building", label: labelFor(kind), kind });
-  }
-  for (const biome of BIOMES) {
-    for (const tileKind of TILE_KINDS) {
-      assets.push({
-        id: `tile:${tileKind}:${biome}`,
-        category: "tile",
-        label: `${tileKind} · ${biome}`,
-        kind: tileKind,
-        biome,
-        tileKind,
-      });
-    }
   }
   for (const kind of UNIT_KINDS) {
     assets.push({ id: `wreck:${kind}`, category: "wreck", label: `${labelFor(kind)} wreck`, kind });

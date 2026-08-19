@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { EDGE_PAN_BAND, panDirFromPointer } from "../lib/render/camera";
+import { EDGE_PAN_BAND, EDGE_PAN_DELAY_MS, panDirFromPointer } from "../lib/render/camera";
 import { parseTooltipPos, placeTooltip, TOOLTIP_PAD, tooltipMaxBox } from "../lib/ui/tooltip";
 
 describe("edge pan from pointer", () => {
+  it("waits 250ms before activating edge scroll", () => {
+    expect(EDGE_PAN_DELAY_MS).toBe(250);
+  });
+
   it("returns null away from the rim so map clicks stay selectable", () => {
     expect(panDirFromPointer(200, 200, 800, 600)).toBeNull();
     expect(panDirFromPointer(EDGE_PAN_BAND + 1, 200, 800, 600)).toBeNull();

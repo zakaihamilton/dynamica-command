@@ -2,12 +2,15 @@ import {
   SURFACE_CONCRETE,
   SURFACE_ROAD,
   type BiomeName,
+  type CampaignVisualProfile,
   type Palette,
   type ShapeSpec,
   type SpriteSpec,
+  type SurfaceKind,
   type TileContour,
   type TileSpriteOptions,
 } from "../types";
+import { campaignProfileKey, generateCampaignVisualProfile } from "./visualProfile";
 
 export { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "./svgArt";
 
@@ -17,9 +20,9 @@ export const TILE_SPRITE_PAD_X = 4;
 export const TILE_SPRITE_PAD_Y = 4;
 const SPRITE_W = TW + TILE_SPRITE_PAD_X * 2;
 const SPRITE_H = TH + TILE_SPRITE_PAD_Y * 2;
-const INK = "#11130f";
+const INK = "#202a32";
 const ART_PIXEL_SCALE = 1;
-const TERRAIN_ART_REV = "cinematic5";
+const TERRAIN_ART_REV = "tactical-surface-v8-water-basin";
 
 function tileCx(): number {
   return TILE_SPRITE_PAD_X + TW / 2;
@@ -45,46 +48,20 @@ function line(x: number, y: number, x2: number, y2: number, stroke: string, widt
   return { type: "line", x, y, w: x2 - x, h: y2 - y, fill: "transparent", stroke, strokeWidth: width };
 }
 
-function jitter(seed: number, i: number, span: number): number {
-  return ((seed >>> ((i * 3) % 28)) % (span * 2 + 1)) - span;
-}
-
-function irregularIso(cx: number, cy: number, w: number, h: number, seed: number, out = 1): number[] {
+function irregularIso(cx: number, cy: number, w: number, h: number, _seed: number, out = 1): number[] {
   const hw = w / 2;
   const hh = h / 2;
-  const verts: Array<[number, number]> = [
-    [cx, cy - hh],
-    [cx + hw, cy],
-    [cx, cy + hh],
-    [cx - hw, cy],
+  const bevel = Math.max(1, out);
+  return [
+    cx, cy - hh,
+    cx + hw - bevel, cy - bevel * 0.45,
+    cx + hw, cy,
+    cx + hw - bevel, cy + bevel * 0.45,
+    cx, cy + hh,
+    cx - hw + bevel, cy + bevel * 0.45,
+    cx - hw, cy,
+    cx - hw + bevel, cy - bevel * 0.45,
   ];
-  const pts: number[] = [];
-  for (let i = 0; i < 4; i++) {
-    const a = verts[i]!;
-    const b = verts[(i + 1) % 4]!;
-    pushJittered(pts, a[0], a[1], cx, cy, seed, i * 4, 2);
-    pushJittered(pts, a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25, cx, cy, seed, i * 4 + 1, 3 + out);
-    pushJittered(pts, a[0] * 0.5 + b[0] * 0.5, a[1] * 0.5 + b[1] * 0.5, cx, cy, seed, i * 4 + 2, 4 + out);
-    pushJittered(pts, a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75, cx, cy, seed, i * 4 + 3, 3 + out);
-  }
-  return pts;
-}
-
-function pushJittered(
-  pts: number[],
-  x: number,
-  y: number,
-  cx: number,
-  cy: number,
-  seed: number,
-  i: number,
-  span: number,
-): void {
-  const dx = x - cx;
-  const dy = y - cy;
-  const len = Math.hypot(dx, dy) || 1;
-  const j = jitter(seed, i, span);
-  pts.push(Math.round(x + (dx / len) * j), Math.round(y + (dy / len) * j * 0.5));
 }
 
 function hash(n: number): number {
@@ -115,14 +92,14 @@ function mixHex(a: string, b: string, amount: number): string {
 }
 
 const TERRAIN: Record<BiomeName, [string, string, string, string]> = {
-  "ash plains": ["#4f5a43", "#3e4736", "#6a7558", "#2c3328"],
-  "crystal flats": ["#5a6a58", "#465448", "#7a8a72", "#313c34"],
-  "rust canyons": ["#7a5738", "#5c402c", "#9a7350", "#3a2a20"],
-  "salt marshes": ["#4a5c42", "#354636", "#657854", "#243028"],
-  "glass desert": ["#8c7856", "#6e5e46", "#ad9468", "#46382a"],
-  "tundra grid": ["#6e7c74", "#586468", "#8e9a90", "#3a4448"],
-  "jungle wreckage": ["#385236", "#283e28", "#547448", "#1a281c"],
-  "volcanic shelf": ["#4c4440", "#372f2c", "#6a5a50", "#221c1c"],
+  "ash plains": ["#586b5c", "#303d36", "#8b9e83", "#202b28"],
+  "crystal flats": ["#4f7772", "#2d4d4d", "#9ac8ba", "#1e3739"],
+  "rust canyons": ["#89553b", "#4c2a25", "#ba8051", "#2a1b1b"],
+  "salt marshes": ["#4f7059", "#2c4439", "#849d72", "#1e2e29"],
+  "glass desert": ["#a0855b", "#5b4934", "#d0b783", "#3a2a21"],
+  "tundra grid": ["#5f7f83", "#334c56", "#a8c9c6", "#1d3038"],
+  "jungle wreckage": ["#3d6544", "#203c29", "#67945b", "#13251b"],
+  "volcanic shelf": ["#624844", "#332326", "#9a7062", "#241719"],
 };
 
 const ORE = {
@@ -139,12 +116,12 @@ const ORE = {
   ink: "#2a220e",
 } as const;
 
-function terrainPalette(biome: BiomeName, elev: number): Palette {
+function terrainPalette(biome: BiomeName, elev: number, campaign: CampaignVisualProfile): Palette {
   const [base, dark, light, outline] = TERRAIN[biome];
   const tier = Math.max(0, Math.min(3, elev));
   const mid = tier === 2;
   const high = tier >= 3;
-  return {
+  const palette = {
     primary: high ? light : mid ? mixHex(base, light, 0.34) : tier === 0 ? dark : base,
     secondary: high ? base : mid ? mixHex(dark, base, 0.42) : dark,
     accent: light,
@@ -152,9 +129,71 @@ function terrainPalette(biome: BiomeName, elev: number): Palette {
     light: high ? mixHex(light, "#f4f1d8", 0.28) : mid ? mixHex(light, "#e7e2c2", 0.12) : light,
     dark,
   };
+  const campaignAccent = campaign.terrainAccent === "amber"
+    ? "#e7ae63"
+    : campaign.terrainAccent === "red"
+      ? "#d87868"
+      : "#79d5df";
+  if (campaign.family === 0) {
+    return { ...palette, accent: mixHex(palette.accent, campaignAccent, 0.64), outline: "#263640" };
+  }
+  if (campaign.family === 1) {
+    return { ...palette, primary: mixHex(palette.primary, "#67727e", 0.14), accent: mixHex(palette.accent, campaignAccent, 0.4), outline: "#222a31" };
+  }
+  return { ...palette, primary: mixHex(palette.primary, "#7e6a52", 0.16), accent: mixHex(palette.accent, campaignAccent, 0.58), outline: "#302a25" };
 }
 
-export function cliffFaces(biome: BiomeName, elev: number): {
+function terrainZonePalette(palette: Palette, variant: number): Palette {
+  // The high bits are supplied by the renderer from a coarse map coordinate.
+  // They let several neighboring tiles share a material drift while the low
+  // bits continue to provide local detail.
+  const zone = hash((variant >>> 8) + 173) % 7;
+  if (zone === 0) {
+    return {
+      ...palette,
+      primary: mixHex(palette.primary, palette.dark, 0.22),
+      secondary: mixHex(palette.secondary, palette.dark, 0.26),
+      light: mixHex(palette.light, palette.primary, 0.12),
+    };
+  }
+  if (zone === 1 || zone === 2) {
+    return {
+      ...palette,
+      primary: mixHex(palette.primary, palette.light, zone === 1 ? 0.18 : 0.12),
+      secondary: mixHex(palette.secondary, palette.primary, 0.18),
+    };
+  }
+  if (zone === 3) {
+    return {
+      ...palette,
+      primary: mixHex(palette.primary, palette.accent, 0.12),
+      secondary: mixHex(palette.secondary, palette.accent, 0.08),
+      outline: mixHex(palette.outline, "#152329", 0.26),
+    };
+  }
+  if (zone === 4) {
+    return {
+      ...palette,
+      primary: mixHex(palette.primary, palette.secondary, 0.2),
+      light: mixHex(palette.light, palette.accent, 0.1),
+    };
+  }
+  return palette;
+}
+
+export function terrainFieldPalette(
+  biome: BiomeName,
+  campaign: CampaignVisualProfile = generateCampaignVisualProfile(0),
+): { base: string; dark: string; light: string } {
+  const palette = terrainPalette(biome, 1, campaign);
+  return {
+    base: mixHex(palette.primary, palette.light, 0.22),
+    dark: mixHex(palette.dark, palette.primary, 0.28),
+    light: mixHex(palette.light, "#d0e2d4", 0.14),
+  };
+}
+
+export function cliffFaces(biome: BiomeName, elev: number, campaign = generateCampaignVisualProfile(0)): {
   south: string;
   east: string;
   southInk: string;
@@ -164,12 +203,15 @@ export function cliffFaces(biome: BiomeName, elev: number): {
   const tier = Math.max(0, Math.min(3, elev));
   const mid = tier === 2;
   const high = tier >= 3;
-  return {
+  const faces = {
     south: high ? dark : mid ? mixHex(outline, dark, 0.35) : outline,
     east: high ? base : mid ? mixHex(dark, base, 0.4) : dark,
     southInk: outline,
     eastInk: high ? dark : mid ? mixHex(outline, dark, 0.45) : outline,
   };
+  if (campaign.family === 0) return { ...faces, southInk: "#263640", eastInk: "#263640" };
+  if (campaign.family === 1) return { ...faces, south: mixHex(faces.south, "#3b4650", 0.2), east: mixHex(faces.east, "#3b4650", 0.16) };
+  return { ...faces, south: mixHex(faces.south, "#5b4635", 0.18), east: mixHex(faces.east, "#5b4635", 0.12) };
 }
 
 export type ElevationFace = {
@@ -177,9 +219,57 @@ export type ElevationFace = {
   cracks: number[][];
 };
 
-function faceJitter(seed: number, i: number, span: number): number {
-  const n = hash(seed + i * 101);
-  return (n % (span * 2 + 1)) - span;
+export type ElevationFaceOptions = {
+  tileX?: number;
+  tileY?: number;
+  chamferSouth?: number;
+};
+
+export type TileCliffGeometry = {
+  south: ElevationFace | null;
+  east: ElevationFace | null;
+  wedge: number[] | null;
+};
+
+/** Samples along a cliff edge, inclusive of both endpoints. */
+export const CLIFF_EDGE_SAMPLES = 5;
+const CLIFF_CORNER_CHAMFER = 0.22;
+
+function hash2(a: number, b: number, lane: number): number {
+  return hash(a * 73856093 + b * 19349663 + lane * 83492791);
+}
+
+function unitSigned(a: number, b: number, lane: number): number {
+  return hash2(a, b, lane) / 4294967295 * 2 - 1;
+}
+
+function vertexOffset(vx: number, vy: number, scale: number): [number, number] {
+  return [unitSigned(vx, vy, 1) * scale, unitSigned(vx, vy, 2) * scale * 1.2];
+}
+
+function faceOutward(side: "south" | "east", tw: number, th: number): [number, number] {
+  const mx = side === "south" ? -tw / 4 : tw / 4;
+  const my = th / 4;
+  const len = Math.hypot(mx, my) || 1;
+  return [mx / len, my / len];
+}
+
+function faceVertices(
+  side: "south" | "east",
+  tileX: number,
+  tileY: number,
+): { ax: number; ay: number; bx: number; by: number } {
+  if (side === "south") return { ax: tileX, ay: tileY + 1, bx: tileX + 1, by: tileY + 1 };
+  return { ax: tileX + 1, ay: tileY, bx: tileX + 1, by: tileY + 1 };
+}
+
+function nearSouthPoints(face: ElevationFace): { top: [number, number]; bot: [number, number] } {
+  const topI = (CLIFF_EDGE_SAMPLES - 1) * 2;
+  const botI = CLIFF_EDGE_SAMPLES * 2;
+  return {
+    top: [face.points[topI]!, face.points[topI + 1]!],
+    bot: [face.points[botI]!, face.points[botI + 1]!],
+  };
 }
 
 export function elevationFace(
@@ -189,65 +279,161 @@ export function elevationFace(
   th: number,
   heightStep: number,
   seed: number,
+  options: ElevationFaceOptions = {},
 ): ElevationFace {
+  const tileX = options.tileX ?? 0;
+  const tileY = options.tileY ?? 0;
+  const chamfer = Math.max(0, Math.min(0.45, options.chamferSouth ?? 0));
   const hillside = dropSteps <= 1;
-  const drop = dropSteps * heightStep * (hillside ? 0.86 : 1);
-  const inset = hillside ? heightStep * 0.4 : 0;
-  const jx = faceJitter(seed, 0, Math.max(2, Math.round(tw * 0.04)));
-  const jy = faceJitter(seed, 1, Math.max(1, Math.round(th * 0.06)));
-  const southTop: [number, number] = [jx, th + jy];
+  const drop = dropSteps * heightStep * (hillside ? 0.8 : 1);
+  const inset = hillside ? heightStep * 0.45 : heightStep * 0.08;
+  const southTop: [number, number] = [0, th];
   const westTop: [number, number] = [-tw / 2, th / 2];
   const eastTop: [number, number] = [tw / 2, th / 2];
   const topA = side === "south" ? westTop : eastTop;
-  const topB = southTop;
-  const botA: [number, number] = [
-    topA[0] + (side === "south" ? inset * 0.45 : -inset * 0.45) + faceJitter(seed, 2, 2),
-    topA[1] + drop - inset * 0.15 + faceJitter(seed, 3, 1),
-  ];
-  const botB: [number, number] = [
-    topB[0] + faceJitter(seed, 4, 2),
-    topB[1] + drop - inset * 0.2 + faceJitter(seed, 5, 1),
-  ];
+  const topB: [number, number] = chamfer > 0
+    ? [topA[0] + (southTop[0] - topA[0]) * (1 - chamfer), topA[1] + (southTop[1] - topA[1]) * (1 - chamfer)]
+    : southTop;
+  const verts = faceVertices(side, tileX, tileY);
+  const jitterScale = heightStep * 0.14;
+  const [adx, ady] = vertexOffset(verts.ax, verts.ay, jitterScale);
+  const [bdx, bdy] = vertexOffset(verts.bx, verts.by, jitterScale);
+  const [ox, oy] = faceOutward(side, tw, th);
+  const samples = CLIFF_EDGE_SAMPLES;
+  const tops: Array<[number, number]> = [];
+  const bots: Array<[number, number]> = [];
+  for (let i = 0; i < samples; i++) {
+    const t = i / (samples - 1);
+    const top: [number, number] = [
+      topA[0] + (topB[0] - topA[0]) * t,
+      topA[1] + (topB[1] - topA[1]) * t,
+    ];
+    const edge = i === 0 || i === samples - 1;
+    const jx = adx + (bdx - adx) * t;
+    const jy = ady + (bdy - ady) * t;
+    const wave = Math.sin(t * Math.PI);
+    const bulge = edge
+      ? 0
+      : wave * heightStep * (hillside ? 0.36 : 0.2)
+        + unitSigned(tileX, tileY, seed + 20 + i + (side === "south" ? 0 : 40)) * heightStep * (hillside ? 0.14 : 0.1);
+    const dropNudge = edge
+      ? unitSigned(i === 0 ? verts.ax : verts.bx, i === 0 ? verts.ay : verts.by, 7) * heightStep * 0.06
+      : unitSigned(tileX, tileY, seed + 70 + i) * heightStep * (hillside ? 0.12 : 0.07);
+    const along = -inset * (hillside ? 0.7 + wave * 0.5 : 1) + bulge;
+    tops.push(top);
+    bots.push([
+      top[0] + ox * along + jx,
+      top[1] + drop + dropNudge + oy * along * 0.55 + jy,
+    ]);
+  }
   const points: number[] = [];
-  const mids = hillside ? 1 : 3;
-  pushEdge(points, topA, topB, seed, 10, mids, tw * 0.02, th * 0.03);
-  pushEdge(points, topB, botB, seed, 20, mids, tw * 0.05, 0);
-  pushEdge(points, botB, botA, seed, 30, mids, tw * 0.02, th * 0.03);
-  pushEdge(points, botA, topA, seed, 40, mids, tw * 0.05, 0);
+  for (const top of tops) points.push(top[0], top[1]);
+  for (let i = bots.length - 1; i >= 0; i--) points.push(bots[i]![0], bots[i]![1]);
   const cracks: number[][] = [];
   if (!hillside) {
-    for (let i = 0; i < 2; i++) {
-      const t = 0.28 + i * 0.31 + faceJitter(seed, 50 + i, 8) / 80;
-      const u = t + 0.06 + faceJitter(seed, 60 + i, 6) / 80;
-      cracks.push([
-        topA[0] + (topB[0] - topA[0]) * t + faceJitter(seed, 70 + i, 2),
-        topA[1] + (topB[1] - topA[1]) * t,
-        botA[0] + (botB[0] - botA[0]) * u + faceJitter(seed, 80 + i, 3),
-        botA[1] + (botB[1] - botA[1]) * u,
-      ]);
+    const mid = Math.floor((samples - 1) / 2);
+    for (let i = 1; i < dropSteps; i++) {
+      const t = i / dropSteps;
+      const offset = unitSigned(tileX, tileY, seed + 50 + i) * heightStep * 0.08;
+      const column = (index: number): [number, number] => [
+        tops[index]![0] + (bots[index]![0] - tops[index]![0]) * t + offset,
+        tops[index]![1] + (bots[index]![1] - tops[index]![1]) * t,
+      ];
+      const a = column(0);
+      const m = column(mid);
+      const b = column(samples - 1);
+      cracks.push([a[0], a[1], m[0], m[1]]);
+      cracks.push([m[0], m[1], b[0], b[1]]);
+    }
+    const fissures = 1 + (hash2(tileX, tileY, seed + 90) % 2);
+    for (let f = 0; f < fissures; f++) {
+      const col = 1 + hash2(tileX, tileY, seed + 91 + f) % Math.max(1, samples - 2);
+      const t0 = 0.18 + (hash2(tileX, tileY, seed + 110 + f) % 20) / 100;
+      const t1 = Math.min(0.92, t0 + 0.42);
+      const x0 = tops[col]![0] + (bots[col]![0] - tops[col]![0]) * t0;
+      const y0 = tops[col]![1] + (bots[col]![1] - tops[col]![1]) * t0;
+      const x1 = tops[col]![0] + (bots[col]![0] - tops[col]![0]) * t1;
+      const y1 = tops[col]![1] + (bots[col]![1] - tops[col]![1]) * t1;
+      cracks.push([x0, y0, x1, y1]);
     }
   }
   return { points, cracks };
 }
 
-function pushEdge(
-  pts: number[],
-  a: [number, number],
-  b: [number, number],
+function cornerWedgePoints(
+  south: ElevationFace,
+  east: ElevationFace,
+  tw: number,
+  th: number,
+  heightStep: number,
+  dropE: number,
+  dropS: number,
+  tileX: number,
+  tileY: number,
+): number[] {
+  const s = nearSouthPoints(south);
+  const e = nearSouthPoints(east);
+  const southTop: [number, number] = [0, th];
+  const maxDrop = Math.max(dropE, dropS);
+  const hillside = maxDrop <= 1;
+  const drop = maxDrop * heightStep * (hillside ? 0.8 : 1);
+  const [osx, osy] = faceOutward("south", tw, th);
+  const [oex, oey] = faceOutward("east", tw, th);
+  let bx = osx + oex;
+  let by = osy + oey;
+  const len = Math.hypot(bx, by) || 1;
+  bx /= len;
+  by /= len;
+  const [jx, jy] = vertexOffset(tileX + 1, tileY + 1, heightStep * 0.14);
+  const out = heightStep * (hillside ? 0.22 : 0.32);
+  const cornerBot: [number, number] = [
+    southTop[0] + bx * out + jx,
+    southTop[1] + drop + by * out * 0.45 + jy,
+  ];
+  return [
+    s.top[0], s.top[1],
+    southTop[0], southTop[1],
+    e.top[0], e.top[1],
+    e.bot[0], e.bot[1],
+    cornerBot[0], cornerBot[1],
+    s.bot[0], s.bot[1],
+  ];
+}
+
+export function tileCliffGeometry(
+  tw: number,
+  th: number,
+  heightStep: number,
+  dropE: number,
+  dropS: number,
   seed: number,
-  salt: number,
-  mids: number,
-  jx: number,
-  jy: number,
-): void {
-  pts.push(a[0], a[1]);
-  for (let i = 1; i <= mids; i++) {
-    const t = i / (mids + 1);
-    pts.push(
-      a[0] + (b[0] - a[0]) * t + faceJitter(seed, salt + i, Math.max(1, Math.round(jx))),
-      a[1] + (b[1] - a[1]) * t + faceJitter(seed, salt + i + 17, Math.max(1, Math.round(jy))),
-    );
-  }
+  tileX = 0,
+  tileY = 0,
+): TileCliffGeometry {
+  const chamfer = dropE > 0 && dropS > 0 ? CLIFF_CORNER_CHAMFER : 0;
+  const south = dropS > 0
+    ? elevationFace("south", dropS, tw, th, heightStep, seed, { tileX, tileY, chamferSouth: chamfer })
+    : null;
+  const east = dropE > 0
+    ? elevationFace("east", dropE, tw, th, heightStep, seed, { tileX, tileY, chamferSouth: chamfer })
+    : null;
+  const wedge = south && east
+    ? cornerWedgePoints(south, east, tw, th, heightStep, dropE, dropS, tileX, tileY)
+    : null;
+  return { south, east, wedge };
+}
+
+export function cliffCornerWedge(
+  tw: number,
+  th: number,
+  heightStep: number,
+  dropE: number,
+  dropS: number,
+  seed: number,
+  tileX = 0,
+  tileY = 0,
+): number[] | null {
+  return tileCliffGeometry(tw, th, heightStep, dropE, dropS, seed, tileX, tileY).wedge;
 }
 
 export function drawElevationFaces(
@@ -261,25 +447,35 @@ export function drawElevationFaces(
   dropS: number,
   seed: number,
   colors: ReturnType<typeof cliffFaces>,
+  tileX = 0,
+  tileY = 0,
 ): void {
-  if (dropS > 0) {
-    const face = elevationFace("south", dropS, tw, th, heightStep, seed);
-    fillFace(ctx, originX, originY, face.points, colors.south);
-    strokeCracks(ctx, originX, originY, face.cracks, colors.southInk);
+  const geo = tileCliffGeometry(tw, th, heightStep, dropE, dropS, seed, tileX, tileY);
+  const shadowY = originY + Math.max(1, heightStep * 0.08);
+  if (geo.south) {
+    fillElevationPoly(ctx, originX, shadowY, geo.south.points, mixHex(colors.south, "#0d1519", 0.48));
+    fillElevationPoly(ctx, originX, originY, geo.south.points, colors.south);
+    strokeCracks(ctx, originX, originY, geo.south.cracks, colors.southInk);
   }
-  if (dropE > 0) {
-    const face = elevationFace("east", dropE, tw, th, heightStep, seed);
-    fillFace(ctx, originX, originY, face.points, colors.east);
-    strokeCracks(ctx, originX, originY, face.cracks, colors.eastInk);
+  if (geo.east) {
+    fillElevationPoly(ctx, originX, shadowY, geo.east.points, mixHex(colors.east, "#0d1519", 0.48));
+    fillElevationPoly(ctx, originX, originY, geo.east.points, colors.east);
+    strokeCracks(ctx, originX, originY, geo.east.cracks, colors.eastInk);
+  }
+  if (geo.wedge) {
+    const fill = mixHex(colors.south, colors.east, 0.42);
+    fillElevationPoly(ctx, originX, shadowY, geo.wedge, mixHex(fill, "#0d1519", 0.48));
+    fillElevationPoly(ctx, originX, originY, geo.wedge, fill);
   }
 }
 
-function fillFace(
+export function fillElevationPoly(
   ctx: CanvasRenderingContext2D,
   ox: number,
   oy: number,
   points: number[],
-  fill: string,
+  fill?: string,
+  stroke = false,
 ): void {
   if (points.length < 6) return;
   ctx.beginPath();
@@ -288,8 +484,9 @@ function fillFace(
     ctx.lineTo(ox + points[i]!, oy + points[i + 1]!);
   }
   ctx.closePath();
-  ctx.fillStyle = fill;
+  if (fill !== undefined) ctx.fillStyle = fill;
   ctx.fill();
+  if (stroke) ctx.stroke();
 }
 
 function strokeCracks(
@@ -333,32 +530,32 @@ export function tileSprite(
   const opts = typeof variantOrOptions === "number" ? { variant: variantOrOptions } : variantOrOptions;
   const biome = opts.biome ?? "ash plains";
   const variant = opts.variant ?? 0;
-  const v = hash(variant + elev * 17);
+  const campaign = opts.campaignProfile ?? generateCampaignVisualProfile(0);
+  const v = hash((variant & 0xff) + elev * 17);
   const contour = opts.contour ?? defaultContour(kind, elev);
   const floorElev = contour === "bank" || kind === "water" ? 0 : elev;
-  const p = terrainPalette(biome, floorElev);
+  const p = terrainZonePalette(terrainPalette(biome, floorElev, campaign), variant);
   const cx = tileCx();
   const cy = tileCy();
   const mask = opts.edgeMask ?? 0;
+  const surfaceMask = opts.surfaceMask ?? 15;
   const shapes: ShapeSpec[] = [];
 
-  paintFloor(shapes, biome, p, v, kind, contour);
-  if (opts.surface === SURFACE_ROAD) paintRoad(shapes, biome, v);
-  else if (opts.surface === SURFACE_CONCRETE) paintConcrete(shapes, biome, p, v);
+  paintFloor(shapes, biome, p, v, kind, contour, opts.surface, surfaceMask);
+  if (opts.surface === SURFACE_ROAD) paintRoad(shapes, biome, v, surfaceMask);
+  else if (opts.surface === SURFACE_CONCRETE) paintConcrete(shapes, biome, p, v, campaign, surfaceMask);
   else if (kind !== "water" && kind !== "resource") paintGroundCover(shapes, biome, p, v, contour);
 
-  if (kind === "water") {
+  if (kind === "water" && surfaceMask !== 0) {
     paintWater(shapes, biome, v, mask);
-  } else if (contour === "none" && mask) {
-    paintSoftBlend(shapes, mask, p, v);
   }
 
   if (contour === "ridge") paintRidge(shapes, biome, p, v, mask);
-  if (kind === "resource") paintOreField(shapes, biome, v, opts.resourceLevel ?? 4);
+  if (kind === "resource") paintOreField(shapes, biome, v, opts.resourceLevel ?? 4, surfaceMask === -1 || surfaceMask === 0);
   else if (kind === "blocked" && contour !== "ridge") paintBlocker(shapes, biome, p, v, cx, cy);
 
   return {
-    id: tileSpriteId(kind, elev, { ...opts, biome, variant, contour }),
+    id: tileSpriteId(kind, elev, { ...opts, biome, variant, contour, campaignProfile: campaign }),
     kind: "tile",
     w: SPRITE_W,
     h: SPRITE_H,
@@ -376,7 +573,8 @@ export function tileSpriteId(
   const biome = opts.biome ?? "ash plains";
   const variant = opts.variant ?? 0;
   const contour = opts.contour ?? defaultContour(kind, elev);
-  return `tile:${TERRAIN_ART_REV}:${kind}:${biome}:${elev}:${variant}:${opts.edgeMask ?? 0}:${opts.surface ?? 0}:${opts.resourceLevel ?? 0}:${contour}`;
+  const campaign = opts.campaignProfile ?? generateCampaignVisualProfile(0);
+  return `tile:${TERRAIN_ART_REV}:${kind}:${biome}:${campaignProfileKey(campaign)}:${elev}:${variant}:${opts.edgeMask ?? 0}:${opts.surfaceMask ?? 15}:${opts.surface ?? 0}:${opts.resourceLevel ?? 0}:${contour}`;
 }
 
 function paintFloor(
@@ -386,15 +584,24 @@ function paintFloor(
   v: number,
   kind: "clear" | "water" | "resource" | "blocked",
   contour: TileContour,
+  surface?: SurfaceKind,
+  surfaceMask?: number,
 ): void {
   const cx = tileCx();
   const cy = tileCy();
   const base = kind === "water" || contour === "bank" ? wetGround(biome) : p.primary;
-  shapes.push(poly(irregularIso(cx, cy, TW + 8, TH + 6, v, 5), base));
-  shapes.push(poly(irregularIso(cx + signed(v, 1, 4), cy + signed(v, 2, 2), 58, 26, v >> 1, 4), base));
+  const continuousBase = surfaceMask !== undefined
+    && (surfaceMask === -1 || (surfaceMask === 0 && (kind === "water" || kind === "resource")));
+  const engineered = surface === SURFACE_CONCRETE || surface === SURFACE_ROAD;
+  // Overlap the logical diamond so terrain reads as one field, not a mosaic.
+  if (!continuousBase && !engineered) shapes.push(poly(irregularIso(cx, cy, TW + 16, TH + 10, v, 3), base));
+  if (engineered) return;
+  if (!continuousBase) {
+    shapes.push(poly(irregularIso(cx + signed(v, 1, 3), cy + signed(v, 2, 1), 70, 30, v >> 1, 2), base));
+  }
   if (kind !== "water" && contour !== "bank") {
     const macroDensity = pick(v, 18, 6);
-    const patches = macroDensity < 2 ? 0 : macroDensity === 2 ? 2 : 3 + pick(v, 3, 5);
+    const patches = macroDensity < 2 ? 1 : 2 + pick(v, 3, 2);
     for (let i = 0; i < patches; i++) {
       const ox = signed(v, 10 + i, 12);
       const oy = signed(v, 40 + i, 5);
@@ -407,20 +614,43 @@ function paintFloor(
         shapes.push(ell(cx + ox - ew / 2, cy + oy - eh / 2, ew, eh, fill));
       }
     }
-    const specks = macroDensity < 3 ? 0 : 2 + pick(v, 149, 5);
+    if (pick(v, 238, 4) !== 0) {
+      const relief = pick(v, 239, 3);
+      const reliefFill = relief === 0
+        ? mixHex(p.secondary, p.dark, 0.32)
+        : relief === 1
+          ? mixHex(p.primary, p.light, 0.26)
+          : mixHex(p.accent, p.primary, 0.32);
+      shapes.push(poly(
+        irregularIso(
+          cx + signed(v, 240, 10),
+          cy + signed(v, 241, 4),
+          48 + pick(v, 242, 18),
+          14 + pick(v, 243, 8),
+          v >> 5,
+          2,
+        ),
+        reliefFill,
+      ));
+    }
+    const specks = macroDensity < 4 ? 1 : 2;
     for (let i = 0; i < specks; i++) {
       const ox = signed(v, 150 + i, 11);
       const oy = signed(v, 170 + i, 4);
       shapes.push(ell(cx + ox, cy + oy, 2 + pick(v, 190 + i, 3), 1 + pick(v, 200 + i, 2), i % 2 ? p.light : p.dark));
     }
   }
-  if (kind === "water" || contour === "bank") {
+  // Water banks are painted only at actual shore edges. Filling every water
+  // tile with sand made lakes read as a tiled slab instead of a continuous basin.
+  if (kind !== "water" && contour === "bank") {
     shapes.push(poly(irregularIso(cx + signed(v, 4, 3), cy + 1, 54, 24, v, 3), shoreSand(biome)));
     shapes.push(ell(cx - 12 + signed(v, 5, 6), cy - 2 + signed(v, 6, 2), 18 + pick(v, 7, 8), 8 + pick(v, 8, 4), shoreSand(biome)));
     shapes.push(ell(cx + 4 + signed(v, 9, 6), cy + 2 + signed(v, 10, 2), 16 + pick(v, 11, 8), 7 + pick(v, 12, 4), wetGround(biome)));
     shapes.push(poly(irregularIso(cx + signed(v, 13, 3), cy + 2, 40, 16, v >> 4, 2), wetGround(biome)));
   }
-  if (pick(v, 14, 4) === 0) shapes.push(ell(cx + signed(v, 15, 10), cy + signed(v, 16, 3), 8 + pick(v, 17, 6), 4, p.dark));
+  if (!continuousBase && pick(v, 14, 10) === 0) {
+    shapes.push(ell(cx + signed(v, 15, 10), cy + signed(v, 16, 3), 8 + pick(v, 17, 6), 4, p.dark));
+  }
 }
 
 function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number, contour: TileContour): void {
@@ -429,47 +659,38 @@ function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: 
   const dense = lush(biome);
   const dry = arid(biome);
   const density = pick(v, 260, 6);
-  const clumps = density < 2 ? 0 : density === 2 ? 1 : (dense ? 2 : dry ? 1 : 2) + pick(v, 1, dense ? 5 : 3);
+  const clumps = density < 3 ? 1 : dense ? 2 + pick(v, 1, 2) : 1 + pick(v, 1, 2);
   for (let i = 0; i < clumps; i++) {
     const ox = signed(v, 20 + i, 12);
     const oy = signed(v, 50 + i, 4);
     if (dry) {
       shapes.push(ell(cx + ox - 3, cy + oy, 6 + pick(v, 80 + i, 5), 3, i % 2 ? p.light : p.dark));
-      shapes.push(line(cx + ox - 4, cy + oy + 1, cx + ox + 4 + pick(v, 90 + i, 3), cy + oy + 2, i % 2 ? p.light : p.dark, 1));
     } else {
       shapes.push(ell(cx + ox - 2, cy + oy, 6 + pick(v, 80 + i, 6), 3 + pick(v, 90 + i, 2), i % 2 ? p.accent : p.dark));
       if (pick(v, 100 + i, 3) !== 0) shapes.push(ell(cx + ox, cy + oy - 1, 4 + pick(v, 110 + i, 3), 2, p.light));
     }
   }
-  const blades = density < 3 ? 0 : (dense ? 2 : contour === "ridge" ? 1 : 2) + pick(v, 3, 4);
-  for (let i = 0; i < blades; i++) {
-    const ox = signed(v, 120 + i, 11);
-    const oy = signed(v, 150 + i, 3);
-    const lean = pick(v, 180 + i, 2) === 0 ? 2 : -2;
-    shapes.push(line(cx + ox, cy + oy + 2, cx + ox + lean + signed(v, 190 + i, 1), cy + oy - 2 - pick(v, 200 + i, 3), i % 3 ? p.accent : p.light, 1));
+  if (density >= 4 && pick(v, 120, 5) === 0) {
+    const ox = signed(v, 121, 12);
+    const oy = signed(v, 122, 3);
+    shapes.push(ell(cx + ox - 5, cy + oy - 1, 10, 4, p.dark));
+    shapes.push(ell(cx + ox - 2, cy + oy - 2, 5, 2, p.light));
   }
-  if (dense && density >= 4 && pick(v, 4, 3) !== 2) {
+  if (dense && density >= 5 && pick(v, 4, 6) === 0) {
     pushBush(shapes, cx + signed(v, 5, 8), cy + signed(v, 6, 3), v, biome);
   }
-  if (pick(v, 7, 6) === 0) {
+  if (pick(v, 7, 14) === 0) {
     const lx = cx + signed(v, 8, 8);
     const ly = cy + signed(v, 9, 2);
-    shapes.push(line(lx - 5, ly, lx + 6, ly + 2, p.dark, 2));
-    shapes.push(line(lx - 4, ly - 1, lx + 4, ly + 1, p.secondary, 1));
+    shapes.push(ell(lx - 7, ly - 2, 14, 5, p.dark));
+    shapes.push(ell(lx - 3, ly - 2, 7, 2, p.secondary));
   }
-  if (contour === "ridge" || pick(v, 10, 5) === 0) {
+  if (contour === "ridge" || pick(v, 10, 12) === 0) {
     shapes.push(ell(cx + signed(v, 11, 6), cy + 2, 6 + pick(v, 12, 4), 3, p.dark));
     shapes.push(ell(cx + signed(v, 13, 6), cy + 1, 3 + pick(v, 14, 3), 2, p.light));
   }
-  if (density >= 4) {
-    for (let i = 0; i < 1 + pick(v, 15, 3); i++) {
-      const ox = signed(v, 210 + i, 10);
-      const oy = signed(v, 230 + i, 3);
-      shapes.push(ell(cx + ox, cy + oy + 1, 3 + pick(v, 250 + i, 3), 2, i % 2 ? p.secondary : p.dark));
-    }
-  }
-  if (density === 5 || pick(v, 261, 7) === 0) paintBiomeSignature(shapes, biome, p, v, cx, cy);
-  if (pick(v, 262, 10) === 0) paintBiomeLandmark(shapes, biome, p, v, cx, cy);
+  if (density >= 4 && pick(v, 261, 5) === 0) paintBiomeSignature(shapes, biome, p, v, cx, cy);
+  if (pick(v, 262, 8) === 0) paintBiomeLandmark(shapes, biome, p, v, cx, cy);
 }
 
 function paintBiomeLandmark(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number, cx: number, cy: number): void {
@@ -544,8 +765,8 @@ function paintBiomeSignature(shapes: ShapeSpec[], biome: BiomeName, p: Palette, 
     shapes.push(poly([cx + ox - 8, cy + oy + 3, cx + ox - 2, cy + oy - 4, cx + ox + 8, cy + oy + 2, cx + ox + 1, cy + oy + 4], "#262b2c", "#9a9d95", 1));
     shapes.push(line(cx + ox - 2, cy + oy - 3, cx + ox + 5, cy + oy + 1, "#d0c4aa", 1));
   } else if (biome === "tundra grid") {
-    shapes.push(line(cx + ox - 9, cy + oy - 2, cx + ox + 8, cy + oy + 3, "#a7b7ba", 2));
-    shapes.push(line(cx + ox - 8, cy + oy, cx + ox + 7, cy + oy + 4, "#46545a", 1));
+    shapes.push(poly([cx + ox - 9, cy + oy + 1, cx + ox - 4, cy + oy - 4, cx + ox + 8, cy + oy - 1, cx + ox + 2, cy + oy + 3], "#718f94", "#46545a", 1));
+    shapes.push(ell(cx + ox - 3, cy + oy - 1, 7, 2, "#a7b7ba"));
   } else if (biome === "jungle wreckage") {
     shapes.push(line(cx + ox - 8, cy + oy, cx + ox + 8, cy + oy + 2, "#17271b", 2));
     shapes.push(ell(cx + ox - 5, cy + oy - 4, 8, 4, "#547448", INK));
@@ -567,24 +788,33 @@ function pushBush(shapes: ShapeSpec[], x: number, y: number, v: number, biome: B
   if (pick(v, 17, 2) === 0) shapes.push(ell(x + 1, y - 4, 4, 3, canopy.hi));
 }
 
-function paintRoad(shapes: ShapeSpec[], biome: BiomeName, v: number): void {
+function paintRoad(shapes: ShapeSpec[], biome: BiomeName, v: number, surfaceMask: number): void {
   const cx = tileCx();
   const cy = tileCy();
-  const dirt = biome === "tundra grid" ? "#5a605e" : biome === "volcanic shelf" ? "#4a4038" : "#6a5844";
-  const worn = biome === "tundra grid" ? "#747a76" : "#8a7354";
-  // Oversized fills overlap neighboring cells so a road reads as one field,
-  // with ruts and repairs appearing in clusters rather than on every tile.
-  shapes.push(poly(irregularIso(cx, cy, 68, 32, v, 3), dirt));
-  const detail = pick(v, 295, 5);
-  if (detail <= 1) {
-    shapes.push(poly(irregularIso(cx + signed(v, 296, 5), cy + signed(v, 297, 2), 34 + pick(v, 298, 18), 10, v >> 3, 2), worn));
-    shapes.push(line(14 + signed(v, 299, 5), 13, 54 + signed(v, 300, 4), 20, "#4a3c30", 2));
-  } else if (detail === 2) {
-    shapes.push(line(cx - 22, cy - 4, cx + 18, cy + 6, worn, 3));
-    shapes.push(line(cx - 20, cy - 2, cx + 16, cy + 7, "#3a3028", 1));
+  const dirt = biome === "tundra grid" ? "#344c54" : biome === "volcanic shelf" ? "#4a302d" : "#59483b";
+  const worn = biome === "tundra grid" ? "#789fa2" : biome === "volcanic shelf" ? "#a95b48" : "#9a7651";
+  // Oversized fills bridge neighboring logical cells. Interior cells are kept
+  // intentionally quiet; only the boundary of a route receives seams and
+  // repairs, so a road reads as one continuous strip instead of a tile puzzle.
+  const boundary = surfaceMask !== 0;
+  shapes.push(poly(irregularIso(cx, cy, boundary ? 92 : 108, boundary ? 44 : 54, v, 3), dirt));
+  if (boundary) {
+    const detail = pick(v, 295, 6);
+    if (detail <= 1) {
+      shapes.push(poly(irregularIso(cx + signed(v, 296, 5), cy + signed(v, 297, 2), 38 + pick(v, 298, 20), 10, v >> 3, 2), worn));
+      shapes.push(line(cx - 11, cy + 2, cx + 11, cy - 3, "#4a3c30", 1));
+    } else if (detail === 2) {
+      shapes.push(line(cx - 15, cy - 3, cx + 13, cy + 4, worn, 2));
+    }
+    if (biome === "tundra grid" && pick(v, 306, 3) === 0) {
+      shapes.push(line(cx - 19, cy + 4, cx + 17, cy - 4, "#b9d6d2", 1));
+      shapes.push(line(cx - 9, cy + 3, cx - 3, cy + 1, "#d7a956", 2));
+      shapes.push(line(cx + 5, cy, cx + 11, cy - 2, "#d7a956", 2));
+    }
+    if (pick(v, 304, 9) === 0) paintRoadLandmark(shapes, biome, v, cx, cy);
+  } else if (pick(v, 301, 9) === 0) {
+    shapes.push(ell(cx + signed(v, 302, 14) - 5, cy + signed(v, 303, 4) - 2, 10, 4, mixHex(dirt, worn, 0.4)));
   }
-  if (pick(v, 301, 7) === 0) shapes.push(ell(cx + signed(v, 302, 14), cy + signed(v, 303, 4), 7, 3, "#4a3c30"));
-  if (pick(v, 304, 7) === 0) paintRoadLandmark(shapes, biome, v, cx, cy);
 }
 
 function paintRoadLandmark(shapes: ShapeSpec[], biome: BiomeName, v: number, cx: number, cy: number): void {
@@ -607,7 +837,14 @@ function paintRoadLandmark(shapes: ShapeSpec[], biome: BiomeName, v: number, cx:
   }
 }
 
-function paintConcrete(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number): void {
+function paintConcrete(
+  shapes: ShapeSpec[],
+  biome: BiomeName,
+  p: Palette,
+  v: number,
+  campaign: CampaignVisualProfile,
+  surfaceMask: number,
+): void {
   const cx = tileCx();
   const cy = tileCy();
   const materials: Record<BiomeName, [string, string, string, string]> = {
@@ -616,38 +853,60 @@ function paintConcrete(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: num
     "rust canyons": ["#70503e", "#96684b", "#3e2d27", "#c58a5b"],
     "salt marshes": ["#45594e", "#657266", "#263a32", "#91a67d"],
     "glass desert": ["#83785f", "#aaa080", "#49463d", "#d1c49c"],
-    "tundra grid": ["#63757c", "#8d9da0", "#344850", "#c4d8d7"],
+    "tundra grid": ["#425f68", "#93c0c1", "#22343d", "#d4efea"],
     "jungle wreckage": ["#34483d", "#536256", "#1d3028", "#77916a"],
     "volcanic shelf": ["#373535", "#5a5250", "#1c1b1d", "#d36a3d"],
   };
-  const [base, hi, lo, accent] = materials[biome];
-  shapes.push(poly(irregularIso(cx, cy, 68, 32, v, 2), lo));
-
-  // Large slab fields replace the old repeated grey lozenge. Their seams remain
-  // readable at gameplay zoom and inherit the theater's local material language.
-  const split = 2 + pick(v, 301, 3);
-  const detail = pick(v, 310, 6);
-  const pattern = pick(v, 304, 3);
-  if (detail === 0 && pattern === 0) {
-    shapes.push(poly([cx, cy - 13, cx + 28, cy, cx + 2, cy + 3, cx - 12, cy - 4], base, lo, 1));
-    shapes.push(poly([cx - 12, cy - 4, cx + 2, cy + 3, cx, cy + 13, cx - 28, cy], hi, lo, 1));
-    shapes.push(poly([cx + 2, cy + 3, cx + 28, cy, cx, cy + 13], base, lo, 1));
-    if (pick(v, 305, 3) === 0) shapes.push(line(cx - 27, cy, cx, cy - 13, accent, 1));
-  } else if (detail === 0 && pattern === 1) {
-    shapes.push(poly(irregularIso(cx, cy, 48, 19, v >> 3, 1), base, lo, 1));
-    shapes.push(poly([cx - 24, cy, cx, cy - 10, cx + 6, cy - 6, cx - 17, cy + 3], hi, lo, 1));
-    shapes.push(line(cx - 17, cy + 3, cx + 18, cy - 6, lo, 1));
-    if (pick(v, 306, 4) === 0) shapes.push(line(cx - 7, cy - 7, cx + 18, cy, accent, 1));
-  } else if (detail === 0) {
-    shapes.push(poly([cx, cy - 13, cx + 28, cy, cx + 9, cy + 7, cx - 6, cy], hi, lo, 1));
-    shapes.push(poly([cx - 6, cy, cx + 9, cy + 7, cx, cy + 13, cx - 28, cy], base, lo, 1));
-    shapes.push(poly([cx - 22, cy - 3, cx - 7, cy - 10, cx + 5, cy - 5, cx - 6, cy], base, lo, 1));
-    if (pick(v, 307, 3) === 0) shapes.push(ell(cx + signed(v, 308, 12), cy + signed(v, 309, 4), 5, 3, accent, lo));
-  } else if (detail === 1) {
-    shapes.push(poly(irregularIso(cx + signed(v, 311, 7), cy + signed(v, 312, 3), 32 + pick(v, 313, 17), 12, v >> 4, 2), base));
+  const [rawBase, rawHi, rawLo, rawAccent] = materials[biome];
+  const base = mixHex(rawBase, p.primary, 0.14);
+  const hi = mixHex(rawHi, p.light, 0.14);
+  const lo = mixHex(rawLo, p.dark, 0.12);
+  const accent = mixHex(rawAccent, p.accent, 0.18);
+  // Concrete must read as a continuous deployment surface rather than a noisy
+  // checkerboard. Overlap every panel slightly and reserve seams for sparse,
+  // campaign-specific service markings.
+  // A deployment pad is a single continuous surface. Avoid dark bevels on
+  // every logical cell: they made the board read as a giant checkerboard.
+  const interior = surfaceMask === 0;
+  shapes.push(poly(irregularIso(cx, cy, interior ? 108 : 88, interior ? 54 : 43, v, 1), mixHex(base, lo, interior ? 0.06 : 0.12)));
+  const panel = pick(v, 307, 5);
+  if (!interior && panel >= 2) {
+    shapes.push(poly(
+      irregularIso(
+        cx + signed(v, 308, 5),
+        cy + signed(v, 309, 2),
+        56 + pick(v, 311, 18),
+        22 + pick(v, 312, 7),
+        v >> 3,
+        1,
+      ),
+      mixHex(base, panel === 4 ? hi : lo, panel === 4 ? 0.18 : 0.22),
+    ));
   }
-
-  if (pick(v, 314, 6) === 0) paintConcreteBiomeDetail(shapes, biome, v, cx, cy, split);
+  if (surfaceMask !== 0 && pick(v, 310, 11) <= 2) {
+    const seam = campaign.terrainTreatment === "expeditionary" ? hi : accent;
+    shapes.push(line(cx - 22 + signed(v, 313, 3), cy + 5, cx + 20, cy - 5 + signed(v, 314, 2), seam, panel === 4 ? 2 : 1));
+    if (pick(v, 316, 3) === 0) {
+      shapes.push(line(cx - 17, cy + 6, cx + 14, cy - 2, mixHex(seam, lo, 0.42), 1));
+    }
+  }
+  if (pick(v, 317, interior ? 18 : 8) <= (interior ? 1 : 3)) {
+    paintConcreteBiomeDetail(shapes, biome, v, cx, cy, 2);
+  }
+  if (pick(v, 318, interior ? 17 : 7) === 0) {
+    shapes.push(ell(
+      cx + signed(v, 319, 18) - 7,
+      cy + signed(v, 320, 5) - 2,
+      14 + pick(v, 321, 13),
+      4 + pick(v, 322, 4),
+      mixHex(lo, base, 0.32),
+    ));
+  }
+  if (surfaceMask !== 0 && pick(v, 323, 11) === 0) {
+    const hazard = campaign.terrainAccent === "red" ? "#d87868" : "#d5a64e";
+    shapes.push(line(cx - 13, cy + 5, cx - 5, cy + 2, hazard, 2));
+    shapes.push(line(cx - 3, cy + 1, cx + 5, cy - 2, hazard, 2));
+  }
 }
 
 function paintConcreteBiomeDetail(
@@ -715,56 +974,22 @@ function paintConcreteBiomeDetail(
   }
 }
 
-function paintSoftBlend(shapes: ShapeSpec[], mask: number, p: Palette, v: number): void {
-  const cx = tileCx();
-  const cy = tileCy();
-  if (mask & 1) {
-    shapes.push(ell(cx - 16 + signed(v, 1, 3), cy - 14 + signed(v, 2, 2), 18 + pick(v, 3, 8), 9 + pick(v, 4, 4), p.dark));
-    shapes.push(ell(cx - 2 + signed(v, 5, 3), cy - 12 + signed(v, 6, 2), 14 + pick(v, 7, 6), 7 + pick(v, 8, 3), p.secondary));
-  }
-  if (mask & 2) {
-    shapes.push(ell(cx + 2 + signed(v, 9, 3), cy - 12 + signed(v, 10, 2), 18 + pick(v, 11, 8), 9 + pick(v, 12, 4), p.dark));
-    shapes.push(ell(cx + 8 + signed(v, 13, 3), cy - 4 + signed(v, 14, 2), 12 + pick(v, 15, 6), 7 + pick(v, 16, 3), p.secondary));
-  }
-  if (mask & 4) {
-    shapes.push(ell(cx + 2 + signed(v, 17, 3), cy + 4 + signed(v, 18, 2), 18 + pick(v, 19, 8), 9 + pick(v, 20, 4), p.secondary));
-    shapes.push(ell(cx + 6 + signed(v, 21, 3), cy + 2, 12 + pick(v, 22, 6), 6 + pick(v, 23, 3), p.dark));
-  }
-  if (mask & 8) {
-    shapes.push(ell(cx - 20 + signed(v, 24, 3), cy + 2 + signed(v, 25, 2), 18 + pick(v, 26, 8), 9 + pick(v, 27, 4), p.secondary));
-    shapes.push(ell(cx - 14 + signed(v, 28, 3), cy - 2, 12 + pick(v, 29, 6), 6 + pick(v, 30, 3), p.dark));
-  }
-  if (mask & 16) shapes.push(ell(cx + 8 + signed(v, 31, 2), cy - 12, 10 + pick(v, 32, 5), 6 + pick(v, 33, 3), p.dark));
-  if (mask & 32) shapes.push(ell(cx + 10 + signed(v, 34, 2), cy + 4, 10 + pick(v, 35, 5), 6 + pick(v, 36, 3), p.secondary));
-  if (mask & 64) shapes.push(ell(cx - 18 + signed(v, 37, 2), cy + 4, 10 + pick(v, 38, 5), 6 + pick(v, 39, 3), p.secondary));
-  if (mask & 128) shapes.push(ell(cx - 16 + signed(v, 40, 2), cy - 12, 10 + pick(v, 41, 5), 6 + pick(v, 42, 3), p.dark));
-}
-
 function paintWater(shapes: ShapeSpec[], biome: BiomeName, v: number, mask: number): void {
   const cx = tileCx();
   const cy = tileCy();
   const deep = waterDeep(biome);
   const mid = waterMid(biome);
   const hi = waterHi(biome);
-  shapes.push(poly(irregularIso(cx, cy, 52, 20, v, 4), deep));
-  shapes.push(poly(irregularIso(cx + ((v >> 4) % 5) - 2, cy - 1, 34, 12, v >> 4, 3), mid));
-  shapes.push(poly(irregularIso(cx - 3 + ((v >> 8) % 5), cy + 2, 24, 9, v >> 7, 2), mid));
-  const fx = ((v >> 3) % 13) - 6;
-  const fy = ((v >> 7) % 7) - 3;
-  const ax = ((v >> 11) % 7) - 3;
-  const ay = ((v >> 14) % 5) - 2;
-  shapes.push(line(cx - 8 + fx, cy - 1 + fy, cx + 4 + fx + ax, cy + 3 + fy + ay, hi, 1));
-  if ((v & 3) !== 1) {
-    const gx = ((v >> 9) % 11) - 5;
-    const gy = ((v >> 5) % 5) - 2;
-    shapes.push(line(cx + gx, cy + gy, cx + gx + 8 - ax, cy + gy + 2 + ay, hi, 1));
+  // Oversized fills bridge neighboring water cells so lakes read as one basin.
+  shapes.push(poly(irregularIso(cx, cy, 108, 54, v, 2), deep));
+  shapes.push(poly(irregularIso(cx, cy - 1, 96, 46, v, 2), mixHex(deep, mid, 0.55)));
+  const flow = signed(v, 72, 6);
+  for (let i = 0; i < 2; i++) {
+    const y = cy - 6 + i * 8 + signed(v, 73 + i, 1);
+    const x = cx - 18 + i * 10 + flow;
+    shapes.push(line(x, y, x + 16, y + 5, i === 0 ? mixHex(mid, hi, 0.45) : hi, 1));
   }
-  if ((v & 2) === 0) shapes.push(ell(cx - 6 + (v % 7), cy + fy, 9, 3, hi));
-  shapes.push(ell(cx + 4 - ((v >> 2) % 6), cy + 2 + fy, 7, 2, hi));
   if (mask) paintBanks(shapes, biome, mask, v);
-  else if ((v & 5) === 0) {
-    shapes.push(line(cx - 10 + fx, cy + 1, cx - 2 + fx, cy - 2 + ay, foam(biome), 1));
-  }
 }
 
 function paintBanks(shapes: ShapeSpec[], biome: BiomeName, mask: number, v: number): void {
@@ -817,7 +1042,7 @@ function paintRidge(shapes: ShapeSpec[], biome: BiomeName, p: Palette, v: number
   }
 }
 
-function paintOreField(shapes: ShapeSpec[], biome: BiomeName, v: number, level: number): void {
+function paintOreField(shapes: ShapeSpec[], biome: BiomeName, v: number, level: number, continuous = false): void {
   const cx = tileCx();
   const cy = tileCy();
   const n = Math.max(1, Math.min(4, level));
@@ -827,15 +1052,19 @@ function paintOreField(shapes: ShapeSpec[], biome: BiomeName, v: number, level: 
         : biome === "volcanic shelf" ? "#2c1e1a"
           : biome === "jungle wreckage" ? "#2a3c22"
             : ORE.stainLo;
-  const density = pick(v, 401, 5);
-  shapes.push(poly(irregularIso(cx, cy + 1, 68, 32, v, 3), fieldTint));
-  if (density >= 2) shapes.push(poly(irregularIso(cx - 2, cy, 38 + density * 3, 14 + density, v >> 3, 2), ORE.stain));
-  if (density >= 3) shapes.push(ell(cx - 13, cy - 3, 20 + density * 2, 8 + density, ORE.stainHi));
-  if (density === 4) shapes.push(ell(cx + 7, cy + 2, 20, 9, ORE.stainLo));
-  for (let i = 0; i < 1 + density; i++) {
-    const ox = ((v >> (i * 3)) % 23) - 11;
-    const oy = ((v >> (i * 2 + 2)) % 9) - 4;
-    shapes.push(ell(cx + ox - 3, cy + oy, 8, 3, i % 2 ? ORE.stainHi : ORE.stainLo));
+  const density = 1 + pick(v, 401, 4);
+  // Low mineral seams keep the resource readable while leaving it visibly
+  // traversable for harvesters and infantry.
+  if (!continuous) {
+    shapes.push(poly(irregularIso(cx, cy + 1, 76, 36, v, 2), fieldTint));
+    shapes.push(poly(irregularIso(cx, cy, 66, 29, v, 2), mixHex(fieldTint, ORE.stain, 0.54)));
+  }
+  for (let i = 0; i < density; i++) {
+    const ox = -16 + i * 11 + signed(v, 404 + i, 2);
+    const oy = 4 - i * 5 + signed(v, 410 + i, 2);
+    const seam = 10 + pick(v, 416 + i, 7);
+    shapes.push(line(cx + ox, cy + oy, cx + ox + seam, cy + oy - Math.max(2, Math.round(seam * 0.28)), ORE.south, 3));
+    shapes.push(line(cx + ox + 1, cy + oy - 1, cx + ox + seam - 1, cy + oy - Math.max(3, Math.round(seam * 0.28)) - 1, ORE.lit, 1));
   }
 
   const slots: Array<[number, number, number, number]> = [
@@ -850,82 +1079,26 @@ function paintOreField(shapes: ShapeSpec[], biome: BiomeName, v: number, level: 
   const picked = slots
     .map((slot, i) => ({ slot, order: slot[1]! * 8 + slot[0]!, mix: hash(v + i * 19) }))
     .sort((a, b) => a.mix - b.mix)
-    .slice(0, 1 + Math.floor(n / 2) + Math.floor(density / 2))
+    .slice(0, 1 + Math.floor(n / 2))
     .sort((a, b) => a.order - b.order);
 
   for (let i = 0; i < picked.length; i++) {
     const [ox, oy, rw, zh] = picked[i]!.slot;
     const seed = hash(v + i * 31);
     const width = rw + (seed % 3) - 1;
-    const z = zh + (seed % 3);
-    pushOreChunk(shapes, cx + ox, cy + oy, width, Math.max(3, Math.round(width * 0.48)), z, seed);
-    if (n >= 2 && i >= picked.length - Math.min(2, n - 1)) {
-      pushOreSpike(shapes, cx + ox + ((seed >> 3) % 3) - 1, cy + oy - z + 1, 3 + (seed % 2), 6 + (seed % 5), seed);
-    }
+    const z = Math.min(zh + (seed % 2), 6);
+    const x = cx + ox;
+    const y = cy + oy;
+    const half = Math.max(3, Math.round(width * 0.38));
+    // Deposit nodes stay below vehicle silhouette height; they are resources,
+    // not miniature mountains or movement blockers.
+    shapes.push(poly([x - half, y, x, y - z, x + half, y, x, y + Math.max(2, half * 0.42)], ORE.top, ORE.ink, 1));
+    shapes.push(poly([x - half, y, x, y + Math.max(2, half * 0.42), x, y + Math.max(2, half * 0.42) + 2, x - half, y + 2], ORE.south, ORE.ink, 1));
+    shapes.push(line(x - half + 1, y - 1, x - 1, y - z + 1, ORE.lit, 1));
   }
 
-  for (let i = 0; i < 1 + n; i++) {
-    const ox = ((v >> (i * 4 + 1)) % 23) - 11;
-    const oy = ((v >> (i * 3 + 2)) % 9) - 4;
-    shapes.push(ell(cx + ox, cy + oy + 1, 2 + (i % 2), 1 + (i % 2), i % 2 ? ORE.glint : ORE.south));
-  }
-  if (pick(v, 402, 4) !== 0) return;
-  if (biome === "crystal flats") {
-    pushOreSpike(shapes, cx - 13, cy + 1, 4, 13, v ^ 0x51f15e);
-    shapes.push(line(cx - 12, cy - 10, cx - 9, cy - 3, "#a9fff0", 1));
-  } else if (biome === "rust canyons") {
-    shapes.push(line(cx - 21, cy + 4, cx + 20, cy - 5, "#b65d2e", 3));
-    shapes.push(line(cx - 18, cy + 3, cx + 17, cy - 4, ORE.glint, 1));
-  } else if (biome === "jungle wreckage" || biome === "salt marshes") {
-    shapes.push(line(cx - 22, cy + 2, cx + 19, cy - 4, "#37562e", 2));
-    shapes.push(ell(cx - 19, cy - 5, 10, 5, "#557747", INK));
-  } else if (biome === "tundra grid") {
-    shapes.push(poly([cx - 19, cy + 4, cx - 12, cy - 9, cx - 7, cy + 2], "#8cc7c8", "#283c42", 1));
-  } else if (biome === "volcanic shelf") {
-    shapes.push(line(cx - 20, cy - 2, cx + 18, cy + 3, "#e05b2f", 2));
-  }
-}
-
-function pushOreChunk(shapes: ShapeSpec[], x: number, y: number, rw: number, rh: number, zh: number, seed: number): void {
-  const w = Math.max(4, rw);
-  const h = Math.max(2, rh);
-  const z = Math.max(3, zh);
-  const jx = ((seed >> 3) % 3) - 1;
-  const jy = ((seed >> 5) % 3) - 1;
-  shapes.push(ell(x - w, y - 1, w * 2, h + 3, "rgba(18,14,8,0.42)"));
-  shapes.push(poly([
-    x - w, y,
-    x, y + h,
-    x, y + h - z,
-    x - w, y - z,
-  ], ORE.south, ORE.ink, 1));
-  shapes.push(poly([
-    x + w, y,
-    x, y + h,
-    x, y + h - z,
-    x + w, y - z,
-  ], ORE.east, ORE.ink, 1));
-  shapes.push(poly([
-    x + jx, y - h - z + jy,
-    x + w, y - z,
-    x, y + h - z,
-    x - w, y - z,
-  ], ORE.top, ORE.ink, 1));
-  shapes.push(poly([
-    x + jx, y - h - z + jy,
-    x + w * 0.4, y - z - 1,
-    x + 1, y - z + h * 0.25,
-  ], ORE.lit));
-}
-
-function pushOreSpike(shapes: ShapeSpec[], x: number, y: number, w: number, h: number, seed: number): void {
-  const lean = ((seed >> 2) % 5) - 2;
-  const tipx = x + lean;
-  const tipy = y - h;
-  shapes.push(poly([x - w * 0.45, y, tipx, tipy, x, y + 1], ORE.stainLo, ORE.ink, 1));
-  shapes.push(poly([x, y + 1, tipx, tipy, x + w * 0.55, y], ORE.crystal, ORE.ink, 1));
-  shapes.push(poly([tipx, tipy, x + w * 0.2, y - 1, x + 0.4, y - h * 0.35], ORE.crystalLit));
-  shapes.push(line(tipx, tipy + 1, x + 0.4, y - 1, ORE.glint, 1));
+  shapes.push(line(cx - 20, cy + 8, cx + 20, cy - 8, ORE.ink, 1));
+  shapes.push(line(cx - 18, cy + 8, cx + 18, cy - 7, ORE.glint, 1));
 }
 
 function paintBlocker(
@@ -936,73 +1109,19 @@ function paintBlocker(
   cx: number,
   cy: number,
 ): void {
-  const useTrees = biome === "jungle wreckage" || biome === "salt marshes" || biome === "ash plains"
-    || biome === "crystal flats" || (biome === "tundra grid" && pick(v, 1, 2) === 0);
-  if (useTrees) {
-    const count = lush(biome) ? 1 + pick(v, 2, 3) : 1;
-    for (let i = 0; i < count; i++) {
-      const ox = count === 1
-        ? (signed(v, 3, 7) || 5) * (pick(v, 19, 2) === 0 ? -1 : 1)
-        : i === 0 ? -7 + pick(v, 4, 6) : 6 - pick(v, 5, 6);
-      const oy = count === 1
-        ? signed(v, 6, 4)
-        : i === 0 ? 2 - pick(v, 7, 5) : pick(v, 8, 5) - 3;
-      if (i === count - 1 && pick(v, 9, 6) === 0) pushStump(shapes, cx + ox, cy + oy, v + i * 13, p);
-      else pushTree(shapes, cx + ox, cy + oy, v + i * 9, biome);
-    }
-    if (pick(v, 10, 5) === 0) {
-      pushRocks(shapes, cx + signed(v, 11, 6), cy + 3 + signed(v, 12, 2), v, p);
-    }
-  } else {
-    pushRocks(shapes, cx + signed(v, 3, 6), cy + signed(v, 4, 3), v, p);
-  }
-}
-
-function pushTree(shapes: ShapeSpec[], x: number, y: number, v: number, biome: BiomeName): void {
-  const canopy = canopyColors(biome);
-  const trunk = biome === "tundra grid" ? "#4a4038" : "#3c2a1c";
-  const trunkHi = biome === "tundra grid" ? "#6a6058" : "#6a4c32";
-  const slim = biome === "tundra grid";
-  const scale = slim ? 0.92 : 0.78 + pick(v, 4, 8) / 14;
-  const flip = pick(v, 5, 2) === 0 ? -1 : 1;
-  const lean = signed(v, 6, 3);
-  const cw = (slim ? 13 : 15 + pick(v, 7, 7)) * scale;
-  const ch = (slim ? 11 : 8 + pick(v, 8, 5)) * scale;
-  const trunkH = Math.max(10, (11 + pick(v, 9, 5)) * scale);
-  const trunkW = Math.max(4, (4 + pick(v, 10, 3)) * scale);
-  shapes.push(ell(x - cw / 2 + 1, y + 2, cw - 1, 5, "rgba(10,12,8,0.4)"));
-  shapes.push(ell(x - trunkW / 2 + lean * 0.2, y - trunkH + 5, trunkW, trunkH, trunk, INK));
-  shapes.push(line(x + lean * 0.3, y - trunkH + 7, x + lean * 0.15, y + 2, trunkHi, 1));
-  if (pick(v, 11, 2) === 0) shapes.push(line(x - 1, y - 3, x - 4 * flip + lean, y - 8, trunk, 1));
-  shapes.push(ell(x - cw / 2 - 2 * flip + lean, y - 15 * scale, cw * 0.62, ch, canopy.dark, INK));
-  shapes.push(ell(x - cw / 2 + 4 * flip + lean, y - 17 * scale, cw * 0.7, ch + 1, canopy.dark, INK));
-  shapes.push(ell(x - cw / 2 + 1 + lean, y - 18 * scale, cw - 4, Math.max(4, ch - 2), canopy.mid));
-  shapes.push(ell(x - 2 + lean + flip, y - 16 * scale, slim ? 5 : 5 + pick(v, 12, 4), 4, canopy.hi));
-}
-
-function pushStump(shapes: ShapeSpec[], x: number, y: number, v: number, p: Palette): void {
-  shapes.push(ell(x - 5, y + 2, 10, 4, "rgba(12,10,8,0.35)"));
-  shapes.push(ell(x - 3, y - 2, 6, 7, "#3c2a1c", INK));
-  shapes.push(ell(x - 2, y - 3, 4, 3, "#6a4c32"));
-  if (pick(v, 1, 2) === 0) shapes.push(line(x + 2, y - 1, x + 6, y - 5, "#3c2a1c", 1));
-  shapes.push(ell(x + 5, y + 3, 5, 3, p.dark));
-}
-
-function pushRocks(shapes: ShapeSpec[], cx: number, cy: number, v: number, p: Palette): void {
-  const jx = signed(v, 1, 3);
-  const jy = signed(v, 2, 2);
-  shapes.push(ell(cx - 8 + pick(v, 3, 5), cy + 2, 10 + pick(v, 4, 5), 5 + pick(v, 5, 3), "rgba(12,10,8,0.35)"));
-  shapes.push(poly([
-    cx - 8 + jx, cy + 3,
-    cx - 2, cy - 3 - pick(v, 6, 3),
-    cx + 5 + jx, cy + 1,
-    cx + 3, cy + 5 + jy,
-    cx - 6, cy + 6,
-  ], p.secondary, INK, 1));
-  shapes.push(poly([cx - 2, cy - 3 - pick(v, 6, 3), cx + 5 + jx, cy + 1, cx + 1, cy + 2], p.light));
-  shapes.push(ell(cx + 6 + signed(v, 7, 3), cy + 3, 6 + pick(v, 8, 4), 3 + pick(v, 9, 2), p.dark, INK));
-  shapes.push(ell(cx + 7, cy + 2, 3 + pick(v, 10, 3), 2, p.light));
-  if (pick(v, 11, 3) === 0) shapes.push(ell(cx - 2, cy + 5, 4 + pick(v, 12, 3), 3, p.dark));
+  // A blocker is deliberately a solid tactical object, never visual noise.
+  // Its dark base and amber hazard cap make impassability legible at a glance.
+  const ox = signed(v, 3, 5);
+  const oy = signed(v, 4, 2);
+  const body = biome === "volcanic shelf" ? "#473331" : biome === "glass desert" ? "#675947" : mixHex(p.secondary, p.dark, 0.38);
+  const side = mixHex(body, "#171d20", 0.48);
+  const top = mixHex(p.light, "#a5b2ad", 0.28);
+  shapes.push(ell(cx - 17 + ox, cy + 2 + oy, 34, 10, "rgba(8, 12, 14, 0.42)"));
+  shapes.push(poly([cx - 17 + ox, cy + 2 + oy, cx + 16 + ox, cy + 2 + oy, cx + 12 + ox, cy + 9 + oy, cx - 13 + ox, cy + 9 + oy], side, INK, 1));
+  shapes.push(poly([cx - 14 + ox, cy + 2 + oy, cx - 4 + ox, cy - 12 + oy, cx + 15 + ox, cy - 2 + oy, cx + 11 + ox, cy + 4 + oy, cx - 12 + ox, cy + 5 + oy], body, INK, 1));
+  shapes.push(poly([cx - 4 + ox, cy - 12 + oy, cx + 15 + ox, cy - 2 + oy, cx + 8 + ox, cy, cx - 8 + ox, cy - 7 + oy], top, INK, 1));
+  shapes.push(line(cx - 7 + ox, cy - 4 + oy, cx + 6 + ox, cy + 2 + oy, "#d6a94d", 2));
+  shapes.push(line(cx - 4 + ox, cy - 7 + oy, cx + 9 + ox, cy - 1 + oy, "#f1cc69", 1));
 }
 
 type Edge = { bit: number; a: [number, number]; b: [number, number] };

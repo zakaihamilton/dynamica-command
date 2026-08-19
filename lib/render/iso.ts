@@ -6,6 +6,7 @@ export type Camera = {
 
 export const TILE_W = 64;
 export const TILE_H = 32;
+// Restore readable cliff depth so plateaus and ridges separate from plains.
 export const HEIGHT_STEP = 22;
 
 export function createCamera(): Camera {
@@ -42,4 +43,28 @@ export function cameraViewQuad(
     screenToGroundTile(screenW, screenH, cam),
     screenToGroundTile(0, screenH, cam),
   ];
+}
+
+export function expandIsoDiamond(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  overlap: number,
+): { x: number; y: number; w: number; h: number } {
+  const nw = w * overlap;
+  const nh = h * overlap;
+  return { x, y: y - (nh - h) * 0.5, w: nw, h: nh };
+}
+
+/** Affine matrix mapping atlas cell (0,0)-(sw,sh) onto an isometric diamond. */
+export function isoAtlasTransform(
+  sx: number,
+  sy: number,
+  tw: number,
+  th: number,
+  sw: number,
+  sh: number,
+): [number, number, number, number, number, number] {
+  return [tw / (2 * sw), th / (2 * sw), -tw / (2 * sh), th / (2 * sh), sx, sy];
 }

@@ -1,13 +1,14 @@
 import type { CSSProperties } from "react";
 import { labelFor, type CameoStatus } from "@/lib/catalog";
 import { cx } from "@/lib/ui/cx";
-import type { BuildingKind, Palette, UnitKind } from "@/lib/types";
+import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import { SpritePreview } from "./SpritePreview";
 import styles from "./CommandCameo.module.css";
 
 export function CommandCameo({
   kind,
   palette,
+  profile,
   cost,
   disabled,
   active,
@@ -18,6 +19,7 @@ export function CommandCameo({
 }: {
   kind: BuildingKind | UnitKind;
   palette: Palette;
+  profile: FactionVisualProfile;
   cost: number;
   disabled?: boolean;
   active?: boolean;
@@ -49,7 +51,7 @@ export function CommandCameo({
         aria-keyshortcuts={shortcut}
       >
         <span className={styles.art}>
-          <SpritePreview kind={kind} palette={palette} className={styles.sprite} />
+          <SpritePreview kind={kind} palette={palette} profile={profile} className={styles.sprite} />
           {busy ? (
             <span
               className={cx(styles.progress, cameo.phase === "waiting" && styles.waiting)}

@@ -2,9 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { buildingSprite, unitSprite } from "@/lib/gen/assets";
-import { drawSprite, rasterize } from "@/lib/render/sprites";
+import { rasterize, spriteContentBounds } from "@/lib/render/sprites";
 import { cx } from "@/lib/ui/cx";
-import type { BuildingKind, Palette, UnitKind } from "@/lib/types";
+import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import styles from "./SpritePreview.module.css";
 
 const UNITS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank"];
@@ -12,10 +12,12 @@ const UNITS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank"];
 export function SpritePreview({
   kind,
   palette,
+  profile,
   className,
 }: {
   kind: BuildingKind | UnitKind;
   palette: Palette;
+  profile?: FactionVisualProfile;
   className?: string;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -28,16 +30,32 @@ export function SpritePreview({
     let raf = 0;
     let frame = 0;
     let last = 0;
+    let disposed = false;
     const paint = (animationFrame: 0 | 1 | 2 | 3) => {
       const spec = isUnit
-        ? unitSprite(kind as UnitKind, palette, { facing: 0, animationFrame })
-        : buildingSprite(kind as BuildingKind, palette);
+        ? unitSprite(kind as UnitKind, palette, { facing: 0, animationFrame, profile })
+        : buildingSprite(kind as BuildingKind, palette, { profile });
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const image = rasterize(spec);
-      const scale = Math.min(canvas.width / spec.w, canvas.height / spec.h) * 0.9;
-      const dw = Math.max(1, Math.round(spec.w * scale));
-      const dh = Math.max(1, Math.round(spec.h * scale));
-      drawSprite(ctx, spec, image, Math.round((canvas.width - dw) / 2), Math.round((canvas.height - dh) / 2), dw, dh);
+      const image = rasterize(spec, () => {
+        if (!disposed) paint(animationFrame);
+      });
+      const bounds = spriteContentBounds(image) ?? { minX: 0, minY: 0, width: image.width, height: image.height };
+      const scale = Math.min(canvas.width / bounds.width, canvas.height / bounds.height) * 0.86;
+      const dw = Math.max(1, Math.round(bounds.width * scale));
+      const dh = Math.max(1, Math.round(bounds.height * scale));
+      ctx.imageSmoothingEnabled = true;
+      if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(
+        image,
+        bounds.minX,
+        bounds.minY,
+        bounds.width,
+        bounds.height,
+        Math.round((canvas.width - dw) / 2),
+        Math.round((canvas.height - dh) / 2),
+        dw,
+        dh,
+      );
     };
     paint(0);
     if (!isUnit) return;
@@ -50,7 +68,10 @@ export function SpritePreview({
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [isUnit, kind, palette]);
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [isUnit, kind, palette, profile]);
   return <canvas ref={ref} width={80} height={56} className={cx(styles.canvas, className)} aria-hidden />;
 }

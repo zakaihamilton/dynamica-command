@@ -5,9 +5,10 @@
   flex: 1;
   overflow: hidden;
   background:
-    linear-gradient(rgba(2, 5, 8, 0.32), rgba(2, 5, 8, 0.58)),
+    radial-gradient(ellipse at 48% 42%, rgba(8, 14, 18, 0.28) 0%, rgba(5, 9, 12, 0.55) 58%, rgba(2, 4, 6, 0.78) 100%),
+    linear-gradient(rgba(2, 5, 8, 0.18), rgba(2, 5, 8, 0.42)),
     var(--scene-art) center / cover no-repeat,
-    var(--chrome-void);
+    #070c10;
   box-shadow: inset 0 0 0 2px var(--chrome-steel-lo), inset 0 0 42px rgba(0, 0, 0, 0.48);
 }
 
@@ -17,9 +18,8 @@
   touch-action: none;
   user-select: none;
   cursor: crosshair;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  filter: saturate(0.94) contrast(1.06);
+  image-rendering: auto;
+  filter: saturate(0.96) contrast(1.04);
 }
 
 .status {

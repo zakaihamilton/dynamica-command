@@ -46,6 +46,18 @@ export function facingVector(facing: Facing): { x: number; y: number } {
   return { x: Math.cos(angle), y: Math.sin(angle) * 0.52 };
 }
 
+export function unitMovementOffset(kind: UnitKind, frame: AnimFrame): { bobY: number; swayX: number } {
+  const infantry = kind === "infantry" || kind === "antiArmor";
+  const gait = [0, 1, 0, -1][frame] ?? 0;
+  return {
+    // Keep the unit's contact point close to the ground. Infantry gets a
+    // restrained step bob; tracked vehicles stay level and sell movement
+    // through their tread animation instead of hovering up and down.
+    bobY: infantry ? gait * 0.55 : 0,
+    swayX: infantry ? gait * 0.25 : 0,
+  };
+}
+
 export function unitPose(e: Entity): UnitPose {
   if (e.class !== "unit") return "idle";
   if (e.path.length > 0) return "move";
@@ -59,8 +71,14 @@ export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
   const pose = unitPose(e);
   if (pose === "move") {
     const frame = animFrame(t, 90, 4, e.id);
-    const infantry = e.kind === "infantry" || e.kind === "antiArmor";
-    return { pose, frame, bobY: infantry && frame % 2 !== 0 ? 1 : 0, swayX: 0, recoil: 0 };
+    const offset = unitMovementOffset(e.kind as UnitKind, frame);
+    return {
+      pose,
+      frame,
+      bobY: offset.bobY,
+      swayX: offset.swayX,
+      recoil: 0,
+    };
   }
   if (pose === "attack") {
     const recoil = attackRecoil(e);

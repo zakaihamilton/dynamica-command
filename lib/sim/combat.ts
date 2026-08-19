@@ -3,7 +3,6 @@ import type { ArmorType, BuildingKind, Entity, SimEvent, SimState, UnitKind, Wea
 import { findPath } from "./pathfinding";
 import { byId, closestApproach, distToEntity, living } from "./world";
 import { rngFromState, type Rng } from "../seed/rng";
-import { suppressionApplied, unitDamage, unitSight } from "./upgrades";
 
 const CELL = 8;
 
@@ -82,14 +81,14 @@ function closestEnemy(
   return best;
 }
 
-function acquire(state: SimState, grid: CombatGrid, e: Entity, threatsOnly = false): Entity | undefined {
+function acquire(grid: CombatGrid, e: Entity, threatsOnly = false): Entity | undefined {
   const { range } = statsFor(e);
-  const sight = e.class === "unit" ? unitSight(state, e.owner, e.kind as UnitKind) : BUILDING_STATS[e.kind as BuildingKind].sight;
+  const sight = e.class === "unit" ? UNIT_STATS[e.kind as UnitKind].sight : BUILDING_STATS[e.kind as BuildingKind].sight;
   return closestEnemy(grid, e, Math.max(range + 4, sight), threatsOnly);
 }
 
-function acquirePreferred(state: SimState, grid: CombatGrid, e: Entity): Entity | undefined {
-  return acquire(state, grid, e, true) ?? acquire(state, grid, e, false);
+function acquirePreferred(grid: CombatGrid, e: Entity): Entity | undefined {
+  return acquire(grid, e, true) ?? acquire(grid, e, false);
 }
 
 function pathDest(path: { x: number; y: number }[]): { x: number; y: number } | undefined {
@@ -135,19 +134,18 @@ function strike(
 ): void {
   if (e.cooldown > 0) return;
   const jitter = 0.85 + rng.next() * 0.3;
-  const baseDamage = e.class === "unit" ? unitDamage(state, e.owner, e.kind as UnitKind) : stats.damage;
-  const damage = baseDamage * jitter * damageMultiplier(stats.weapon, armorFor(target)) * heightMultiplier(state, e, target);
+  const damage = stats.damage * jitter * damageMultiplier(stats.weapon, armorFor(target)) * heightMultiplier(state, e, target);
   target.hp -= damage;
   e.cooldown = stats.cooldown;
   if (target.class === "unit") {
-    target.suppression = Math.min(100, (target.suppression ?? 0) + suppressionApplied(state, target.owner, stats.suppression));
+    target.suppression = Math.min(100, (target.suppression ?? 0) + stats.suppression);
   }
   if (stats.splashRadius > 0) {
     for (const splash of living(state)) {
       if (splash.id === target.id || splash.hp <= 0 || splash.owner === e.owner || splash.neutral) continue;
       if (Math.hypot(splash.x - target.x, splash.y - target.y) > stats.splashRadius) continue;
       splash.hp -= damage * 0.35;
-      if (splash.class === "unit") splash.suppression = Math.min(100, (splash.suppression ?? 0) + suppressionApplied(state, splash.owner, Math.round(stats.suppression * 0.35)));
+      if (splash.class === "unit") splash.suppression = Math.min(100, (splash.suppression ?? 0) + Math.round(stats.suppression * 0.35));
     }
   }
   if (target.hp > 0) return;
@@ -206,13 +204,13 @@ export function tickCombat(state: SimState): SimEvent[] {
     const inRangeThreat = e.stance === "hold" ? undefined : closestEnemy(grid, e, st.range, true);
     let target = inRangeThreat ?? (e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined);
     if (target && !isCombatThreat(target)) {
-      const threat = acquire(state, grid, e, true);
+      const threat = acquire(grid, e, true);
       if (threat) {
         target = threat;
         e.path = [];
       }
     }
-    if (!target && e.stance !== "hold") target = acquirePreferred(state, grid, e);
+    if (!target && e.stance !== "hold") target = acquirePreferred(grid, e);
     if (target) e.attackTarget = target.id;
     if (!target) continue;
 

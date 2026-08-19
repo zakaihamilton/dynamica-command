@@ -1,7 +1,6 @@
-import { footprintOf } from "../catalog";
+import { UNIT_STATS, footprintOf } from "../catalog";
 import type { BuildingKind, SimEvent, SimState, UnitKind } from "../types";
 import { frontTileNear, openTileNear, powerFor, trySpawnUnit } from "./world";
-import { unitBuildTicks } from "./upgrades";
 
 function isUnitProducer(kind: string): kind is "barracks" | "factory" {
   return kind === "barracks" || kind === "factory";
@@ -77,7 +76,7 @@ export function tickProduction(state: SimState): SimEvent[] {
         events.push({ type: "produced", owner: e.owner, kind });
         const next = e.queue.shift();
         e.producing = next
-          ? { kind: next, remaining: unitBuildTicks(state, e.owner, next) }
+          ? { kind: next, remaining: UNIT_STATS[next].buildTicks }
           : undefined;
       }
     }

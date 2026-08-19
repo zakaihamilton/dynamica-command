@@ -47,9 +47,11 @@
 
 .art {
   position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
-  min-height: 3.45rem;
+  aspect-ratio: 80 / 56;
   background: var(--chrome-void);
 }
 

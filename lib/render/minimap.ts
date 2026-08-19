@@ -1,6 +1,36 @@
-import type { Entity, SimState } from "../types";
-import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
+import { MAP_SKIRT } from "../gen/map";
+import {
+  missionUsesObjectiveZone,
+  OBJECTIVE_ZONE_RADIUS,
+  TILE_BLOCKED,
+  TILE_RESOURCE,
+  TILE_WATER,
+  type Entity,
+  type SimState,
+} from "../types";
 import { fogAt } from "../sim/fog";
+import { atlasPixelAtTile, fogTerrainGain, getTerrainAtlas, terrainColors } from "./terrainAtlas";
+
+const MINIMAP_RENDER_REV = "world-atlas-v2";
+
+export type MinimapRegion = "ground" | "elevation-mid" | "elevation-high" | "water" | "resource" | "blocked" | "road" | "concrete";
+
+export function minimapRegionForCell(state: SimState, x: number, y: number): MinimapRegion {
+  const i = y * state.width + x;
+  const surface = state.surfaces[i] ?? 0;
+  if (surface === 1) return "road";
+  if (surface === 2) return "concrete";
+  const tile = state.tiles[i];
+  if (tile === TILE_WATER) return "water";
+  if (tile === TILE_RESOURCE) return "resource";
+  if (tile === TILE_BLOCKED) return "blocked";
+  const elev = state.heights[i] ?? 1;
+  if (elev >= 3) return "elevation-high";
+  if (elev === 2) return "elevation-mid";
+  return "ground";
+}
+
+export { terrainColors };
 
 function entityColor(e: Entity, state: SimState): string {
   if (e.marked) return "#ffe066";
@@ -32,36 +62,48 @@ export function renderMinimap(
     ? `${view[0]!.x.toFixed(2)},${view[0]!.y.toFixed(2)}:${view[2] ? `${view[2].x.toFixed(2)},${view[2].y.toFixed(2)}` : ""}`
     : "";
   const palKey = `${state.factions[0]?.palette.primary ?? ""}:${state.factions[1]?.palette.primary ?? ""}`;
-  const key = `${state.seed}:${state.tick}:${state.result}:${w}x${h}:${viewKey}:${state.entities.length}:${palKey}`;
+  const key = `${MINIMAP_RENDER_REV}:${state.seed}:${state.tick}:${state.result}:${w}x${h}:${viewKey}:${state.entities.length}:${palKey}`;
   if (key === lastMinimapKey) return;
   lastMinimapKey = key;
-  ctx.fillStyle = "#0b0d10";
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  const atlas = getTerrainAtlas(state);
+  const colors = terrainColors(state.biome);
+  ctx.fillStyle = colors.low;
   ctx.fillRect(0, 0, w, h);
-  const sx = w / state.width;
-  const sy = h / state.height;
-  for (let y = 0; y < state.height; y++) {
-    for (let x = 0; x < state.width; x++) {
-      const fog = fogAt(state, x, y);
-      if (fog === 0) continue;
-      const t = state.tiles[y * state.width + x]!;
-      const elev = state.heights[y * state.width + x] ?? 1;
-      ctx.fillStyle =
-        t === TILE_WATER
-          ? "#1a3a55"
-          : t === TILE_RESOURCE
-            ? "#c4a040"
-            : t === TILE_BLOCKED
-              ? "#171b17"
-            : elev >= 3
-              ? "#6a5a48"
-              : elev === 2
-                ? "#3d4a30"
-                : elev <= 0
-                  ? "#1e2a1c"
-                  : "#2a3324";
-      ctx.fillRect(x * sx, y * sy, sx + 0.5, sy + 0.5);
+  if (atlas.canvas) {
+    const sx = MAP_SKIRT * atlas.cell;
+    const sy = MAP_SKIRT * atlas.cell;
+    const sw = state.width * atlas.cell;
+    const sh = state.height * atlas.cell;
+    ctx.drawImage(atlas.canvas, sx, sy, sw, sh, 0, 0, w, h);
+  } else {
+    const cellW = w / state.width;
+    const cellH = h / state.height;
+    const baked = atlas;
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        const [r, g, b] = atlasPixelAtTile(baked, x, y);
+        const gain = fogTerrainGain(fogAt(state, x, y));
+        ctx.fillStyle = `rgb(${Math.round(r * gain)},${Math.round(g * gain)},${Math.round(b * gain)})`;
+        ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+      }
     }
   }
+  if (atlas.canvas) {
+    const cellW = w / state.width;
+    const cellH = h / state.height;
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        const gain = fogTerrainGain(fogAt(state, x, y));
+        if (gain >= 0.98) continue;
+        ctx.fillStyle = `rgba(8,13,17,${1 - gain})`;
+        ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+      }
+    }
+  }
+  const sx = w / state.width;
+  const sy = h / state.height;
   for (const e of state.entities) {
     if (e.hp <= 0) continue;
     const fog = fogAt(state, Math.round(e.x), Math.round(e.y));
@@ -70,6 +112,22 @@ export function renderMinimap(
     const bw = e.class === "building" ? 6 : 3;
     const bh = e.class === "building" ? 6 : 3;
     ctx.fillRect(e.x * sx - 1, e.y * sy - 1, bw, bh);
+  }
+  const zone = state.runtime?.zone;
+  if (zone && missionUsesObjectiveZone(state.runtime?.kind)) {
+    ctx.strokeStyle = "#e8c86a";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(
+      zone.x * sx,
+      zone.y * sy,
+      Math.max(3, OBJECTIVE_ZONE_RADIUS * sx),
+      Math.max(3, OBJECTIVE_ZONE_RADIUS * sy),
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
   }
   if (view.length >= 2) {
     ctx.beginPath();

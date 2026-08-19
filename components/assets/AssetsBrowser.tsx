@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { buildingSprite, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
+import { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
 import { listGeneratedAssets } from "@/lib/gen/assetCatalog";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
-import { buildingAnim } from "@/lib/render/anim";
-import { drawSprite, rasterize } from "@/lib/render/sprites";
+import { buildingAnim, unitMovementOffset } from "@/lib/render/anim";
+import { drawSprite, rasterize, rotatedSpriteBounds } from "@/lib/render/sprites";
+import { paintUnitMovementFx } from "@/lib/render/unitMotion";
 import { assetsCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
@@ -93,7 +94,6 @@ export function AssetsBrowser({
   const [playing, setPlaying] = useState(true);
   const [construction, setConstruction] = useState<0 | 1 | 2 | 3>(3);
   const [damage, setDamage] = useState<0 | 1 | 2>(0);
-  const [variant, setVariant] = useState(4);
   const [designFamily, setDesignFamily] = useState<FactionVisualProfile["designFamily"]>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const profile = useMemo(() => ({ ...generateVisualProfile(421, 0), designFamily }), [designFamily]);
@@ -111,12 +111,28 @@ export function AssetsBrowser({
       const command = assetsCommandFromKey(e, { typing: isEditableTarget(e.target) });
       if (!command) return;
       e.preventDefault();
-      if (command.type === "close") onClose();
-      else setPlaying((v) => !v);
+      if (command.type === "close") {
+        onClose();
+        return;
+      }
+      if (command.type === "togglePlay") {
+        setPlaying((v) => !v);
+        return;
+      }
+      const index = assets.findIndex((a) => a.id === selectedId);
+      const from = index < 0 ? 0 : index;
+      const next = from + (command.type === "nextAsset" ? 1 : -1);
+      const nextId = assets[Math.min(assets.length - 1, Math.max(0, next))]?.id;
+      if (!nextId || nextId === selectedId) return;
+      setSelectedId(nextId);
+      setFacing(0);
+      setConstruction(3);
+      setDamage(0);
+      setPlaying(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [assets, onClose, selectedId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -138,22 +154,26 @@ export function AssetsBrowser({
                 profile,
               })
             : selected.category === "wreck"
-              ? wreckSprite(selected.kind as UnitKind, palette)
-              : selected.category === "rubble"
-                ? rubbleSprite(selected.kind as BuildingKind, palette)
-                : tileSprite(selected.tileKind ?? "clear", 1, {
-                    biome: selected.biome ?? "ash plains",
-                    variant,
-                    contour: selected.tileKind === "water" ? "bank" : "none",
-                  });
+              ? wreckSprite(selected.kind as UnitKind, palette, { profile })
+              : rubbleSprite(selected.kind as BuildingKind, palette, { profile });
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const image = rasterize(spec);
-      const scale = Math.min(canvas.width / spec.w, canvas.height / spec.h) * 0.86;
+      const bounds = rotatedSpriteBounds(spec);
+      const scale = Math.min(canvas.width / bounds.width, canvas.height / bounds.height) * 0.86;
       const dw = Math.max(1, Math.round(spec.w * scale));
       const dh = Math.max(1, Math.round(spec.h * scale));
-      const dx = Math.round((canvas.width - dw) / 2);
-      const dy = Math.round((canvas.height - dh) / 2);
-      drawSprite(ctx, spec, image, dx, dy, dw, dh);
+      const dx = Math.round((canvas.width - bounds.width * scale) / 2 - bounds.minX * scale);
+      const dy = Math.round((canvas.height - bounds.height * scale) / 2 - bounds.minY * scale);
+      const movement = selected.category === "unit"
+        ? unitMovementOffset(selected.kind as UnitKind, frame)
+        : null;
+      const renderDx = dx + (movement?.swayX ?? 0) * scale;
+      const renderDy = dy - (movement?.bobY ?? 0) * scale;
+      const groundY = dy + dh;
+      drawSprite(ctx, spec, image, renderDx, renderDy, dw, dh);
+      if (movement && selected.category === "unit") {
+        paintUnitMovementFx(ctx, selected.kind as UnitKind, renderDx, renderDy, dw, dh, groundY, scale, frame, 1);
+      }
       if (selected.category === "building") {
         paintOverlay(ctx, selected.kind as BuildingKind, canvas.width / 2, canvas.height / 2, Math.max(1, scale), now);
       }
@@ -169,7 +189,7 @@ export function AssetsBrowser({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [construction, damage, facing, palette, playing, profile, selected, variant]);
+  }, [construction, damage, facing, palette, playing, profile, selected]);
 
   if (!selected) return null;
 
@@ -196,13 +216,11 @@ export function AssetsBrowser({
           playing={playing}
           construction={construction}
           damage={damage}
-          variant={variant}
           designFamily={designFamily}
           onFacing={setFacing}
           onPlaying={() => setPlaying((v) => !v)}
           onConstruction={setConstruction}
           onDamage={setDamage}
-          onVariant={setVariant}
           onDesignFamily={setDesignFamily}
         />
       </div>

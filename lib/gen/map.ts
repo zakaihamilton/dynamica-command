@@ -70,6 +70,25 @@ function warpedFbm(x: number, y: number, salt: number): number {
   return fbm(x + wx, y + wy, salt);
 }
 
+function meanderingRoute(a: Vec2, b: Vec2, width: number, height: number, salt: number): Vec2[] {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const px = -dy / length;
+  const py = dx / length;
+  const bend = Math.min(width, height) * 0.12;
+  const points: Vec2[] = [a];
+  for (const t of [0.25, 0.5, 0.75]) {
+    const wave = (valueNoise(t * 9, salt * 0.001, salt + Math.round(t * 100)) * 2 - 1) * bend;
+    points.push({
+      x: Math.max(2, Math.min(width - 3, Math.round(a.x + dx * t + px * wave))),
+      y: Math.max(2, Math.min(height - 3, Math.round(a.y + dy * t + py * wave))),
+    });
+  }
+  points.push(b);
+  return points;
+}
+
 function inBounds(x: number, y: number, w: number, h: number): boolean {
   return x >= 0 && y >= 0 && x < w && y < h;
 }
@@ -215,6 +234,53 @@ function smoothWater(
   }
 }
 
+function pruneWaterIslands(tiles: number[], w: number, h: number, heights?: number[]): void {
+  const seen = new Uint8Array(tiles.length);
+  const components: number[][] = [];
+  const dirs: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const start = idx(x, y, w);
+      if (seen[start] || tiles[start] !== TILE_WATER) continue;
+      const component: number[] = [];
+      const queue = [start];
+      seen[start] = 1;
+      while (queue.length) {
+        const current = queue.pop()!;
+        component.push(current);
+        const cx = current % w;
+        const cy = Math.floor(current / w);
+        for (const [dx, dy] of dirs) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (!inBounds(nx, ny, w, h)) continue;
+          const next = idx(nx, ny, w);
+          if (seen[next] || tiles[next] !== TILE_WATER) continue;
+          seen[next] = 1;
+          queue.push(next);
+        }
+      }
+      components.push(component);
+    }
+  }
+
+  if (components.length === 0) return;
+  let largest = 0;
+  for (let i = 1; i < components.length; i++) {
+    if (components[i]!.length > components[largest]!.length) largest = i;
+  }
+  const minimumBlobSize = Math.max(4, Math.round(w * h * 0.0015));
+  const keepLargest = components[largest]!.length >= minimumBlobSize;
+  for (let i = 0; i < components.length; i++) {
+    if ((i === largest && keepLargest) || components[i]!.length >= minimumBlobSize) continue;
+    for (const cell of components[i]!) {
+      tiles[cell] = TILE_CLEAR;
+      if (heights) heights[cell] = 1;
+    }
+  }
+}
+
 function relaxHeights(heights: number[], tiles: number[], w: number, h: number): void {
   const next = heights.slice();
   for (let y = 0; y < h; y++) {
@@ -333,11 +399,17 @@ export function generateMap(
         tiles[i] = TILE_CLEAR;
         continue;
       }
-      const n = warpedFbm(x * 0.72, y * 0.72, salt);
-      if (n < tuning.water) tiles[i] = TILE_WATER;
+      const localWet = warpedFbm(x * 0.72, y * 0.72, salt);
+      const basinWet = warpedFbm(x * 0.3, y * 0.3, salt + 13);
+      const channel = Math.abs(warpedFbm(x * 0.16, y * 0.16, salt + 37) - 0.5);
+      const waterScore = localWet * 0.48 + basinWet * 0.52;
+      const basin = waterScore < tuning.water * 0.98;
+      const river = channel < 0.035 + tuning.water * 0.025 && basinWet < tuning.water + 0.16;
+      if (basin || river) tiles[i] = TILE_WATER;
     }
   }
   smoothWater(tiles, width, height, protectedStart);
+  pruneWaterIslands(tiles, width, height);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -347,17 +419,18 @@ export function generateMap(
         heights[i] = 0;
         continue;
       }
+      const plateau = warpedFbm(x * 0.38, y * 0.38, salt + 91);
+      const ridge = warpedFbm(x * 0.16, y * 0.16, salt + 127);
       if (shore < tuning.water + 0.07) {
         heights[i] = 0;
       } else {
-        const hn = warpedFbm(x * 0.85, y * 0.85, salt + 91);
-        if (hn > tuning.mountain) heights[i] = 3;
-        else if (hn > tuning.mountain - 0.18) heights[i] = 2;
+        if (plateau > tuning.mountain || ridge > 0.69) heights[i] = 3;
+        else if (plateau > tuning.mountain - 0.18 || ridge > 0.59) heights[i] = 2;
         else heights[i] = 1;
       }
-      const grove = warpedFbm(x * 0.45, y * 0.45, salt + 211);
-      const detail = fbm(x * 2.1, y * 2.1, salt + 223);
-      if (grove > tuning.blockers - 0.08 && detail > 0.52 && heights[i]! < 3 && tiles[i] !== TILE_WATER) {
+      const grove = warpedFbm(x * 0.3, y * 0.3, salt + 211);
+      const detail = fbm(x * 1.55, y * 1.55, salt + 223);
+      if (grove > tuning.blockers - 0.05 && detail > 0.5 && heights[i]! < 3 && tiles[i] !== TILE_WATER) {
         tiles[i] = TILE_BLOCKED;
       }
     }
@@ -367,28 +440,24 @@ export function generateMap(
   paintBase(tiles, heights, surfaces, width, height, playerStart, startClear);
   paintBase(tiles, heights, surfaces, width, height, enemyStart, startClear);
 
-  const upperRoute = [
-    playerStart,
-    { x: Math.round(width * 0.58), y: Math.round(height * 0.24) },
-    enemyStart,
-  ];
-  const lowerRoute = [
-    playerStart,
-    { x: Math.round(width * 0.24), y: Math.round(height * 0.58) },
-    enemyStart,
-  ];
+  const upperRoute = meanderingRoute(playerStart, enemyStart, width, height, salt + 7);
+  const lowerRoute = meanderingRoute(playerStart, enemyStart, width, height, salt + 17)
+    .map((point, i) => i === 0 || i === 4 ? point : {
+      x: Math.max(2, Math.min(width - 3, point.x + Math.round((height * 0.12) * (i % 2 ? -1 : 1)))),
+      y: Math.max(2, Math.min(height - 3, point.y + Math.round((width * 0.08) * (i % 2 ? 1 : -1)))),
+    });
   carveRoute(tiles, heights, surfaces, width, height, upperRoute, 1, salt);
   carveRoute(tiles, heights, surfaces, width, height, lowerRoute, 1, salt + 11);
   if (mission.index >= 4) {
-    carveRoute(tiles, heights, surfaces, width, height, [
-      playerStart,
-      { x: Math.round(width * 0.5), y: Math.round(height * 0.5) },
-      enemyStart,
-    ], 1, salt + 23);
+    carveRoute(tiles, heights, surfaces, width, height, meanderingRoute(playerStart, enemyStart, width, height, salt + 27), 1, salt + 23);
   }
   if (!reachable(tiles, heights, width, height, playerStart, enemyStart)) {
     carveRoute(tiles, heights, surfaces, width, height, [playerStart, enemyStart], 2, salt, false);
   }
+  // Routes and flat starting pads can cut through a basin. Remove the tiny
+  // remnants they leave behind so the final map cannot contain isolated water
+  // specks that read as noise instead of a basin or a river.
+  pruneWaterIslands(tiles, width, height, heights);
 
   const safeP = { x: Math.min(width - 5, playerStart.x + 10), y: Math.min(height - 5, playerStart.y + 4) };
   const safeE = { x: Math.max(4, enemyStart.x - 10), y: Math.max(4, enemyStart.y - 4) };

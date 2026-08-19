@@ -38,23 +38,20 @@ test.describe("short-height layouts", () => {
     }
   });
 
-  test("keeps battlefield pause and upgrade controls usable at 1280x600", async ({ page }) => {
+  test("keeps battlefield pause controls usable at 1280x600", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto("/play?seed=0421&mission=0");
     await expect(page.getByTestId("command-sidebar")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     await page.keyboard.press("Escape");
-    await expect(page.getByTestId("pause-menu")).toBeVisible();
-    await page.getByRole("button", { name: "Upgrades" }).click();
-
-    const upgrades = page.getByRole("dialog", { name: "Campaign Upgrades" });
-    await expect(upgrades).toBeVisible();
-    await expect(upgrades.getByRole("button", { name: "Back" })).toBeVisible();
-    const upgradeBounds = await upgrades.boundingBox();
-    expect(upgradeBounds).not.toBeNull();
-    expect(upgradeBounds!.y).toBeGreaterThanOrEqual(0);
-    expect(upgradeBounds!.y + upgradeBounds!.height).toBeLessThanOrEqual(600);
+    const pause = page.getByRole("dialog", { name: "Game paused" });
+    await expect(pause).toBeVisible();
+    await expect(pause.getByRole("button", { name: "Resume Mission" })).toBeVisible();
+    const pauseBounds = await pause.boundingBox();
+    expect(pauseBounds).not.toBeNull();
+    expect(pauseBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(pauseBounds!.y + pauseBounds!.height).toBeLessThanOrEqual(600);
   });
 
   test("keeps the tutorial overlay inside a short landscape viewport", async ({ page }) => {

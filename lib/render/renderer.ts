@@ -1,45 +1,36 @@
 import { BUILDING_STATS, TICKS_PER_SECOND, UNIT_STATS, footprintOf, labelFor, sellRefundFor } from "../catalog";
-import { cliffFaces, drawElevationFaces, buildingSprite, rubbleSprite, tileSprite, tileSpriteId, TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, unitSprite, wreckSprite } from "../gen/assets";
+import { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "../gen/assets";
 import { generateVisualProfile } from "../gen/visualProfile";
-import { MAP_SKIRT, MAP_SKIRT_ALPHA, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
-import { RESCUE_CONTACT_RADIUS } from "../types";
-import type { BuildingKind, Entity, Facing, SimState, TileContour, UnitKind } from "../types";
+import { isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
+import { inObjectiveZone, missionUsesObjectiveZone, OBJECTIVE_ZONE_RADIUS, RESCUE_CONTACT_RADIUS } from "../types";
+import type { BuildingKind, Entity, Facing, SimState, SpriteSpec, UnitKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import {
   animClock,
   buildingAnim,
   constructionProgress,
-  damageFlicker,
   facingVector,
   selectionPulse,
   toFacing,
   unitAnim,
-  waterShimmer,
   type BuildingAnim,
 } from "./anim";
 import { HEIGHT_STEP, TILE_H, TILE_W, screenToGroundTile, tileToScreen, type Camera } from "./iso";
-import { cachedSprite, drawSprite, rasterize } from "./sprites";
-import { buildingAt, canPlaceBuilding, groundHeight, heightAt } from "../sim/world";
+import { drawSprite, rasterize } from "./sprites";
+import { paintUnitMovementFx } from "./unitMotion";
+import { buildingAt, canPlaceBuilding, groundHeight, heightAt, terrainAccess } from "../sim/world";
 import { fogAt } from "../sim/fog";
 import { canRepair } from "../sim/repair";
 import { canSell } from "../sim/sell";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
+import { resourceSignature, terrainGrainGeneration } from "./terrainAtlas";
+import { paintBuildingPlates, paintTerrainWorld } from "./terrainPaint";
+import { paintOreGlints, paintTerrainWeather, paintWaterFx } from "./terrainWeather";
 
-const SHROUD_FILL = "rgba(5, 6, 8, 0.68)";
+const TERRAIN_RENDER_REV = "world-atlas-v12-organic-cliffs";
 
 function entityElev(state: SimState, e: Entity): number {
   return e.class === "unit" ? groundHeight(state, e.x, e.y) : heightAt(state, Math.round(e.x), Math.round(e.y));
-}
-
-function tileKind(t: number): "clear" | "water" | "resource" | "blocked" {
-  if (t === TILE_WATER) return "water";
-  if (t === TILE_RESOURCE) return "resource";
-  if (t === TILE_BLOCKED) return "blocked";
-  return "clear";
-}
-
-function tileVariant(x: number, y: number): number {
-  return ((x * 73856093) ^ (y * 19349663)) >>> 0;
 }
 
 function pointInDiamond(px: number, py: number, x: number, y: number, w: number, h: number): boolean {
@@ -54,14 +45,17 @@ export function pickTile(
   sy: number,
   cam: Camera,
 ): { x: number; y: number } | null {
-  const g = screenToGroundTile(sx, sy, cam);
+  // Bring the pointer back to the base plane, then test actual raised tile tops.
+  // This avoids a cliff face stealing a click intended for the tile behind it.
+  const maxElev = 3;
+  const g = screenToGroundTile(sx, sy + maxElev * HEIGHT_STEP * cam.zoom, cam);
   const cx = Math.round(g.x);
   const cy = Math.round(g.y);
   let best: { x: number; y: number } | null = null;
   let bestDepth = -Infinity;
   const tw = TILE_W * cam.zoom;
   const th = TILE_H * cam.zoom;
-  const r = 5;
+  const r = 4;
   const x0 = Math.max(0, cx - r);
   const y0 = Math.max(0, cy - r);
   const x1 = Math.min(state.width - 1, cx + r);
@@ -71,7 +65,9 @@ export function pickTile(
       const elev = heightAt(state, x, y);
       const s = tileToScreen(x, y, cam, elev);
       if (!pointInDiamond(sx, sy, s.x, s.y, tw, th)) continue;
-      const depth = x + y + elev * 8;
+      // Terrain is painted in x + y order. Prefer the front-most top surface,
+      // and resolve same-depth overlaps in favor of the raised tactical tile.
+      const depth = (x + y) * 16 + elev;
       if (depth >= bestDepth) {
         bestDepth = depth;
         best = { x, y };
@@ -87,6 +83,23 @@ function entityVisible(state: SimState, e: Entity): boolean {
   const fog = fogAt(state, tx, ty);
   if (e.owner === 1 && fog !== 2) return false;
   return true;
+}
+
+function renderEntityOpacity(state: SimState, e: Entity, timeMs: number): number {
+  if (e.owner === 0 || e.class !== "unit") return entityVisible(state, e) ? 1 : 0;
+  const fog = fogAt(state, Math.round(e.x), Math.round(e.y));
+  const target = fog === 2 ? 1 : fog === 1 ? 0.22 : 0;
+  const previous = entityVisibility.get(e.id);
+  if (!previous) {
+    entityVisibility.set(e.id, { alpha: target, target, timeMs });
+    return target;
+  }
+  if (previous.target !== target) previous.target = target;
+  const elapsed = Math.max(0, timeMs - previous.timeMs);
+  const blend = 1 - Math.exp(-elapsed / 120);
+  previous.alpha += (previous.target - previous.alpha) * blend;
+  previous.timeMs = timeMs;
+  return previous.alpha;
 }
 
 export function visibleBuildingAt(state: SimState, x: number, y: number): Entity | undefined {
@@ -125,17 +138,16 @@ export type RenderExtras = {
   fx?: FxBurst[];
 };
 
-const sceneryMemo = new Map<number, ScenerySample>();
-const entityById = new Map<number, Entity>();
-const drawList: Entity[] = [];
-
 type TerrainLayer = {
   canvas: HTMLCanvasElement | null;
-  skirt: HTMLCanvasElement | null;
   key: string;
 };
 
-const terrainLayer: TerrainLayer = { canvas: null, skirt: null, key: "" };
+const terrainLayer: TerrainLayer = { canvas: null, key: "" };
+const sceneryMemo = new Map<number, ScenerySample>();
+const entityById = new Map<number, Entity>();
+const entityVisibility = new Map<number, { alpha: number; target: number; timeMs: number }>();
+const drawList: Entity[] = [];
 
 function sceneryKey(x: number, y: number): number {
   return ((x + 512) << 12) | (y + 512);
@@ -157,98 +169,27 @@ function fogSignature(fog: number[]): number {
   return h;
 }
 
-function resourceSignature(amounts: number[]): number {
-  let h = amounts.length;
-  for (let i = 0; i < amounts.length; i += 9) h = (h + (amounts[i] ?? 0)) | 0;
-  return h;
-}
-
 function terrainCacheKey(state: SimState, cam: Camera, w: number, h: number): string {
-  return `${state.seed}:${state.missionIndex}:${w}x${h}:${cam.x | 0}:${cam.y | 0}:${cam.zoom}:${fogSignature(state.fog)}:${resourceSignature(state.resourceAmount)}`;
+  return `${TERRAIN_RENDER_REV}:${state.seed}:${state.missionIndex}:${w}x${h}:${cam.x | 0}:${cam.y | 0}:${cam.zoom}:${fogSignature(state.fog)}:${resourceSignature(state.resourceAmount)}:${terrainGrainGeneration()}`;
 }
 
-function ensureOffscreen(slot: "canvas" | "skirt", w: number, h: number): HTMLCanvasElement | null {
+function ensureTerrainCanvas(w: number, h: number): HTMLCanvasElement | null {
   if (typeof document === "undefined") return null;
-  let canvas = terrainLayer[slot];
+  let canvas = terrainLayer.canvas;
   if (!canvas) {
     canvas = document.createElement("canvas");
-    terrainLayer[slot] = canvas;
+    terrainLayer.canvas = canvas;
   }
   if (canvas.width !== w || canvas.height !== h) {
     canvas.width = w;
     canvas.height = h;
-    if (slot === "canvas") terrainLayer.key = "";
+    terrainLayer.key = "";
   }
   return canvas;
 }
 
-function ensureTerrainCanvas(w: number, h: number): HTMLCanvasElement | null {
-  return ensureOffscreen("canvas", w, h);
-}
-
-function paintTileRange(
-  ctx: CanvasRenderingContext2D,
-  state: SimState,
-  cam: Camera,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  mode: "skirt" | "map",
-): void {
-  const w = ctx.canvas.width;
-  const h = ctx.canvas.height;
-  const margin = TILE_W * cam.zoom * 2;
-  const depth0 = x0 + y0;
-  const depth1 = (x1 - 1) + (y1 - 1);
-  for (let depth = depth0; depth <= depth1; depth++) {
-    const xs = Math.max(x0, depth - (y1 - 1));
-    const xe = Math.min(x1 - 1, depth - y0);
-    for (let x = xs; x <= xe; x++) {
-      const y = depth - x;
-      const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
-      const fog = fogAt(state, x, y);
-      if (fog === 0) continue;
-      if (mode === "skirt" && inMap) continue;
-      if (mode === "map" && !inMap) continue;
-      const elev = memoScenery(state, x, y).elev;
-      const s = tileToScreen(x, y, cam, elev);
-      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
-      drawTile(ctx, state, cam, x, y);
-    }
-  }
-}
-
 function paintTerrain(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera): void {
-  const w = ctx.canvas.width;
-  const h = ctx.canvas.height;
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = SHROUD_FILL;
-  ctx.fillRect(0, 0, w, h);
-  ctx.imageSmoothingEnabled = false;
-  sceneryMemo.clear();
-
-  const x0 = -MAP_SKIRT;
-  const y0 = -MAP_SKIRT;
-  const x1 = state.width + MAP_SKIRT;
-  const y1 = state.height + MAP_SKIRT;
-  const skirt = ensureOffscreen("skirt", w, h);
-  const skirtCtx = skirt?.getContext("2d") ?? null;
-  if (skirt && skirtCtx) {
-    skirtCtx.clearRect(0, 0, w, h);
-    skirtCtx.imageSmoothingEnabled = false;
-    paintTileRange(skirtCtx, state, cam, x0, y0, x1, y1, "skirt");
-    ctx.save();
-    ctx.globalAlpha = MAP_SKIRT_ALPHA;
-    ctx.drawImage(skirt, 0, 0);
-    ctx.restore();
-  } else {
-    ctx.save();
-    ctx.globalAlpha = MAP_SKIRT_ALPHA;
-    paintTileRange(ctx, state, cam, x0, y0, x1, y1, "skirt");
-    ctx.restore();
-  }
-  paintTileRange(ctx, state, cam, x0, y0, x1, y1, "map");
+  paintTerrainWorld(ctx, state, cam);
 }
 
 export function invalidateTerrainCache(): void {
@@ -266,7 +207,8 @@ export function renderWorld(
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
   ctx.clearRect(0, 0, w, h);
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   const key = terrainCacheKey(state, cam, w, h);
   const layer = ensureTerrainCanvas(w, h);
@@ -282,7 +224,13 @@ export function renderWorld(
   } else {
     paintTerrain(ctx, state, cam);
   }
-  drawWaterFx(ctx, state, cam, extras.clockMs);
+  const clock = extras.clockMs;
+  const timeMs = animClock(state.tick, clock);
+  paintWaterFx(ctx, state, cam, timeMs);
+  paintOreGlints(ctx, state, cam, timeMs);
+  paintTerrainWeather(ctx, state, cam, timeMs);
+  paintBuildingPlates(ctx, state, cam, footprintOf, entityVisible, entityElev);
+  drawObjectiveZone(ctx, state, cam, timeMs);
 
   if (extras.placeKind && hoverTile) {
     const fp = footprintOf(extras.placeKind);
@@ -314,11 +262,10 @@ export function renderWorld(
 
   const z = cam.zoom;
   const cullPad = 80 * z;
-  const clock = extras.clockMs;
-  const timeMs = animClock(state.tick, clock);
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "ground");
   for (const e of drawList) {
-    if (!entityVisible(state, e)) continue;
+    const entityAlpha = renderEntityOpacity(state, e, timeMs);
+    if (entityAlpha <= 0.01) continue;
     const pal = state.factions[e.owner]!.palette;
     const profile = generateVisualProfile(state.seed, e.owner);
     const facing = facingFor(state, e);
@@ -329,7 +276,7 @@ export function renderWorld(
       ? unitSprite(e.kind as UnitKind, pal, {
           variant: entityVariant(state, e),
           facing,
-          animationFrame: uAnim!.frame,
+          animationFrame: uAnim?.frame,
           damageStage,
           profile,
         })
@@ -360,9 +307,41 @@ export function renderWorld(
     if (e.class === "building") {
       drawBuildingShadow(ctx, state, cam, e, z);
     }
-    ctx.globalAlpha = (e.constructing > 0 ? 0.72 : 1) * damageFlicker(timeMs, e.id, damageStage);
+    const spriteAlpha = entityAlpha;
+    if (isExtractableUnit(state, e)) {
+      drawUnitGlow(ctx, spec, img, dx, dy, spec.w * z, spec.h * z, timeMs, spriteAlpha, z);
+    }
+    ctx.globalAlpha = spriteAlpha;
     drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
     ctx.globalAlpha = 1;
+    if (uAnim?.pose === "move") {
+      paintUnitMovementFx(
+        ctx,
+        e.kind as UnitKind,
+        dx,
+        dy,
+        spec.w * z,
+        spec.h * z,
+        s.y + (TILE_H / 2) * z,
+        z,
+        uAnim.frame,
+        entityAlpha,
+      );
+    }
+    if (e.class !== "building") {
+      drawDamageOverlay(
+        ctx,
+        spec,
+        dx,
+        dy,
+        spec.w * z,
+        spec.h * z,
+        damageStage,
+        timeMs,
+        e.id,
+        spriteAlpha,
+      );
+    }
 
     if (bAnim) drawBuildingFx(ctx, e, s, z, bAnim);
     if (uAnim?.pose === "work") drawHarvestFx(ctx, state, e, cam, timeMs);
@@ -386,7 +365,7 @@ export function renderWorld(
       }
       ctx.globalAlpha = 1;
     }
-    if (e.marked) {
+    if (e.marked && e.class === "building") {
       ctx.strokeStyle = "#ffcf33";
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.65 + selectionPulse(timeMs + e.id * 40) * 0.35;
@@ -491,41 +470,154 @@ function isLockedContactUnit(state: SimState, e: Entity): boolean {
     && state.runtime.targetIds.includes(e.id);
 }
 
-function drawRescueHalo(ctx: CanvasRenderingContext2D, x: number, y: number, z: number, timeMs: number): void {
+function isExtractableUnit(state: SimState, e: Entity): boolean {
+  return e.class === "unit"
+    && state.runtime?.kind === "extraction"
+    && state.runtime.targetIds.includes(e.id)
+    && !(state.runtime.extractedIds ?? []).includes(e.id);
+}
+
+function drawUnitGlow(
+  ctx: CanvasRenderingContext2D,
+  spec: SpriteSpec,
+  img: CanvasImageSource,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  timeMs: number,
+  alpha: number,
+  z: number,
+): void {
+  const pulse = selectionPulse(timeMs);
+  ctx.save();
+  ctx.globalAlpha = alpha * (0.72 + pulse * 0.28);
+  ctx.shadowColor = "#f6e39a";
+  ctx.shadowBlur = (14 + pulse * 10) * Math.max(1, z);
+  drawSprite(ctx, spec, img, dx, dy, dw, dh);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.shadowBlur = (7 + pulse * 5) * Math.max(1, z);
+  ctx.globalAlpha = alpha * (0.28 + pulse * 0.22);
+  drawSprite(ctx, spec, img, dx, dy, dw, dh);
+  ctx.restore();
+}
+
+function drawZoneHalo(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  z: number,
+  timeMs: number,
+  radius: number,
+  color: string,
+): void {
   const pulse = selectionPulse(timeMs);
   ctx.save();
   ctx.globalAlpha = 0.14 + pulse * 0.08;
-  ctx.fillStyle = "#67e0d0";
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.ellipse(
     x,
     y + (TILE_H / 2) * z,
-    RESCUE_CONTACT_RADIUS * (TILE_W / 2) * z,
-    RESCUE_CONTACT_RADIUS * (TILE_H / 2) * z,
+    radius * (TILE_W / 2) * z,
+    radius * (TILE_H / 2) * z,
     0,
     0,
     Math.PI * 2,
   );
   ctx.fill();
   ctx.globalAlpha = 0.8 + pulse * 0.2;
-  ctx.strokeStyle = "#67e0d0";
+  ctx.strokeStyle = color;
   ctx.lineWidth = Math.max(2, 2.5 * z);
-  ctx.shadowColor = "#67e0d0";
+  ctx.shadowColor = color;
   ctx.shadowBlur = 7 * z;
   ctx.setLineDash([4 * z, 4 * z]);
   ctx.stroke();
   ctx.restore();
 }
 
+function drawRescueHalo(ctx: CanvasRenderingContext2D, x: number, y: number, z: number, timeMs: number): void {
+  drawZoneHalo(ctx, x, y, z, timeMs, RESCUE_CONTACT_RADIUS, "#67e0d0");
+}
+
+function drawObjectiveZone(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  timeMs: number,
+): void {
+  const runtime = state.runtime;
+  const zone = runtime?.zone;
+  if (!zone || !missionUsesObjectiveZone(runtime?.kind)) return;
+  if (runtime.kind === "escort" && fogAt(state, Math.round(zone.x), Math.round(zone.y)) === 0) return;
+  const s = tileToScreen(zone.x, zone.y, cam, heightAt(state, Math.round(zone.x), Math.round(zone.y)));
+  drawZoneHalo(ctx, s.x, s.y, cam.zoom, timeMs, OBJECTIVE_ZONE_RADIUS, "#e8c86a");
+}
+
 function entityVariant(state: SimState, e: Entity): number {
   return ((state.seed * 2654435761) ^ (e.id * 2246822519)) >>> 0;
+}
+
+function drawDamageOverlay(
+  ctx: CanvasRenderingContext2D,
+  spec: { w: number; h: number; rotation?: number; anchorX?: number; anchorY?: number },
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  damageStage: 0 | 1 | 2,
+  timeMs: number,
+  id: number,
+  baseAlpha: number,
+): void {
+  if (damageStage <= 0) return;
+  const sx = dw / spec.w;
+  const sy = dh / spec.h;
+  const ax = (spec.anchorX ?? spec.w / 2) * sx;
+  const ay = (spec.anchorY ?? spec.h) * sy;
+  const pulse = (Math.sin(timeMs * 0.006 + id * 1.7) + 1) * 0.5;
+  ctx.save();
+  ctx.translate(dx + ax, dy + ay);
+  if (spec.rotation) ctx.rotate(spec.rotation);
+  ctx.globalAlpha = baseAlpha * 0.6;
+  ctx.fillStyle = "#2b2520";
+  ctx.beginPath();
+  ctx.ellipse(-8 * sx, -8 * sy, 9 * sx, 4 * sy, -0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#171514";
+  ctx.lineWidth = Math.max(1, 1.8 * sx);
+  ctx.beginPath();
+  ctx.moveTo(-4 * sx, -20 * sy);
+  ctx.lineTo(4 * sx, 5 * sy);
+  ctx.lineTo(13 * sx, -1 * sy);
+  ctx.stroke();
+  if (damageStage > 1) {
+    ctx.globalAlpha = baseAlpha * (0.22 + pulse * 0.16);
+    ctx.fillStyle = "#1b1d1c";
+    for (let i = 0; i < 3; i++) {
+      const rise = (i * 8 + pulse * 5) * sy;
+      ctx.beginPath();
+      ctx.arc((8 + i * 5) * sx, -22 * sy - rise, (3 + i) * sx, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 
 function facingFor(state: SimState, e: Entity): Facing {
   let target: { x: number; y: number } | undefined;
   if (e.attackTarget !== undefined) target = entityById.get(e.attackTarget);
   if (!target && e.path.length) target = e.path[0];
-  if (!target) return e.facing ?? ((e.owner === 0 ? 0 : 4) as Facing);
+  if (!target) {
+    // Once a unit has stopped, use the south-facing asset so its idle pose
+    // reads as looking toward the player. Combat and movement still take
+    // priority above this fallback, and therefore keep their live direction.
+    if (e.class === "unit" && e.attackTarget === undefined && e.path.length === 0) {
+      e.facing = 2;
+      return 2;
+    }
+    return e.facing ?? ((e.owner === 0 ? 0 : 4) as Facing);
+  }
   const next = toFacing(target.x - e.x, target.y - e.y);
   e.facing = next;
   return next;
@@ -631,93 +723,6 @@ function depthOf(e: Entity): number {
   return e.x + e.y;
 }
 
-function drawTile(
-  ctx: CanvasRenderingContext2D,
-  state: SimState,
-  cam: Camera,
-  x: number,
-  y: number,
-): void {
-  const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
-  const fog = fogAt(state, x, y);
-  if (fog === 0) return;
-  const scenery = memoScenery(state, x, y);
-  const elev = scenery.elev;
-  const s = tileToScreen(x, y, cam, elev);
-  const tw = TILE_W * cam.zoom;
-  const th = TILE_H * cam.zoom;
-
-  const prev = ctx.globalAlpha;
-  ctx.globalAlpha = prev * (fog === 1 ? 0.45 : 1);
-
-  const east = memoScenery(state, x + 1, y).elev;
-  const south = memoScenery(state, x, y + 1).elev;
-  const dropE = Math.max(0, elev - east);
-  const dropS = Math.max(0, elev - south);
-  if (dropE > 0 || dropS > 0) {
-    drawElevationFaces(
-      ctx,
-      s.x,
-      s.y,
-      tw,
-      th,
-      HEIGHT_STEP * cam.zoom,
-      dropE,
-      dropS,
-      tileVariant(x, y),
-      cliffFaces(state.biome, elev),
-    );
-  }
-
-  const water = scenery.kind === TILE_WATER;
-  const mountain = isMountainScenery(scenery);
-  let edgeMask = 0;
-  let contour: TileContour = "none";
-  let kind: "clear" | "water" | "resource" | "blocked" = tileKind(scenery.kind);
-  const differs = (dx: number, dy: number): boolean => {
-    const n = memoScenery(state, x + dx, y + dy);
-    if (water) return n.kind !== TILE_WATER;
-    if (mountain) return !isMountainScenery(n);
-    return n.kind !== scenery.kind;
-  };
-  if (water) {
-    kind = "water";
-    contour = "bank";
-  } else if (mountain) {
-    kind = "clear";
-    contour = "ridge";
-  }
-  if (differs(0, -1)) edgeMask |= 1;
-  if (differs(1, 0)) edgeMask |= 2;
-  if (differs(0, 1)) edgeMask |= 4;
-  if (differs(-1, 0)) edgeMask |= 8;
-  if (differs(1, -1)) edgeMask |= 16;
-  if (differs(1, 1)) edgeMask |= 32;
-  if (differs(-1, 1)) edgeMask |= 64;
-  if (differs(-1, -1)) edgeMask |= 128;
-  const amount = inMap ? (state.resourceAmount[y * state.width + x] ?? 0) : 0;
-  const opts = {
-    biome: state.biome,
-    variant: tileVariant(x, y) % 64,
-    edgeMask,
-    surface: inMap ? (state.surfaces[y * state.width + x] ?? SURFACE_NONE) : SURFACE_NONE,
-    resourceLevel: amount > 700 ? 4 : amount > 450 ? 3 : amount > 200 ? 2 : 1,
-    contour,
-  };
-  const id = tileSpriteId(kind, elev, opts);
-  const img = cachedSprite(id) ?? rasterize(tileSprite(kind, elev, opts));
-  const padX = TILE_SPRITE_PAD_X * cam.zoom;
-  const padY = TILE_SPRITE_PAD_Y * cam.zoom;
-  ctx.drawImage(
-    img,
-    Math.round(s.x - tw / 2 - padX),
-    Math.round(s.y - padY),
-    Math.ceil(tw + padX * 2),
-    Math.ceil(th + padY * 2),
-  );
-  ctx.globalAlpha = prev;
-}
-
 function strokeFootprint(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -755,7 +760,7 @@ function footprintPath(
   ctx.closePath();
 }
 
-function tileTooltipLines(state: SimState, x: number, y: number): string[] {
+export function tileTooltipLines(state: SimState, x: number, y: number): string[] {
   if (x < 0 || y < 0 || x >= state.width || y >= state.height) return ["Map edge"];
   const fog = fogAt(state, x, y);
   if (fog === 0) return ["Unexplored"];
@@ -768,9 +773,14 @@ function tileTooltipLines(state: SimState, x: number, y: number): string[] {
   else if (scenery.kind === TILE_BLOCKED) terrain = "Impassable";
   if (surface === SURFACE_ROAD) terrain = "Dirt road";
   else if (surface === SURFACE_CONCRETE) terrain = "Concrete pad";
-  const lines = [terrain, state.biome, `Elevation ${scenery.elev}`];
+  const access = terrainAccess(state, x, y);
+  const lines = [terrain, state.biome, `Elevation ${scenery.elev}`, access.traversable ? "Passable" : "Impassable"];
   if (scenery.kind === TILE_RESOURCE) lines.push(`Ore ${state.resourceAmount[y * state.width + x] ?? 0}`);
+  if (!access.buildable) lines.push("Construction blocked");
   if (fog === 1) lines.push("Shrouded");
+  if (missionUsesObjectiveZone(state.runtime?.kind) && inObjectiveZone(x, y, state.runtime?.zone)) {
+    lines.push(state.runtime?.kind === "escort" ? "Convoy destination" : "Extraction zone");
+  }
   return lines;
 }
 
@@ -784,6 +794,9 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     `HP ${Math.max(0, Math.round(e.hp))} / ${e.maxHp}`,
   ];
   if (isLockedContactUnit(state, e)) lines.push("Stranded");
+  if (isExtractableUnit(state, e) && !e.neutral) {
+    lines.push("Return to extraction zone");
+  }
   if (e.kind === "harvester") {
     lines.push(`Carry ${e.carry} / ${UNIT_STATS.harvester.carryMax}`);
   }
@@ -796,7 +809,7 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     if (queued > 0) lines.push(`Queued ${queued}`);
   }
   if (e.repairing) lines.push("Repairing");
-  if (e.marked) lines.push("Marked objective");
+  if (e.marked && e.class === "building") lines.push("Marked objective");
   if (extras.sellMode && e.owner === 0 && canSell(e)) {
     lines.push(`Sell for ${sellRefundFor(e.kind as BuildingKind, e.hp)}`);
   }
@@ -833,54 +846,6 @@ function drawTooltip(
   for (let i = 0; i < lines.length; i++) {
     ctx.fillStyle = i === 0 ? "#e1d59f" : "#aeb49a";
     ctx.fillText(lines[i]!, tx + pad, ty + pad + 11 + i * lineH);
-  }
-}
-
-function drawWaterFx(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera, clockMs?: number): void {
-  const t = animClock(state.tick, clockMs);
-  const w = ctx.canvas.width;
-  const h = ctx.canvas.height;
-  const margin = TILE_W * cam.zoom;
-  const tw = TILE_W * cam.zoom;
-  const th = TILE_H * cam.zoom;
-  for (let y = 0; y < state.height; y++) {
-    for (let x = 0; x < state.width; x++) {
-      if (state.tiles[y * state.width + x] !== TILE_WATER) continue;
-      const fog = fogAt(state, x, y);
-      if (fog === 0) continue;
-      const elev = heightAt(state, x, y);
-      const s = tileToScreen(x, y, cam, elev);
-      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
-      const sh = waterShimmer(t, x, y);
-      const sh2 = waterShimmer(t * 1.35 + 90, x + 1, y);
-      ctx.save();
-      ctx.globalAlpha = sh.alpha * (fog === 1 ? 0.45 : 1);
-      ctx.strokeStyle = "#d7eef2";
-      ctx.lineWidth = Math.max(1, cam.zoom);
-      ctx.beginPath();
-      ctx.moveTo(s.x - tw * 0.28, s.y + th * 0.42 + sh.offset);
-      ctx.lineTo(s.x + tw * 0.22, s.y + th * 0.28 + sh.offset);
-      ctx.stroke();
-      ctx.globalAlpha = sh2.alpha * 0.7 * (fog === 1 ? 0.45 : 1);
-      ctx.beginPath();
-      ctx.moveTo(s.x - tw * 0.18, s.y + th * 0.52 + sh2.offset);
-      ctx.lineTo(s.x + tw * 0.3, s.y + th * 0.38 + sh2.offset);
-      ctx.stroke();
-      const bank =
-        (x > 0 && state.tiles[y * state.width + (x - 1)] !== TILE_WATER)
-        || (x + 1 < state.width && state.tiles[y * state.width + (x + 1)] !== TILE_WATER)
-        || (y > 0 && state.tiles[(y - 1) * state.width + x] !== TILE_WATER)
-        || (y + 1 < state.height && state.tiles[(y + 1) * state.width + x] !== TILE_WATER);
-      if (bank) {
-        ctx.globalAlpha = (0.18 + sh.alpha) * (fog === 1 ? 0.45 : 1);
-        ctx.strokeStyle = "#e8e0c8";
-        ctx.beginPath();
-        ctx.moveTo(s.x - tw * 0.32, s.y + th * 0.55);
-        ctx.lineTo(s.x + tw * 0.12, s.y + th * 0.72);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
   }
 }
 
