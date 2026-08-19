@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useRouter } from "next/navigation";
 import { beep, setMuted } from "@/lib/audio/synth";
 import { createCampaign } from "@/lib/gen/campaign";
+import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
 import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { cameraViewQuad } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { renderWorld, type RenderExtras } from "@/lib/render/renderer";
+import { preloadRasterSources } from "@/lib/render/sprites";
 import { cullFx, type FxBurst } from "@/lib/render/fx";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission } from "@/lib/sim/api";
@@ -333,6 +335,10 @@ export function GameClient({
     campaignRecordedRef,
     redraw,
   });
+
+  useEffect(() => {
+    preloadRasterSources(listTacticalRasterSources());
+  }, []);
 
   useEffect(() => {
     activeTabRef.current = activeTab;

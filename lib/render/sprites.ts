@@ -42,6 +42,7 @@ export function paintShapes(ctx: CanvasRenderingContext2D, shapes: ShapeSpec[]):
 }
 
 const cache = new Map<string, HTMLCanvasElement>();
+const readyKeys = new Set<string>();
 const imageCache = new Map<string, HTMLImageElement>();
 const imageReadyCallbacks = new Map<string, Set<() => void>>();
 const SVG_RASTER_SCALE = 2;
@@ -133,10 +134,16 @@ function rasterCacheKey(spec: SpriteSpec): string {
 }
 
 function notifyImageReady(key: string): void {
+  readyKeys.add(key);
   const callbacks = imageReadyCallbacks.get(key);
   if (!callbacks) return;
   imageReadyCallbacks.delete(key);
   for (const callback of callbacks) callback();
+}
+
+export function isRasterReady(spec: SpriteSpec): boolean {
+  if (!spec.imageSrc) return true;
+  return readyKeys.has(rasterCacheKey(spec));
 }
 
 export function cachedImage(src: string): HTMLImageElement {
@@ -147,6 +154,11 @@ export function cachedImage(src: string): HTMLImageElement {
   image.src = src;
   imageCache.set(src, image);
   return image;
+}
+
+export function preloadRasterSources(srcs: readonly string[]): void {
+  if (typeof Image === "undefined") return;
+  for (const src of srcs) cachedImage(src);
 }
 
 function paintTexture(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, spec: SpriteSpec): void {
@@ -250,6 +262,7 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
     const ctx = c.getContext("2d")!;
     ctx.scale(SVG_RASTER_SCALE, SVG_RASTER_SCALE);
     paintSvg(ctx, spec.svg);
+    readyKeys.add(key);
   } else {
     const scale = spec.imageTextureSrc ? SVG_RASTER_SCALE : 1;
     c.width = spec.w * scale;
@@ -261,6 +274,7 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
       ctx.scale(1 / scale, 1 / scale);
       paintTexture(ctx, c, spec);
     }
+    readyKeys.add(key);
   }
   cache.set(key, c);
   return c;
@@ -300,6 +314,7 @@ export function cachedSprite(id: string): HTMLCanvasElement | undefined {
 
 export function clearSpriteCache(): void {
   cache.clear();
+  readyKeys.clear();
   imageCache.clear();
   imageReadyCallbacks.clear();
 }

@@ -62,8 +62,15 @@ export function updateUnitHistory(state: SimState, clockMs: number): void {
       historyMap.set(e.id, hist);
     } else {
       if (state.tick !== hist.lastUpdateTick) {
-        hist.prevX = hist.currX;
-        hist.prevY = hist.currY;
+        const tickGap = state.tick - hist.lastUpdateTick;
+        const jump = Math.hypot(e.x - hist.currX, e.y - hist.currY);
+        if (tickGap > 2 || jump > 2) {
+          hist.prevX = e.x;
+          hist.prevY = e.y;
+        } else {
+          hist.prevX = hist.currX;
+          hist.prevY = hist.currY;
+        }
         hist.currX = e.x;
         hist.currY = e.y;
         hist.lastUpdateTick = state.tick;

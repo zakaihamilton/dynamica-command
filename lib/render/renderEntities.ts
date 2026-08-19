@@ -20,14 +20,19 @@ export function depthOf(e: Entity): number {
   return e.x + e.y;
 }
 
-export function facingFor(state: SimState, e: Entity, entityById: Map<number, Entity>): Facing {
+export function facingFor(state: SimState, e: Entity, entityById: Map<number, Entity>, from?: { x: number; y: number }): Facing {
+  const x = from?.x ?? e.x;
+  const y = from?.y ?? e.y;
   let target: { x: number; y: number } | undefined;
   if (e.attackTarget !== undefined) target = entityById.get(e.attackTarget);
   if (!target && e.path.length) target = e.path[0];
   if (target) {
-    const next = toFacing(target.x - e.x, target.y - e.y);
-    e.facing = next;
-    return next;
+    const dx = target.x - x;
+    const dy = target.y - y;
+    if (Math.hypot(dx, dy) > 0.2) {
+      e.facing = toFacing(dx, dy);
+    }
+    return e.facing ?? ((e.owner === 0 ? 0 : 4) as Facing);
   }
   return e.facing ?? ((e.owner === 0 ? 0 : 4) as Facing);
 }
