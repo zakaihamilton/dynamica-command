@@ -7,6 +7,10 @@ import {
   buildTurretHeadModel,
   buildUnitModel,
   createBoxMesh,
+  createCylinderMesh,
+  createCylinderXMesh,
+  createPolygonPrismMesh,
+  createTrapezoidMesh,
   mergeMeshes,
   parseObjModel,
 } from "../lib/render/gl/modelLoader";
@@ -20,6 +24,26 @@ describe("modelLoader 3D meshes and parser", () => {
     expect(box.masks.length).toBe(24);
     // 6 faces * 2 triangles * 3 indices = 36 indices
     expect(box.indices.length).toBe(36);
+  });
+
+  it("creates trapezoid meshes with sloped sides and proper normals", () => {
+    const trap = createTrapezoidMesh(-1, -1, -0.5, -0.5, 1, 1, 0.5, 0.5, 0, 1, 2);
+    expect(trap.positions.length).toBe(24 * 3);
+    expect(trap.normals.length).toBe(24 * 3);
+    expect(trap.masks.every((m) => m === 2)).toBe(true);
+    expect(trap.indices.length).toBe(36);
+  });
+
+  it("creates cylindrical and extruded polygon meshes", () => {
+    const cyl = createCylinderMesh(0, 0, 0, 1, 0.5, 0.5, 8, 4);
+    expect(cyl.positions.length).toBeGreaterThan(0);
+    expect(cyl.indices.length).toBeGreaterThan(0);
+
+    const cylX = createCylinderXMesh(0, 1, 0, 0, 0.5, 0.5, 8, 4);
+    expect(cylX.positions.length).toBeGreaterThan(0);
+
+    const prism = createPolygonPrismMesh([[-1, -1], [1, -1], [1, 1], [-1, 1]], 0, 1, 1);
+    expect(prism.positions.length).toBeGreaterThan(0);
   });
 
   it("merges multiple meshes into a unified buffer", () => {

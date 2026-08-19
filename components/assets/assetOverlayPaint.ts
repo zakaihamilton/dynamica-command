@@ -73,6 +73,13 @@ export function paintBuildingAssetOverlay(
       const sweep = Math.sin(timeMs * 0.0012) * 0.55;
       currentAngle += sweep;
     }
+    ctx.save();
+    ctx.fillStyle = "rgba(8, 12, 16, 0.50)";
+    ctx.beginPath();
+    ctx.ellipse(cx - 0.5 * scale, cy + 0.5 * scale, 14 * scale, 7.2 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     const model = getTurretModel();
     draw3dModel(ctx, model, cx, cy - 3 * scale, scale, currentAngle - Math.PI / 4, palette);
   }
