@@ -31,6 +31,28 @@ export type OreVeinSample = {
   intensity: number;
 };
 
+export type OreVeinPeak = {
+  fx: number;
+  fy: number;
+  intensity: number;
+};
+
+export type OreShardPose = {
+  dx: number;
+  dy: number;
+  lean: number;
+  rise: number;
+  half: number;
+  buried: number;
+};
+
+export type OreCrystalCluster = {
+  fx: number;
+  fy: number;
+  intensity: number;
+  shards: OreShardPose[];
+};
+
 export type TerrainAtlasData = {
   key: string;
   data: Uint8ClampedArray;
@@ -288,6 +310,72 @@ export function oreVeinAt(state: AtlasWorld, mapX: number, mapY: number): OreVei
   );
   const richness = Math.min(1, Math.max(0, amount / 900));
   return { ridge, intensity: ridge * (0.28 + richness * 0.72) };
+}
+
+export const ORE_VEIN_PROBES: ReadonlyArray<readonly [number, number]> = [
+  [0.28, 0.32],
+  [0.62, 0.28],
+  [0.38, 0.68],
+  [0.72, 0.58],
+];
+
+export function oreVeinPeak(state: AtlasWorld, x: number, y: number): OreVeinPeak {
+  let fx = 0.5;
+  let fy = 0.5;
+  let intensity = 0;
+  for (const [px, py] of ORE_VEIN_PROBES) {
+    const vein = oreVeinAt(state, x + px, y + py);
+    if (vein.intensity > intensity) {
+      intensity = vein.intensity;
+      fx = px;
+      fy = py;
+    }
+  }
+  return { fx, fy, intensity };
+}
+
+export function oreShardCount(amount: number): number {
+  if (amount > 700) return 9;
+  if (amount > 380) return 7;
+  return 5;
+}
+
+const ORE_SHARD_SLOTS: ReadonlyArray<readonly [number, number]> = [
+  [0.22, 0.28],
+  [0.50, 0.22],
+  [0.78, 0.28],
+  [0.28, 0.50],
+  [0.50, 0.48],
+  [0.72, 0.50],
+  [0.22, 0.72],
+  [0.50, 0.78],
+  [0.78, 0.72],
+];
+
+export function oreCrystalCluster(state: AtlasWorld, x: number, y: number): OreCrystalCluster | null {
+  const peak = oreVeinPeak(state, x, y);
+  if (peak.intensity < ORE_GLINT_RIDGE) return null;
+  const amount = resourceAt(state, x, y);
+  const v = tileVariant(state.seed, x, y);
+  const count = oreShardCount(amount);
+  const start = v % ORE_SHARD_SLOTS.length;
+  const shards: OreShardPose[] = [];
+  for (let i = 0; i < count; i++) {
+    const slot = ORE_SHARD_SLOTS[(start + i * 4) % ORE_SHARD_SLOTS.length]!;
+    const jitterU = (((v >> (i * 3)) % 7) - 3) * 0.018;
+    const jitterV = (((v >> (i * 5)) % 7) - 3) * 0.018;
+    const u = Math.min(0.84, Math.max(0.16, slot[0] + jitterU));
+    const vv = Math.min(0.84, Math.max(0.16, slot[1] + jitterV));
+    const dx = (u - vv) * 32;
+    const dy = (u + vv) * 16;
+    const lean = ((u - 0.5) * 4.4) + (((v >> (i + 3)) % 5) - 2) * 0.35;
+    const rise = 9 + ((v >> (i * 4)) % 4) + (i === 0 ? 2.4 : 0) + Math.min(2.5, amount / 360);
+    const half = 8.4 + ((v >> (i + 6)) % 4) * 1.2 + (i === 0 ? 1.8 : 0);
+    const buried = 5.2 + (i % 2) * 0.8;
+    shards.push({ dx, dy, lean, rise, half, buried });
+  }
+  shards.sort((a, b) => a.dy - b.dy);
+  return { fx: 0, fy: 0, intensity: peak.intensity, shards };
 }
 
 export function resourceSignature(amounts: number[]): number {

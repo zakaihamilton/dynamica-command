@@ -2,7 +2,7 @@ import { cliffFaces, drawElevationFaces } from "../gen/assets";
 import { MAP_SKIRT, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import { generateCampaignVisualProfile } from "../gen/visualProfile";
 import type { BuildingKind, Entity, SimState } from "../types";
-import { TILE_BLOCKED, TILE_WATER } from "../types";
+import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
 import {
@@ -10,6 +10,7 @@ import {
   biomeMaterials,
   fogTerrainGain,
   getTerrainAtlas,
+  oreCrystalCluster,
   tileVariant,
   type TerrainAtlas,
 } from "./terrainAtlas";
@@ -111,6 +112,90 @@ function drawBlockerProp(
   ctx.restore();
 }
 
+function rgbMix(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  t: number,
+): string {
+  const u = t < 0 ? 0 : t > 1 ? 1 : t;
+  return `rgb(${Math.round(a.r + (b.r - a.r) * u)},${Math.round(a.g + (b.g - a.g) * u)},${Math.round(a.b + (b.b - a.b) * u)})`;
+}
+
+function drawOreCrystals(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  x: number,
+  y: number,
+  elev: number,
+  z: number,
+): void {
+  const cluster = oreCrystalCluster(state, x, y);
+  if (!cluster) return;
+  const mats = biomeMaterials(state.biome);
+  const s = tileToScreen(x, y, cam, elev);
+  const gemDark = rgbMix(mats.ore, mats.dark, 0.42);
+  const gem = rgbMix(mats.ore, mats.light, 0.38);
+  const gemHi = rgbMix(mats.light, { r: 255, g: 246, b: 210 }, 0.62);
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  const alpha = ctx.globalAlpha;
+  for (const shard of cluster.shards) {
+    const dx = shard.dx * z;
+    const dy = shard.dy * z;
+    const lean = shard.lean * z;
+    const rise = shard.rise * z;
+    const half = shard.half * z;
+    const buried = shard.buried * z;
+    const tipX = dx + lean;
+    const tipY = dy - rise;
+    ctx.globalAlpha = alpha * 0.38;
+    ctx.fillStyle = `rgb(${mats.dark.r},${mats.dark.g},${mats.dark.b})`;
+    ctx.beginPath();
+    ctx.ellipse(dx, dy + 1.2 * z, half * 1.7, half * 0.48, lean * 0.03, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = alpha;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(dx - half * 5, dy - rise - 8 * z, half * 10, rise + 2.4 * z);
+    ctx.clip();
+    ctx.fillStyle = gemDark;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(dx + half, dy + 1.6 * z);
+    ctx.lineTo(dx + half * 0.2, dy + buried);
+    ctx.lineTo(dx - half * 0.12, dy + buried);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = gem;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(dx - half, dy + 1.6 * z);
+    ctx.lineTo(dx - half * 0.18, dy + buried);
+    ctx.lineTo(dx + half * 0.2, dy + buried);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = gemHi;
+    ctx.globalAlpha = alpha * 0.72;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(dx - half * 0.22, dy + 0.8 * z);
+    ctx.lineTo(dx + half * 0.1, dy + 0.8 * z);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.strokeStyle = gemHi;
+    ctx.lineWidth = Math.max(1, 0.85 * z);
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(dx - half * 0.18, dy + 0.4 * z);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function paintCell(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -187,10 +272,14 @@ function paintCell(
 
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
   if (!inMap || fogAt(state, x, y) === 0) return;
-  if (scenery.kind !== TILE_BLOCKED || isMountainScenery(scenery)) return;
   ctx.save();
   ctx.globalAlpha = gain;
-  drawBlockerProp(ctx, state, x, y, s.x, s.y, z);
+  if (scenery.kind === TILE_BLOCKED && !isMountainScenery(scenery)) {
+    drawBlockerProp(ctx, state, x, y, s.x, s.y, z);
+  }
+  if (state.tiles[y * state.width + x] === TILE_RESOURCE) {
+    drawOreCrystals(ctx, state, cam, x, y, elev, z);
+  }
   ctx.restore();
 }
 

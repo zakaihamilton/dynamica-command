@@ -3,7 +3,7 @@ import type { BiomeName, SimState } from "../types";
 import { TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
 import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
-import { fogTerrainGain, biomeMaterials, oreVeinAt, ORE_GLINT_RIDGE } from "./terrainAtlas";
+import { fogTerrainGain, oreCrystalCluster } from "./terrainAtlas";
 
 export type WeatherKind = "snow" | "ash" | "dust" | "ember" | "pollen" | "mist";
 
@@ -85,8 +85,49 @@ export function waterCaustic(timeMs: number, x: number, y: number): WaterCaustic
 }
 
 export function oreGlint(timeMs: number, x: number, y: number): number {
-  const phase = timeMs * 0.0028 + x * 1.17 + y * 0.73;
-  return 0.18 + (Math.sin(phase) + 1) * 0.16;
+  return oreSparkle(timeMs, x, y, 0).glow;
+}
+
+export function oreSparkle(timeMs: number, x: number, y: number, index: number): {
+  sweep: number;
+  twinkle: number;
+  glow: number;
+} {
+  const phase = timeMs * 0.00032 + x * 1.13 + y * 0.67 + index * 2.09;
+  return {
+    sweep: (Math.sin(phase) + 1) * 0.5,
+    twinkle: Math.pow(Math.max(0, Math.sin(phase * 0.72 + 0.6)), 16),
+    glow: 0.05 + (Math.sin(phase * 0.14 + index) + 1) * 0.04,
+  };
+}
+
+function drawSparkleStar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  alpha: number,
+): void {
+  if (alpha <= 0.02) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = "#fff8dc";
+  ctx.lineWidth = Math.max(1, size * 0.18);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x - size, y);
+  ctx.lineTo(x + size, y);
+  ctx.moveTo(x, y - size);
+  ctx.lineTo(x, y + size);
+  ctx.stroke();
+  ctx.globalAlpha = alpha * 0.55;
+  ctx.beginPath();
+  ctx.moveTo(x - size * 0.55, y - size * 0.55);
+  ctx.lineTo(x + size * 0.55, y + size * 0.55);
+  ctx.moveTo(x + size * 0.55, y - size * 0.55);
+  ctx.lineTo(x - size * 0.55, y + size * 0.55);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function isoDiamond(
@@ -159,13 +200,6 @@ export function paintWaterFx(
   }
 }
 
-const VEIN_GLINT_PROBES: ReadonlyArray<readonly [number, number]> = [
-  [0.28, 0.32],
-  [0.62, 0.28],
-  [0.38, 0.68],
-  [0.72, 0.58],
-];
-
 export function paintOreGlints(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -176,11 +210,6 @@ export function paintOreGlints(
   const h = ctx.canvas.height;
   const z = cam.zoom;
   const margin = TILE_W * z;
-  const mats = biomeMaterials(state.biome);
-  const specR = Math.round(mats.ore.r + (mats.light.r - mats.ore.r) * 0.55);
-  const specG = Math.round(mats.ore.g + (mats.light.g - mats.ore.g) * 0.55);
-  const specB = Math.round(mats.ore.b + (mats.light.b - mats.ore.b) * 0.55);
-  const fill = `rgb(${specR},${specG},${specB})`;
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       if (state.tiles[y * state.width + x] !== TILE_RESOURCE) continue;
@@ -189,26 +218,43 @@ export function paintOreGlints(
       const elev = sceneryAt(state, x, y).elev;
       const origin = tileToScreen(x, y, cam, elev);
       if (origin.x < -margin || origin.y < -margin || origin.x > w + margin || origin.y > h + margin) continue;
-      let bestFx = 0.5;
-      let bestFy = 0.5;
-      let bestIntensity = 0;
-      for (const [fx, fy] of VEIN_GLINT_PROBES) {
-        const vein = oreVeinAt(state, x + fx, y + fy);
-        if (vein.intensity > bestIntensity) {
-          bestIntensity = vein.intensity;
-          bestFx = fx;
-          bestFy = fy;
-        }
-      }
-      if (bestIntensity < ORE_GLINT_RIDGE) continue;
-      const s = tileToScreen(x + bestFx, y + bestFy, cam, elev);
-      const glint = oreGlint(clockMs, x, y);
+      const cluster = oreCrystalCluster(state, x, y);
+      if (!cluster) continue;
+      const gain = fogTerrainGain(fog) * Math.min(1, cluster.intensity);
+      const s = tileToScreen(x, y, cam, elev);
+      const baseX = s.x;
+      const baseY = s.y;
       ctx.save();
-      ctx.globalAlpha = glint * fogTerrainGain(fog) * Math.min(1, bestIntensity);
-      ctx.fillStyle = fill;
+      ctx.globalCompositeOperation = "lighter";
+      const halo = oreSparkle(clockMs, x, y, 0);
+      ctx.globalAlpha = halo.glow * gain * 0.16;
+      ctx.fillStyle = "#ffe9a8";
       ctx.beginPath();
-      ctx.ellipse(s.x, s.y + TILE_H * z * 0.08, 2.2 * z, 1.1 * z, 0, 0, Math.PI * 2);
+      ctx.ellipse(baseX, baseY + TILE_H * z * 0.5, TILE_W * z * 0.28, TILE_H * z * 0.2, 0, 0, Math.PI * 2);
       ctx.fill();
+      cluster.shards.forEach((shard, index) => {
+        const spark = oreSparkle(clockMs, x, y, index);
+        const dx = shard.dx * z;
+        const dy = shard.dy * z;
+        const lean = shard.lean * z;
+        const rise = shard.rise * z;
+        const tipX = baseX + dx + lean;
+        const tipY = baseY + dy - rise;
+        const t = 0.18 + spark.sweep * 0.72;
+        const sweepX = baseX + dx + lean * t;
+        const sweepY = baseY + dy - rise * t;
+        ctx.globalAlpha = (0.05 + spark.sweep * 0.1) * gain;
+        ctx.fillStyle = "#fff4c4";
+        ctx.beginPath();
+        ctx.ellipse(sweepX, sweepY, 2.2 * z, 1.1 * z, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = (0.04 + spark.glow * 0.16) * gain;
+        ctx.fillStyle = "#ffe07a";
+        ctx.beginPath();
+        ctx.ellipse(tipX, tipY, 1.6 * z, 1.6 * z, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawSparkleStar(ctx, tipX, tipY, (2.2 + spark.twinkle * 1.8) * z, spark.twinkle * gain * 0.55);
+      });
       ctx.restore();
     }
   }

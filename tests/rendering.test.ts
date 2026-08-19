@@ -8,7 +8,12 @@ import {
   atlasRectForTile,
   bakeTerrainAtlasData,
   fogTerrainGain,
+  oreCrystalCluster,
+  oreShardCount,
   oreVeinAt,
+  oreVeinPeak,
+  ORE_GLINT_RIDGE,
+  ORE_VEIN_PROBES,
   resourceSignature,
   sampleTerrainMaterial,
   terrainAtlasKey,
@@ -16,6 +21,7 @@ import {
 } from "../lib/render/terrainAtlas";
 import {
   oreGlint,
+  oreSparkle,
   waterCaustic,
   weatherKindForBiome,
   weatherParticleAt,
@@ -127,6 +133,40 @@ describe("ore veins", () => {
     expect(poor.ridge).toBe(a.ridge);
     expect(poor.intensity).toBeLessThan(a.intensity);
   });
+
+  it("picks a deterministic peak that harvest can drop below the crystal cutoff", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    setTile(state, 3, 2, TILE_RESOURCE, 800);
+    const peak = oreVeinPeak(state, 3, 2);
+    expect(oreVeinPeak(state, 3, 2)).toEqual(peak);
+    let best = 0;
+    for (const [fx, fy] of ORE_VEIN_PROBES) {
+      const intensity = oreVeinAt(state, 3 + fx, 2 + fy).intensity;
+      if (intensity > best) best = intensity;
+    }
+    expect(peak.intensity).toBe(best);
+    expect(peak.intensity).toBeGreaterThanOrEqual(ORE_GLINT_RIDGE);
+    state.resourceAmount[2 * state.width + 3] = 50;
+    expect(oreVeinPeak(state, 3, 2).intensity).toBeLessThan(ORE_GLINT_RIDGE);
+  });
+
+  it("builds a deterministic faceted cluster on a rich peak", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    setTile(state, 3, 2, TILE_RESOURCE, 800);
+    const cluster = oreCrystalCluster(state, 3, 2);
+    expect(cluster).not.toBeNull();
+    expect(oreCrystalCluster(state, 3, 2)).toEqual(cluster);
+    expect(cluster!.shards).toHaveLength(oreShardCount(800));
+    expect(cluster!.shards[0]!.rise).toBeGreaterThan(8);
+    expect(cluster!.shards[0]!.rise).toBeLessThan(18);
+    expect(cluster!.shards[0]!.half).toBeGreaterThan(8);
+    const spanX = Math.max(...cluster!.shards.map((s) => s.dx)) - Math.min(...cluster!.shards.map((s) => s.dx));
+    const spanY = Math.max(...cluster!.shards.map((s) => s.dy)) - Math.min(...cluster!.shards.map((s) => s.dy));
+    expect(spanX).toBeGreaterThan(24);
+    expect(spanY).toBeGreaterThan(12);
+    state.resourceAmount[2 * state.width + 3] = 50;
+    expect(oreCrystalCluster(state, 3, 2)).toBeNull();
+  });
 });
 
 describe("terrain weather and water motion", () => {
@@ -138,6 +178,10 @@ describe("terrain weather and water motion", () => {
     expect(waterCaustic(400, 3, 5)).toEqual(waterCaustic(400, 3, 5));
     expect(waterCaustic(800, 3, 5).offset).not.toBe(waterCaustic(400, 3, 5).offset);
     expect(oreGlint(900, 2, 2)).toBeGreaterThan(0);
+    expect(oreSparkle(900, 2, 2, 0)).toEqual(oreSparkle(900, 2, 2, 0));
+    expect(oreSparkle(1800, 2, 2, 0).sweep).not.toBe(oreSparkle(900, 2, 2, 0).sweep);
+    expect(oreSparkle(900, 2, 2, 1).twinkle).toBeGreaterThanOrEqual(0);
+    expect(oreSparkle(900, 2, 2, 1).twinkle).toBeLessThanOrEqual(1);
     expect(weatherKindForBiome("tundra grid")).toBe("snow");
     expect(weatherKindForBiome("volcanic shelf")).toBe("ember");
   });

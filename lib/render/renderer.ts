@@ -27,7 +27,7 @@ import { resourceSignature, terrainGrainGeneration } from "./terrainAtlas";
 import { paintBuildingPlates, paintTerrainWorld } from "./terrainPaint";
 import { paintOreGlints, paintTerrainWeather, paintWaterFx } from "./terrainWeather";
 
-const TERRAIN_RENDER_REV = "world-atlas-v2";
+const TERRAIN_RENDER_REV = "world-atlas-v6";
 
 function entityElev(state: SimState, e: Entity): number {
   return e.class === "unit" ? groundHeight(state, e.x, e.y) : heightAt(state, Math.round(e.x), Math.round(e.y));
