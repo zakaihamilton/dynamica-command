@@ -61,11 +61,11 @@ export function useGameLoop({
         if (next.tick % 6 === 0) setState({ ...next, entities: [...next.entities] });
         if (events.some((e) => e.type === "won")) {
           beep("win");
-          setMusicCue("victory", next.seed);
+          setMusicCue("victory", next.seed, next.missionIndex);
         }
         if (events.some((e) => e.type === "lost")) {
           beep("lose");
-          setMusicCue("defeat", next.seed);
+          setMusicCue("defeat", next.seed, next.missionIndex);
         }
         if (events.some((e) => e.type === "commandRejected")) beep("alert");
         const alert = events.find((e) => e.type === "alert");

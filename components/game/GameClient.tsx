@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { setMusicDucked } from "@/lib/audio/music";
+import { setMusicCue, setMusicDucked, TUTORIAL_MUSIC_MISSION } from "@/lib/audio/music";
 import { setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
 import { createCampaign } from "@/lib/gen/campaign";
 import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
@@ -274,6 +274,10 @@ export function GameClient({
   useEffect(() => {
     pauseViewRef.current = pauseView;
   }, [pauseView]);
+
+  useEffect(() => {
+    setMusicCue("mission", seed, tutorial ? TUTORIAL_MUSIC_MISSION : stateRef.current.missionIndex);
+  }, [seed, tutorial]);
 
   useEffect(() => {
     setMusicDucked(paused);

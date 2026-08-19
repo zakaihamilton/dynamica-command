@@ -4,6 +4,7 @@ import { Suspense, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   TITLE_MUSIC_SEED,
+  TUTORIAL_MUSIC_MISSION,
   musicCueFromPath,
   setMusicCue,
   setMusicEnabled,
@@ -18,6 +19,7 @@ function AudioRootInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const seedParam = searchParams.get("seed");
+  const missionParam = searchParams.get("mission");
 
   useEffect(() => {
     const settings = readSettings(localStorageAdapter());
@@ -28,8 +30,11 @@ function AudioRootInner() {
   useEffect(() => {
     const cue = musicCueFromPath(pathname);
     const parsed = parseSeed(seedParam ?? "");
-    setMusicCue(cue, parsed ?? TITLE_MUSIC_SEED);
-  }, [pathname, seedParam]);
+    const missionIndex = pathname.startsWith("/tutorial")
+      ? TUTORIAL_MUSIC_MISSION
+      : Math.max(0, Number(missionParam ?? "0") || 0);
+    setMusicCue(cue, parsed ?? TITLE_MUSIC_SEED, missionIndex);
+  }, [pathname, seedParam, missionParam]);
 
   useEffect(() => {
     const unlock = () => unlockAudio();

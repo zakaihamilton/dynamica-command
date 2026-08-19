@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { composeMusic, midiToHz, MUSIC_STEPS } from "../lib/audio/compose";
+import {
+  composeMusic,
+  midiToHz,
+  MUSIC_BARS,
+  MUSIC_STEPS,
+  TUTORIAL_MUSIC_MISSION,
+} from "../lib/audio/compose";
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled } from "../lib/audio/music";
 import { beep, isSfxEnabled, setSfxEnabled } from "../lib/audio/synth";
 
@@ -9,13 +15,19 @@ describe("generated audio", () => {
     setMusicEnabled(true);
   });
 
-  it("composes the same pattern for the same seed and cue", () => {
-    expect(composeMusic(421, "mission")).toEqual(composeMusic(421, "mission"));
+  it("composes the same pattern for the same seed, cue, and mission", () => {
+    expect(composeMusic(421, "mission", 3)).toEqual(composeMusic(421, "mission", 3));
     expect(composeMusic(421, "menu")).not.toEqual(composeMusic(421, "mission"));
     expect(composeMusic(1, "mission")).not.toEqual(composeMusic(2, "mission"));
   });
 
-  it("keeps cue tempos in their industrial ranges and fills 16-step lanes", () => {
+  it("varies the arrangement across missions of the same seed", () => {
+    expect(composeMusic(421, "mission", 0)).not.toEqual(composeMusic(421, "mission", 1));
+    expect(composeMusic(421, "mission", 0)).not.toEqual(composeMusic(421, "mission", 7));
+    expect(composeMusic(421, "mission", 0)).not.toEqual(composeMusic(421, "mission", TUTORIAL_MUSIC_MISSION));
+  });
+
+  it("keeps cue tempos in their industrial ranges and fills 8-bar lanes", () => {
     const ranges = {
       menu: [72, 88],
       briefing: [64, 80],
@@ -25,15 +37,21 @@ describe("generated audio", () => {
     } as const;
     for (const seed of [0, 1, 421, 9999]) {
       for (const [cue, [lo, hi]] of Object.entries(ranges)) {
-        const pattern = composeMusic(seed, cue as keyof typeof ranges);
+        const pattern = composeMusic(seed, cue as keyof typeof ranges, cue === "mission" ? 3 : 0);
         expect(pattern.bpm).toBeGreaterThanOrEqual(lo);
         expect(pattern.bpm).toBeLessThanOrEqual(hi);
+        expect(pattern.bars).toBe(MUSIC_BARS);
         expect(pattern.steps).toBe(MUSIC_STEPS);
         expect(pattern.bass).toHaveLength(MUSIC_STEPS);
         expect(pattern.arp).toHaveLength(MUSIC_STEPS);
         expect(pattern.melody).toHaveLength(MUSIC_STEPS);
+        expect(pattern.counter).toHaveLength(MUSIC_STEPS);
+        expect(pattern.kick).toHaveLength(MUSIC_STEPS);
+        expect(pattern.snare).toHaveLength(MUSIC_STEPS);
         expect(pattern.hats).toHaveLength(MUSIC_STEPS);
         expect(pattern.bass.some((note) => note !== null)).toBe(true);
+        expect(pattern.kick.some(Boolean)).toBe(true);
+        expect(pattern.snare.some(Boolean)).toBe(true);
         expect(pattern.rootHz).toBeGreaterThan(midiToHz(30));
       }
     }
