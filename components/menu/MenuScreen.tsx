@@ -11,6 +11,7 @@ import { listSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
 import { isEditableTarget, menuCommandFromKey, SHORTCUT } from "@/lib/ui/shortcuts";
 import { MenuBackdrop } from "./MenuBackdrop";
+import { MenuHero } from "./MenuHero";
 import { NewGameSetup } from "./NewGameSetup";
 import { ResumeList } from "./ResumeList";
 import styles from "./MenuScreen.module.css";
@@ -96,9 +97,7 @@ export function MenuScreen() {
       <div className={styles.scanlines} />
 
       <div className={styles.content}>
-        <h1 className={styles.title}>GENESIS</h1>
-        <h1 className={styles.subtitle}>PROTOCOL</h1>
-        <p className={styles.tagline}>Harvest. Build. Conquer.</p>
+        <MenuHero />
         <MetalPanel className={styles.panel}>
           <ConsoleButton
             className={styles.full}

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
@@ -10,11 +9,12 @@ import { missionObjectives } from "@/lib/gen/story";
 import { biomeArt } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
 import type { BriefingLine } from "@/lib/types";
-import { briefingCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
+import { briefingCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
+import { BriefingActions } from "./BriefingActions";
 import { BriefingMast } from "./BriefingMast";
 import { BriefingObjectives } from "./BriefingObjectives";
+import { BriefingAllyPortraits, BriefingEnemyPortrait } from "./BriefingPortraits";
 import { BriefingStory } from "./BriefingStory";
-import { Portrait } from "./Portrait";
 import styles from "./BriefingScreen.module.css";
 import { useCampaignProgress } from "../campaign/useCampaignProgress";
 import { useBriefingTypewriter } from "./useBriefingTypewriter";
@@ -41,6 +41,10 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     [def, campaign],
   );
 
+  const launch = useCallback(() => {
+    router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`);
+  }, [mission, returnToGame, router, seed]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const command = briefingCommandFromKey(e, {
@@ -58,11 +62,11 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
         replayTransmission();
         return;
       }
-      router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`);
+      launch();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isComplete, router, seed, mission, replayTransmission, returnToGame, skipToEnd]);
+  }, [isComplete, launch, replayTransmission, returnToGame, skipToEnd]);
 
   if (!def) {
     return <div className={styles.missing}>Mission missing.</div>;
@@ -84,20 +88,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
           <BriefingMast seed={seed} mission={mission} campaign={campaign} def={def} />
         </div>
 
-        <div className={styles.portraits}>
-          <Portrait
-            who={campaign.characters.advisor}
-            talking={liveRole === "advisor"}
-            tone="ally"
-            faction={campaign.factions[0].name}
-          />
-          <Portrait
-            who={campaign.characters.commander}
-            talking={liveRole === "commander"}
-            tone="command"
-            faction={campaign.factions[0].name}
-          />
-        </div>
+        <BriefingAllyPortraits campaign={campaign} liveRole={liveRole} />
 
         <MetalPanel className={styles.panel}>
           <section className={styles.comms}>
@@ -111,35 +102,15 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
             />
           </section>
           <BriefingObjectives objectives={objectives} />
-          <div className={styles.actions}>
-            <ConsoleButton
-              tooltip="Replay the incoming transmission"
-              shortcut={SHORTCUT.replay}
-              onClick={replayTransmission}
-            >
-              Replay
-            </ConsoleButton>
-            <ConsoleButton
-              tooltip={returnToGame ? "Return to the battlefield" : "Launch this mission"}
-              shortcut={returnToGame ? SHORTCUT.resume : SHORTCUT.launch}
-              onClick={() => router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`)}
-            >
-              {returnToGame ? "Return to mission" : "Launch"}
-            </ConsoleButton>
-            <p className={styles.tone}>
-              {campaign.world.tone} · {campaign.world.conflict}
-            </p>
-          </div>
+          <BriefingActions
+            campaign={campaign}
+            returnToGame={returnToGame}
+            onReplay={replayTransmission}
+            onLaunch={launch}
+          />
         </MetalPanel>
 
-        <div className={styles.enemy}>
-          <Portrait
-            who={campaign.characters.enemyLeader}
-            talking={liveRole === "enemyLeader"}
-            tone="enemy"
-            faction={campaign.factions[1].name}
-          />
-        </div>
+        <BriefingEnemyPortrait campaign={campaign} liveRole={liveRole} />
       </div>
     </div>
   );

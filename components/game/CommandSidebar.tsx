@@ -1,17 +1,14 @@
 import type { PointerEventHandler, Ref } from "react";
-import { BUILDING_STATS, UNIT_STATS, buildingCameoStatus, unitCameoStatus } from "@/lib/catalog";
 import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
-import { SHORTCUT, type CommandTab } from "@/lib/ui/shortcuts";
-import { CameoGrid } from "./CameoGrid";
+import type { CommandTab } from "@/lib/ui/shortcuts";
+import { CommandHeader } from "./CommandHeader";
 import { CommandTabs } from "./CommandTabs";
-import { CommandCameo } from "./CommandCameo";
+import { ConstructionCameos } from "./ConstructionCameos";
 import { MinimapFrame } from "./MinimapFrame";
+import { ProductionCameos } from "./ProductionCameos";
 import { ResourceDock } from "./ResourceDock";
 import { SelectionPanel } from "./SelectionPanel";
 import styles from "./CommandSidebar.module.css";
-
-const PLACEABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
-const PRODUCIBLE: UnitKind[] = ["infantry", "antiArmor", "harvester", "tank"];
 
 export function CommandSidebar({
   factionName,
@@ -75,18 +72,7 @@ export function CommandSidebar({
   return (
     <aside className={styles.sidebar} data-testid="command-sidebar">
       <span className={styles.rail} aria-hidden />
-      <button
-        type="button"
-        className={styles.header}
-        data-tooltip="Open pause menu"
-        data-shortcut={SHORTCUT.pause}
-        onClick={onPause}
-        aria-label="Open Genesis Command pause menu"
-        aria-keyshortcuts="Escape"
-      >
-        <p className={styles.title}>GENESIS COMMAND</p>
-        <p className={styles.faction}>{factionName}</p>
-      </button>
+      <CommandHeader factionName={factionName} onPause={onPause} />
 
       <div className={styles.radarSlot}>
         <MinimapFrame
@@ -113,48 +99,24 @@ export function CommandSidebar({
           onSell={onSell}
         />
         {activeTab === "construction" ? (
-          <CameoGrid>
-            {PLACEABLE.map((kind, index) => {
-              const cameo = buildingCameoStatus(state.entities, 0, kind);
-              return (
-                <CommandCameo
-                  key={kind}
-                  kind={kind}
-                  palette={palette}
-                  profile={profile}
-                  cost={BUILDING_STATS[kind].cost}
-                  disabled={cameo.phase === "idle" && state.credits[0] < BUILDING_STATS[kind].cost}
-                  active={placeKind === kind}
-                  cameo={cameo}
-                  shortcut={SHORTCUT.cameo[index]}
-                  onClick={() => onPlace(kind)}
-                  onContextMenu={() => onCancelBuilding(kind)}
-                />
-              );
-            })}
-          </CameoGrid>
+          <ConstructionCameos
+            state={state}
+            palette={palette}
+            profile={profile}
+            placeKind={placeKind}
+            onPlace={onPlace}
+            onCancelBuilding={onCancelBuilding}
+          />
         ) : activeTab === "production" ? (
-          <CameoGrid>
-            {PRODUCIBLE.map((unit, index) => {
-              const cameo = unitCameoStatus(state.entities, 0, unit);
-              const producer = availableProducer(unit);
-              const canBuy = state.credits[0] >= UNIT_STATS[unit].cost && !!producer && power >= 0;
-              return (
-                <CommandCameo
-                  key={unit}
-                  kind={unit}
-                  palette={palette}
-                  profile={profile}
-                  cost={UNIT_STATS[unit].cost}
-                  disabled={cameo.phase === "idle" && !canBuy}
-                  cameo={cameo}
-                  shortcut={SHORTCUT.cameo[index]}
-                  onClick={() => onQueueUnit(unit)}
-                  onContextMenu={() => onCancelUnit(unit)}
-                />
-              );
-            })}
-          </CameoGrid>
+          <ProductionCameos
+            state={state}
+            palette={palette}
+            profile={profile}
+            power={power}
+            availableProducer={availableProducer}
+            onQueueUnit={onQueueUnit}
+            onCancelUnit={onCancelUnit}
+          />
         ) : (
           <div className={styles.selected} data-testid="selected-panel">
             <SelectionPanel

@@ -52,3 +52,5 @@ export function missionDebrief(state: SimState) {
     },
   };
 }
+
+export type MissionDebrief = ReturnType<typeof missionDebrief>;

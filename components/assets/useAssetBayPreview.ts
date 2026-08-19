@@ -1,0 +1,124 @@
+import { useEffect, type RefObject } from "react";
+import { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
+import type { CatalogAsset } from "@/lib/gen/assetCatalog";
+import { unitMovementOffset } from "@/lib/render/anim";
+import { drawSprite, rasterize, rotatedSpriteBounds } from "@/lib/render/sprites";
+import { drawUnitShadow } from "@/lib/render/unitMotion";
+import type { AnimFrame, BuildingKind, Facing, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
+import { paintBuildingAssetOverlay } from "./assetOverlayPaint";
+
+export function useAssetBayPreview({
+  canvasRef,
+  selected,
+  palette,
+  profile,
+  facing,
+  playing,
+  construction,
+  damage,
+}: {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  selected: CatalogAsset | undefined;
+  palette: Palette;
+  profile: FactionVisualProfile;
+  facing: Facing;
+  playing: boolean;
+  construction: 0 | 1 | 2 | 3;
+  damage: 0 | 1 | 2;
+}) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !selected) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let raf = 0;
+    let frame: AnimFrame = 0;
+    let lastFrameTime = 0;
+    let animTime = 0;
+    let lastNow = 0;
+
+    const paint = (timeMs: number) => {
+      const spec =
+        selected.category === "unit"
+          ? unitSprite(selected.kind as UnitKind, palette, { facing, animationFrame: frame, variant: 11, profile })
+          : selected.category === "building"
+            ? buildingSprite(selected.kind as BuildingKind, palette, {
+                constructionStage: construction,
+                damageStage: damage,
+                variant: 13,
+                profile,
+              })
+            : selected.category === "wreck"
+              ? wreckSprite(selected.kind as UnitKind, palette, { profile })
+              : rubbleSprite(selected.kind as BuildingKind, palette, { profile });
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const image = rasterize(spec);
+      const bounds = rotatedSpriteBounds(spec);
+      const scale = Math.min(canvas.width / bounds.width, canvas.height / bounds.height) * 0.86;
+      const dw = Math.max(1, Math.round(spec.w * scale));
+      const dh = Math.max(1, Math.round(spec.h * scale));
+      const dx = Math.round((canvas.width - bounds.width * scale) / 2 - bounds.minX * scale);
+      const dy = Math.round((canvas.height - bounds.height * scale) / 2 - bounds.minY * scale);
+
+      const isWalker = selected.kind === "infantry" || selected.kind === "antiArmor";
+      const isHeavy = selected.kind === "antiArmor";
+      const period = isHeavy ? 105 : isWalker ? 80 : 90;
+      const strideCycleMs = period * 4;
+      const stridePhase = playing ? ((animTime % strideCycleMs) / strideCycleMs) * Math.PI * 2 : 0;
+      const movement = selected.category === "unit"
+        ? unitMovementOffset(selected.kind as UnitKind, frame, stridePhase)
+        : null;
+
+      const bob = playing ? (movement?.bobY ?? 0) * scale : 0;
+      const renderDx = dx;
+      const renderDy = dy - bob;
+      const groundX = dx + dw * 0.5;
+      const groundY = dy + dh;
+
+      if (selected.category === "unit") {
+        drawUnitShadow(
+          ctx,
+          selected.kind as UnitKind,
+          groundX,
+          groundY,
+          scale,
+          1,
+          playing,
+        );
+      }
+
+      drawSprite(ctx, spec, image, renderDx, renderDy, dw, dh);
+      if (selected.category === "building") {
+        paintBuildingAssetOverlay(
+          ctx,
+          selected.kind as BuildingKind,
+          canvas.width / 2,
+          canvas.height / 2,
+          Math.max(1, scale),
+          timeMs,
+          facing,
+          playing,
+          palette,
+        );
+      }
+    };
+    paint(0);
+    const loop = (now: number) => {
+      if (lastNow === 0) lastNow = now;
+      const dt = now - lastNow;
+      lastNow = now;
+
+      if (playing) {
+        animTime += dt;
+        if (now - lastFrameTime > 140) {
+          frame = ((frame + 1) & 3) as AnimFrame;
+          lastFrameTime = now;
+        }
+      }
+      paint(animTime);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [canvasRef, construction, damage, facing, palette, playing, profile, selected]);
+}
