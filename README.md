@@ -81,7 +81,7 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 | Selection panel | Stance (Aggressive / Defend / Hold) and formation (Line / Column / Wedge) |
 | Minimap click / drag | Move camera focus |
 | WASD / arrows | Pan |
-| Q / E | Construction / production tabs |
+| Q / E / T | Construction / production / selected tabs |
 | 1–5 | Sidebar cameo (Ctrl+1–5 cancels) |
 | H / Home | Jump to construction yard |
 | Space | Center camera on selection |

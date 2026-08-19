@@ -20,7 +20,7 @@ import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import { objectiveProgress } from "@/lib/sim/objectives";
 import { powerBreakdown } from "@/lib/sim/world";
 import type { Command, SimState } from "@/lib/types";
-import type { PauseView } from "@/lib/ui/shortcuts";
+import type { PauseView, CommandTab } from "@/lib/ui/shortcuts";
 import { Battlefield } from "./Battlefield";
 import { CommandSidebar } from "./CommandSidebar";
 import { MissionResult } from "./MissionResult";
@@ -64,7 +64,7 @@ export function GameClient({
   const miniRef = useRef<HTMLCanvasElement>(null);
   const selected = useRef(new Set<number>());
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState<"construction" | "production">("construction");
+  const [activeTab, setActiveTab] = useState<CommandTab>("construction");
   const activeTabRef = useRef(activeTab);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);

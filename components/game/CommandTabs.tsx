@@ -1,12 +1,20 @@
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
-import { SHORTCUT } from "@/lib/ui/shortcuts";
+import { SHORTCUT, type CommandTab } from "@/lib/ui/shortcuts";
 import styles from "./CommandTabs.module.css";
 
-function CommandTabIcon({ type }: { type: "construction" | "production" | "repair" | "sell" }) {
+function CommandTabIcon({ type }: { type: CommandTab | "repair" | "sell" }) {
   if (type === "construction") {
     return (
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
         <path d="M5 20h14M7 17h10M9 17V8l3-3 3 3v9M6 8h12M12 5V2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter" />
+      </svg>
+    );
+  }
+  if (type === "selected") {
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+        <path d="M8 5H5v3M16 5h3v3M19 16v3h-3M8 19H5v-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
+        <path d="M9 8h6v8H9z" fill="none" stroke="currentColor" strokeWidth="1.8" />
       </svg>
     );
   }
@@ -41,14 +49,16 @@ export function CommandTabs({
   sellMode,
   onConstruction,
   onProduction,
+  onSelected,
   onRepair,
   onSell,
 }: {
-  activeTab: "construction" | "production";
+  activeTab: CommandTab;
   repairMode: boolean;
   sellMode: boolean;
   onConstruction: () => void;
   onProduction: () => void;
+  onSelected: () => void;
   onRepair: () => void;
   onSell: () => void;
 }) {
@@ -79,6 +89,20 @@ export function CommandTabs({
         onClick={onProduction}
       >
         <CommandTabIcon type="production" />
+      </ConsoleButton>
+      <ConsoleButton
+        role="tab"
+        aria-selected={activeTab === "selected"}
+        aria-label="Selected"
+        data-testid="tab-selected"
+        tooltip="Selected"
+        shortcut={SHORTCUT.selected}
+        aria-keyshortcuts="t"
+        muted={activeTab !== "selected"}
+        className={styles.tab}
+        onClick={onSelected}
+      >
+        <CommandTabIcon type="selected" />
       </ConsoleButton>
       <ConsoleButton
         aria-pressed={repairMode}

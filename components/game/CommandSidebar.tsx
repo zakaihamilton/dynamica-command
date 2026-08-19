@@ -1,7 +1,7 @@
 import type { PointerEventHandler, Ref } from "react";
 import { BUILDING_STATS, UNIT_STATS, buildingCameoStatus, unitCameoStatus } from "@/lib/catalog";
-import { SHORTCUT } from "@/lib/ui/shortcuts";
 import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
+import { SHORTCUT, type CommandTab } from "@/lib/ui/shortcuts";
 import { CameoGrid } from "./CameoGrid";
 import { CommandTabs } from "./CommandTabs";
 import { CommandCameo } from "./CommandCameo";
@@ -51,7 +51,7 @@ export function CommandSidebar({
   placeKind: BuildingKind | null;
   repairMode: boolean;
   sellMode: boolean;
-  activeTab: "construction" | "production";
+  activeTab: CommandTab;
   power: number;
   produced: number;
   used: number;
@@ -60,7 +60,7 @@ export function CommandSidebar({
   onMinimapPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerUp: PointerEventHandler<HTMLCanvasElement>;
-  onTab: (tab: "construction" | "production") => void;
+  onTab: (tab: CommandTab) => void;
   onRepair: () => void;
   onSell: () => void;
   onPlace: (kind: BuildingKind) => void;
@@ -108,6 +108,7 @@ export function CommandSidebar({
           sellMode={sellMode}
           onConstruction={() => onTab("construction")}
           onProduction={() => onTab("production")}
+          onSelected={() => onTab("selected")}
           onRepair={onRepair}
           onSell={onSell}
         />
@@ -132,7 +133,7 @@ export function CommandSidebar({
               );
             })}
           </CameoGrid>
-        ) : (
+        ) : activeTab === "production" ? (
           <CameoGrid>
             {PRODUCIBLE.map((unit, index) => {
               const cameo = unitCameoStatus(state.entities, 0, unit);
@@ -154,19 +155,20 @@ export function CommandSidebar({
               );
             })}
           </CameoGrid>
+        ) : (
+          <div className={styles.selected} data-testid="selected-panel">
+            <SelectionPanel
+              selected={selected}
+              palette={palette}
+              profile={profile}
+              className={styles.selectedBody}
+              onStop={onStop}
+              onStance={onStance}
+              onFormation={onFormation}
+            />
+          </div>
         )}
       </section>
-
-      <div className={styles.selected}>
-        <SelectionPanel
-          selected={selected}
-          palette={palette}
-          profile={profile}
-          onStop={onStop}
-          onStance={onStance}
-          onFormation={onFormation}
-        />
-      </div>
     </aside>
   );
 }

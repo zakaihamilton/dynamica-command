@@ -3,6 +3,7 @@ import { ProgressMeter } from "@/components/ui/ProgressMeter";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
+import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, Stance, UnitKind } from "@/lib/types";
 import { SpritePreview } from "./SpritePreview";
 import styles from "./SelectionPanel.module.css";
@@ -23,6 +24,7 @@ export function SelectionPanel({
   selected,
   palette,
   profile,
+  className,
   onStop,
   onStance,
   onFormation,
@@ -30,6 +32,7 @@ export function SelectionPanel({
   selected: Entity | undefined;
   palette: Palette;
   profile: FactionVisualProfile;
+  className?: string;
   onStop?: () => void;
   onStance?: (stance: Stance) => void;
   onFormation?: (formation: Formation) => void;
@@ -38,7 +41,7 @@ export function SelectionPanel({
   const stance = selected?.stance ?? "aggressive";
   const formation = selected?.formation;
   return (
-    <section className={styles.section}>
+    <section className={cx(styles.section, className)}>
       <ConsoleLabel className={styles.label}>Selected</ConsoleLabel>
       {selected ? (
         <div className={styles.body}>

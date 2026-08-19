@@ -9,12 +9,13 @@ export type KeyEventLike = {
 };
 
 export type PauseView = "main" | "options" | "assets";
+export type CommandTab = "construction" | "production" | "selected";
 
 export type GameCommand =
   | { type: "pause" }
   | { type: "resume" }
   | { type: "pauseBack" }
-  | { type: "tab"; tab: "construction" | "production" }
+  | { type: "tab"; tab: CommandTab }
   | { type: "cameo"; index: number; cancel: boolean }
   | { type: "home" }
   | { type: "center" }
@@ -52,6 +53,7 @@ export const SHORTCUT = {
   close: "Esc",
   construction: "Q",
   production: "E",
+  selected: "T",
   cameo: ["1", "2", "3", "4", "5"] as const,
   pan: { up: "W", down: "S", left: "A", right: "D" },
   home: "H",
@@ -164,6 +166,7 @@ export function gameCommandFromKey(
   if (isEscape(e)) return ctx.toolActive ? { type: "cancelTool" } : { type: "pause" };
   if (key === "q") return { type: "tab", tab: "construction" };
   if (key === "e") return { type: "tab", tab: "production" };
+  if (key === "t") return { type: "tab", tab: "selected" };
   if (key === "r") return { type: "repair" };
   if (key === "f") return { type: "sell" };
   if (key === "x") return { type: "stop" };
