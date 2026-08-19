@@ -39,7 +39,7 @@ export function AssetPreview({
   onDamage: (stage: 0 | 1 | 2) => void;
   onDesignFamily: (value: FactionVisualProfile["designFamily"]) => void;
 }) {
-  const showFacing = selected.category === "unit";
+  const showFacing = selected.category === "unit" || (selected.category === "building" && selected.kind === "turret");
   const showAnim = selected.category === "unit" || selected.category === "building";
   return (
     <div className={styles.pane}>

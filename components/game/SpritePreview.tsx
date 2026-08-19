@@ -2,10 +2,20 @@
 
 import { useEffect, useRef } from "react";
 import { buildingSprite, unitSprite } from "@/lib/gen/assets";
+import { buildTurretHeadModel, type UnitModel } from "@/lib/render/gl/modelLoader";
+import { draw3dModel } from "@/lib/render/gl/modelRenderer";
 import { rasterize, spriteContentBounds } from "@/lib/render/sprites";
 import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import styles from "./SpritePreview.module.css";
+
+let cachedTurretModel: UnitModel | null = null;
+function getTurretModel(): UnitModel {
+  if (!cachedTurretModel) {
+    cachedTurretModel = buildTurretHeadModel();
+  }
+  return cachedTurretModel;
+}
 
 const UNITS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank"];
 
@@ -56,6 +66,13 @@ export function SpritePreview({
         dw,
         dh,
       );
+      if (kind === "turret") {
+        const model = getTurretModel();
+        const modelScale = scale * 1.5;
+        const cx = Math.round(canvas.width / 2);
+        const cy = Math.round(canvas.height / 2);
+        draw3dModel(ctx, model, cx, cy - 3 * modelScale, modelScale, (3 / 8) * Math.PI * 2 - Math.PI / 4, palette);
+      }
     };
     paint(0);
     if (!isUnit) return;

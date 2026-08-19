@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "@/lib/gen/assets";
 import { listGeneratedAssets } from "@/lib/gen/assetCatalog";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
-import { buildingAnim, unitMovementOffset } from "@/lib/render/anim";
+import { unitMovementOffset } from "@/lib/render/anim";
 import { drawSprite, rasterize, rotatedSpriteBounds } from "@/lib/render/sprites";
 import { paintUnitMovementFx } from "@/lib/render/unitMotion";
 import { assetsCommandFromKey, isEditableTarget, SHORTCUT } from "@/lib/ui/shortcuts";
@@ -14,7 +14,6 @@ import { MetalPanel } from "@/components/ui/MetalPanel";
 import type {
   AnimFrame,
   BuildingKind,
-  Entity,
   Facing,
   FactionVisualProfile,
   Palette,
@@ -22,63 +21,8 @@ import type {
 } from "@/lib/types";
 import { AssetList } from "./AssetList";
 import { AssetPreview } from "./AssetPreview";
+import { paintBuildingAssetOverlay } from "./assetOverlayPaint";
 import styles from "./AssetsBrowser.module.css";
-
-function fakeBuilding(kind: BuildingKind): Entity {
-  return {
-    id: 1,
-    owner: 0,
-    class: "building",
-    kind,
-    x: 0,
-    y: 0,
-    hp: 100,
-    maxHp: 100,
-    cooldown: 0,
-    path: [],
-    carry: 0,
-    constructing: 0,
-    queue: [],
-    marked: false,
-    idle: true,
-  };
-}
-
-function paintOverlay(
-  ctx: CanvasRenderingContext2D,
-  kind: BuildingKind,
-  cx: number,
-  cy: number,
-  scale: number,
-  now: number,
-): void {
-  const anim = buildingAnim(fakeBuilding(kind), 0, now);
-  ctx.save();
-  if (anim.lightOn && (kind === "power" || kind === "constructionYard" || kind === "objective" || kind === "turret")) {
-    ctx.fillStyle = kind === "objective" ? "#f3dc79" : "#c7f0d4";
-    ctx.globalAlpha = 0.5 + anim.smoke * 0.3;
-    ctx.beginPath();
-    ctx.ellipse(cx + 6 * scale, cy - 12 * scale, 3.5 * scale, 2.5 * scale, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  if (kind === "refinery" || kind === "power" || kind === "factory" || anim.damageStage > 0) {
-    const puff = anim.smoke;
-    for (let i = 0; i < 2; i++) {
-      const rise = (12 + puff * 14 + i * 7) * scale;
-      ctx.globalAlpha = (0.2 + puff * 0.22) * (1 - i * 0.18);
-      ctx.fillStyle = "rgba(190,190,180,0.55)";
-      ctx.beginPath();
-      ctx.ellipse(cx - (8 - i * 6) * scale, cy - rise, (4 + puff * 4 + i * 2) * scale, (3 + puff * 3 + i) * scale, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  if ((kind === "barracks" || kind === "factory") && anim.doorOpen) {
-    ctx.globalAlpha = 0.4;
-    ctx.fillStyle = "#ffc14a";
-    ctx.fillRect(cx - 6 * scale, cy + 4 * scale, 12 * scale, 5 * scale);
-  }
-  ctx.restore();
-}
 
 export function AssetsBrowser({
   palette,
@@ -141,8 +85,11 @@ export function AssetsBrowser({
     if (!ctx) return;
     let raf = 0;
     let frame: AnimFrame = 0;
-    let last = 0;
-    const paint = (now: number) => {
+    let lastFrameTime = 0;
+    let animTime = 0;
+    let lastNow = 0;
+
+    const paint = (timeMs: number) => {
       const spec =
         selected.category === "unit"
           ? unitSprite(selected.kind as UnitKind, palette, { facing, animationFrame: frame, variant: 11, profile })
@@ -175,16 +122,33 @@ export function AssetsBrowser({
         paintUnitMovementFx(ctx, selected.kind as UnitKind, renderDx, renderDy, dw, dh, groundY, scale, frame, 1);
       }
       if (selected.category === "building") {
-        paintOverlay(ctx, selected.kind as BuildingKind, canvas.width / 2, canvas.height / 2, Math.max(1, scale), now);
+        paintBuildingAssetOverlay(
+          ctx,
+          selected.kind as BuildingKind,
+          canvas.width / 2,
+          canvas.height / 2,
+          Math.max(1, scale),
+          timeMs,
+          facing,
+          playing,
+          palette,
+        );
       }
     };
     paint(0);
     const loop = (now: number) => {
-      if (playing && now - last > 140) {
-        frame = ((frame + 1) & 3) as AnimFrame;
-        last = now;
+      if (lastNow === 0) lastNow = now;
+      const dt = now - lastNow;
+      lastNow = now;
+
+      if (playing) {
+        animTime += dt;
+        if (now - lastFrameTime > 140) {
+          frame = ((frame + 1) & 3) as AnimFrame;
+          lastFrameTime = now;
+        }
       }
-      paint(now);
+      paint(animTime);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);

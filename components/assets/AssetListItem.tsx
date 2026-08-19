@@ -3,7 +3,7 @@ import { cx } from "@/lib/ui/cx";
 import type { CatalogAsset } from "@/lib/gen/assetCatalog";
 import styles from "./AssetListItem.module.css";
 
-export const CATEGORY_LABEL: Record<CatalogAsset["category"], string> = {
+const CATEGORY_LABEL: Record<CatalogAsset["category"], string> = {
   unit: "Units",
   building: "Buildings",
   wreck: "Wrecks",

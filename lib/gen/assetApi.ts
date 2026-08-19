@@ -7,10 +7,38 @@ import { rotatedSpriteBounds } from "../render/sprites";
 import type { Facing, ShapeSpec, SpriteSpec } from "../types";
 
 export const ASSET_API_VERSION = 1;
+export const ASSET_API_HEADERS = {
+  "Cache-Control": "public, max-age=3600, s-maxage=3600",
+  "Access-Control-Allow-Origin": "*",
+};
 const DEFAULT_SEED = 421;
 const DEFAULT_PALETTE = generateFactions(DEFAULT_SEED)[0].palette;
 const DEFAULT_PROFILE = { ...generateVisualProfile(DEFAULT_SEED, 0), designFamily: 0 as const };
 export const ASSET_FACINGS: Facing[] = [0, 1, 2, 3, 4, 5, 6, 7];
+
+export function resolveAssetParam(id: string) {
+  const asset = assetById(decodeURIComponent(id));
+  if (!asset) {
+    return {
+      errorResponse: Response.json({ error: "Asset not found" }, { status: 404, headers: ASSET_API_HEADERS }),
+    };
+  }
+  return { asset };
+}
+
+export type AssetRouteContext = { params: Promise<{ id: string }> };
+
+export function withAssetRoute(
+  handler: (asset: CatalogAsset, request: Request) => Response | Promise<Response>,
+) {
+  return function GET(request: Request, { params }: AssetRouteContext) {
+    return params.then((p) => {
+      const { asset, errorResponse } = resolveAssetParam(p.id);
+      if (!asset || errorResponse) return errorResponse;
+      return handler(asset, request);
+    });
+  };
+}
 
 export type AssetDirection = {
   facing: Facing;

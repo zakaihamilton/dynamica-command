@@ -1,0 +1,16 @@
+{
+  "config": {
+    "MD013": false,
+    "MD033": false
+  },
+  "ignores": [
+    ".repnix",
+    ".next",
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "playwright-report",
+    "test-results"
+  ]
+}

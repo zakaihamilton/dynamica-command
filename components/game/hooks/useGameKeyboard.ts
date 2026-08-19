@@ -1,0 +1,149 @@
+import { useEffect, useRef, type MutableRefObject } from "react";
+import { beep } from "@/lib/audio/synth";
+import { gameCommandFromKey, isEditableTarget, type PauseView } from "@/lib/ui/shortcuts";
+import type { BuildingKind, SimState } from "@/lib/types";
+
+export function useGameKeyboard({
+  stateRef,
+  pausedRef,
+  pauseViewRef,
+  activeTabRef,
+  place,
+  repair,
+  sell,
+  openPauseMenu,
+  resumeMission,
+  setPauseView,
+  setPauseNotice,
+  setActiveTab,
+  activateCameo,
+  jumpHome,
+  centerSelection,
+  toggleRepair,
+  toggleSell,
+  clearTools,
+  saveMission,
+  loadMission,
+  viewMissionBriefing,
+  restartMission,
+  toggleSound,
+  resultPrimary,
+  onNavigateHome,
+}: {
+  stateRef: MutableRefObject<SimState>;
+  pausedRef: MutableRefObject<boolean>;
+  pauseViewRef: MutableRefObject<PauseView>;
+  activeTabRef: MutableRefObject<"construction" | "production">;
+  place: MutableRefObject<BuildingKind | null>;
+  repair: MutableRefObject<boolean>;
+  sell: MutableRefObject<boolean>;
+  openPauseMenu: () => void;
+  resumeMission: () => void;
+  setPauseView: (view: PauseView) => void;
+  setPauseNotice: (notice: string) => void;
+  setActiveTab: (tab: "construction" | "production") => void;
+  activateCameo: (tab: "construction" | "production", index: number, cancel: boolean) => void;
+  jumpHome: () => void;
+  centerSelection: () => void;
+  toggleRepair: () => void;
+  toggleSell: () => void;
+  clearTools: () => void;
+  saveMission: () => void;
+  loadMission: () => void;
+  viewMissionBriefing: () => void;
+  restartMission: () => void;
+  toggleSound: () => void;
+  resultPrimary: () => void;
+  onNavigateHome: () => void;
+}) {
+  const keys = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      keys.current[e.key] = true;
+      if (
+        !isEditableTarget(e.target) &&
+        !pausedRef.current &&
+        stateRef.current.result === "playing" &&
+        (e.key === "w" || e.key === "a" || e.key === "s" || e.key === "d" || e.key.startsWith("Arrow"))
+      ) {
+        e.preventDefault();
+      }
+      const command = gameCommandFromKey(e, {
+        typing: isEditableTarget(e.target),
+        playing: !pausedRef.current && stateRef.current.result === "playing",
+        paused: pausedRef.current,
+        pauseView: pauseViewRef.current,
+        result: stateRef.current.result,
+        toolActive: !!(place.current || repair.current || sell.current),
+      });
+      if (!command) return;
+      e.preventDefault();
+      if (command.type === "pause") openPauseMenu();
+      else if (command.type === "resume") resumeMission();
+      else if (command.type === "pauseBack") setPauseView("main");
+      else if (command.type === "tab") setActiveTab(command.tab);
+      else if (command.type === "cameo") activateCameo(activeTabRef.current, command.index, command.cancel);
+      else if (command.type === "home") jumpHome();
+      else if (command.type === "center") centerSelection();
+      else if (command.type === "repair") toggleRepair();
+      else if (command.type === "sell") toggleSell();
+      else if (command.type === "cancelTool") {
+        clearTools();
+        beep("select");
+      } else if (command.type === "save") saveMission();
+      else if (command.type === "load") loadMission();
+      else if (command.type === "briefing") viewMissionBriefing();
+      else if (command.type === "restart") restartMission();
+      else if (command.type === "assets") {
+        setPauseView("assets");
+        setPauseNotice("");
+      } else if (command.type === "options") {
+        setPauseView("options");
+        setPauseNotice("");
+      } else if (command.type === "menu") onNavigateHome();
+      else if (command.type === "toggleSound") toggleSound();
+      else if (command.type === "resultPrimary") resultPrimary();
+      else if (command.type === "resultMenu") onNavigateHome();
+    };
+
+    const up = (e: KeyboardEvent) => {
+      keys.current[e.key] = false;
+    };
+
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, [
+    activateCameo,
+    activeTabRef,
+    centerSelection,
+    clearTools,
+    jumpHome,
+    loadMission,
+    onNavigateHome,
+    openPauseMenu,
+    pauseViewRef,
+    pausedRef,
+    place,
+    repair,
+    restartMission,
+    resultPrimary,
+    resumeMission,
+    saveMission,
+    sell,
+    setActiveTab,
+    setPauseNotice,
+    setPauseView,
+    stateRef,
+    toggleRepair,
+    toggleSell,
+    toggleSound,
+    viewMissionBriefing,
+  ]);
+
+  return { keys };
+}

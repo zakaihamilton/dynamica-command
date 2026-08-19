@@ -18,6 +18,7 @@ export const SPRITE_ART: Record<BuildingKind, string> = {
   objective: "/art/sprites/sleek-modular/objective-v2.png",
 };
 
+
 export type UnitView =
   | "right"
   | "front-right"

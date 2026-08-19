@@ -139,7 +139,7 @@ function notifyImageReady(key: string): void {
   for (const callback of callbacks) callback();
 }
 
-function cachedImage(src: string): HTMLImageElement {
+export function cachedImage(src: string): HTMLImageElement {
   const existing = imageCache.get(src);
   if (existing) return existing;
   const image = new Image();

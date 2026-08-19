@@ -1,7 +1,7 @@
 import { STARTING_CREDITS, UNIT_STATS } from "../catalog";
 import { createRng, mixSeed } from "../seed/rng";
 import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
-import type { BuildingKind, Entity, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
+import type { BuildingKind, Entity, Facing, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
 import { createCampaign } from "../gen/campaign";
 import { generateMap } from "../gen/map";
 import { tickAi } from "./ai";
@@ -175,8 +175,15 @@ function tickMovement(state: SimState): void {
       e.blockedTicks = (e.blockedTicks ?? 0) + 1;
       continue;
     }
-    e.blockedTicks = 0;
     if (stepTarget && stepCell !== current) reserved.set(stepCell, e.id);
+    if (stepTarget) {
+      const dx = stepTarget.x - e.x;
+      const dy = stepTarget.y - e.y;
+      if (Math.hypot(dx, dy) > 0.001) {
+        const angle = Math.atan2(dy, dx);
+        e.facing = ((Math.round((angle / (Math.PI * 2)) * 8) + 8) % 8) as Facing;
+      }
+    }
     const before = current;
     stepAlongPath(e, speed, (x, y) => tileFree(state, occupancy, reserved, e, Math.round(x), Math.round(y)));
     const after = cellOf(state, e.x, e.y);

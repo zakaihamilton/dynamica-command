@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
@@ -17,56 +17,41 @@ import { BriefingStory } from "./BriefingStory";
 import { Portrait } from "./Portrait";
 import styles from "./BriefingScreen.module.css";
 import { useCampaignProgress } from "../campaign/useCampaignProgress";
+import { useBriefingTypewriter } from "./useBriefingTypewriter";
 
 export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: number; mission: number; returnToGame?: boolean }) {
   const router = useRouter();
   const campaign = useMemo(() => createCampaign(seed), [seed]);
   const progress = useCampaignProgress(seed);
   const def = campaign.missions[mission];
-  const [shown, setShown] = useState(0);
-  const [playId, setPlayId] = useState(0);
-  const storyRef = useRef<HTMLDivElement>(null);
-  const lines: BriefingLine[] = def?.briefing ?? [];
-  const totalChars = lines.reduce((n, line) => n + line.text.length, 0);
+  const lines: BriefingLine[] = useMemo(() => def?.briefing ?? [], [def]);
+
+  const {
+    storyRef,
+    visibleLines,
+    revealedLines,
+    isTalking,
+    isComplete,
+    replayTransmission,
+    skipToEnd,
+  } = useBriefingTypewriter(lines);
+
   const objectives = useMemo(
     () => (def ? missionObjectives(def, campaign) : []),
     [def, campaign],
   );
-  const replayTransmission = useCallback(() => {
-    setShown(0);
-    setPlayId((n) => n + 1);
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setShown((n) => {
-        if (n >= totalChars) {
-          clearInterval(id);
-          return n;
-        }
-        return n + 1;
-      });
-    }, 40);
-    return () => clearInterval(id);
-  }, [totalChars, playId]);
-
-  useLayoutEffect(() => {
-    const el = storyRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [shown]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const command = briefingCommandFromKey(e, {
         typing: isEditableTarget(e.target),
-        revealed: shown >= totalChars,
+        revealed: isComplete,
         returnToGame,
       });
       if (!command) return;
       e.preventDefault();
       if (command.type === "skip") {
-        setShown(totalChars);
+        skipToEnd();
         return;
       }
       if (command.type === "replay") {
@@ -77,7 +62,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [shown, totalChars, router, seed, mission, replayTransmission, returnToGame]);
+  }, [isComplete, router, seed, mission, replayTransmission, returnToGame, skipToEnd]);
 
   if (!def) {
     return <div className={styles.missing}>Mission missing.</div>;
@@ -86,21 +71,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     return <div className={styles.missing}>Mission locked. Complete the previous operation first.</div>;
   }
 
-  const talking = shown > 0 && shown < totalChars;
-  const revealedLines = lines.map((line, index) => {
-    const consumed = lines.slice(0, index).reduce((sum, item) => sum + item.text.length, 0);
-    const chars = Math.max(0, Math.min(line.text.length, shown - consumed));
-    return {
-      ...line,
-      visible: line.text.slice(0, chars),
-      started: chars > 0,
-      complete: chars >= line.text.length,
-    };
-  });
-  const visibleLines = revealedLines.filter((line) => line.started);
-  // Only the line currently being typed is "live" — never fall back to another
-  // speaker, or the wrong portrait can flash for a frame between lines.
-  const liveRole = talking ? revealedLines.find((line) => line.started && !line.complete)?.speaker : undefined;
+  const liveRole = isTalking ? revealedLines.find((line) => line.started && !line.complete)?.speaker : undefined;
 
   return (
     <div
@@ -135,7 +106,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
               storyRef={storyRef}
               campaign={campaign}
               lines={visibleLines}
-              talking={talking}
+              talking={isTalking}
               speakerRole={liveRole}
             />
           </section>

@@ -28,7 +28,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Pr
 
 The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Campaign content is **never stored** — it is regenerated. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `genesis-protocol:save:0421`.
 
-```
+```text
 seed 0421
   ├─ world setting, tone, conflict
   ├─ two factions (names, palettes)
@@ -86,7 +86,7 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 
 Next.js (App Router) + TypeScript + Canvas 2D. The browser is a renderer and input adapter. **`lib/gen` and `lib/sim` import nothing from the DOM** so tests and CLIs use the same functions as the UI.
 
-```
+```text
 app/           menu, briefing, play routes
 components/    HUD, canvas, talking heads
 lib/seed       4-digit seed → mulberry32 forks

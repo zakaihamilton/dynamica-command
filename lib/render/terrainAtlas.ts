@@ -478,7 +478,8 @@ export function terrainGrainGeneration(): number {
   return grainGeneration;
 }
 
-export function atlasRectForTile(x: number, y: number, mapWidth: number): { sx: number; sy: number; sw: number; sh: number } {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function atlasRectForTile(x: number, y: number, _mapWidth: number): { sx: number; sy: number; sw: number; sh: number } {
   return {
     sx: (x + MAP_SKIRT) * ATLAS_CELL,
     sy: (y + MAP_SKIRT) * ATLAS_CELL,

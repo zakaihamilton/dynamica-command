@@ -44,7 +44,12 @@ describe("cinematic visual profiles", () => {
   });
 
   it("bundles every declared raster plate and texture locally", () => {
-    const assets = [...Object.values(RASTER_ART), ...Object.values(SPRITE_ART), ...Object.values(TERRAIN_ART), ...Object.values(TEXTURE_ART)];
+    const assets = [
+      ...Object.values(RASTER_ART),
+      ...Object.values(SPRITE_ART),
+      ...Object.values(TERRAIN_ART),
+      ...Object.values(TEXTURE_ART),
+    ];
     expect(new Set(assets).size).toBe(assets.length);
     for (const asset of assets) {
       const file = join(process.cwd(), "public", asset);

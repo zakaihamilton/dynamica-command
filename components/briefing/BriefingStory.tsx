@@ -62,5 +62,3 @@ export function BriefingStory({
     </div>
   );
 }
-
-export { characterFor };
