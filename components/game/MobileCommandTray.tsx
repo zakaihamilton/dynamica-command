@@ -32,9 +32,11 @@ export function MobileCommandTray({
       <button type="button" className={styles.button} onClick={onStop}>Stop</button>
       <button type="button" className={styles.button} onClick={onRepair}>Repair</button>
       <button type="button" className={styles.button} onClick={onSell}>Sell</button>
+      <button type="button" className={styles.button} onClick={() => onStance("aggressive")}>Aggressive</button>
       <button type="button" className={styles.button} onClick={() => onStance("defensive")}>Defend</button>
       <button type="button" className={styles.button} onClick={() => onStance("hold")}>Hold</button>
       <button type="button" className={styles.button} onClick={() => onFormation("line")}>Line</button>
+      <button type="button" className={styles.button} onClick={() => onFormation("column")}>Column</button>
       <button type="button" className={styles.button} onClick={() => onFormation("wedge")}>Wedge</button>
       <button type="button" className={styles.cancel} onClick={onCancel}>Cancel</button>
     </nav>

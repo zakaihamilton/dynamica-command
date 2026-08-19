@@ -21,26 +21,6 @@ export type UnitModel = {
   nodes: ModelNode[];
 };
 
-export type GpuMesh = {
-  posBuffer: WebGLBuffer;
-  normBuffer: WebGLBuffer;
-  maskBuffer: WebGLBuffer;
-  idxBuffer: WebGLBuffer;
-  indexCount: number;
-};
-
-export type GpuModelNode = {
-  name: string;
-  parent?: string;
-  pivot: [number, number, number];
-  gpuMesh: GpuMesh;
-};
-
-export type GpuUnitModel = {
-  kind: ModelKind;
-  nodes: GpuModelNode[];
-};
-
 export function computeNormal(
   p0: [number, number, number],
   p1: [number, number, number],
@@ -804,46 +784,6 @@ export function buildUnitModel(kind: ModelKind): UnitModel {
   }
 }
 
-export function uploadGpuModel(gl: WebGLRenderingContext, model: UnitModel): GpuUnitModel {
-  const gpuNodes: GpuModelNode[] = [];
-  for (const node of model.nodes) {
-    const posBuffer = gl.createBuffer();
-    if (!posBuffer) throw new Error("Failed to create WebGL position buffer");
-    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, node.mesh.positions, gl.STATIC_DRAW);
-
-    const normBuffer = gl.createBuffer();
-    if (!normBuffer) throw new Error("Failed to create WebGL normal buffer");
-    gl.bindBuffer(gl.ARRAY_BUFFER, normBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, node.mesh.normals, gl.STATIC_DRAW);
-
-    const maskBuffer = gl.createBuffer();
-    if (!maskBuffer) throw new Error("Failed to create WebGL mask buffer");
-    gl.bindBuffer(gl.ARRAY_BUFFER, maskBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, node.mesh.masks, gl.STATIC_DRAW);
-
-    const idxBuffer = gl.createBuffer();
-    if (!idxBuffer) throw new Error("Failed to create WebGL index buffer");
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, node.mesh.indices, gl.STATIC_DRAW);
-
-    gpuNodes.push({
-      name: node.name,
-      parent: node.parent,
-      pivot: node.pivot,
-      gpuMesh: {
-        posBuffer,
-        normBuffer,
-        maskBuffer,
-        idxBuffer,
-        indexCount: node.mesh.indices.length,
-      },
-    });
-  }
-
-  return { kind: model.kind, nodes: gpuNodes };
-}
-
 /** Wavefront OBJ parser supporting named objects/groups ('o' or 'g') with positions and normals */
 export function parseObjModel(text: string, kind: ModelKind): UnitModel {
   const lines = text.split(/\r?\n/);
@@ -952,19 +892,4 @@ export function parseObjModel(text: string, kind: ModelKind): UnitModel {
   }));
 
   return { kind, nodes };
-}
-
-export async function loadObjModelAsync(gl: WebGLRenderingContext, kind: ModelKind): Promise<GpuUnitModel> {
-  const filename = kind === "antiArmor" ? "anti-armor.obj" : kind === "turretHead" ? "turret-head.obj" : `${kind}.obj`;
-  try {
-    const res = await fetch(`/art/models/${filename}`);
-    if (res.ok) {
-      const text = await res.text();
-      const model = parseObjModel(text, kind);
-      return uploadGpuModel(gl, model);
-    }
-  } catch {
-    // Fallback to built-in procedural model
-  }
-  return uploadGpuModel(gl, buildUnitModel(kind));
 }

@@ -90,7 +90,7 @@ export function useGameInput({
     return { x: (e.clientX - r.left) * scaleX, y: (e.clientY - r.top) * scaleY };
   }
 
-  const issueContextOrder = useCallback((s: SimState, p: { x: number; y: number }) => {
+  const issueContextOrder = useCallback((s: SimState, p: { x: number; y: number }, attackMove = false) => {
     const picked = pickTile(s, p.x, p.y, camRef.current);
     const t = picked ?? screenToTile(p.x, p.y, camRef.current);
     const tx = Math.round(t.x);
@@ -103,7 +103,7 @@ export function useGameInput({
     const ids = [...selectedRef.current];
     const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
     if (target && target.owner === 1) cmdQRef.current.push({ type: "attack", unitIds: ids, targetId: target.id });
-    else cmdQRef.current.push(...groundOrders(s, ids, tx, ty));
+    else cmdQRef.current.push(...groundOrders(s, ids, tx, ty, attackMove));
     beep("ack");
   }, [camRef, clearTools, cmdQRef, repairRef, selectedRef, sellRef]);
 
@@ -227,7 +227,7 @@ export function useGameInput({
         beep("select");
         return;
       }
-      issueContextOrder(s, p);
+      issueContextOrder(s, p, e.ctrlKey || e.metaKey);
       return;
     }
     if (placeRef.current) {

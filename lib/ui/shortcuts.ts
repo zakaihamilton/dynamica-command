@@ -20,6 +20,7 @@ export type GameCommand =
   | { type: "center" }
   | { type: "repair" }
   | { type: "sell" }
+  | { type: "stop" }
   | { type: "cancelTool" }
   | { type: "save" }
   | { type: "load" }
@@ -57,6 +58,7 @@ export const SHORTCUT = {
   center: "Space",
   repair: "R",
   sell: "F",
+  stop: "X",
   cancelTool: "Esc",
   save: "S",
   load: "L",
@@ -164,6 +166,7 @@ export function gameCommandFromKey(
   if (key === "e") return { type: "tab", tab: "production" };
   if (key === "r") return { type: "repair" };
   if (key === "f") return { type: "sell" };
+  if (key === "x") return { type: "stop" };
   if (key === "h" || e.key === "Home") return { type: "home" };
   if (isSpace(e)) return { type: "center" };
   return null;

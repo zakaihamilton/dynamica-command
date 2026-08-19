@@ -238,12 +238,18 @@ function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent
   return [];
 }
 
+function travelOrder(ids: number[], x: number, y: number, attackMove: boolean): Command {
+  return attackMove
+    ? { type: "attackMove", unitIds: ids, x, y }
+    : { type: "move", unitIds: ids, x, y };
+}
+
 /** Right-click / tap ground: harvest ore with harvesters, move everyone else onto the tile. */
-export function groundOrders(state: SimState, ids: number[], x: number, y: number): Command[] {
+export function groundOrders(state: SimState, ids: number[], x: number, y: number, attackMove = false): Command[] {
   const tx = Math.round(x);
   const ty = Math.round(y);
   if (!inBounds(state, tx, ty) || tileAt(state, tx, ty) !== TILE_RESOURCE) {
-    return [{ type: "move", unitIds: ids, x: tx, y: ty }];
+    return [travelOrder(ids, tx, ty, attackMove)];
   }
   const harvesters: number[] = [];
   const movers: number[] = [];
@@ -255,7 +261,7 @@ export function groundOrders(state: SimState, ids: number[], x: number, y: numbe
   }
   const commands: Command[] = [];
   if (harvesters.length) commands.push({ type: "harvest", unitIds: harvesters, x: tx, y: ty });
-  if (movers.length) commands.push({ type: "move", unitIds: movers, x: tx, y: ty });
+  if (movers.length) commands.push(travelOrder(movers, tx, ty, attackMove));
   return commands;
 }
 

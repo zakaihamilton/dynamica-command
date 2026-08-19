@@ -21,6 +21,7 @@ export function useGameKeyboard({
   centerSelection,
   toggleRepair,
   toggleSell,
+  stopSelected,
   clearTools,
   saveMission,
   loadMission,
@@ -47,6 +48,7 @@ export function useGameKeyboard({
   centerSelection: () => void;
   toggleRepair: () => void;
   toggleSell: () => void;
+  stopSelected: () => void;
   clearTools: () => void;
   saveMission: () => void;
   loadMission: () => void;
@@ -88,6 +90,7 @@ export function useGameKeyboard({
       else if (command.type === "center") centerSelection();
       else if (command.type === "repair") toggleRepair();
       else if (command.type === "sell") toggleSell();
+      else if (command.type === "stop") stopSelected();
       else if (command.type === "cancelTool") {
         clearTools();
         beep("select");
@@ -139,6 +142,7 @@ export function useGameKeyboard({
     setPauseNotice,
     setPauseView,
     stateRef,
+    stopSelected,
     toggleRepair,
     toggleSell,
     toggleSound,

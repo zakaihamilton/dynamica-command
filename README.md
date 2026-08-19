@@ -13,7 +13,7 @@ yarn
 yarn dev
 ```
 
-Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Progress autosaves in the browser under that seed.
+Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. Pause opens save/load, briefing, sound, and an **assets browser** for generated sprites.
 
 | Script | What it does |
 | --- | --- |
@@ -43,7 +43,7 @@ Share a seed to share a universe. Resume from the menu lists every local save.
 
 ## Campaign
 
-Eight missions, about **5–20 minutes** each (later missions run longer). Each mission rolls a different **win category**:
+Eight missions, about **5–20 minutes** each (later missions run longer). Every seed always includes the four scenario kinds (`escort`, `sabotage`, `rescue`, `extraction`) plus four of the eight classic win categories:
 
 | Category | You win by… |
 | --- | --- |
@@ -55,12 +55,16 @@ Eight missions, about **5–20 minutes** each (later missions run longer). Each 
 | Decapitate | Destroying the enemy construction yard |
 | Annihilate | Wiping enemy units and buildings |
 | Hold the line | Surviving a timer with your yard standing |
+| Escort | Walking marked allies into a zone |
+| Sabotage | Destroying marked structures before a deadline |
+| Rescue | Freeing stranded units by reaching them |
+| Extraction | Bringing cargo units back to your yard |
 
 Lose if your construction yard falls (or the timer expires on a hold). Briefings use generated talking-head portraits and name the objective.
 
 ### Loop
 
-Harvest resource fields → spend credits and power → place buildings → produce units → fight. Damaged structures can be repaired from the sidebar wrench for a fraction of their build cost. Enemy AI expands and sends waves. Maps grow from ~48×48 early to ~96×96 late, with **valleys, plains, hills, and mountains**. Units can climb one elevation step; a two-level drop is a cliff. Buildings need a flat footprint (no water, no overlap, one height).
+Harvest resource fields → spend credits and power → place buildings → produce units → fight. Damaged structures can be repaired from the sidebar wrench for a fraction of their build cost, or **sold** with the scrap tool (`F`) for a partial refund. Enemy AI expands, guards its yard, raids harvesters, and falls back when battered. Maps grow from ~48×48 early to ~96×96 late, with **valleys, plains, hills, and mountains**. Units can climb one elevation step; a two-level drop is a cliff. Buildings need a flat footprint (no water, no overlap, one height).
 
 Yards, power plants, and barracks are **2×2**; refineries and factories **3×2**; turrets are **1×1**. Hover a unit or building for a tooltip (kind, faction, HP, and extras such as harvester cargo or a marked target).
 
@@ -70,29 +74,36 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 | --- | --- |
 | Left click / drag | Select |
 | Right click | Move, attack, or harvest |
+| Ctrl / Cmd + right click | Attack-move (harvesters still gather on ore) |
 | Repair wrench / R | Click a damaged friendly building to start or stop repairs |
+| Sell / F | Click a finished friendly building to scrap it for credits |
+| Stop / X | Halt selected units |
+| Selection panel | Stance (Aggressive / Defend / Hold) and formation (Line / Column / Wedge) |
 | Minimap click / drag | Move camera focus |
 | WASD / arrows | Pan |
 | Q / E | Construction / production tabs |
 | 1–5 | Sidebar cameo (Ctrl+1–5 cancels) |
 | H / Home | Jump to construction yard |
 | Space | Center camera on selection |
-| Esc | Pause, or cancel place/repair |
+| Esc | Pause, or cancel place/repair/sell |
 | Hover | Tooltip on the unit or building under the cursor (shortcuts appear in HUD tips) |
 | Sidebar left click | Place buildings and produce units from the command tabs |
 | Sidebar right click | Cancel construction or a queued unit and refund its cost |
+| Touch (under 800px) | Command tray for move, attack-move, harvest, stop, stance, and formation |
 
 ## Architecture
 
 Next.js (App Router) + TypeScript + Canvas 2D. The browser is a renderer and input adapter. **`lib/gen` and `lib/sim` import nothing from the DOM** so tests and CLIs use the same functions as the UI.
 
+The **battlefield draws sprites** (procedural specs and `public/art` rasters). CPU-projected 3D meshes (`draw3dModel`) are used for turret heads and the pause-menu assets/preview lab, not for units in play.
+
 ```text
-app/           menu, briefing, play routes
+app/           menu, briefing, play, tutorial, campaign-complete
 components/    HUD, canvas, talking heads
 lib/seed       4-digit seed → mulberry32 forks
 lib/gen        world, factions, maps, story, sprite specs
 lib/sim        tick, pathfinding, economy, combat, repair, AI, objectives
-lib/render     isometric camera, sprites, minimap
+lib/render     isometric camera, sprites, minimap, CPU 3D turret/preview
 lib/persist    save/load (localStorage or in-memory)
 scripts/       inspect + headless sim
 tests/         Vitest
@@ -106,7 +117,8 @@ Sprites, biome tiles, roads, cliffs, portraits, and SFX are **generated** (nativ
 createCampaign(seed)
 createMission({ seed, missionIndex })
 tick(state, commands?)
-issue(state, command)   // move | attack | harvest | build | produce | cancelBuild | cancelProduce | repair
+issue(state, command)   // move | attackMove | attack | harvest | build | produce
+                        // cancelBuild | cancelProduce | repair | sell | stop | stance | formation
 inspect(state)          // compact JSON: credits, counts, objective, result
 ```
 

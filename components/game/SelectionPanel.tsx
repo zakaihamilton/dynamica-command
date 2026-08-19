@@ -1,20 +1,42 @@
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, TICKS_PER_SECOND, UNIT_STATS, labelFor } from "@/lib/catalog";
 import { ProgressMeter } from "@/components/ui/ProgressMeter";
+import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
-import type { BuildingKind, Entity, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
+import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, Stance, UnitKind } from "@/lib/types";
 import { SpritePreview } from "./SpritePreview";
 import styles from "./SelectionPanel.module.css";
+
+const STANCES: { id: Stance; label: string }[] = [
+  { id: "aggressive", label: "Aggressive" },
+  { id: "defensive", label: "Defend" },
+  { id: "hold", label: "Hold" },
+];
+
+const FORMATIONS: { id: Formation; label: string }[] = [
+  { id: "line", label: "Line" },
+  { id: "column", label: "Column" },
+  { id: "wedge", label: "Wedge" },
+];
 
 export function SelectionPanel({
   selected,
   palette,
   profile,
+  onStop,
+  onStance,
+  onFormation,
 }: {
   selected: Entity | undefined;
   palette: Palette;
   profile: FactionVisualProfile;
+  onStop?: () => void;
+  onStance?: (stance: Stance) => void;
+  onFormation?: (formation: Formation) => void;
 }) {
+  const friendlyUnit = selected && selected.owner === 0 && selected.class === "unit" && !selected.neutral;
+  const stance = selected?.stance ?? "aggressive";
+  const formation = selected?.formation;
   return (
     <section className={styles.section}>
       <ConsoleLabel className={styles.label}>Selected</ConsoleLabel>
@@ -38,7 +60,7 @@ export function SelectionPanel({
                 <span className={styles.warning} data-testid="selected-status">Stranded — cannot move until freed</span>
               ) : selected.marked && selected.class === "unit" ? (
                 <span className={styles.warning} data-testid="selected-status">Cargo — return to extraction zone</span>
-              ) : selected.class === "unit" ? <span className={styles.stat}>Stance {selected.stance ?? "aggressive"}</span> : null}
+              ) : selected.class === "unit" ? <span className={styles.stat}>Stance {stance}</span> : null}
               {(selected.suppression ?? 0) > 0 ? <span className={styles.stat}>Suppressed {Math.ceil(selected.suppression ?? 0)}%</span> : null}
               {selected.kind === "harvester" ? (
                 <span className={styles.carry}>
@@ -53,6 +75,45 @@ export function SelectionPanel({
               ratio={selected.maxHp > 0 ? selected.hp / selected.maxHp : 1}
               detail={`${Math.ceil(selected.hp)} / ${selected.maxHp}`}
             />
+          ) : null}
+          {friendlyUnit && onStop && onStance && onFormation ? (
+            <div className={styles.orders} data-testid="unit-orders">
+              <ConsoleButton
+                className={styles.order}
+                tooltip="Stop selected units"
+                shortcut={SHORTCUT.stop}
+                aria-keyshortcuts="x"
+                onClick={onStop}
+              >
+                Stop
+              </ConsoleButton>
+              <div className={styles.orderGroup} role="group" aria-label="Stance">
+                {STANCES.map((item) => (
+                  <ConsoleButton
+                    key={item.id}
+                    className={styles.order}
+                    aria-pressed={stance === item.id}
+                    muted={stance !== item.id}
+                    onClick={() => onStance(item.id)}
+                  >
+                    {item.label}
+                  </ConsoleButton>
+                ))}
+              </div>
+              <div className={styles.orderGroup} role="group" aria-label="Formation">
+                {FORMATIONS.map((item) => (
+                  <ConsoleButton
+                    key={item.id}
+                    className={styles.order}
+                    aria-pressed={formation === item.id}
+                    muted={formation !== item.id}
+                    onClick={() => onFormation(item.id)}
+                  >
+                    {item.label}
+                  </ConsoleButton>
+                ))}
+              </div>
+            </div>
           ) : null}
           {selected.constructing > 0 ? (
             <ProgressMeter

@@ -71,6 +71,21 @@ describe("pathfinding", () => {
     expect(harvester.path.length).toBeGreaterThan(0);
   });
 
+  it("turns a ground move into attack-move when requested", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setTile(s, 6, 2, TILE_RESOURCE, 500);
+    const infantry = addUnit(s, 0, "infantry", 2, 2);
+    const harvester = addUnit(s, 0, "harvester", 2, 3);
+    expect(groundOrders(s, [infantry.id, harvester.id], 6, 2, true)).toEqual([
+      { type: "harvest", unitIds: [harvester.id], x: 6, y: 2 },
+      { type: "attackMove", unitIds: [infantry.id], x: 6, y: 2 },
+    ]);
+    expect(groundOrders(s, [infantry.id], 4, 4, true)).toEqual([
+      { type: "attackMove", unitIds: [infantry.id], x: 4, y: 4 },
+    ]);
+  });
+
   it("keeps two units from entering the same square", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
     addBuilding(s, 0, "constructionYard", 0, 0);

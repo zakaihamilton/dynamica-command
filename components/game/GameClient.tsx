@@ -303,6 +303,7 @@ export function GameClient({
     centerSelection: () => centerSelection(selected.current),
     toggleRepair,
     toggleSell,
+    stopSelected: () => issueSelectedCommand("stop"),
     clearTools,
     saveMission,
     loadMission,
@@ -434,6 +435,9 @@ export function GameClient({
           onQueueUnit={queueUnit}
           onCancelUnit={cancelUnit}
           availableProducer={availableProducer}
+          onStop={() => issueSelectedCommand("stop")}
+          onStance={(stance) => issueSelectedCommand("stance", stance)}
+          onFormation={(formation) => issueSelectedCommand("formation", formation)}
         />
       ) : null}
 

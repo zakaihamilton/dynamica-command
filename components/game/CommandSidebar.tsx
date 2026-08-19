@@ -1,7 +1,7 @@
 import type { PointerEventHandler, Ref } from "react";
 import { BUILDING_STATS, UNIT_STATS, buildingCameoStatus, unitCameoStatus } from "@/lib/catalog";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
-import type { BuildingKind, Entity, FactionVisualProfile, Palette, SimState, UnitKind } from "@/lib/types";
+import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
 import { CameoGrid } from "./CameoGrid";
 import { CommandTabs } from "./CommandTabs";
 import { CommandCameo } from "./CommandCameo";
@@ -39,6 +39,9 @@ export function CommandSidebar({
   onQueueUnit,
   onCancelUnit,
   availableProducer,
+  onStop,
+  onStance,
+  onFormation,
 }: {
   factionName: string;
   state: SimState;
@@ -65,6 +68,9 @@ export function CommandSidebar({
   onQueueUnit: (unit: UnitKind) => void;
   onCancelUnit: (unit: UnitKind) => void;
   availableProducer: (unit: UnitKind) => Entity | undefined;
+  onStop: () => void;
+  onStance: (stance: Stance) => void;
+  onFormation: (formation: Formation) => void;
 }) {
   return (
     <aside className={styles.sidebar} data-testid="command-sidebar">
@@ -152,7 +158,14 @@ export function CommandSidebar({
       </section>
 
       <div className={styles.selected}>
-        <SelectionPanel selected={selected} palette={palette} profile={profile} />
+        <SelectionPanel
+          selected={selected}
+          palette={palette}
+          profile={profile}
+          onStop={onStop}
+          onStance={onStance}
+          onFormation={onFormation}
+        />
       </div>
     </aside>
   );
