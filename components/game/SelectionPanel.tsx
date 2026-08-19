@@ -47,6 +47,13 @@ export function SelectionPanel({
               ) : null}
             </div>
           </div>
+          {selected.class === "unit" ? (
+            <ProgressMeter
+              label="Health"
+              ratio={selected.maxHp > 0 ? selected.hp / selected.maxHp : 1}
+              detail={`${Math.ceil(selected.hp)} / ${selected.maxHp}`}
+            />
+          ) : null}
           {selected.constructing > 0 ? (
             <ProgressMeter
               label="Constructing"

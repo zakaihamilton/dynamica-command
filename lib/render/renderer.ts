@@ -48,6 +48,7 @@ import {
   drawSelectBox,
   drawTooltip,
   drawUnitGlow,
+  drawUnitHealthMeter,
   tileTooltipLines,
   tooltipLines,
   type RenderExtras,
@@ -66,6 +67,7 @@ export {
   isExtractableUnit,
   isLockedContactUnit,
   drawTooltip,
+  drawUnitHealthMeter,
   tooltipLines,
   tileTooltipLines,
   type RenderExtras,
@@ -291,6 +293,27 @@ export function renderWorld(
       }
       ctx.globalAlpha = 1;
     }
+
+    if (e.class === "unit") {
+      const isSelected = selected.has(e.id);
+      const barW = Math.max(16, Math.round(Math.min(spec.w * 0.75, 24) * z));
+      const meterY = Math.round(dy - 7 * z);
+      const centerX = Math.round(dx + (spec.w * z) / 2);
+      drawUnitHealthMeter(ctx, centerX, meterY, e.hp, e.maxHp, z, spriteAlpha, isSelected, barW);
+
+      if ((e.suppression ?? 0) > 0) {
+        const suppW = barW;
+        const suppX = Math.round(centerX - suppW / 2);
+        const suppY = meterY + Math.max(3, Math.round(3.5 * z)) + 2;
+        ctx.save();
+        ctx.globalAlpha = spriteAlpha;
+        ctx.fillStyle = "rgba(8, 12, 14, 0.85)";
+        ctx.fillRect(suppX - 1, suppY - 1, suppW + 2, 3);
+        ctx.fillStyle = "#d6a45b";
+        ctx.fillRect(suppX, suppY, Math.round((suppW * (e.suppression ?? 0)) / 100), 2);
+        ctx.restore();
+      }
+    }
   }
 
   for (const id of selected) {
@@ -307,10 +330,6 @@ export function renderWorld(
       ctx.ellipse(center.x, center.y + TILE_H * z * 0.5, range * TILE_W * z * 0.5, range * TILE_H * z * 0.5, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
-    }
-    if ((selectedEntity.suppression ?? 0) > 0) {
-      ctx.fillStyle = "#d6a45b";
-      ctx.fillRect(center.x - 12 * z, center.y - 22 * z, (24 * z * (selectedEntity.suppression ?? 0)) / 100, 2 * z);
     }
   }
 

@@ -73,15 +73,15 @@ export function draw3dModel(
 
       // Vertex 0
       let x0 = positions[i0 * 3]!;
-      let y0 = positions[i0 * 3 + 1]!;
+      const y0 = positions[i0 * 3 + 1]!;
       const z0 = positions[i0 * 3 + 2]!;
       // Vertex 1
       let x1 = positions[i1 * 3]!;
-      let y1 = positions[i1 * 3 + 1]!;
+      const y1 = positions[i1 * 3 + 1]!;
       const z1 = positions[i1 * 3 + 2]!;
       // Vertex 2
       let x2 = positions[i2 * 3]!;
-      let y2 = positions[i2 * 3 + 1]!;
+      const y2 = positions[i2 * 3 + 1]!;
       const z2 = positions[i2 * 3 + 2]!;
 
       if (isBarrel && recoil > 0) {
