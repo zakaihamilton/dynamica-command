@@ -1,0 +1,22 @@
+import { describe, expect, it } from "vitest";
+import { wrapBreakOffsets } from "../components/briefing/briefingWrap";
+
+const byLength = (s: string) => s.length;
+
+describe("briefing wrap breaks", () => {
+  it("breaks before a word that would not fit on the current line", () => {
+    expect(wrapBreakOffsets("one two three four", 10, byLength)).toEqual([8]);
+  });
+
+  it("inserts a break for each wrapped word", () => {
+    expect(wrapBreakOffsets("aaaaa bbbbb ccccc", 8, byLength)).toEqual([6, 12]);
+  });
+
+  it("does not break before the first word even if it is wider than the line", () => {
+    expect(wrapBreakOffsets("hello", 3, byLength)).toEqual([]);
+  });
+
+  it("returns no breaks when everything fits", () => {
+    expect(wrapBreakOffsets("hold the line", 80, byLength)).toEqual([]);
+  });
+});

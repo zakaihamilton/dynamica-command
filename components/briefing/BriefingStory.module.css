@@ -24,6 +24,9 @@
 }
 
 .caret {
+  display: inline-block;
+  width: 0;
+  overflow: visible;
   color: var(--chrome-cyan);
 }
 
@@ -72,4 +75,5 @@
   font-size: 15px;
   line-height: 2rem;
   color: var(--chrome-body);
+  white-space: nowrap;
 }
