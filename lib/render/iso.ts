@@ -6,8 +6,8 @@ export type Camera = {
 
 export const TILE_W = 64;
 export const TILE_H = 32;
-// Keep elevation readable without turning the map into a stack of blocky steps.
-export const HEIGHT_STEP = 16;
+// Restore readable cliff depth so plateaus and ridges separate from plains.
+export const HEIGHT_STEP = 22;
 
 export function createCamera(): Camera {
   return { x: 400, y: 80, zoom: 1 };

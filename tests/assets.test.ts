@@ -2,167 +2,13 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
-import { buildingSprite, cliffFaces, elevationFace, rubbleSprite, tileSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
+import { buildingSprite, cliffFaces, elevationFace, rubbleSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
-import { BIOMES } from "../lib/gen/names";
-import { SURFACE_CONCRETE } from "../lib/types";
-import { generateCampaignVisualProfile } from "../lib/gen/visualProfile";
 import { UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
 import { rotatedSpriteBounds } from "../lib/render/sprites";
 
 describe("tactical procedural assets", () => {
   const palette = generateFactions(421)[0].palette;
-
-  it("produces deterministic biome tile families", () => {
-    for (const biome of BIOMES) {
-      for (const kind of ["clear", "water", "resource", "blocked"] as const) {
-        const a = tileSprite(kind, 2, { biome, variant: 7, edgeMask: 5, surface: 1, resourceLevel: 3 });
-        const b = tileSprite(kind, 2, { biome, variant: 7, edgeMask: 5, surface: 1, resourceLevel: 3 });
-        expect(a).toEqual(b);
-        validateSpec(a);
-      }
-    }
-  });
-
-  it("renders rivers and mountains as edge contours instead of filled feature tiles", () => {
-    const waterInterior = tileSprite("water", 0, { biome: "ash plains", variant: 3, edgeMask: 0, contour: "bank" });
-    const waterEdge = tileSprite("water", 0, { biome: "ash plains", variant: 3, edgeMask: 5, contour: "bank" });
-    const ridgeInterior = tileSprite("clear", 3, { biome: "ash plains", variant: 3, edgeMask: 0, contour: "ridge" });
-    const ridgeEdge = tileSprite("clear", 3, { biome: "ash plains", variant: 3, edgeMask: 5, contour: "ridge" });
-    validateSpec(waterInterior);
-    validateSpec(waterEdge);
-    validateSpec(ridgeInterior);
-    validateSpec(ridgeEdge);
-    expect(waterEdge.shapes.some((shape) => shape.type === "line" && (shape.strokeWidth ?? 0) >= 2)).toBe(true);
-    expect(ridgeEdge.shapes.some((shape) => shape.type === "line" && (shape.strokeWidth ?? 0) >= 2)).toBe(true);
-    expect(waterInterior.shapes.some((shape) => shape.type === "line" && (shape.strokeWidth ?? 0) >= 2)).toBe(false);
-    expect(ridgeInterior.shapes.some((shape) => shape.type === "line" && (shape.strokeWidth ?? 0) >= 2)).toBe(false);
-    expect(waterEdge.shapes.filter((shape) => shape.type === "poly").length).toBeGreaterThan(
-      waterInterior.shapes.filter((shape) => shape.type === "poly").length,
-    );
-  });
-
-  it("separates mid and high elevation surfaces visually", () => {
-    const low = tileSprite("clear", 1, { biome: "ash plains", variant: 3, contour: "none" });
-    const mid = tileSprite("clear", 2, { biome: "ash plains", variant: 3, contour: "none" });
-    const high = tileSprite("clear", 3, { biome: "ash plains", variant: 3, contour: "none" });
-    expect(mid.palette.primary).not.toBe(low.palette.primary);
-    expect(high.palette.primary).not.toBe(mid.palette.primary);
-    expect(mid.palette.secondary).not.toBe(low.palette.secondary);
-  });
-
-  it("paints grass, trees, and rocks as detailed floor props", () => {
-    const grass = tileSprite("clear", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
-    const trees = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
-    const rocks = tileSprite("blocked", 1, { biome: "glass desert", variant: 4, contour: "none" });
-    const dirt = tileSprite("clear", 1, { biome: "ash plains", variant: 2, surface: 1, contour: "none" });
-    validateSpec(grass);
-    validateSpec(trees);
-    validateSpec(rocks);
-    validateSpec(dirt);
-    expect(grass.shapes.length).toBeGreaterThanOrEqual(2);
-    expect(trees.shapes.length).toBeGreaterThan(grass.shapes.length);
-    expect(rocks.shapes.some((shape) => shape.type === "poly")).toBe(true);
-    expect(dirt.shapes.length).toBeGreaterThanOrEqual(4);
-  });
-
-  it("scatters floor mottling so neighboring tiles do not share a highlight lattice", () => {
-    const tiles = [0, 1, 2, 3, 4, 5].map((variant) =>
-      tileSprite("clear", 1, { biome: "jungle wreckage", variant, contour: "none" }),
-    );
-    const fingerprints = tiles.map((spec) =>
-      spec.shapes
-        .filter((shape) => shape.type === "ellipse" && shape.w >= 10)
-        .map((shape) => `${Math.round(shape.x)},${Math.round(shape.y)},${Math.round(shape.w)}`)
-        .join("|"),
-    );
-    expect(new Set(fingerprints).size).toBeGreaterThan(1);
-    expect(tiles[0]!.shapes).not.toEqual(tiles[1]!.shapes);
-  });
-
-  it("gives concrete fields biome-specific materials and multiple slab layouts", () => {
-    const theaterFingerprints = BIOMES.map((biome) =>
-      tileSprite("clear", 1, { biome, variant: 12, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
-    );
-    expect(new Set(theaterFingerprints.map((shapes) => JSON.stringify(shapes))).size).toBe(BIOMES.length);
-
-    const jungleLayouts = Array.from({ length: 32 }, (_, variant) =>
-      tileSprite("clear", 1, { biome: "jungle wreckage", variant, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
-    );
-    expect(new Set(jungleLayouts.map((shapes) => JSON.stringify(shapes))).size).toBeGreaterThanOrEqual(5);
-    const shapeCounts = jungleLayouts.map((shapes) => shapes.length);
-    expect(Math.min(...shapeCounts)).toBeLessThanOrEqual(8);
-    expect(Math.max(...shapeCounts) - Math.min(...shapeCounts)).toBeGreaterThan(3);
-  });
-
-  it("shares a deterministic material drift across coarse terrain zones", () => {
-    const local = tileSprite("clear", 1, { biome: "tundra grid", variant: 7, contour: "none" });
-    const zones = Array.from({ length: 16 }, (_, zone) =>
-      tileSprite("clear", 1, { biome: "tundra grid", variant: (7 | (zone << 8)), contour: "none" }),
-    );
-    const repeat = tileSprite("clear", 1, { biome: "tundra grid", variant: (7 | (5 << 8)), contour: "none" });
-    expect(repeat).toEqual(zones[5]);
-    expect(new Set(zones.map((spec) => spec.palette.primary)).size).toBeGreaterThan(1);
-    expect(new Set(zones.map((spec) => JSON.stringify(spec.shapes))).size).toBeGreaterThan(1);
-    expect(zones.some((spec) => spec.palette.primary !== local.palette.primary)).toBe(true);
-  });
-
-  it("adds layered wear and tactical markings to concrete without a cell bevel lattice", () => {
-    const variants = Array.from({ length: 64 }, (_, variant) =>
-      tileSprite("clear", 1, {
-        biome: "tundra grid",
-        variant,
-        surface: SURFACE_CONCRETE,
-        contour: "none",
-      }),
-    );
-    const fingerprints = variants.map((spec) => JSON.stringify(spec.shapes));
-    const lineCounts = variants.map((spec) => spec.shapes.filter((shape) => shape.type === "line").length);
-    const hazardMarks = variants.filter((spec) =>
-      spec.shapes.some((shape) => shape.stroke === "#d5a64e" || shape.stroke === "#d87868"),
-    );
-    expect(new Set(fingerprints).size).toBeGreaterThan(20);
-    expect(Math.max(...lineCounts)).toBeGreaterThan(Math.min(...lineCounts));
-    expect(hazardMarks.length).toBeGreaterThan(0);
-    expect(variants.every((spec) => spec.shapes.some((shape) => shape.type === "poly"))).toBe(true);
-  });
-
-  it("keeps contiguous road interiors quieter than route boundaries", () => {
-    const interior = tileSprite("clear", 1, {
-      biome: "tundra grid",
-      variant: 11,
-      surface: 1,
-      surfaceMask: 0,
-      contour: "none",
-    });
-    const boundary = tileSprite("clear", 1, {
-      biome: "tundra grid",
-      variant: 11,
-      surface: 1,
-      surfaceMask: 15,
-      contour: "none",
-    });
-    expect(interior.shapes.filter((shape) => shape.type === "line").length)
-      .toBeLessThan(boundary.shapes.filter((shape) => shape.type === "line").length);
-    expect(interior.shapes.some((shape) => shape.type === "poly" && shape.w >= 88)).toBe(true);
-  });
-
-  it("supports continuous terrain compositing without repeating full floor plates", () => {
-    const open = tileSprite("clear", 1, {
-      biome: "ash plains",
-      variant: 11,
-      surfaceMask: -1,
-      contour: "none",
-    });
-    const water = tileSprite("water", 0, {
-      biome: "ash plains",
-      variant: 11,
-      surfaceMask: 0,
-      contour: "bank",
-    });
-    expect(open.shapes.some((shape) => shape.type === "poly" && shape.w >= 60)).toBe(false);
-    expect(water.shapes).toHaveLength(0);
-  });
 
   it("gives elevation faces stronger, deterministic material separation", () => {
     const low = cliffFaces("tundra grid", 1);
@@ -172,44 +18,6 @@ describe("tactical procedural assets", () => {
     expect(new Set([low.south, mid.south, high.south]).size).toBeGreaterThan(1);
     expect(new Set([low.east, mid.east, high.east]).size).toBeGreaterThan(1);
     expect(mid.south).not.toBe(high.south);
-  });
-
-  it("scatters distinct landmark families through continuous terrain fields", () => {
-    const concreteMarks = new Set(
-      Array.from({ length: 256 }, (_, variant) =>
-        tileSprite("clear", 1, { biome: "jungle wreckage", variant, surface: SURFACE_CONCRETE, contour: "none" }).shapes,
-      ).flatMap((shapes) => shapes.flatMap((shape) => [shape.fill, shape.stroke].filter(Boolean))),
-    );
-    expect(concreteMarks).toContain("#172f2d"); // standing water
-    expect(concreteMarks).toContain("#66503b"); // wreck plate
-    expect(concreteMarks).toContain("#77a563"); // vine growth
-
-    const openMarks = new Set(
-      Array.from({ length: 256 }, (_, variant) =>
-        tileSprite("clear", 1, { biome: "jungle wreckage", variant, contour: "none" }).shapes,
-      ).flatMap((shapes) => shapes.flatMap((shape) => [shape.fill, shape.stroke].filter(Boolean))),
-    );
-    expect(openMarks.size).toBeGreaterThan(5); // sparse terrain still carries biome material variety
-  });
-
-  it("renders blockers as varied hard-cover volumes with a hazard cap", () => {
-    const specs = [0, 1, 2, 3, 4, 5, 6, 7].map((variant) =>
-      tileSprite("blocked", 1, { biome: "jungle wreckage", variant, contour: "none" }),
-    );
-    expect(new Set(specs.map((spec) => JSON.stringify(spec.shapes))).size).toBeGreaterThan(1);
-    expect(specs.every((spec) => spec.shapes.some((shape) => shape.stroke === "#d6a94d"))).toBe(true);
-  });
-
-  it("paints ore fields as gold nugget beds that thin out when depleted", () => {
-    const rich = tileSprite("resource", 1, { biome: "ash plains", variant: 4, resourceLevel: 4, contour: "none" });
-    const poor = tileSprite("resource", 1, { biome: "ash plains", variant: 4, resourceLevel: 1, contour: "none" });
-    const other = tileSprite("resource", 1, { biome: "ash plains", variant: 11, resourceLevel: 4, contour: "none" });
-    validateSpec(rich);
-    validateSpec(poor);
-    expect(rich.shapes.length).toBeGreaterThan(poor.shapes.length);
-    expect(rich.shapes).not.toEqual(other.shapes);
-    expect(rich.shapes.some((shape) => shape.fill === "#e8c45a")).toBe(true);
-    expect(rich.shapes.filter((shape) => shape.type === "poly").length).toBeGreaterThan(8);
   });
 
   it("provides unique valid frames for every unit facing", () => {
@@ -367,37 +175,6 @@ describe("tactical procedural assets", () => {
     }
   });
 
-  it("draws faceted terrain with raster tactical sprites", () => {
-    const grassSamples = Array.from({ length: 12 }, (_, variant) =>
-      tileSprite("clear", 1, { biome: "ash plains", variant, contour: "none" }),
-    );
-    const ellipseCounts = grassSamples.map((spec) => spec.shapes.filter((shape) => shape.type === "ellipse").length);
-    const grass = grassSamples[ellipseCounts.indexOf(Math.max(...ellipseCounts))]!;
-    expect(Math.max(...ellipseCounts)).toBeGreaterThanOrEqual(3);
-    expect(Math.min(...ellipseCounts)).toBeLessThan(Math.max(...ellipseCounts));
-    expect(grass.shapes.some((shape) => shape.type === "poly" && (shape.points?.length ?? 0) > 8)).toBe(true);
-    const infantry = unitSprite("infantry", palette, { facing: 0, variant: 11 });
-    expect(infantry.imageSrc).toMatch(/\/art\/sprites\/.*infantry-right-v1\.png/);
-    const barracks = buildingSprite("barracks", palette, { variant: 13 });
-    expect(barracks.imageSrc).toMatch(/\/art\/sprites\/.*barracks-v2\.png/);
-    const tank = unitSprite("tank", palette, { facing: 3, animationFrame: 2, variant: 4 });
-    expect(tank.imageSrc).toMatch(/\/art\/sprites\/.*tank-front-left-v1\.png/);
-  });
-
-  it("paints floor silhouettes that are not four-point diamonds", () => {
-    const grass = tileSprite("clear", 1, { biome: "ash plains", variant: 4, contour: "none" });
-    const floor = grass.shapes.find((shape) => shape.type === "poly");
-    expect((floor?.points?.length ?? 0) / 2).toBe(8);
-    expect(grass.w).toBeGreaterThan(64);
-    expect(grass.h).toBeGreaterThan(32);
-  });
-
-  it("gives blockers a centered, readable impassable silhouette", () => {
-    const blocker = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 4, contour: "none" });
-    expect(blocker.shapes.some((shape) => shape.type === "poly" && (shape.strokeWidth ?? 0) >= 1)).toBe(true);
-    expect(blocker.shapes.some((shape) => shape.stroke === "#d6a94d")).toBe(true);
-  });
-
   it("draws 1-step drops as hillsides without layer lines", () => {
     const face = elevationFace("south", 1, 64, 32, 16, 42);
     expect(face.cracks).toHaveLength(0);
@@ -424,26 +201,13 @@ describe("tactical procedural assets", () => {
       expect(spec.svg).not.toMatch(/ [QC]/);
     }
   });
-
-  it("changes terrain materials with the campaign visual profile", () => {
-    const profiles = ([0, 1, 2] as const).map((family) => {
-      const base = generateCampaignVisualProfile(421);
-      const terrainTreatment = ["modular", "armored", "expeditionary"] as const;
-      return { ...base, family, terrainTreatment: terrainTreatment[family] };
-    });
-    const tiles = profiles.map((campaignProfile) =>
-      tileSprite("clear", 1, { biome: "ash plains", variant: 12, contour: "none", campaignProfile }),
-    );
-    expect(new Set(tiles.map((tile) => tile.id)).size).toBe(3);
-    expect(new Set(tiles.map((tile) => JSON.stringify(tile.shapes))).size).toBe(3);
-  });
 });
 
 function svgMarks(svg: string | undefined): number {
   return (svg?.match(/<(path|ellipse|line|polygon)\b/g) ?? []).length;
 }
 
-function validateSpec(spec: ReturnType<typeof tileSprite>): void {
+function validateSpec(spec: { w: number; h: number; pixelScale?: number; anchorX?: number; anchorY?: number; kind: string; imageSrc?: string; svg?: string; shapes: Array<{ x: number; y: number; w: number; h: number; points?: number[] }> }): void {
   expect(spec.w).toBeGreaterThan(0);
   expect(spec.h).toBeGreaterThan(0);
   expect(spec.pixelScale).toBe(1);

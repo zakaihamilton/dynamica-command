@@ -1,9 +1,10 @@
+import { MAP_SKIRT } from "../gen/map";
 import type { Entity, SimState } from "../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
-import { terrainFieldPalette } from "../gen/assets";
+import { atlasPixelAtTile, fogTerrainGain, getTerrainAtlas, terrainColors } from "./terrainAtlas";
 
-const MINIMAP_RENDER_REV = "landforms-v3-organic-regions";
+const MINIMAP_RENDER_REV = "world-atlas-v1";
 
 export type MinimapRegion = "ground" | "elevation-mid" | "elevation-high" | "water" | "resource" | "blocked" | "road" | "concrete";
 
@@ -22,51 +23,7 @@ export function minimapRegionForCell(state: SimState, x: number, y: number): Min
   return "ground";
 }
 
-export function terrainColors(biome: SimState["biome"]): {
-  low: string;
-  mid: string;
-  high: string;
-  water: string;
-  road: string;
-  concrete: string;
-  blocked: string;
-} {
-  const field = terrainFieldPalette(biome);
-  const water = biome === "glass desert" || biome === "rust canyons" ? "#244953" : "#1c4b50";
-  const road = biome === "tundra grid" ? "#486b70" : biome === "volcanic shelf" ? "#593832" : "#69523e";
-  const concrete = biome === "glass desert" ? "#8a7c61" : field.dark;
-  return {
-    low: field.dark,
-    mid: field.base,
-    high: field.light,
-    water,
-    road,
-    concrete,
-    blocked: field.dark,
-  };
-}
-
-function paintMinimapRegion(
-  ctx: CanvasRenderingContext2D,
-  state: SimState,
-  sx: number,
-  sy: number,
-  matches: (x: number, y: number) => boolean,
-  fill: string,
-  alpha = 1,
-): void {
-  const overlap = Math.max(0.35, Math.min(sx, sy) * 0.24);
-  for (let y = 0; y < state.height; y++) {
-    for (let x = 0; x < state.width; x++) {
-      const fog = fogAt(state, x, y);
-      if (fog === 0 || !matches(x, y)) continue;
-      ctx.globalAlpha = alpha * (fog === 1 ? 0.42 : 1);
-      ctx.fillStyle = fill;
-      ctx.fillRect(x * sx - overlap, y * sy - overlap, sx + overlap * 2, sy + overlap * 2);
-    }
-  }
-  ctx.globalAlpha = 1;
-}
+export { terrainColors };
 
 function entityColor(e: Entity, state: SimState): string {
   if (e.marked) return "#ffe066";
@@ -101,22 +58,45 @@ export function renderMinimap(
   const key = `${MINIMAP_RENDER_REV}:${state.seed}:${state.tick}:${state.result}:${w}x${h}:${viewKey}:${state.entities.length}:${palKey}`;
   if (key === lastMinimapKey) return;
   lastMinimapKey = key;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  const atlas = getTerrainAtlas(state);
   const colors = terrainColors(state.biome);
+  ctx.fillStyle = colors.low;
+  ctx.fillRect(0, 0, w, h);
+  if (atlas.canvas) {
+    const sx = MAP_SKIRT * atlas.cell;
+    const sy = MAP_SKIRT * atlas.cell;
+    const sw = state.width * atlas.cell;
+    const sh = state.height * atlas.cell;
+    ctx.drawImage(atlas.canvas, sx, sy, sw, sh, 0, 0, w, h);
+  } else {
+    const cellW = w / state.width;
+    const cellH = h / state.height;
+    const baked = atlas;
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        const [r, g, b] = atlasPixelAtTile(baked, x, y);
+        const gain = fogTerrainGain(fogAt(state, x, y));
+        ctx.fillStyle = `rgb(${Math.round(r * gain)},${Math.round(g * gain)},${Math.round(b * gain)})`;
+        ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+      }
+    }
+  }
+  if (atlas.canvas) {
+    const cellW = w / state.width;
+    const cellH = h / state.height;
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        const gain = fogTerrainGain(fogAt(state, x, y));
+        if (gain >= 0.98) continue;
+        ctx.fillStyle = `rgba(8,13,17,${1 - gain})`;
+        ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+      }
+    }
+  }
   const sx = w / state.width;
   const sy = h / state.height;
-  const base = ctx.createLinearGradient(0, 0, w, h);
-  base.addColorStop(0, colors.high);
-  base.addColorStop(0.48, colors.mid);
-  base.addColorStop(1, colors.low);
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, w, h);
-  paintMinimapRegion(ctx, state, sx, sy, (x, y) => minimapRegionForCell(state, x, y) === "elevation-mid", colors.mid, 0.76);
-  paintMinimapRegion(ctx, state, sx, sy, (x, y) => minimapRegionForCell(state, x, y) === "elevation-high", colors.high, 0.86);
-  paintMinimapRegion(ctx, state, sx, sy, (x, y) => minimapRegionForCell(state, x, y) === "water", colors.water);
-  paintMinimapRegion(ctx, state, sx, sy, (x, y) => minimapRegionForCell(state, x, y) === "blocked", colors.blocked, 0.9);
-  paintMinimapRegion(ctx, state, sx, sy, (x, y) => minimapRegionForCell(state, x, y) === "road", colors.road, 0.95);
-  paintMinimapRegion(ctx, state, sx, sy, (x, y) => minimapRegionForCell(state, x, y) === "concrete", colors.concrete, 0.95);
-  paintMinimapRegion(ctx, state, sx, sy, (x, y) => minimapRegionForCell(state, x, y) === "resource", "#c4a040", 0.95);
   for (const e of state.entities) {
     if (e.hp <= 0) continue;
     const fog = fogAt(state, Math.round(e.x), Math.round(e.y));
