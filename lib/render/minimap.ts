@@ -4,7 +4,7 @@ import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
 import { atlasPixelAtTile, fogTerrainGain, getTerrainAtlas, terrainColors } from "./terrainAtlas";
 
-const MINIMAP_RENDER_REV = "world-atlas-v1";
+const MINIMAP_RENDER_REV = "world-atlas-v2";
 
 export type MinimapRegion = "ground" | "elevation-mid" | "elevation-high" | "water" | "resource" | "blocked" | "road" | "concrete";
 

@@ -3,7 +3,7 @@ import type { BiomeName, SimState } from "../types";
 import { TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
 import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
-import { fogTerrainGain, hasOreCluster } from "./terrainAtlas";
+import { fogTerrainGain, biomeMaterials, oreVeinAt, ORE_GLINT_RIDGE } from "./terrainAtlas";
 
 export type WeatherKind = "snow" | "ash" | "dust" | "ember" | "pollen" | "mist";
 
@@ -159,6 +159,13 @@ export function paintWaterFx(
   }
 }
 
+const VEIN_GLINT_PROBES: ReadonlyArray<readonly [number, number]> = [
+  [0.28, 0.32],
+  [0.62, 0.28],
+  [0.38, 0.68],
+  [0.72, 0.58],
+];
+
 export function paintOreGlints(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -169,21 +176,38 @@ export function paintOreGlints(
   const h = ctx.canvas.height;
   const z = cam.zoom;
   const margin = TILE_W * z;
+  const mats = biomeMaterials(state.biome);
+  const specR = Math.round(mats.ore.r + (mats.light.r - mats.ore.r) * 0.55);
+  const specG = Math.round(mats.ore.g + (mats.light.g - mats.ore.g) * 0.55);
+  const specB = Math.round(mats.ore.b + (mats.light.b - mats.ore.b) * 0.55);
+  const fill = `rgb(${specR},${specG},${specB})`;
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       if (state.tiles[y * state.width + x] !== TILE_RESOURCE) continue;
-      if (!hasOreCluster(state.seed, x, y)) continue;
       const fog = fogAt(state, x, y);
       if (fog === 0) continue;
       const elev = sceneryAt(state, x, y).elev;
-      const s = tileToScreen(x, y, cam, elev);
-      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
+      const origin = tileToScreen(x, y, cam, elev);
+      if (origin.x < -margin || origin.y < -margin || origin.x > w + margin || origin.y > h + margin) continue;
+      let bestFx = 0.5;
+      let bestFy = 0.5;
+      let bestIntensity = 0;
+      for (const [fx, fy] of VEIN_GLINT_PROBES) {
+        const vein = oreVeinAt(state, x + fx, y + fy);
+        if (vein.intensity > bestIntensity) {
+          bestIntensity = vein.intensity;
+          bestFx = fx;
+          bestFy = fy;
+        }
+      }
+      if (bestIntensity < ORE_GLINT_RIDGE) continue;
+      const s = tileToScreen(x + bestFx, y + bestFy, cam, elev);
       const glint = oreGlint(clockMs, x, y);
       ctx.save();
-      ctx.globalAlpha = glint * fogTerrainGain(fog);
-      ctx.fillStyle = "#fff4c4";
+      ctx.globalAlpha = glint * fogTerrainGain(fog) * Math.min(1, bestIntensity);
+      ctx.fillStyle = fill;
       ctx.beginPath();
-      ctx.ellipse(s.x + 3 * z, s.y + TILE_H * z * 0.28, 2.4 * z, 1.2 * z, 0, 0, Math.PI * 2);
+      ctx.ellipse(s.x, s.y + TILE_H * z * 0.08, 2.2 * z, 1.1 * z, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }

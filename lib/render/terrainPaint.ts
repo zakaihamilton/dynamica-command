@@ -2,7 +2,7 @@ import { cliffFaces, drawElevationFaces } from "../gen/assets";
 import { MAP_SKIRT, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import { generateCampaignVisualProfile } from "../gen/visualProfile";
 import type { BuildingKind, Entity, SimState } from "../types";
-import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
+import { TILE_BLOCKED, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
 import {
@@ -10,7 +10,6 @@ import {
   biomeMaterials,
   fogTerrainGain,
   getTerrainAtlas,
-  hasOreCluster,
   tileVariant,
   type TerrainAtlas,
 } from "./terrainAtlas";
@@ -112,53 +111,6 @@ function drawBlockerProp(
   ctx.restore();
 }
 
-function drawOreCluster(
-  ctx: CanvasRenderingContext2D,
-  state: SimState,
-  x: number,
-  y: number,
-  sx: number,
-  sy: number,
-  z: number,
-): void {
-  const v = tileVariant(state.seed, x, y);
-  if (!hasOreCluster(state.seed, x, y)) return;
-  const amount = state.resourceAmount[y * state.width + x] ?? 0;
-  const count = amount > 700 ? 3 : amount > 250 ? 2 : 1;
-  ctx.save();
-  ctx.translate(sx, sy + TILE_H * z * 0.38);
-  for (let i = 0; i < count; i++) {
-    const ox = ((i - 1) * 7 + ((v >> (i * 3)) % 5) - 2) * z;
-    const oy = (((v >> (i * 5)) % 5) - 2) * z * 0.6;
-    const h = (6 + (v >> (i + 2)) % 4) * z;
-    const half = (3.2 + (i % 2)) * z;
-    ctx.fillStyle = "#2a220e";
-    ctx.beginPath();
-    ctx.moveTo(ox - half, oy);
-    ctx.lineTo(ox, oy + half * 0.4);
-    ctx.lineTo(ox + half, oy);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = i % 2 ? "#e8c45a" : "#c4a040";
-    ctx.beginPath();
-    ctx.moveTo(ox - half, oy);
-    ctx.lineTo(ox, oy - h);
-    ctx.lineTo(ox + half, oy);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#fff4c4";
-    ctx.globalAlpha = 0.55;
-    ctx.beginPath();
-    ctx.moveTo(ox - half * 0.35, oy - h * 0.15);
-    ctx.lineTo(ox, oy - h);
-    ctx.lineTo(ox - 0.4 * z, oy - h * 0.2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-  ctx.restore();
-}
-
 function paintCell(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -235,14 +187,10 @@ function paintCell(
 
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
   if (!inMap || fogAt(state, x, y) === 0) return;
+  if (scenery.kind !== TILE_BLOCKED || isMountainScenery(scenery)) return;
   ctx.save();
   ctx.globalAlpha = gain;
-  if (scenery.kind === TILE_BLOCKED && !isMountainScenery(scenery)) {
-    drawBlockerProp(ctx, state, x, y, s.x, s.y, z);
-  }
-  if (inMap && state.tiles[y * state.width + x] === TILE_RESOURCE) {
-    drawOreCluster(ctx, state, x, y, s.x, s.y, z);
-  }
+  drawBlockerProp(ctx, state, x, y, s.x, s.y, z);
   ctx.restore();
 }
 

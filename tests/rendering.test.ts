@@ -5,13 +5,14 @@ import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE
 import { generateMap } from "../lib/gen/map";
 import {
   atlasPixelAtTile,
+  atlasRectForTile,
   bakeTerrainAtlasData,
   fogTerrainGain,
-  hasOreCluster,
+  oreVeinAt,
   resourceSignature,
   sampleTerrainMaterial,
   terrainAtlasKey,
-  tileVariant,
+  type TerrainAtlasData,
 } from "../lib/render/terrainAtlas";
 import {
   oreGlint,
@@ -19,6 +20,21 @@ import {
   weatherKindForBiome,
   weatherParticleAt,
 } from "../lib/render/terrainWeather";
+
+function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
+  const rect = atlasRectForTile(tileX, tileY, atlas.mapWidth);
+  let min = 510;
+  let max = 0;
+  for (let ly = 0; ly < rect.sh; ly++) {
+    for (let lx = 0; lx < rect.sw; lx++) {
+      const i = ((rect.sy + ly) * atlas.width + (rect.sx + lx)) * 4;
+      const gold = (atlas.data[i] ?? 0) + (atlas.data[i + 1] ?? 0);
+      if (gold < min) min = gold;
+      if (gold > max) max = gold;
+    }
+  }
+  return max - min;
+}
 
 describe("seeded terrain atlas", () => {
   it("bakes deterministic atlases that differ by seed", () => {
@@ -50,13 +66,12 @@ describe("seeded terrain atlas", () => {
     const atlas = bakeTerrainAtlasData(state);
     const ground = atlasPixelAtTile(atlas, 0, 0);
     const water = atlasPixelAtTile(atlas, 1, 1);
-    const ore = atlasPixelAtTile(atlas, 2, 2);
     const high = atlasPixelAtTile(atlas, 4, 4);
     const road = atlasPixelAtTile(atlas, 6, 6);
     const concrete = atlasPixelAtTile(atlas, 7, 7);
     expect(water[2]).toBeGreaterThan(water[0]);
     expect(sampleTerrainMaterial(state, 1, 1).water).toBe(true);
-    expect(ore[0]).toBeGreaterThan(ground[0]);
+    expect(atlasCellGoldSpread(atlas, 2, 2)).toBeGreaterThan(atlasCellGoldSpread(atlas, 0, 0));
     expect(high[0] + high[1] + high[2]).toBeGreaterThan(ground[0] + ground[1] + ground[2]);
     expect(road).not.toEqual(ground);
     expect(concrete).not.toEqual(ground);
@@ -85,6 +100,35 @@ describe("seeded terrain atlas", () => {
   });
 });
 
+describe("ore veins", () => {
+  it("is deterministic, bounded, and weaker after harvest", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    setTile(state, 3, 2, TILE_RESOURCE, 800);
+    let mapX = 3.4;
+    let mapY = 2.3;
+    let a = oreVeinAt(state, mapX, mapY);
+    for (let ly = 0; ly < 8; ly++) {
+      for (let lx = 0; lx < 8; lx++) {
+        const sample = oreVeinAt(state, 3 + (lx + 0.5) / 8, 2 + (ly + 0.5) / 8);
+        if (sample.ridge > a.ridge) {
+          a = sample;
+          mapX = 3 + (lx + 0.5) / 8;
+          mapY = 2 + (ly + 0.5) / 8;
+        }
+      }
+    }
+    expect(oreVeinAt(state, mapX, mapY)).toEqual(a);
+    expect(a.ridge).toBeGreaterThan(0);
+    expect(a.ridge).toBeLessThanOrEqual(1);
+    expect(a.intensity).toBeGreaterThan(0);
+    expect(a.intensity).toBeLessThanOrEqual(1);
+    state.resourceAmount[2 * state.width + 3] = 120;
+    const poor = oreVeinAt(state, mapX, mapY);
+    expect(poor.ridge).toBe(a.ridge);
+    expect(poor.intensity).toBeLessThan(a.intensity);
+  });
+});
+
 describe("terrain weather and water motion", () => {
   it("is deterministic for a given clock", () => {
     const a = weatherParticleAt(832, "tundra grid", 4, 1200, 640, 360);
@@ -96,22 +140,6 @@ describe("terrain weather and water motion", () => {
     expect(oreGlint(900, 2, 2)).toBeGreaterThan(0);
     expect(weatherKindForBiome("tundra grid")).toBe("snow");
     expect(weatherKindForBiome("volcanic shelf")).toBe("ember");
-  });
-
-  it("places ore glints on the same cells as ore clusters", () => {
-    const seed = 832;
-    let mismatch = 0;
-    let clustered = 0;
-    for (let y = 0; y < 32; y++) {
-      for (let x = 0; x < 32; x++) {
-        const signed = (seed * 83492791) ^ (x * 73856093) ^ (y * 19349663);
-        if ((signed % 3 === 0) !== hasOreCluster(seed, x, y)) mismatch += 1;
-        if (hasOreCluster(seed, x, y)) clustered += 1;
-      }
-    }
-    expect(clustered).toBeGreaterThan(0);
-    expect(mismatch).toBeGreaterThan(0);
-    expect(tileVariant(seed, 3, 5)).toBe(((seed * 83492791) ^ (3 * 73856093) ^ (5 * 19349663)) >>> 0);
   });
 });
 

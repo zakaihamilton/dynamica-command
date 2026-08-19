@@ -6,7 +6,9 @@ import type { BiomeName, CampaignVisualProfile, SurfaceKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 
 export const ATLAS_CELL = 8;
-export const TERRAIN_ATLAS_REV = "world-atlas-v1";
+export const TERRAIN_ATLAS_REV = "world-atlas-v2";
+export const ORE_GLINT_RIDGE = 0.55;
+const ORE_CELL_CLASS = 3;
 
 export type AtlasWorld = SceneryWorld & {
   seed: number;
@@ -22,6 +24,11 @@ export type TerrainSample = {
   water: boolean;
   ore: boolean;
   elev: number;
+};
+
+export type OreVeinSample = {
+  ridge: number;
+  intensity: number;
 };
 
 export type TerrainAtlasData = {
@@ -268,9 +275,19 @@ export function tileVariant(seed: number, x: number, y: number): number {
   return ((seed * 83492791) ^ (x * 73856093) ^ (y * 19349663)) >>> 0;
 }
 
-export function hasOreCluster(seed: number, x: number, y: number): boolean {
-  const v = tileVariant(seed, x, y);
-  return v % 3 === 0 || (v >>> 8) % 5 === 0;
+export function oreVeinAt(state: AtlasWorld, mapX: number, mapY: number): OreVeinSample {
+  const x = Math.floor(mapX);
+  const y = Math.floor(mapY);
+  const amount = resourceAt(state, x, y);
+  const salt = artSalt(state);
+  const seam = fbm(mapX * 0.72, mapY * 0.28, salt + 91);
+  const crack = fbm(mapX * 0.31, mapY * 0.64, salt + 140);
+  const ridge = Math.max(
+    Math.pow(1 - Math.abs(seam - 0.5) * 2, 2),
+    Math.pow(1 - Math.abs(crack - 0.48) * 2, 3) * 0.65,
+  );
+  const richness = Math.min(1, Math.max(0, amount / 900));
+  return { ridge, intensity: ridge * (0.28 + richness * 0.72) };
 }
 
 export function resourceSignature(amounts: number[]): number {
@@ -354,7 +371,11 @@ export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: num
     const elev = scenery.elev;
     color = elev >= 3 ? mats.high : elev === 2 ? mixRgb(mats.mid, mats.high, 0.42) : elev <= 0 ? mats.low : mats.mid;
     if (waterNeighbor(state, x, y)) color = mixRgb(color, mats.shore, 0.34);
-    if (ore) color = mixRgb(color, mats.ore, 0.46 + Math.min(0.28, resourceAt(state, x, y) / 1800));
+    if (ore) {
+      const richness = Math.min(1, resourceAt(state, x, y) / 900);
+      color = mixRgb(color, mats.dark, 0.2 + richness * 0.08);
+      color = mixRgb(color, mats.ore, 0.12 + richness * 0.1);
+    }
     if (scenery.kind === TILE_BLOCKED) color = mixRgb(color, mats.blocked, 0.55);
     const east = sceneryAt(state, x + 1, y).elev;
     const south = sceneryAt(state, x, y + 1).elev;
@@ -388,7 +409,7 @@ function cellClass(state: AtlasWorld, x: number, y: number): number {
   const surface = surfaceAt(state, x, y);
   if (surface === SURFACE_ROAD) return 1;
   if (surface === SURFACE_CONCRETE) return 2;
-  if (scenery.kind === TILE_RESOURCE) return 3;
+  if (scenery.kind === TILE_RESOURCE) return ORE_CELL_CLASS;
   return 4;
 }
 
@@ -411,8 +432,11 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
 
   const data = new Uint8ClampedArray(width * height * 4);
   const salt = artSalt(state);
+  const mats = materialsFor(state);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
+      const gx = col - MAP_SKIRT;
+      const gy = row - MAP_SKIRT;
       const i = (row * cols + col) * 3;
       const baseR = colors[i]!;
       const baseG = colors[i + 1]!;
@@ -432,9 +456,17 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
         const py = row * ATLAS_CELL + ly;
         for (let lx = 0; lx < ATLAS_CELL; lx++) {
           const fx = lx / ATLAS_CELL;
-          const r = baseR + (eastR - baseR) * fx * 0.28 + (southR - baseR) * fy * 0.28;
-          const g = baseG + (eastG - baseG) * fx * 0.28 + (southG - baseG) * fy * 0.28;
-          const b = baseB + (eastB - baseB) * fx * 0.28 + (southB - baseB) * fy * 0.28;
+          let r = baseR + (eastR - baseR) * fx * 0.28 + (southR - baseR) * fy * 0.28;
+          let g = baseG + (eastG - baseG) * fx * 0.28 + (southG - baseG) * fy * 0.28;
+          let b = baseB + (eastB - baseB) * fx * 0.28 + (southB - baseB) * fy * 0.28;
+          if (same === ORE_CELL_CLASS) {
+            const vein = oreVeinAt(state, gx + (lx + 0.5) / ATLAS_CELL, gy + (ly + 0.5) / ATLAS_CELL);
+            const metal = mixRgb(mats.ore, mats.light, 0.28 + vein.ridge * 0.45);
+            const t = Math.min(1, vein.intensity);
+            r += (metal.r - r) * t;
+            g += (metal.g - g) * t;
+            b += (metal.b - b) * t;
+          }
           const px = col * ATLAS_CELL + lx;
           const grain = (hash2(px, py, salt) - 0.5) * 16;
           const o = (py * width + px) * 4;
