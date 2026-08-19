@@ -1,4 +1,4 @@
-import { cliffFaces, drawElevationFaces } from "../gen/assets";
+import { cliffFaces, drawElevationFaces, fillElevationPoly, tileCliffGeometry } from "../gen/assets";
 import { MAP_SKIRT, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
 import { generateCampaignVisualProfile } from "../gen/visualProfile";
 import type { BuildingKind, Entity, SimState } from "../types";
@@ -36,6 +36,7 @@ function memoScenery(state: SimState, x: number, y: number): ScenerySample {
 
 const SHROUD_FILL = "#080d11";
 const TERRAIN_COVER = 1.08;
+export const WATER_COVER = 1.24;
 const ATLAS_SAMPLE_PAD = 1;
 
 function isoDiamondPath(
@@ -53,24 +54,25 @@ function isoDiamondPath(
   ctx.closePath();
 }
 
-function paintShroudFace(
+function paintShroudCliffs(
   ctx: CanvasRenderingContext2D,
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-  drop: number,
+  sx: number,
+  sy: number,
+  tw: number,
+  th: number,
+  dropE: number,
+  dropS: number,
+  step: number,
+  tileX: number,
+  tileY: number,
+  seed: number,
   seal: boolean,
 ): void {
-  if (drop <= 0) return;
-  ctx.beginPath();
-  ctx.moveTo(ax, ay);
-  ctx.lineTo(bx, by);
-  ctx.lineTo(bx, by + drop);
-  ctx.lineTo(ax, ay + drop);
-  ctx.closePath();
-  ctx.fill();
-  if (seal) ctx.stroke();
+  if (dropE <= 0 && dropS <= 0) return;
+  const geo = tileCliffGeometry(tw, th, step, dropE, dropS, seed, tileX, tileY);
+  if (geo.south) fillElevationPoly(ctx, sx, sy, geo.south.points, undefined, seal);
+  if (geo.east) fillElevationPoly(ctx, sx, sy, geo.east.points, undefined, seal);
+  if (geo.wedge) fillElevationPoly(ctx, sx, sy, geo.wedge, undefined, seal);
 }
 
 function paintShroudMaskTile(
@@ -84,6 +86,9 @@ function paintShroudMaskTile(
   step: number,
   gain: number,
   z: number,
+  tileX: number,
+  tileY: number,
+  seed: number,
 ): void {
   const shroudGain = fogTerrainGain(0);
   if (gain <= shroudGain + 0.005) return;
@@ -99,8 +104,7 @@ function paintShroudMaskTile(
   isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
   ctx.fill();
   if (srcAlpha >= 0.98) ctx.stroke();
-  paintShroudFace(ctx, sx - tw / 2, sy + th / 2, sx, sy + th, dropS * step, srcAlpha >= 0.98);
-  paintShroudFace(ctx, sx + tw / 2, sy + th / 2, sx, sy + th, dropE * step, srcAlpha >= 0.98);
+  paintShroudCliffs(ctx, sx, sy, tw, th, dropE, dropS, step, tileX, tileY, seed, srcAlpha >= 0.98);
 }
 
 function paintShroudOverlay(
@@ -114,6 +118,9 @@ function paintShroudOverlay(
   step: number,
   gain: number,
   z: number,
+  tileX: number,
+  tileY: number,
+  seed: number,
 ): void {
   if (gain >= 0.98) return;
   ctx.save();
@@ -127,8 +134,7 @@ function paintShroudOverlay(
   isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
   ctx.fill();
   ctx.stroke();
-  paintShroudFace(ctx, sx - tw / 2, sy + th / 2, sx, sy + th, dropS * step, true);
-  paintShroudFace(ctx, sx + tw / 2, sy + th / 2, sx, sy + th, dropE * step, true);
+  paintShroudCliffs(ctx, sx, sy, tw, th, dropE, dropS, step, tileX, tileY, seed, true);
   ctx.restore();
 }
 
@@ -445,6 +451,21 @@ function drawOreCrystals(
   ctx.restore();
 }
 
+function wetBankColors(
+  base: ReturnType<typeof cliffFaces>,
+  mats: ReturnType<typeof biomeMaterials>,
+  waterE: boolean,
+  waterS: boolean,
+): ReturnType<typeof cliffFaces> {
+  const wet = `rgb(${Math.max(0, mats.waterDeep.r - 6)},${Math.max(0, mats.waterDeep.g - 4)},${Math.min(255, mats.waterDeep.b + 4)})`;
+  return {
+    south: waterS ? wet : base.south,
+    east: waterE ? wet : base.east,
+    southInk: base.southInk,
+    eastInk: base.eastInk,
+  };
+}
+
 function paintCell(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -452,8 +473,11 @@ function paintCell(
   atlas: TerrainAtlas,
   x: number,
   y: number,
+  waterPass: boolean,
 ): void {
   const scenery = memoScenery(state, x, y);
+  const water = scenery.kind === TILE_WATER;
+  if (water !== waterPass) return;
   const elev = scenery.elev;
   const s = tileToScreen(x, y, cam, elev);
   const z = cam.zoom;
@@ -461,14 +485,14 @@ function paintCell(
   const th = TILE_H * z;
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
   const concrete = inMap && state.surfaces[y * state.width + x] === SURFACE_CONCRETE;
-  const cover = expandIsoDiamond(s.x, s.y, tw, th, concrete ? 1 : TERRAIN_COVER);
-  const east = memoScenery(state, x + 1, y).elev;
-  const south = memoScenery(state, x, y + 1).elev;
-  const dropE = Math.max(0, elev - east);
-  const dropS = Math.max(0, elev - south);
+  const cover = expandIsoDiamond(s.x, s.y, tw, th, concrete ? 1 : water ? WATER_COVER : TERRAIN_COVER);
+  const eastSc = memoScenery(state, x + 1, y);
+  const southSc = memoScenery(state, x, y + 1);
+  const dropE = water ? 0 : Math.max(0, elev - eastSc.elev);
+  const dropS = water ? 0 : Math.max(0, elev - southSc.elev);
   const gain = smoothFogGain(state, x, y);
 
-  if (elev >= 2 || dropE > 0 || dropS > 0) {
+  if (!water && (elev >= 2 || dropE > 0 || dropS > 0)) {
     ctx.save();
     ctx.globalAlpha = Math.min(0.28, 0.1 + elev * 0.03 + (dropE + dropS) * 0.04) * gain;
     ctx.fillStyle = "#071014";
@@ -489,7 +513,14 @@ function paintCell(
       dropE,
       dropS,
       tileVariant(state.seed, x, y),
-      cliffFaces(state.biome, elev, generateCampaignVisualProfile(state.seed)),
+      wetBankColors(
+        cliffFaces(state.biome, elev, generateCampaignVisualProfile(state.seed)),
+        biomeMaterials(state.biome),
+        eastSc.kind === TILE_WATER,
+        southSc.kind === TILE_WATER,
+      ),
+      x,
+      y,
     );
     ctx.restore();
   }
@@ -503,7 +534,7 @@ function paintCell(
     drawAtlasDiamond(ctx, atlas, x, y, s.x, s.y, tw, th);
   } else {
     const mats = biomeMaterials(state.biome);
-    ctx.fillStyle = scenery.kind === TILE_WATER
+    ctx.fillStyle = water
       ? `rgb(${mats.waterMid.r},${mats.waterMid.g},${mats.waterMid.b})`
       : `rgb(${mats.mid.r},${mats.mid.g},${mats.mid.b})`;
     isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
@@ -584,7 +615,7 @@ function paintShroudLayer(
       const s = tileToScreen(x, y, cam, scenery.elev);
       const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
       const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
-      paintShroudOverlay(ctx, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z);
+      paintShroudOverlay(ctx, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y));
     });
     return;
   }
@@ -600,7 +631,7 @@ function paintShroudLayer(
       const s = tileToScreen(x, y, cam, scenery.elev);
       const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
       const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
-      paintShroudOverlay(ctx, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z);
+      paintShroudOverlay(ctx, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y));
     });
     return;
   }
@@ -617,7 +648,7 @@ function paintShroudLayer(
     const s = tileToScreen(x, y, cam, scenery.elev);
     const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
     const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
-    paintShroudMaskTile(fog, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z);
+    paintShroudMaskTile(fog, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y));
   });
   fog.globalCompositeOperation = "source-over";
   fog.globalAlpha = 1;
@@ -642,7 +673,10 @@ export function paintTerrainWorld(
   ctx.fillRect(0, 0, w, h);
 
   visitVisibleTiles(ctx, state, cam, (x, y) => {
-    paintCell(ctx, state, cam, atlas, x, y);
+    paintCell(ctx, state, cam, atlas, x, y, false);
+  });
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    paintCell(ctx, state, cam, atlas, x, y, true);
   });
   paintShroudLayer(ctx, state, cam);
   visitVisibleTiles(ctx, state, cam, (x, y) => {

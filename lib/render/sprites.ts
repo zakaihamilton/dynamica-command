@@ -128,7 +128,8 @@ function rasterCacheKey(spec: SpriteSpec): string {
   const texture = spec.imageTextureSrc
     ? `${spec.imageTextureSrc}:${spec.imageTextureOpacity ?? ""}:${spec.imageTextureOffset ?? 0}`
     : "";
-  return `image:${spec.imageSrc}:${spec.imageTint ?? ""}:${crop}:${spec.w}x${spec.h}:${texture}`;
+  const shapes = spec.shapes.map((s) => `${s.type}:${s.x}:${s.y}:${s.w}:${s.h}`).join("|");
+  return `image:${spec.imageSrc}:${spec.imageTint ?? ""}:${crop}:${spec.w}x${spec.h}:${spec.imageReveal ?? 1}:${shapes}:${texture}`;
 }
 
 function notifyImageReady(key: string): void {
@@ -198,19 +199,30 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
       const dw = Math.round(crop.w * scale);
       const dh = Math.round(crop.h * scale);
       ctx.clearRect(0, 0, c.width, c.height);
+      const destX = Math.round((c.width - dw) / 2);
+      const destY = Math.round(c.height - dh - inset * 0.25);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
+      ctx.save();
+      const reveal = spec.imageReveal ?? 1;
+      if (reveal < 1) {
+        const visible = Math.max(1, Math.round(dh * reveal));
+        ctx.beginPath();
+        ctx.rect(destX, destY + dh - visible, dw, visible);
+        ctx.clip();
+      }
       ctx.drawImage(
         image,
         crop.x,
         crop.y,
         crop.w,
         crop.h,
-        Math.round((c.width - dw) / 2),
-        Math.round(c.height - dh - inset * 0.25),
+        destX,
+        destY,
         dw,
         dh,
       );
+      ctx.restore();
       if (spec.imageTint) {
         ctx.globalCompositeOperation = "source-atop";
         ctx.fillStyle = spec.imageTint;
@@ -218,6 +230,12 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
         ctx.globalCompositeOperation = "source-over";
       }
       paintTexture(ctx, c, spec);
+      if (spec.shapes.length) {
+        ctx.save();
+        ctx.scale(c.width / spec.w, c.height / spec.h);
+        paintShapes(ctx, spec.shapes);
+        ctx.restore();
+      }
       notifyImageReady(key);
     };
     if (!imageCache.has(spec.imageSrc)) {

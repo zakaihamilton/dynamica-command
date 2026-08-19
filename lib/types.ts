@@ -266,6 +266,8 @@ export type SpriteSpec = {
   imageTextureSrc?: string;
   imageTextureOpacity?: number;
   imageTextureOffset?: number;
+  /** How much of a raster, from the ground up, is visible. Used for building construction. */
+  imageReveal?: number;
   /** Screen-space turn applied around the sprite anchor (used by raster units). */
   rotation?: number;
   anchorX?: number;

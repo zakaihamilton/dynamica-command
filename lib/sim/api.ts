@@ -225,7 +225,6 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     factions: campaign.factions,
     missionName: mission.name,
     missionKind: mission.win.kind,
-    appliedUpgrades: [],
     aiState: "economy",
   };
 

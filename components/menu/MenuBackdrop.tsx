@@ -205,6 +205,8 @@ export function MenuBackdrop() {
               dropS,
               x * 13 + y * 7,
               cliffFaces(map.biome, elev, campaignProfile),
+              x,
+              y,
             );
           }
           const img = rasterize(tileSprite(kind, elev, {

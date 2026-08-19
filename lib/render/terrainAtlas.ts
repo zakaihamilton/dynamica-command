@@ -6,14 +6,16 @@ import type { BiomeName, CampaignVisualProfile, SurfaceKind } from "../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 
 export const ATLAS_CELL = 8;
-export const TERRAIN_ATLAS_REV = "world-atlas-v4";
+export const TERRAIN_ATLAS_REV = "world-atlas-v6";
 export const ORE_GLINT_RIDGE = 0.55;
 export const ORE_CRYSTAL_MIN_AMOUNT = 50;
 export const CONCRETE_STEEL = { r: 89, g: 104, b: 117 };
 export const CONCRETE_STEEL_LIGHT = { r: 154, g: 171, b: 186 };
 export const CONCRETE_STEEL_DARK = { r: 38, g: 50, b: 61 };
+const WATER_CELL_CLASS = 0;
 const ORE_CELL_CLASS = 3;
 const CONCRETE_CELL_CLASS = 2;
+const WATER_SHORE_MAX = 8;
 
 export type AtlasWorld = SceneryWorld & {
   seed: number;
@@ -512,6 +514,86 @@ function waterNeighbor(state: AtlasWorld, x: number, y: number): boolean {
     || sceneryAt(state, x, y - 1).kind === TILE_WATER;
 }
 
+export function waterShoreDist(state: AtlasWorld, x: number, y: number): number {
+  if (sceneryAt(state, x, y).kind !== TILE_WATER) return 0;
+  for (let d = 1; d <= WATER_SHORE_MAX; d++) {
+    for (let oy = -d; oy <= d; oy++) {
+      for (let ox = -d; ox <= d; ox++) {
+        if (Math.max(Math.abs(ox), Math.abs(oy)) !== d) continue;
+        if (sceneryAt(state, x + ox, y + oy).kind !== TILE_WATER) return d;
+      }
+    }
+  }
+  return WATER_SHORE_MAX;
+}
+
+function waterPixelDist(state: AtlasWorld, mapX: number, mapY: number, cellDist: number): number {
+  const x = Math.floor(mapX);
+  const y = Math.floor(mapY);
+  const fx = mapX - x;
+  const fy = mapY - y;
+  let dist = cellDist;
+  if (sceneryAt(state, x + 1, y).kind !== TILE_WATER) dist = Math.min(dist, 1 - fx);
+  if (sceneryAt(state, x - 1, y).kind !== TILE_WATER) dist = Math.min(dist, fx);
+  if (sceneryAt(state, x, y + 1).kind !== TILE_WATER) dist = Math.min(dist, 1 - fy);
+  if (sceneryAt(state, x, y - 1).kind !== TILE_WATER) dist = Math.min(dist, fy);
+  if (sceneryAt(state, x + 1, y + 1).kind !== TILE_WATER) dist = Math.min(dist, Math.max(1 - fx, 1 - fy));
+  if (sceneryAt(state, x - 1, y - 1).kind !== TILE_WATER) dist = Math.min(dist, Math.max(fx, fy));
+  if (sceneryAt(state, x + 1, y - 1).kind !== TILE_WATER) dist = Math.min(dist, Math.max(1 - fx, fy));
+  if (sceneryAt(state, x - 1, y + 1).kind !== TILE_WATER) dist = Math.min(dist, Math.max(fx, 1 - fy));
+  return dist;
+}
+
+function tintWater(mats: BiomeMaterials, dist: number, mapX: number, mapY: number, salt: number): Rgb {
+  const wet = fbm(mapX * 0.85, mapY * 0.55, salt + 73);
+  const current = fbm(mapX * 0.28 + mapY * 0.16, mapY * 0.34, salt + 101);
+  const depthT = Math.min(1, Math.max(0, (dist - 0.4) / 3.4));
+  let color = mixRgb(mats.waterMid, mats.waterDeep, 0.22 + depthT * 0.78);
+  color = mixRgb(color, mats.waterHi, wet * 0.12 * (0.4 + depthT * 0.45));
+  const streak = Math.max(0, 1 - Math.abs(current - 0.48) * 3.6);
+  color = mixRgb(color, mats.waterHi, streak * streak * 0.11);
+  if (dist < 1.1) color = mixRgb(color, mats.waterHi, (1.1 - dist) * 0.26);
+  return color;
+}
+
+function bakeWaterShoreDist(state: AtlasWorld, cols: number, rows: number): Uint8Array {
+  const dist = new Uint8Array(cols * rows);
+  dist.fill(255);
+  const queue: number[] = [];
+  let head = 0;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const gx = col - MAP_SKIRT;
+      const gy = row - MAP_SKIRT;
+      if (sceneryAt(state, gx, gy).kind === TILE_WATER) continue;
+      const i = row * cols + col;
+      dist[i] = 0;
+      queue.push(i);
+    }
+  }
+  while (head < queue.length) {
+    const i = queue[head++]!;
+    const d = dist[i]!;
+    const col = i % cols;
+    const row = (i / cols) | 0;
+    const nd = d + 1;
+    if (nd > WATER_SHORE_MAX) continue;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nc = col + dx;
+        const nr = row + dy;
+        if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+        const ni = nr * cols + nc;
+        if (nd >= dist[ni]!) continue;
+        dist[ni] = nd;
+        queue.push(ni);
+      }
+    }
+  }
+  return dist;
+}
+
 export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: number): TerrainSample {
   const x = Math.floor(mapX);
   const y = Math.floor(mapY);
@@ -525,14 +607,8 @@ export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: num
   const water = scenery.kind === TILE_WATER;
   let color: Rgb;
   if (water) {
-    const shore = waterNeighbor(state, x, y) && (
-      sceneryAt(state, x + 1, y).kind !== TILE_WATER
-      || sceneryAt(state, x - 1, y).kind !== TILE_WATER
-      || sceneryAt(state, x, y + 1).kind !== TILE_WATER
-      || sceneryAt(state, x, y - 1).kind !== TILE_WATER
-    );
-    color = shore ? mixRgb(mats.waterMid, mats.shore, 0.28) : mixRgb(mats.waterDeep, mats.waterMid, 0.35 + grain * 0.4);
-    color = mixRgb(color, mats.waterHi, grain * 0.18);
+    const dist = waterPixelDist(state, mapX, mapY, waterShoreDist(state, x, y));
+    color = tintWater(mats, dist, mapX, mapY, salt);
   } else if (surface === SURFACE_CONCRETE) {
     color = mixRgb(CONCRETE_STEEL, CONCRETE_STEEL_DARK, 0.05 + micro * 0.08);
     color = mixRgb(color, CONCRETE_STEEL_LIGHT, 0.04 + hash2(x, y, salt) * 0.05);
@@ -542,7 +618,7 @@ export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: num
   } else {
     const elev = scenery.elev;
     color = elev >= 3 ? mats.high : elev === 2 ? mixRgb(mats.mid, mats.high, 0.42) : elev <= 0 ? mats.low : mats.mid;
-    if (waterNeighbor(state, x, y)) color = mixRgb(color, mats.shore, 0.34);
+    if (waterNeighbor(state, x, y)) color = mixRgb(color, mats.shore, 0.4);
     if (ore) {
       const richness = Math.min(1, resourceAt(state, x, y) / 900);
       color = mixRgb(color, mats.dark, 0.2 + richness * 0.08);
@@ -577,7 +653,7 @@ function cellColor(state: AtlasWorld, gx: number, gy: number): Rgb {
 
 function cellClass(state: AtlasWorld, x: number, y: number): number {
   const scenery = sceneryAt(state, x, y);
-  if (scenery.kind === TILE_WATER) return 0;
+  if (scenery.kind === TILE_WATER) return WATER_CELL_CLASS;
   const surface = surfaceAt(state, x, y);
   if (surface === SURFACE_ROAD) return 1;
   if (surface === SURFACE_CONCRETE) return CONCRETE_CELL_CLASS;
@@ -589,6 +665,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
   const { cols, rows, width, height } = atlasSize(state);
   const colors = new Float32Array(cols * rows * 3);
   const classes = new Uint8Array(cols * rows);
+  const shoreDist = bakeWaterShoreDist(state, cols, rows);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const gx = col - MAP_SKIRT;
@@ -614,7 +691,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
       const baseG = colors[i + 1]!;
       const baseB = colors[i + 2]!;
       const same = classes[row * cols + col]!;
-      const canBlend = same !== CONCRETE_CELL_CLASS;
+      const canBlend = same !== CONCRETE_CELL_CLASS && same !== WATER_CELL_CLASS;
       const blendE = canBlend && col + 1 < cols && classes[row * cols + col + 1] === same;
       const blendS = canBlend && row + 1 < rows && classes[(row + 1) * cols + col] === same;
       const eastR = blendE ? colors[i + 3]! : baseR;
@@ -624,14 +701,27 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
       const southR = blendS ? colors[southI]! : baseR;
       const southG = blendS ? colors[southI + 1]! : baseG;
       const southB = blendS ? colors[southI + 2]! : baseB;
+      const cellDist = shoreDist[row * cols + col] ?? WATER_SHORE_MAX;
       for (let ly = 0; ly < ATLAS_CELL; ly++) {
         const fy = ly / ATLAS_CELL;
         const py = row * ATLAS_CELL + ly;
         for (let lx = 0; lx < ATLAS_CELL; lx++) {
           const fx = lx / ATLAS_CELL;
-          let r = baseR + (eastR - baseR) * fx * 0.28 + (southR - baseR) * fy * 0.28;
-          let g = baseG + (eastG - baseG) * fx * 0.28 + (southG - baseG) * fy * 0.28;
-          let b = baseB + (eastB - baseB) * fx * 0.28 + (southB - baseB) * fy * 0.28;
+          let r: number;
+          let g: number;
+          let b: number;
+          if (same === WATER_CELL_CLASS) {
+            const mapX = gx + (lx + 0.5) / ATLAS_CELL;
+            const mapY = gy + (ly + 0.5) / ATLAS_CELL;
+            const wet = tintWater(mats, waterPixelDist(state, mapX, mapY, cellDist), mapX, mapY, salt);
+            r = wet.r;
+            g = wet.g;
+            b = wet.b;
+          } else {
+            r = baseR + (eastR - baseR) * fx * 0.28 + (southR - baseR) * fy * 0.28;
+            g = baseG + (eastG - baseG) * fx * 0.28 + (southG - baseG) * fy * 0.28;
+            b = baseB + (eastB - baseB) * fx * 0.28 + (southB - baseB) * fy * 0.28;
+          }
           if (same === ORE_CELL_CLASS) {
             const vein = oreVeinAt(state, gx + (lx + 0.5) / ATLAS_CELL, gy + (ly + 0.5) / ATLAS_CELL);
             const metal = mixRgb(mats.ore, mats.light, 0.28 + vein.ridge * 0.45);
@@ -650,11 +740,18 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
             }
           }
           const px = col * ATLAS_CELL + lx;
-          const grain = (hash2(px, py, salt) - 0.5) * (same === CONCRETE_CELL_CLASS ? 5 : 16);
+          const grainScale = same === CONCRETE_CELL_CLASS ? 5 : same === WATER_CELL_CLASS ? 6 : 16;
+          const grain = (hash2(px, py, salt) - 0.5) * grainScale;
           const o = (py * width + px) * 4;
-          data[o] = clampByte(r + grain);
-          data[o + 1] = clampByte(g + grain * 0.82);
-          data[o + 2] = clampByte(b + grain * 0.7);
+          if (same === WATER_CELL_CLASS) {
+            data[o] = clampByte(r + grain * 0.35);
+            data[o + 1] = clampByte(g + grain * 0.7);
+            data[o + 2] = clampByte(b + grain);
+          } else {
+            data[o] = clampByte(r + grain);
+            data[o + 1] = clampByte(g + grain * 0.82);
+            data[o + 2] = clampByte(b + grain * 0.7);
+          }
           data[o + 3] = 255;
         }
       }
@@ -720,6 +817,28 @@ function overlayGrain(ctx: CanvasRenderingContext2D, state: AtlasWorld, width: n
   ctx.restore();
 }
 
+function restoreWaterPixels(ctx: CanvasRenderingContext2D, state: AtlasWorld, baked: TerrainAtlasData): void {
+  const cols = state.width + MAP_SKIRT * 2;
+  const rows = state.height + MAP_SKIRT * 2;
+  const image = ctx.getImageData(0, 0, baked.width, baked.height);
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (sceneryAt(state, col - MAP_SKIRT, row - MAP_SKIRT).kind !== TILE_WATER) continue;
+      for (let ly = 0; ly < ATLAS_CELL; ly++) {
+        const py = row * ATLAS_CELL + ly;
+        for (let lx = 0; lx < ATLAS_CELL; lx++) {
+          const o = (py * baked.width + col * ATLAS_CELL + lx) * 4;
+          image.data[o] = baked.data[o] ?? 0;
+          image.data[o + 1] = baked.data[o + 1] ?? 0;
+          image.data[o + 2] = baked.data[o + 2] ?? 0;
+          image.data[o + 3] = baked.data[o + 3] ?? 255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
 export function invalidateTerrainAtlas(): void {
   atlasCache = null;
 }
@@ -739,6 +858,7 @@ export function getTerrainAtlas(state: AtlasWorld): TerrainAtlas {
       image.data.set(baked.data);
       ctx.putImageData(image, 0, 0);
       overlayGrain(ctx, state, baked.width, baked.height);
+      restoreWaterPixels(ctx, state, baked);
     }
   }
   atlasCache = { ...baked, canvas };

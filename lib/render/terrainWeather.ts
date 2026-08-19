@@ -2,8 +2,9 @@ import { featureEdgeMask, MAP_SKIRT, sceneryAt } from "../gen/map";
 import type { BiomeName, SimState } from "../types";
 import { TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
-import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
-import { fogTerrainGain, oreCrystalCluster } from "./terrainAtlas";
+import { TILE_H, TILE_W, expandIsoDiamond, tileToScreen, type Camera } from "./iso";
+import { fogTerrainGain, oreCrystalCluster, biomeMaterials } from "./terrainAtlas";
+import { WATER_COVER } from "./terrainPaint";
 
 export type WeatherKind = "snow" | "ash" | "dust" | "ember" | "pollen" | "mist";
 
@@ -76,10 +77,10 @@ export function weatherParticleAt(
 }
 
 export function waterCaustic(timeMs: number, x: number, y: number): WaterCaustic {
-  const phase = timeMs * 0.0016 + x * 0.63 + y * 0.41;
+  const phase = timeMs * 0.0012 + x * 0.63 + y * 0.41;
   return {
-    offset: Math.sin(phase) * 4.2 + Math.sin(phase * 0.37 + 1.2) * 1.6,
-    alpha: 0.08 + (Math.sin(phase * 1.3) + 1) * 0.07,
+    offset: Math.sin(phase) * 5.5 + Math.sin(phase * 0.37 + 1.2) * 2.2,
+    alpha: 0.14 + (Math.sin(phase * 1.3) + 1) * 0.1,
     phase,
   };
 }
@@ -145,6 +146,43 @@ function isoDiamond(
   ctx.closePath();
 }
 
+function rgbCss(color: { r: number; g: number; b: number }): string {
+  return `rgb(${color.r | 0},${color.g | 0},${color.b | 0})`;
+}
+
+function strokeCausticFamily(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  tw: number,
+  th: number,
+  slope: number,
+  spacing: number,
+  scroll: number,
+  alpha: number,
+  width: number,
+): void {
+  const coord = (px: number, py: number) => py - slope * px;
+  const x0 = sx - tw;
+  const x1 = sx + tw;
+  const c0 = coord(x0, sy - th);
+  const c1 = coord(x1, sy + th * 2);
+  const lo = Math.min(c0, c1);
+  const hiC = Math.max(c0, c1);
+  const k0 = Math.floor((lo + scroll) / spacing);
+  const k1 = Math.ceil((hiC + scroll) / spacing);
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+  for (let k = k0; k <= k1; k++) {
+    const c = k * spacing - scroll;
+    ctx.beginPath();
+    ctx.moveTo(x0, c + slope * x0);
+    ctx.lineTo(x1, c + slope * x1);
+    ctx.stroke();
+  }
+}
+
 export function paintWaterFx(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -161,6 +199,15 @@ export function paintWaterFx(
   const y0 = Math.max(-MAP_SKIRT, 0);
   const x1 = state.width;
   const y1 = state.height;
+  const hi = biomeMaterials(state.biome).waterHi;
+  const highlight = rgbCss(hi);
+  const foamFill = state.biome === "volcanic shelf"
+    ? "rgba(138,128,112,0.9)"
+    : `rgba(${Math.min(255, hi.r + 40)},${Math.min(255, hi.g + 28)},${Math.min(255, hi.b + 20)},0.9)`;
+  const scrollA = clockMs * 0.016;
+  const scrollB = clockMs * 0.01;
+  const spacingA = 20 * z;
+  const spacingB = 33 * z;
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       if (state.tiles[y * state.width + x] !== TILE_WATER) continue;
@@ -169,33 +216,47 @@ export function paintWaterFx(
       const s = tileToScreen(x, y, cam, 0);
       if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
       const caustic = waterCaustic(clockMs, x, y);
-      const caustic2 = waterCaustic(clockMs * 1.27 + 80, x + 2, y - 1);
       const gain = fogTerrainGain(fog);
+      const cover = expandIsoDiamond(s.x, s.y, tw, th, WATER_COVER);
       ctx.save();
-      isoDiamond(ctx, s.x, s.y, tw, th);
+      isoDiamond(ctx, cover.x, cover.y, cover.w, cover.h);
       ctx.clip();
-      ctx.globalAlpha = caustic.alpha * gain;
-      ctx.fillStyle = "#d7eef2";
-      ctx.beginPath();
-      ctx.ellipse(s.x + caustic.offset, s.y + th * 0.42, tw * 0.18, th * 0.08, 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = highlight;
+      ctx.globalAlpha = (0.045 + (Math.sin(clockMs * 0.0009 + (s.x + s.y) * 0.012) + 1) * 0.035) * gain;
+      isoDiamond(ctx, cover.x, cover.y, cover.w, cover.h);
       ctx.fill();
-      ctx.globalAlpha = caustic2.alpha * 0.7 * gain;
-      ctx.beginPath();
-      ctx.ellipse(s.x - tw * 0.12 - caustic2.offset * 0.4, s.y + th * 0.58, tw * 0.14, th * 0.06, -0.3, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.strokeStyle = highlight;
+      strokeCausticFamily(ctx, s.x, s.y, tw, th, -0.5, spacingA, scrollA, caustic.alpha * 0.85 * gain, Math.max(1.15, z * 1.7));
+      strokeCausticFamily(ctx, s.x, s.y, tw, th, 0.42, spacingB, scrollB, caustic.alpha * 0.55 * gain, Math.max(0.9, z * 1.2));
       ctx.restore();
       const bank = featureEdgeMask(state, x, y).bank;
-      if (bank) {
-        ctx.save();
-        ctx.globalAlpha = (0.16 + caustic.alpha) * gain;
-        ctx.strokeStyle = state.biome === "volcanic shelf" ? "#8a8070" : "#e8e0c8";
-        ctx.lineWidth = Math.max(1.2, z * 1.4);
+      if (!bank) continue;
+      const n: [number, number] = [s.x, s.y];
+      const e: [number, number] = [s.x + tw / 2, s.y + th / 2];
+      const so: [number, number] = [s.x, s.y + th];
+      const we: [number, number] = [s.x - tw / 2, s.y + th / 2];
+      const mid = [s.x, s.y + th * 0.5] as const;
+      const edges: Array<[number, [number, number], [number, number]]> = [
+        [1, n, e],
+        [2, e, so],
+        [4, so, we],
+        [8, we, n],
+      ];
+      ctx.save();
+      ctx.fillStyle = foamFill;
+      ctx.globalAlpha = (0.2 + caustic.alpha * 0.35) * gain;
+      const bob = Math.sin(caustic.phase) * 1.4 * z;
+      for (const [bit, a, b] of edges) {
+        if (!(bank & bit)) continue;
+        const mx = (a[0] + b[0]) * 0.5;
+        const my = (a[1] + b[1]) * 0.5;
+        const ix = (mid[0] - mx) * 0.22;
+        const iy = (mid[1] - my) * 0.22;
         ctx.beginPath();
-        ctx.moveTo(s.x - tw * 0.28, s.y + th * 0.58 + Math.sin(caustic.phase) * 1.5);
-        ctx.lineTo(s.x + tw * 0.22, s.y + th * 0.72 + Math.cos(caustic.phase) * 1.2);
-        ctx.stroke();
-        ctx.restore();
+        ctx.ellipse(mx + ix, my + iy + bob, tw * 0.18, th * 0.07, 0.35, 0, Math.PI * 2);
+        ctx.fill();
       }
+      ctx.restore();
     }
   }
 }

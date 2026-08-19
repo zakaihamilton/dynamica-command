@@ -27,7 +27,7 @@ import { resourceSignature, terrainGrainGeneration } from "./terrainAtlas";
 import { paintBuildingPlates, paintTerrainWorld } from "./terrainPaint";
 import { paintOreGlints, paintTerrainWeather, paintWaterFx } from "./terrainWeather";
 
-const TERRAIN_RENDER_REV = "world-atlas-v11";
+const TERRAIN_RENDER_REV = "world-atlas-v12-organic-cliffs";
 
 function entityElev(state: SimState, e: Entity): number {
   return e.class === "unit" ? groundHeight(state, e.x, e.y) : heightAt(state, Math.round(e.x), Math.round(e.y));
@@ -307,7 +307,7 @@ export function renderWorld(
     if (e.class === "building") {
       drawBuildingShadow(ctx, state, cam, e, z);
     }
-    const spriteAlpha = entityAlpha * (e.constructing > 0 ? 0.72 : 1);
+    const spriteAlpha = entityAlpha;
     if (isExtractableUnit(state, e)) {
       drawUnitGlow(ctx, spec, img, dx, dy, spec.w * z, spec.h * z, timeMs, spriteAlpha, z);
     }
@@ -328,18 +328,20 @@ export function renderWorld(
         entityAlpha,
       );
     }
-    drawDamageOverlay(
-      ctx,
-      spec,
-      dx,
-      dy,
-      spec.w * z,
-      spec.h * z,
-      damageStage,
-      timeMs,
-      e.id,
-      entityAlpha * (e.constructing > 0 ? 0.72 : 1),
-    );
+    if (e.class !== "building") {
+      drawDamageOverlay(
+        ctx,
+        spec,
+        dx,
+        dy,
+        spec.w * z,
+        spec.h * z,
+        damageStage,
+        timeMs,
+        e.id,
+        spriteAlpha,
+      );
+    }
 
     if (bAnim) drawBuildingFx(ctx, e, s, z, bAnim);
     if (uAnim?.pose === "work") drawHarvestFx(ctx, state, e, cam, timeMs);

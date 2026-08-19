@@ -19,6 +19,7 @@ import {
   resourceSignature,
   sampleTerrainMaterial,
   terrainAtlasKey,
+  biomeMaterials,
   type TerrainAtlasData,
 } from "../lib/render/terrainAtlas";
 import {
@@ -85,6 +86,42 @@ describe("seeded terrain atlas", () => {
     expect(concrete).not.toEqual(ground);
     expect(sampleTerrainMaterial(state, 1.5, 1.5).water).toBe(true);
     expect(sampleTerrainMaterial(state, 2.4, 2.4).ore).toBe(true);
+  });
+
+  it("keeps shore water blue instead of mixing bank sand", () => {
+    const state = makeFixture({ width: 10, height: 10, win: { kind: "annihilate" }, seed: 832 });
+    setTile(state, 1, 1, TILE_WATER);
+    const atlas = bakeTerrainAtlasData(state);
+    const shore = atlasPixelAtTile(atlas, 1, 1);
+    const mats = biomeMaterials(state.biome);
+    expect(shore[2]).toBeGreaterThan(shore[0]);
+    const dist = (px: [number, number, number], c: { r: number; g: number; b: number }) => (
+      Math.abs(px[0] - c.r) + Math.abs(px[1] - c.g) + Math.abs(px[2] - c.b)
+    );
+    expect(dist(shore, mats.waterMid)).toBeLessThan(dist(shore, mats.shore));
+    expect(sampleTerrainMaterial(state, 1, 1).b).toBeGreaterThan(sampleTerrainMaterial(state, 1, 1).r);
+  });
+
+  it("bakes lake interiors darker than the rim", () => {
+    const state = makeFixture({ width: 10, height: 10, win: { kind: "annihilate" }, seed: 832 });
+    for (let y = 2; y <= 4; y++) {
+      for (let x = 2; x <= 4; x++) setTile(state, x, y, TILE_WATER);
+    }
+    const atlas = bakeTerrainAtlasData(state);
+    const cellLum = (tx: number, ty: number): number => {
+      const rect = atlasRectForTile(tx, ty, atlas.mapWidth);
+      let sum = 0;
+      for (let ly = 0; ly < rect.sh; ly++) {
+        for (let lx = 0; lx < rect.sw; lx++) {
+          const i = ((rect.sy + ly) * atlas.width + (rect.sx + lx)) * 4;
+          sum += (atlas.data[i] ?? 0) + (atlas.data[i + 1] ?? 0) + (atlas.data[i + 2] ?? 0);
+        }
+      }
+      return sum / (rect.sw * rect.sh);
+    };
+    expect(atlasPixelAtTile(atlas, 3, 3)[2]).toBeGreaterThan(atlasPixelAtTile(atlas, 3, 3)[0]);
+    expect(cellLum(3, 3)).toBeLessThan(cellLum(2, 2));
+    expect(cellLum(3, 3)).toBeLessThan(cellLum(2, 3));
   });
 
   it("bakes a dark grout seam around each concrete pad", () => {
@@ -249,6 +286,7 @@ describe("terrain weather and water motion", () => {
     expect(weatherParticleAt(832, "tundra grid", 4, 2400, 640, 360)).not.toEqual(a);
     expect(waterCaustic(400, 3, 5)).toEqual(waterCaustic(400, 3, 5));
     expect(waterCaustic(800, 3, 5).offset).not.toBe(waterCaustic(400, 3, 5).offset);
+    expect(waterCaustic(250, 3, 5).phase).not.toBe(waterCaustic(0, 3, 5).phase);
     expect(oreGlint(900, 2, 2)).toBeGreaterThan(0);
     expect(oreSparkle(900, 2, 2, 0)).toEqual(oreSparkle(900, 2, 2, 0));
     expect(oreSparkle(1800, 2, 2, 0).sweep).not.toBe(oreSparkle(900, 2, 2, 0).sweep);

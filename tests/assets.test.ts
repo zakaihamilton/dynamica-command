@@ -2,7 +2,17 @@ import { existsSync, readdirSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
-import { buildingSprite, cliffFaces, elevationFace, rubbleSprite, unitSprite, wreckSprite } from "../lib/gen/assets";
+import {
+  CLIFF_EDGE_SAMPLES,
+  buildingSprite,
+  cliffCornerWedge,
+  cliffFaces,
+  elevationFace,
+  rubbleSprite,
+  tileCliffGeometry,
+  unitSprite,
+  wreckSprite,
+} from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
 import { SPRITE_ART, UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
 import { opaquePixelBounds, rotatedSpriteBounds } from "../lib/render/sprites";
@@ -146,9 +156,25 @@ describe("tactical procedural assets", () => {
       const framed = buildingSprite(kind, palette, { constructionStage: 1, variant: 13 });
       const roofed = buildingSprite(kind, palette, { constructionStage: 2, variant: 13 });
       const finished = buildingSprite(kind, palette, { constructionStage: 3, variant: 13 });
-      expect([foundation, framed, roofed, finished].every((spec) => Boolean(spec.imageSrc))).toBe(true);
-      expect([foundation, framed, roofed, finished].every((spec) => spec.svg === undefined)).toBe(true);
-      expect(new Set([foundation.id, framed.id, roofed.id, finished.id]).size).toBe(4);
+      const damaged = buildingSprite(kind, palette, { constructionStage: 3, damageStage: 1, variant: 13 });
+      const wrecked = buildingSprite(kind, palette, { constructionStage: 3, damageStage: 2, variant: 13 });
+      expect([foundation, framed, roofed, finished, damaged, wrecked].every((spec) => Boolean(spec.imageSrc))).toBe(true);
+      expect([foundation, framed, roofed, finished, damaged, wrecked].every((spec) => spec.svg === undefined)).toBe(true);
+      expect(new Set([foundation.id, framed.id, roofed.id, finished.id, damaged.id, wrecked.id]).size).toBe(6);
+      expect(foundation.imageReveal).toBeLessThan(framed.imageReveal ?? 1);
+      expect(framed.imageReveal).toBeLessThan(roofed.imageReveal ?? 1);
+      expect(roofed.imageReveal).toBeLessThan(finished.imageReveal ?? 1);
+      expect(finished.imageReveal).toBe(1);
+      expect(foundation.imageTint).not.toBe(finished.imageTint);
+      expect(foundation.imageTextureSrc).toMatch(/worn-panel/);
+      expect(finished.imageTextureSrc).toBeUndefined();
+      expect(foundation.shapes.length).toBeGreaterThan(0);
+      expect(finished.shapes).toEqual([]);
+      expect(damaged.imageTint).not.toBe(finished.imageTint);
+      expect(damaged.imageTextureSrc).toMatch(/worn-panel/);
+      expect(damaged.shapes.length).toBeGreaterThan(0);
+      expect(wrecked.shapes.length).toBeGreaterThan(damaged.shapes.length);
+      expect(wrecked.imageTint).not.toBe(damaged.imageTint);
     }
   });
 
@@ -202,15 +228,45 @@ describe("tactical procedural assets", () => {
   it("draws 1-step drops as hillsides without layer lines", () => {
     const face = elevationFace("south", 1, 64, 32, 16, 42);
     expect(face.cracks).toHaveLength(0);
-    expect(face.points.length / 2).toBe(4);
+    const verts = face.points.length / 2;
+    expect(verts).toBeGreaterThanOrEqual(8);
+    expect(verts).toBeLessThanOrEqual(12);
+    expect(verts).toBe(CLIFF_EDGE_SAMPLES * 2);
+    const startBotX = face.points[face.points.length - 2]!;
+    expect(startBotX).toBeGreaterThan(-32);
+    const botYs = face.points.filter((_, i) => i % 2 === 1).slice(CLIFF_EDGE_SAMPLES);
+    expect(new Set(botYs.map((y) => Math.round(y * 10) / 10)).size).toBeGreaterThan(1);
   });
 
-  it("draws steep cliffs as clean faces with controlled strata", () => {
+  it("draws steep cliffs as jagged faces with strata, not cube-aligned quads", () => {
     const face = elevationFace("east", 2, 64, 32, 16, 7);
-    expect(face.points.length / 2).toBe(4);
-    expect(face.cracks).toHaveLength(1);
+    expect(face.points.length / 2).toBe(CLIFF_EDGE_SAMPLES * 2);
+    expect(face.cracks.length).toBeGreaterThanOrEqual(1);
     const xs = face.points.filter((_, i) => i % 2 === 0);
-    expect(new Set(xs.map((x) => Math.round(x))).size).toBe(2);
+    expect(new Set(xs.map((x) => Math.round(x))).size).toBeGreaterThan(2);
+  });
+
+  it("keeps shared cliff vertices sealed across adjacent tiles", () => {
+    const a = elevationFace("south", 2, 64, 32, 16, 1, { tileX: 4, tileY: 7 });
+    const b = elevationFace("south", 2, 64, 32, 16, 99, { tileX: 5, tileY: 7 });
+    const aSouth = cliffBottomNearSouth(a);
+    const bWest = cliffBottomNearStart(b);
+    expect(aSouth[0]).toBeCloseTo(bWest[0] + 32, 5);
+    expect(aSouth[1]).toBeCloseTo(bWest[1] + 16, 5);
+  });
+
+  it("adds a convex corner wedge only when both south and east drop", () => {
+    expect(cliffCornerWedge(64, 32, 16, 0, 2, 3, 4, 7)).toBeNull();
+    expect(cliffCornerWedge(64, 32, 16, 2, 0, 3, 4, 7)).toBeNull();
+    const wedge = cliffCornerWedge(64, 32, 16, 2, 2, 3, 4, 7);
+    expect(wedge).not.toBeNull();
+    expect(wedge!.length / 2).toBeGreaterThanOrEqual(5);
+    const both = tileCliffGeometry(64, 32, 16, 1, 2, 9, 3, 8);
+    expect(both.south).not.toBeNull();
+    expect(both.east).not.toBeNull();
+    expect(both.wedge).toEqual(cliffCornerWedge(64, 32, 16, 1, 2, 9, 3, 8));
+    const southTop = both.south!.points[(CLIFF_EDGE_SAMPLES - 1) * 2]!;
+    expect(southTop).not.toBeCloseTo(0);
   });
 
   it("gives finished buildings three-face industrial volumes, not cubic shells or sketches", () => {
@@ -240,6 +296,16 @@ describe("tactical procedural assets", () => {
 
 function svgMarks(svg: string | undefined): number {
   return (svg?.match(/<(path|ellipse|line|polygon)\b/g) ?? []).length;
+}
+
+function cliffBottomNearSouth(face: { points: number[] }): [number, number] {
+  const i = CLIFF_EDGE_SAMPLES * 2;
+  return [face.points[i]!, face.points[i + 1]!];
+}
+
+function cliffBottomNearStart(face: { points: number[] }): [number, number] {
+  const i = face.points.length - 2;
+  return [face.points[i]!, face.points[i + 1]!];
 }
 
 function validateSpec(spec: { w: number; h: number; pixelScale?: number; anchorX?: number; anchorY?: number; kind: string; imageSrc?: string; svg?: string; shapes: Array<{ x: number; y: number; w: number; h: number; points?: number[] }> }): void {
