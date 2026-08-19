@@ -1,5 +1,5 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
-import type { SimState, UnitKind } from "../types";
+import type { Entity, SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
 import { closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
 import { rngFromState } from "../seed/rng";
@@ -14,6 +14,26 @@ function tryBuildPower(state: SimState, yardX: number, yardY: number): boolean {
   spawnBuilding(state, 1, "power", spot.x, spot.y, BUILDING_STATS.power.buildTicks);
   state.credits[1] -= BUILDING_STATS.power.cost;
   return true;
+}
+
+function enemyCombat(state: SimState): Entity[] {
+  return living(state).filter((e) => e.owner === 1 && e.class === "unit" && e.kind !== "harvester");
+}
+
+function sendHome(state: SimState, unit: Entity, yard: Entity): void {
+  unit.attackTarget = undefined;
+  unit.idle = false;
+  unit.path = findPath(state, unit, closestApproach(state, unit, yard));
+}
+
+function assignAttack(state: SimState, unit: Entity, target: Entity): void {
+  unit.attackTarget = target.id;
+  unit.idle = false;
+  unit.path = findPath(state, unit, closestApproach(state, unit, target));
+}
+
+function homeGuardCount(missionIndex: number): number {
+  return 1 + (missionIndex >= 4 ? 1 : 0);
 }
 
 export function tickAi(state: SimState): void {
@@ -88,28 +108,38 @@ export function tickAi(state: SimState): void {
     yard,
     (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester",
   );
-  const enemyUnits = living(state).filter((e) => e.owner === 1 && e.class === "unit" && e.kind !== "harvester");
-  const averageHealth = enemyUnits.length ? enemyUnits.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / enemyUnits.length : 1;
+  const units = enemyCombat(state);
+  const averageHealth = units.length ? units.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / units.length : 1;
   if (averageHealth < 0.35) state.aiState = "retreat";
   else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";
   else if (playerYard && state.tick >= waveEvery) state.aiState = "assault";
-  else if (enemyUnits.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
+  else if (units.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
   else state.aiState = "economy";
-  if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) {
-    for (const u of living(state)) {
-      if (u.owner !== 1 || u.class !== "unit" || u.kind === "harvester") continue;
-      if (u.attackTarget) continue;
-      u.attackTarget = threat.id;
-      u.path = findPath(state, u, closestApproach(state, u, threat));
-    }
-  }
 
-  if (playerYard && state.aiState !== "retreat" && state.tick > 0 && state.tick % waveEvery === 0) {
-    for (const u of living(state)) {
-      if (u.owner !== 1 || u.class !== "unit" || u.kind === "harvester") continue;
+  if (state.aiState === "defense" && threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) {
+    for (const u of units) {
       if (u.attackTarget) continue;
-      u.attackTarget = playerYard.id;
-      u.path = findPath(state, u, closestApproach(state, u, playerYard));
+      assignAttack(state, u, threat);
+    }
+  } else if (state.aiState === "assault" && playerYard && state.tick > 0 && state.tick % waveEvery === 0) {
+    const guards = homeGuardCount(state.missionIndex);
+    const sorted = [...units].sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id);
+    const raiders = sorted.slice(guards);
+    const prey = nearest(
+      state,
+      yard,
+      (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0,
+    ) ?? playerYard;
+    for (const u of raiders) {
+      if (u.attackTarget) continue;
+      assignAttack(state, u, prey);
+    }
+  } else if (state.aiState === "retreat") {
+    for (const u of units) sendHome(state, u, yard);
+  } else if (state.aiState === "economy" || state.aiState === "regroup") {
+    for (const u of units) {
+      if (distToEntity(u, yard) <= YARD_DEFENSE_RANGE) continue;
+      sendHome(state, u, yard);
     }
   }
   state.rngState = rng.state;

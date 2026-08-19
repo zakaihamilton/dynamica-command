@@ -1,6 +1,6 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
 import { beep } from "@/lib/audio/synth";
-import { gameCommandFromKey, isEditableTarget, type PauseView } from "@/lib/ui/shortcuts";
+import { gameCommandFromKey, isEditableTarget, type CommandTab, type PauseView } from "@/lib/ui/shortcuts";
 import type { BuildingKind, SimState } from "@/lib/types";
 
 export function useGameKeyboard({
@@ -21,6 +21,7 @@ export function useGameKeyboard({
   centerSelection,
   toggleRepair,
   toggleSell,
+  stopSelected,
   clearTools,
   saveMission,
   loadMission,
@@ -33,7 +34,7 @@ export function useGameKeyboard({
   stateRef: MutableRefObject<SimState>;
   pausedRef: MutableRefObject<boolean>;
   pauseViewRef: MutableRefObject<PauseView>;
-  activeTabRef: MutableRefObject<"construction" | "production">;
+  activeTabRef: MutableRefObject<CommandTab>;
   place: MutableRefObject<BuildingKind | null>;
   repair: MutableRefObject<boolean>;
   sell: MutableRefObject<boolean>;
@@ -41,12 +42,13 @@ export function useGameKeyboard({
   resumeMission: () => void;
   setPauseView: (view: PauseView) => void;
   setPauseNotice: (notice: string) => void;
-  setActiveTab: (tab: "construction" | "production") => void;
+  setActiveTab: (tab: CommandTab) => void;
   activateCameo: (tab: "construction" | "production", index: number, cancel: boolean) => void;
   jumpHome: () => void;
   centerSelection: () => void;
   toggleRepair: () => void;
   toggleSell: () => void;
+  stopSelected: () => void;
   clearTools: () => void;
   saveMission: () => void;
   loadMission: () => void;
@@ -83,11 +85,14 @@ export function useGameKeyboard({
       else if (command.type === "resume") resumeMission();
       else if (command.type === "pauseBack") setPauseView("main");
       else if (command.type === "tab") setActiveTab(command.tab);
-      else if (command.type === "cameo") activateCameo(activeTabRef.current, command.index, command.cancel);
+      else if (command.type === "cameo" && activeTabRef.current !== "selected") {
+        activateCameo(activeTabRef.current, command.index, command.cancel);
+      }
       else if (command.type === "home") jumpHome();
       else if (command.type === "center") centerSelection();
       else if (command.type === "repair") toggleRepair();
       else if (command.type === "sell") toggleSell();
+      else if (command.type === "stop") stopSelected();
       else if (command.type === "cancelTool") {
         clearTools();
         beep("select");
@@ -139,6 +144,7 @@ export function useGameKeyboard({
     setPauseNotice,
     setPauseView,
     stateRef,
+    stopSelected,
     toggleRepair,
     toggleSell,
     toggleSound,

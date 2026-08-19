@@ -33,4 +33,47 @@ describe("enemy AI", () => {
     expect(guard.path.length).toBeGreaterThan(0);
     expect(harvester.attackTarget).toBeUndefined();
   });
+
+  it("sends assault raiders at a player harvester and leaves a home guard", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 2, 2);
+    addBuilding(s, 0, "constructionYard", 18, 18);
+    const guard = addUnit(s, 1, "infantry", 5, 2);
+    const raider = addUnit(s, 1, "infantry", 8, 8);
+    const extra = addUnit(s, 1, "tank", 9, 9);
+    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    s.tick = 720;
+
+    tickAi(s);
+
+    expect(s.aiState).toBe("assault");
+    expect(guard.attackTarget).toBeUndefined();
+    expect(guard.path).toEqual([]);
+    expect([raider.attackTarget, extra.attackTarget]).toEqual([harvester.id, harvester.id]);
+    expect(raider.path.length).toBeGreaterThan(0);
+  });
+
+  it("retreats battered combat units to the enemy yard", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    const yard = addBuilding(s, 1, "constructionYard", 2, 2);
+    addBuilding(s, 0, "constructionYard", 18, 18);
+    const wounded = addUnit(s, 1, "infantry", 16, 16);
+    const ally = addUnit(s, 1, "tank", 15, 16);
+    wounded.hp = 10;
+    ally.hp = 10;
+    wounded.attackTarget = 99;
+    ally.attackTarget = 99;
+
+    tickAi(s);
+
+    expect(s.aiState).toBe("retreat");
+    expect(wounded.attackTarget).toBeUndefined();
+    expect(ally.attackTarget).toBeUndefined();
+    expect(wounded.path.at(-1)).toEqual(expect.objectContaining({
+      x: expect.any(Number),
+      y: expect.any(Number),
+    }));
+    const end = wounded.path.at(-1)!;
+    expect(Math.hypot(end.x - yard.x, end.y - yard.y)).toBeLessThan(4);
+  });
 });

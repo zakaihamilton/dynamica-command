@@ -201,18 +201,24 @@ export function tickCombat(state: SimState): SimEvent[] {
 
     if (ordered) e.idle = true;
 
-    const inRangeThreat = e.stance === "hold" ? undefined : closestEnemy(grid, e, st.range, true);
-    let target = inRangeThreat ?? (e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined);
+    const stance = e.class === "unit" ? (e.stance ?? "aggressive") : "aggressive";
+    const hold = stance === "hold";
+    const defend = stance === "defensive";
+    const inRangeThreat = hold ? undefined : closestEnemy(grid, e, st.range, true);
+    let target = inRangeThreat ?? (hold ? undefined : e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined);
     if (target && !isCombatThreat(target)) {
-      const threat = acquire(grid, e, true);
+      const threat = hold || defend ? closestEnemy(grid, e, st.range, true) : acquire(grid, e, true);
       if (threat) {
         target = threat;
         e.path = [];
       }
     }
-    if (!target && e.stance !== "hold") target = acquirePreferred(grid, e);
+    if (!target && !hold && !defend) target = acquirePreferred(grid, e);
     if (target) e.attackTarget = target.id;
-    if (!target) continue;
+    else {
+      if (hold || defend) e.attackTarget = undefined;
+      continue;
+    }
 
     const d = distToEntity(e, target);
     if (d <= st.range && lineOfSight(state, e, target)) {
@@ -221,7 +227,11 @@ export function tickCombat(state: SimState): SimEvent[] {
       continue;
     }
 
-    if (e.class === "unit") chase(state, e, target);
+    if (e.class === "unit" && !hold && !defend) chase(state, e, target);
+    else {
+      e.path = [];
+      e.attackTarget = undefined;
+    }
   }
   state.rngState = rng.state;
   return events;

@@ -149,4 +149,37 @@ describe("combat targeting", () => {
     expect(attacker.path.length).toBeGreaterThan(0);
     expect(attacker.idle).toBe(false);
   });
+
+  it("lets a defending unit fire in range without chasing", () => {
+    const close = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const defender = addUnit(close, 0, "infantry", 4, 4);
+    defender.stance = "defensive";
+    const near = addUnit(close, 1, "infantry", 5, 4);
+    const hp = near.hp;
+    tickCombat(close);
+    expect(defender.attackTarget).toBe(near.id);
+    expect(near.hp).toBeLessThan(hp);
+    expect(defender.path).toEqual([]);
+
+    const hunt = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const sentry = addUnit(hunt, 0, "infantry", 4, 4);
+    sentry.stance = "defensive";
+    const far = addUnit(hunt, 1, "tank", 10, 4);
+    tickCombat(hunt);
+    expect(sentry.attackTarget).toBeUndefined();
+    expect(sentry.path).toEqual([]);
+    expect(far.hp).toBe(far.maxHp);
+  });
+
+  it("does not auto-acquire when holding ground", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const holder = addUnit(s, 0, "infantry", 4, 4);
+    holder.stance = "hold";
+    const foe = addUnit(s, 1, "infantry", 5, 4);
+    const hp = foe.hp;
+    tickCombat(s);
+    expect(holder.attackTarget).toBeUndefined();
+    expect(holder.path).toEqual([]);
+    expect(foe.hp).toBe(hp);
+  });
 });

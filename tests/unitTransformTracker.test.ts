@@ -99,4 +99,39 @@ describe("unitTransformTracker sub-tick interpolation and dynamics", () => {
     expect(step1.legLAngle).toBeCloseTo(-step1.legRAngle, 3);
     expect(step1.legLAngle).not.toBe(step2.legLAngle);
   });
+
+  it("snaps interpolation after a large tile jump instead of sliding from the stale cell", () => {
+    const state = createMission({ seed: 101, missionIndex: 0 });
+    const unit = state.entities.find((e) => e.class === "unit");
+    if (!unit) throw new Error("Expected unit");
+
+    updateUnitHistory(state, 1000);
+    const startX = unit.x;
+    const startY = unit.y;
+    state.tick += 1;
+    unit.x += 8;
+    unit.y += 8;
+    updateUnitHistory(state, 1083);
+
+    const mid = computeUnitDynamicTransform(unit, state, 0.5, 1041);
+    expect(mid.x).toBeCloseTo(unit.x, 2);
+    expect(mid.y).toBeCloseTo(unit.y, 2);
+    expect(mid.x).not.toBeCloseTo((startX + unit.x) / 2, 1);
+    expect(mid.y).not.toBeCloseTo((startY + unit.y) / 2, 1);
+  });
+
+  it("snaps interpolation after a multi-tick hitch", () => {
+    const state = createMission({ seed: 101, missionIndex: 0 });
+    const unit = state.entities.find((e) => e.class === "unit");
+    if (!unit) throw new Error("Expected unit");
+
+    updateUnitHistory(state, 1000);
+    state.tick += 5;
+    unit.x += 1;
+    updateUnitHistory(state, 1415);
+
+    const mid = computeUnitDynamicTransform(unit, state, 0.5, 1200);
+    expect(mid.x).toBeCloseTo(unit.x, 2);
+    expect(mid.y).toBeCloseTo(unit.y, 2);
+  });
 });

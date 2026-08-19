@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useRouter } from "next/navigation";
 import { beep, setMuted } from "@/lib/audio/synth";
 import { createCampaign } from "@/lib/gen/campaign";
+import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
 import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { cameraViewQuad } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { renderWorld, type RenderExtras } from "@/lib/render/renderer";
+import { preloadRasterSources } from "@/lib/render/sprites";
 import { cullFx, type FxBurst } from "@/lib/render/fx";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission } from "@/lib/sim/api";
@@ -18,7 +20,7 @@ import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import { objectiveProgress } from "@/lib/sim/objectives";
 import { powerBreakdown } from "@/lib/sim/world";
 import type { Command, SimState } from "@/lib/types";
-import type { PauseView } from "@/lib/ui/shortcuts";
+import type { PauseView, CommandTab } from "@/lib/ui/shortcuts";
 import { Battlefield } from "./Battlefield";
 import { CommandSidebar } from "./CommandSidebar";
 import { MissionResult } from "./MissionResult";
@@ -62,7 +64,7 @@ export function GameClient({
   const miniRef = useRef<HTMLCanvasElement>(null);
   const selected = useRef(new Set<number>());
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState<"construction" | "production">("construction");
+  const [activeTab, setActiveTab] = useState<CommandTab>("construction");
   const activeTabRef = useRef(activeTab);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
@@ -303,6 +305,7 @@ export function GameClient({
     centerSelection: () => centerSelection(selected.current),
     toggleRepair,
     toggleSell,
+    stopSelected: () => issueSelectedCommand("stop"),
     clearTools,
     saveMission,
     loadMission,
@@ -332,6 +335,10 @@ export function GameClient({
     campaignRecordedRef,
     redraw,
   });
+
+  useEffect(() => {
+    preloadRasterSources(listTacticalRasterSources());
+  }, []);
 
   useEffect(() => {
     activeTabRef.current = activeTab;
@@ -434,6 +441,9 @@ export function GameClient({
           onQueueUnit={queueUnit}
           onCancelUnit={cancelUnit}
           availableProducer={availableProducer}
+          onStop={() => issueSelectedCommand("stop")}
+          onStance={(stance) => issueSelectedCommand("stance", stance)}
+          onFormation={(formation) => issueSelectedCommand("formation", formation)}
         />
       ) : null}
 

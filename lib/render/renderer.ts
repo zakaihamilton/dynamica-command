@@ -1,7 +1,7 @@
 import { UNIT_STATS, footprintOf } from "../catalog";
 import { buildingSprite, unitSprite } from "../gen/assets";
 import { generateVisualProfile } from "../gen/visualProfile";
-import type { BuildingKind, Entity, SimState, UnitKind } from "../types";
+import type { BuildingKind, Entity, SimState, SpriteSpec, UnitKind } from "../types";
 import {
   animClock,
   buildingAnim,
@@ -10,7 +10,7 @@ import {
   unitAnim,
 } from "./anim";
 import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
-import { drawSprite, rasterize } from "./sprites";
+import { drawSprite, isRasterReady, rasterize } from "./sprites";
 import { drawUnitShadow, paintUnitMovementFx } from "./unitMotion";
 import { canPlaceBuilding, heightAt } from "../sim/world";
 import { canRepair } from "../sim/repair";
@@ -83,6 +83,7 @@ type TerrainLayer = {
 const terrainLayer: TerrainLayer = { canvas: null, key: "" };
 const entityById = new Map<number, Entity>();
 const drawList: Entity[] = [];
+const lastReadySprite = new Map<number, { spec: SpriteSpec; img: HTMLCanvasElement }>();
 
 function ensureTerrainCanvas(w: number, h: number): HTMLCanvasElement | null {
   if (typeof document === "undefined") return null;
@@ -184,7 +185,6 @@ export function renderWorld(
     if (entityAlpha <= 0.01) continue;
     const pal = state.factions[e.owner]!.palette;
     const profile = generateVisualProfile(state.seed, e.owner);
-    let facing = resolveFacing(state, e, entityById);
     let cx = e.x;
     let cy = e.y;
     let elev = entityElev(state, e);
@@ -197,14 +197,14 @@ export function renderWorld(
       cx = dyn.x;
       cy = dyn.y;
       elev = dyn.z;
-      facing = resolveFacing(state, e, entityById);
     } else {
       const fp = footprintOf(e.kind as BuildingKind);
       cx = e.x + (fp.w - 1) / 2;
       cy = e.y + (fp.h - 1) / 2;
     }
+    const facing = resolveFacing(state, e, entityById, e.class === "unit" ? { x: cx, y: cy } : undefined);
 
-    const spec = e.class === "unit"
+    let spec = e.class === "unit"
       ? unitSprite(e.kind as UnitKind, pal, {
           variant: entityVariant(state, e),
           facing,
@@ -221,7 +221,16 @@ export function renderWorld(
     const s = tileToScreen(cx, cy, cam, elev);
     if (s.x < -cullPad || s.y < -cullPad || s.x > w + cullPad || s.y > h + cullPad) continue;
     if (isLockedContactUnit(state, e)) drawRescueHalo(ctx, s.x, s.y, z, timeMs);
-    const img = rasterize(spec);
+    let img = rasterize(spec);
+    if (spec.imageSrc && !isRasterReady(spec)) {
+      const previous = lastReadySprite.get(e.id);
+      if (previous) {
+        spec = previous.spec;
+        img = previous.img;
+      }
+    } else {
+      lastReadySprite.set(e.id, { spec, img });
+    }
     const ax = (spec.anchorX ?? spec.w / 2) * z;
     const ay = (spec.anchorY ?? spec.h) * z;
     const dir = facingVector(facing);
@@ -265,14 +274,17 @@ export function renderWorld(
       );
     }
 
+    const spriteReady = !spec.imageSrc || isRasterReady(spec);
     const spriteAlpha = entityAlpha;
-    if (isExtractableUnit(state, e)) {
+    if (spriteReady && isExtractableUnit(state, e)) {
       drawUnitGlow(ctx, spec, img, dx, dy, spec.w * z, spec.h * z, timeMs, spriteAlpha, z);
     }
-    ctx.globalAlpha = spriteAlpha;
-    drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
-    ctx.globalAlpha = 1;
-    if (e.class !== "building") {
+    if (spriteReady) {
+      ctx.globalAlpha = spriteAlpha;
+      drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
+      ctx.globalAlpha = 1;
+    }
+    if (spriteReady && e.class !== "building") {
       drawDamageOverlay(
         ctx,
         spec,
@@ -334,6 +346,10 @@ export function renderWorld(
         ctx.restore();
       }
     }
+  }
+
+  for (const id of lastReadySprite.keys()) {
+    if (!entityById.has(id) || (entityById.get(id)?.hp ?? 0) <= 0) lastReadySprite.delete(id);
   }
 
   for (const id of selected) {

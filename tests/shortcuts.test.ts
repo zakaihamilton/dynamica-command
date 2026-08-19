@@ -33,11 +33,13 @@ describe("shortcut matching", () => {
   it("picks battlefield commands without stealing WASD pan", () => {
     expect(gameCommandFromKey({ key: "q" }, play)).toEqual({ type: "tab", tab: "construction" });
     expect(gameCommandFromKey({ key: "e" }, play)).toEqual({ type: "tab", tab: "production" });
+    expect(gameCommandFromKey({ key: "t" }, play)).toEqual({ type: "tab", tab: "selected" });
     expect(gameCommandFromKey({ key: "Escape" }, play)).toEqual({ type: "pause" });
     expect(gameCommandFromKey({ key: "h" }, play)).toEqual({ type: "home" });
     expect(gameCommandFromKey({ key: " " }, play)).toEqual({ type: "center" });
     expect(gameCommandFromKey({ key: "r" }, play)).toEqual({ type: "repair" });
     expect(gameCommandFromKey({ key: "f" }, play)).toEqual({ type: "sell" });
+    expect(gameCommandFromKey({ key: "x" }, play)).toEqual({ type: "stop" });
     expect(gameCommandFromKey({ key: "Escape" }, { ...play, toolActive: true })).toEqual({ type: "cancelTool" });
     expect(gameCommandFromKey({ key: "s" }, play)).toBeNull();
     expect(gameCommandFromKey({ key: "2" }, play)).toEqual({ type: "cameo", index: 1, cancel: false });

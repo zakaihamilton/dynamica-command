@@ -124,3 +124,11 @@ export const TEXTURE_ART: Record<TextureArtKey, string> = {
 export function biomeArt(biome: BiomeName): string {
   return RASTER_ART[biome];
 }
+
+export function listTacticalRasterSources(): string[] {
+  const srcs = [...Object.values(SPRITE_ART)];
+  for (const views of Object.values(UNIT_DIRECTION_ART)) {
+    srcs.push(...Object.values(views));
+  }
+  return srcs;
+}

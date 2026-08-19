@@ -14,7 +14,7 @@ import {
   wreckSprite,
 } from "../lib/gen/assets";
 import { generateFactions } from "../lib/gen/factions";
-import { SPRITE_ART, UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
+import { listTacticalRasterSources, SPRITE_ART, UNIT_DIRECTION_ART } from "../lib/gen/visualAssets";
 import { opaquePixelBounds, rotatedSpriteBounds } from "../lib/render/sprites";
 
 describe("tactical procedural assets", () => {
@@ -116,6 +116,18 @@ describe("tactical procedural assets", () => {
       expect(views[5]!.imageSrc).toContain("-back-left-v1.png");
       expect(views[6]!.imageSrc).toMatch(/-back(?:-v1)?\.png/);
       expect(views[7]!.imageSrc).toContain("-back-right-v1.png");
+    }
+  });
+
+  it("lists every tactical raster used on the battlefield for preload", () => {
+    const sources = listTacticalRasterSources();
+    for (const src of Object.values(SPRITE_ART)) {
+      expect(sources).toContain(src);
+    }
+    for (const kind of UNIT_KINDS) {
+      for (const src of Object.values(UNIT_DIRECTION_ART[kind])) {
+        expect(sources).toContain(src);
+      }
     }
   });
 
