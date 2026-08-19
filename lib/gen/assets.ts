@@ -303,7 +303,7 @@ export function elevationFace(
   const tops: Array<[number, number]> = [];
   const bots: Array<[number, number]> = [];
   for (let i = 0; i < samples; i++) {
-    const t = samples === 1 ? 0 : i / (samples - 1);
+    const t = i / (samples - 1);
     const top: [number, number] = [
       topA[0] + (topB[0] - topA[0]) * t,
       topA[1] + (topB[1] - topA[1]) * t,
