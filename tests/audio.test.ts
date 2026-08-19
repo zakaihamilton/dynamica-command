@@ -49,9 +49,15 @@ describe("generated audio", () => {
         expect(pattern.kick).toHaveLength(MUSIC_STEPS);
         expect(pattern.snare).toHaveLength(MUSIC_STEPS);
         expect(pattern.hats).toHaveLength(MUSIC_STEPS);
+        expect(pattern.openHats).toHaveLength(MUSIC_STEPS);
+        expect(pattern.padRoot).toHaveLength(MUSIC_BARS);
+        expect(pattern.padFifth).toHaveLength(MUSIC_BARS);
         expect(pattern.bass.some((note) => note !== null)).toBe(true);
         expect(pattern.kick.some(Boolean)).toBe(true);
         expect(pattern.snare.some(Boolean)).toBe(true);
+        const melodyHits = pattern.melody.filter((note) => note !== null).length;
+        expect(melodyHits).toBeGreaterThan(0);
+        expect(melodyHits).toBeLessThan(MUSIC_STEPS / 2);
         expect(pattern.rootHz).toBeGreaterThan(midiToHz(30));
       }
     }

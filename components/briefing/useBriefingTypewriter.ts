@@ -17,17 +17,17 @@ export function useBriefingTypewriter(lines: BriefingLine[], onComplete?: () => 
   }, [totalChars]);
 
   useEffect(() => {
-    const id = setInterval(() => {
+    const id = window.setInterval(() => {
       setShown((n) => {
         if (n >= totalChars) {
-          clearInterval(id);
+          window.clearInterval(id);
           onComplete?.();
           return n;
         }
         return n + 1;
       });
     }, 40);
-    return () => clearInterval(id);
+    return () => window.clearInterval(id);
   }, [totalChars, playId, onComplete]);
 
   useLayoutEffect(() => {

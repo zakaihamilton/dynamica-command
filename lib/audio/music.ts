@@ -11,10 +11,12 @@ import { getAudioContext, resumeAudio } from "./context";
 export { TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue };
 
 const MASTER_GAIN = 0.07;
+const PAD_GAIN = 0.12;
 const DUCK_RATIO = 0.35;
 const CROSSFADE_S = 0.4;
 const SCHEDULE_AHEAD_S = 0.18;
 const SCHEDULER_MS = 25;
+const ATTACK_S = 0.012;
 
 let enabled = true;
 let ducked = false;
@@ -22,15 +24,24 @@ let cue: MusicCue = "menu";
 let seed = TITLE_MUSIC_SEED;
 let missionIndex = 0;
 let pattern: MusicPattern | null = null;
-let timer: ReturnType<typeof setInterval> | null = null;
+let timer: number | null = null;
 let nextNoteTime = 0;
 let step = 0;
 let musicGain: GainNode | null = null;
+let hipass: BiquadFilterNode | null = null;
+let compressor: DynamicsCompressorNode | null = null;
 let leadGain: GainNode | null = null;
+let leadPan: StereoPannerNode | null = null;
+let arpPan: StereoPannerNode | null = null;
 let delayNode: DelayNode | null = null;
 let delayFeedback: GainNode | null = null;
 let delayWet: GainNode | null = null;
-let droneOsc: OscillatorNode | null = null;
+let padGain: GainNode | null = null;
+let padFilter: BiquadFilterNode | null = null;
+let padOscA: OscillatorNode | null = null;
+let padOscB: OscillatorNode | null = null;
+let padLfo: OscillatorNode | null = null;
+let padLfoGain: GainNode | null = null;
 let fadeGen = 0;
 let noiseBuf: AudioBuffer | null = null;
 
@@ -58,6 +69,13 @@ function getNoiseBuffer(audio: AudioContext): AudioBuffer {
   return buf;
 }
 
+function holdSteps(lane: readonly (number | null)[], index: number, cap: number): number {
+  if (lane[index] == null) return 0;
+  let n = 1;
+  while (n < cap && index + n < lane.length && lane[index + n] == null) n++;
+  return n;
+}
+
 function playTone(
   audio: AudioContext,
   dest: AudioNode,
@@ -71,17 +89,21 @@ function playTone(
   const o = audio.createOscillator();
   const g = audio.createGain();
   const f = audio.createBiquadFilter();
+  const attack = Math.min(ATTACK_S, dur * 0.25);
   o.type = type;
   o.frequency.setValueAtTime(freq, time);
   f.type = "lowpass";
-  f.frequency.setValueAtTime(cutoff, time);
-  g.gain.setValueAtTime(gain, time);
+  f.Q.setValueAtTime(0.7, time);
+  f.frequency.setValueAtTime(Math.max(cutoff * 1.7, 200), time);
+  f.frequency.exponentialRampToValueAtTime(Math.max(cutoff * 0.4, 90), time + dur);
+  g.gain.setValueAtTime(0.001, time);
+  g.gain.exponentialRampToValueAtTime(gain, time + attack);
   g.gain.exponentialRampToValueAtTime(0.001, time + dur);
   o.connect(f);
   f.connect(g);
   g.connect(dest);
   o.start(time);
-  o.stop(time + dur);
+  o.stop(time + dur + 0.02);
 }
 
 function playNoise(
@@ -89,41 +111,57 @@ function playNoise(
   dest: AudioNode,
   time: number,
   gain: number,
-  hipass: number,
+  hipassHz: number,
   dur: number,
+  filterType: BiquadFilterType = "highpass",
 ): void {
   const src = audio.createBufferSource();
   const g = audio.createGain();
   const f = audio.createBiquadFilter();
+  const attack = 0.004;
   src.buffer = getNoiseBuffer(audio);
-  f.type = "highpass";
-  f.frequency.setValueAtTime(hipass, time);
-  g.gain.setValueAtTime(gain, time);
+  f.type = filterType;
+  f.frequency.setValueAtTime(hipassHz, time);
+  if (filterType === "bandpass") f.Q.setValueAtTime(1.1, time);
+  g.gain.setValueAtTime(0.001, time);
+  g.gain.exponentialRampToValueAtTime(gain, time + attack);
   g.gain.exponentialRampToValueAtTime(0.001, time + dur);
   src.connect(f);
   f.connect(g);
   g.connect(dest);
   src.start(time);
-  src.stop(time + dur + 0.01);
+  src.stop(time + dur + 0.02);
 }
 
 function playKick(audio: AudioContext, dest: AudioNode, time: number): void {
   const o = audio.createOscillator();
   const g = audio.createGain();
   o.type = "sine";
-  o.frequency.setValueAtTime(120, time);
-  o.frequency.exponentialRampToValueAtTime(40, time + 0.12);
-  g.gain.setValueAtTime(0.5, time);
-  g.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+  o.frequency.setValueAtTime(140, time);
+  o.frequency.exponentialRampToValueAtTime(38, time + 0.16);
+  g.gain.setValueAtTime(0.001, time);
+  g.gain.exponentialRampToValueAtTime(0.55, time + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
   o.connect(g);
   g.connect(dest);
   o.start(time);
-  o.stop(time + 0.18);
+  o.stop(time + 0.22);
+  playNoise(audio, dest, time, 0.08, 2500, 0.018);
 }
 
-function playSnare(audio: AudioContext, dest: AudioNode, time: number): void {
-  playNoise(audio, dest, time, 0.18, 1800, 0.08);
-  playTone(audio, dest, 180, time, 0.07, "triangle", 0.12, 2200);
+function playSnare(audio: AudioContext, dest: AudioNode, time: number, accent: boolean): void {
+  playNoise(audio, dest, time, accent ? 0.14 : 0.055, 1900, accent ? 0.09 : 0.045, "bandpass");
+  playTone(audio, dest, 190, time, accent ? 0.06 : 0.035, "triangle", accent ? 0.08 : 0.03, 1600);
+}
+
+function duckPad(audio: AudioContext, time: number): void {
+  if (!padGain) return;
+  const now = Math.max(time, audio.currentTime);
+  const current = Math.max(padGain.gain.value, 0.001);
+  padGain.gain.cancelScheduledValues(now);
+  padGain.gain.setValueAtTime(current, now);
+  padGain.gain.linearRampToValueAtTime(current * 0.45, now + 0.02);
+  padGain.gain.linearRampToValueAtTime(PAD_GAIN, now + 0.09);
 }
 
 function syncDelay(audio: AudioContext, p: MusicPattern): void {
@@ -132,57 +170,102 @@ function syncDelay(audio: AudioContext, p: MusicPattern): void {
   delayNode.delayTime.setTargetAtTime(sec, audio.currentTime, 0.04);
 }
 
+function retunePad(bar: number): void {
+  const audio = getAudioContext();
+  if (!audio || !pattern || !padOscA || !padOscB) return;
+  const i = ((bar % pattern.bars) + pattern.bars) % pattern.bars;
+  const root = pattern.padRoot[i] ?? pattern.rootHz;
+  const fifth = pattern.padFifth[i] ?? root * 1.5;
+  const t = audio.currentTime;
+  padOscA.frequency.setTargetAtTime(root, t, 0.06);
+  padOscB.frequency.setTargetAtTime(fifth * 1.003, t, 0.06);
+}
+
 function scheduleStep(audio: AudioContext, dest: AudioNode, when: number, index: number): void {
   const p = pattern;
   if (!p) return;
   const stepDur = 60 / p.bpm / 4;
   const t = when + (index % 2 === 1 ? p.swing * stepDur : 0);
+  if (index % 16 === 0) retunePad(index / 16);
+
   const bass = p.bass[index];
   const arp = p.arp[index];
   const melody = p.melody[index];
   const counter = p.counter[index];
-  if (bass !== null) playTone(audio, dest, bass, t, stepDur * 1.6, p.bassType, 0.42, Math.min(p.cutoff, 900));
-  if (arp !== null) playTone(audio, dest, arp, t, stepDur * 0.85, p.arpType, 0.12, p.cutoff);
-  if (counter !== null) playTone(audio, dest, counter, t, stepDur * 1.05, "triangle", 0.1, p.cutoff + 200);
-  if (melody !== null) playTone(audio, leadGain ?? dest, melody, t, stepDur * 1.25, p.melodyType, 0.18, p.cutoff + 400);
-  if (p.kick[index]) playKick(audio, dest, t);
-  if (p.snare[index]) playSnare(audio, dest, t);
-  if (p.hats[index]) playNoise(audio, dest, t, 0.09, 6000, 0.035);
+  if (bass !== null) {
+    const dur = holdSteps(p.bass, index, 16) * stepDur;
+    playTone(audio, dest, bass, t, dur, p.bassType, 0.36, Math.min(p.cutoff, 520));
+  }
+  if (arp !== null) playTone(audio, arpPan ?? dest, arp, t, stepDur * 0.7, p.arpType, 0.08, Math.min(p.cutoff, 900));
+  if (counter !== null) playTone(audio, dest, counter, t, stepDur * 0.95, "triangle", 0.07, p.cutoff);
+  if (melody !== null) {
+    const dur = holdSteps(p.melody, index, 16) * stepDur;
+    playTone(audio, leadGain ?? dest, melody, t, dur, p.melodyType, 0.14, p.cutoff + 180);
+  }
+  if (p.kick[index]) {
+    playKick(audio, dest, t);
+    duckPad(audio, t);
+  }
+  const backbeat = index % 16 === 4 || index % 16 === 12;
+  if (p.snare[index]) playSnare(audio, dest, t, backbeat);
+  if (p.openHats[index]) playNoise(audio, dest, t, 0.045, 3800, 0.12);
+  else if (p.hats[index]) playNoise(audio, dest, t, 0.035, 7500, 0.018);
 }
 
-function stopDrone(): void {
-  if (!droneOsc) return;
+function stopOsc(node: OscillatorNode | null): void {
+  if (!node) return;
   try {
-    droneOsc.stop();
+    node.stop();
   } catch {
     /* already stopped */
   }
-  droneOsc.disconnect();
-  droneOsc = null;
+  node.disconnect();
 }
 
-function startDrone(audio: AudioContext): void {
+function stopPad(): void {
+  stopOsc(padOscA);
+  stopOsc(padOscB);
+  stopOsc(padLfo);
+  padFilter?.disconnect();
+  padGain?.disconnect();
+  padLfoGain?.disconnect();
+  padOscA = null;
+  padOscB = null;
+  padLfo = null;
+  padFilter = null;
+  padGain = null;
+  padLfoGain = null;
+}
+
+function startPad(audio: AudioContext): void {
   if (!musicGain || !pattern) return;
-  stopDrone();
-  const o = audio.createOscillator();
-  const g = audio.createGain();
-  const f = audio.createBiquadFilter();
-  o.type = "sine";
-  o.frequency.setValueAtTime(pattern.rootHz / 2, audio.currentTime);
-  f.type = "lowpass";
-  f.frequency.setValueAtTime(Math.min(pattern.cutoff, 700), audio.currentTime);
-  g.gain.setValueAtTime(0.18, audio.currentTime);
-  o.connect(f);
-  f.connect(g);
-  g.connect(musicGain);
-  o.start();
-  droneOsc = o;
-}
-
-function retuneDrone(): void {
-  const audio = getAudioContext();
-  if (!audio || !droneOsc || !pattern) return;
-  droneOsc.frequency.setTargetAtTime(pattern.rootHz / 2, audio.currentTime, 0.08);
+  stopPad();
+  padGain = audio.createGain();
+  padFilter = audio.createBiquadFilter();
+  padOscA = audio.createOscillator();
+  padOscB = audio.createOscillator();
+  padLfo = audio.createOscillator();
+  padLfoGain = audio.createGain();
+  padFilter.type = "lowpass";
+  padFilter.frequency.setValueAtTime(Math.min(pattern.cutoff, 640), audio.currentTime);
+  padFilter.Q.setValueAtTime(0.8, audio.currentTime);
+  padGain.gain.setValueAtTime(PAD_GAIN, audio.currentTime);
+  padOscA.type = "triangle";
+  padOscB.type = "sine";
+  padOscA.frequency.setValueAtTime(pattern.padRoot[0] ?? pattern.rootHz, audio.currentTime);
+  padOscB.frequency.setValueAtTime((pattern.padFifth[0] ?? pattern.rootHz * 1.5) * 1.003, audio.currentTime);
+  padLfo.type = "sine";
+  padLfo.frequency.setValueAtTime(0.13, audio.currentTime);
+  padLfoGain.gain.setValueAtTime(160, audio.currentTime);
+  padOscA.connect(padFilter);
+  padOscB.connect(padFilter);
+  padFilter.connect(padGain);
+  padGain.connect(musicGain);
+  padLfo.connect(padLfoGain);
+  padLfoGain.connect(padFilter.frequency);
+  padOscA.start();
+  padOscB.start();
+  padLfo.start();
 }
 
 function tickScheduler(): void {
@@ -198,18 +281,36 @@ function tickScheduler(): void {
 
 function startGraph(audio: AudioContext): void {
   musicGain = audio.createGain();
+  hipass = audio.createBiquadFilter();
+  compressor = audio.createDynamicsCompressor();
+  hipass.type = "highpass";
+  hipass.frequency.setValueAtTime(40, audio.currentTime);
+  compressor.threshold.setValueAtTime(-18, audio.currentTime);
+  compressor.knee.setValueAtTime(8, audio.currentTime);
+  compressor.ratio.setValueAtTime(3.2, audio.currentTime);
+  compressor.attack.setValueAtTime(0.008, audio.currentTime);
+  compressor.release.setValueAtTime(0.12, audio.currentTime);
   musicGain.gain.setValueAtTime(Math.max(masterGain(), 0.001), audio.currentTime);
-  musicGain.connect(audio.destination);
+  musicGain.connect(hipass);
+  hipass.connect(compressor);
+  compressor.connect(audio.destination);
 
+  arpPan = audio.createStereoPanner();
+  arpPan.pan.setValueAtTime(-0.28, audio.currentTime);
+  arpPan.connect(musicGain);
+
+  leadPan = audio.createStereoPanner();
+  leadPan.pan.setValueAtTime(0.26, audio.currentTime);
   leadGain = audio.createGain();
   leadGain.gain.setValueAtTime(1, audio.currentTime);
-  leadGain.connect(musicGain);
+  leadGain.connect(leadPan);
+  leadPan.connect(musicGain);
 
   delayNode = audio.createDelay(1.2);
   delayFeedback = audio.createGain();
   delayWet = audio.createGain();
-  delayFeedback.gain.setValueAtTime(0.22, audio.currentTime);
-  delayWet.gain.setValueAtTime(0.2, audio.currentTime);
+  delayFeedback.gain.setValueAtTime(0.18, audio.currentTime);
+  delayWet.gain.setValueAtTime(0.16, audio.currentTime);
   delayNode.connect(delayFeedback);
   delayFeedback.connect(delayNode);
   delayNode.connect(delayWet);
@@ -217,10 +318,10 @@ function startGraph(audio: AudioContext): void {
   leadGain.connect(delayNode);
   if (pattern) syncDelay(audio, pattern);
 
-  startDrone(audio);
+  startPad(audio);
   nextNoteTime = audio.currentTime + 0.06;
   step = 0;
-  timer = setInterval(tickScheduler, SCHEDULER_MS);
+  timer = window.setInterval(tickScheduler, SCHEDULER_MS);
   tickScheduler();
 }
 
@@ -229,20 +330,28 @@ function stopDelay(): void {
   delayFeedback?.disconnect();
   delayWet?.disconnect();
   leadGain?.disconnect();
+  leadPan?.disconnect();
+  arpPan?.disconnect();
   delayNode = null;
   delayFeedback = null;
   delayWet = null;
   leadGain = null;
+  leadPan = null;
+  arpPan = null;
 }
 
 function stopMusic(): void {
   fadeGen += 1;
   if (timer) {
-    clearInterval(timer);
+    window.clearInterval(timer);
     timer = null;
   }
-  stopDrone();
+  stopPad();
   stopDelay();
+  hipass?.disconnect();
+  compressor?.disconnect();
+  hipass = null;
+  compressor = null;
   if (musicGain) {
     musicGain.disconnect();
     musicGain = null;
@@ -275,7 +384,7 @@ function applyPattern(next: MusicPattern): void {
     if (gen !== fadeGen) return;
     pattern = next;
     step = 0;
-    retuneDrone();
+    retunePad(0);
     const c = getAudioContext();
     if (!c || !musicGain) return;
     syncDelay(c, next);

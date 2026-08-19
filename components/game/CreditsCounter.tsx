@@ -22,13 +22,13 @@ export function CreditsCounter({ value }: { value: number }) {
   const [shown, setShown] = useState(value);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const shownRef = useRef(value);
-  const flashTimer = useRef(0);
+  const flashTimer = useRef<number | null>(null);
   useEffect(() => {
     const from = shownRef.current;
     const to = value;
     if (from === to) return;
     setFlash(to > from ? "up" : "down");
-    window.clearTimeout(flashTimer.current);
+    if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(() => setFlash(null), 480);
     let raf = 0;
     const t0 = performance.now();
@@ -44,7 +44,7 @@ export function CreditsCounter({ value }: { value: number }) {
     raf = requestAnimationFrame(step);
     return () => {
       cancelAnimationFrame(raf);
-      window.clearTimeout(flashTimer.current);
+      if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     };
   }, [value]);
   return (

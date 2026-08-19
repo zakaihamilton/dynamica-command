@@ -1,7 +1,7 @@
 import { createRng, type Rng } from "../seed/rng";
 
 export type MusicCue = "menu" | "briefing" | "mission" | "victory" | "defeat";
-export type MusicVoiceType = "triangle" | "square" | "sawtooth";
+export type MusicVoiceType = "triangle" | "sawtooth";
 export type MusicGroove = "march" | "pulse" | "break" | "stalk";
 
 export const TITLE_MUSIC_SEED = 0;
@@ -26,6 +26,46 @@ const PROGRESSIONS: readonly number[][] = [
   [0, 0, 5, 3, 0, 4, 3, 0],
 ];
 
+type BassHit = { tone: number; oct: number } | null;
+
+const BASS_RIFFS: readonly BassHit[][] = [
+  [
+    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 },
+    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 },
+  ],
+  [
+    { tone: 0, oct: 0 }, null, { tone: 0, oct: 1 }, { tone: 2, oct: 0 },
+    { tone: 0, oct: 0 }, null, { tone: 2, oct: 0 }, null,
+  ],
+  [
+    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 1, oct: 0 },
+    { tone: 2, oct: 0 }, { tone: 0, oct: 0 }, null, { tone: 0, oct: -1 },
+  ],
+  [
+    { tone: 0, oct: 0 }, null, { tone: 2, oct: 0 }, null,
+    { tone: 0, oct: 0 }, { tone: 1, oct: 0 }, { tone: 2, oct: 0 }, null,
+  ],
+  [
+    { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 }, null,
+    { tone: 0, oct: 1 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 }, null,
+  ],
+];
+
+const MELODY_CONTOURS: readonly (number | null)[][] = [
+  [0, null, 2, null, 3, 2, null, 0],
+  [0, 1, 2, null, 4, null, 2, null],
+  [2, null, 0, null, null, 1, 2, 0],
+  [0, null, null, 2, 3, null, 2, null],
+  [4, 2, 0, null, 2, null, 0, null],
+  [0, null, 4, 3, 2, null, 0, null],
+];
+
+const ARP_FIGURES: readonly number[][] = [
+  [0, 2, 1, 2, 0, 1, 2, 0],
+  [0, 1, 2, 1, 0, 2, 1, 2],
+  [0, 2, 0, 2, 1, 2, 0, 1],
+];
+
 export type MusicPattern = {
   cue: MusicCue;
   seed: number;
@@ -47,6 +87,9 @@ export type MusicPattern = {
   kick: boolean[];
   snare: boolean[];
   hats: boolean[];
+  openHats: boolean[];
+  padRoot: number[];
+  padFifth: number[];
 };
 
 export function midiToHz(midi: number): number {
@@ -112,11 +155,16 @@ function scaleToneMidi(rootMidi: number, scale: readonly number[], chord: number
   return rootMidi + wrapDegree(scale, chord + offset) + octave * 12;
 }
 
-function sectionOf(bar: number): "A" | "B" | "break" | "fill" {
+function sectionOf(bar: number): "intro" | "arp" | "lead" | "break" | "fill" {
   if (bar >= 7) return "fill";
   if (bar === 6) return "break";
-  if (bar >= 4) return "B";
-  return "A";
+  if (bar >= 4) return "lead";
+  if (bar >= 2) return "arp";
+  return "intro";
+}
+
+function sparseCue(cue: MusicCue): boolean {
+  return cue === "menu" || cue === "briefing" || cue === "defeat";
 }
 
 export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): MusicPattern {
@@ -126,27 +174,12 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   const groove = grooveFor(cue, rng, missionIndex);
   const progression = rng.pick(PROGRESSIONS);
   const hits = grooveHits(groove);
-  const busy = cue === "mission" ? 0.08 * Math.max(0, missionIndex) : 0;
-  const hatEvery = rng.pick(cue === "mission" || cue === "victory" ? [1, 2] : [2, 2, 4]);
-  const hatMask = Array.from({ length: STEPS_PER_BAR }, (_, i) => {
-    if (i % hatEvery !== 0) return false;
-    const density = (cue === "mission" ? 0.72 : cue === "victory" ? 0.6 : cue === "defeat" ? 0.28 : 0.4) + busy;
-    return rng.chance(Math.min(0.92, density));
-  });
-  const kickSkip = Array.from({ length: STEPS_PER_BAR }, () => rng.chance(0.12));
-  const snareGhost = Array.from({ length: STEPS_PER_BAR }, (_, i) => i % 2 === 1 && rng.chance(groove === "break" ? 0.22 : 0.08));
-
-  const ostinatoLen = rng.pick([4, 8]);
-  const ostinato = Array.from({ length: ostinatoLen }, () => rng.int(3));
-  const ostinatoRest = Array.from({ length: ostinatoLen }, () => rng.chance(0.12));
-  const arpFigure = Array.from({ length: 8 }, (_, i) => [0, 2, 1, 2, 0, 1, 2, 0][i]!);
-  const arpRest = Array.from({ length: 8 }, () => rng.chance(cue === "mission" ? 0.08 : 0.22));
-  const melodyMotif: (number | null)[] = Array.from({ length: 8 }, () => (rng.chance(0.55) ? rng.intRange(0, 4) : null));
-  if (!melodyMotif.some((note) => note !== null)) melodyMotif[0] = 0;
-  if (melodyMotif.filter((note) => note !== null).length < 3) {
-    melodyMotif[2] = 2;
-    melodyMotif[6] = 1;
-  }
+  const riff = rng.pick(BASS_RIFFS);
+  const contour = rng.pick(MELODY_CONTOURS);
+  const arpFigure = rng.pick(ARP_FIGURES);
+  const openHatSteps = rng.pick([[6], [14], [6, 14], []] as const);
+  const padRoot: number[] = [];
+  const padFifth: number[] = [];
 
   const bass = emptyNotes();
   const arp = emptyNotes();
@@ -155,95 +188,89 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   const kick = emptyHits();
   const snare = emptyHits();
   const hats = emptyHits();
+  const openHats = emptyHits();
 
   for (let bar = 0; bar < MUSIC_BARS; bar++) {
     const chord = progression[bar] ?? 0;
     const section = sectionOf(bar);
     const origin = bar * STEPS_PER_BAR;
-    const dropKick = section === "break" && cue !== "victory";
     const fill = section === "fill";
+    const drums = section !== "break" || cue === "victory";
+    const useArp = (!sparseCue(cue) && (section === "arp" || section === "lead"))
+      || (cue === "menu" && section === "arp");
+    const useMelody = section === "lead" || section === "fill" || (sparseCue(cue) && (bar === 4 || bar === 5 || fill));
+    const useCounter = section === "lead" && !sparseCue(cue);
 
-    for (const step of hits.kick) {
-      if (!dropKick && !kickSkip[step]) kick[origin + step] = true;
-    }
-    for (const step of hits.snare) {
-      if (section !== "break" || fill) snare[origin + step] = true;
-    }
-    for (let i = 0; i < STEPS_PER_BAR; i++) {
-      hats[origin + i] = fill ? i % 2 === 0 || hatMask[i]! : section === "break" ? i % 4 === 0 && hatMask[i]! : hatMask[i]!;
-      if (!fill && snareGhost[i] && section !== "break") snare[origin + i] = true;
+    padRoot.push(midiToHz(chordToneMidi(rootMidi, scale, chord, 0, 1)));
+    padFifth.push(midiToHz(chordToneMidi(rootMidi, scale, chord, 2, 1)));
+
+    if (drums) {
+      for (const step of hits.kick) kick[origin + step] = true;
+      for (const step of hits.snare) snare[origin + step] = true;
+      for (let i = 0; i < STEPS_PER_BAR; i += 2) {
+        if (fill ? i % 4 === 0 || i >= 8 : i % 4 === 0 || (groove !== "stalk" && i % 4 === 2)) hats[origin + i] = true;
+      }
+      if (section !== "break") {
+        for (const step of openHatSteps) {
+          hats[origin + step] = false;
+          openHats[origin + step] = true;
+        }
+      }
     }
     if (fill) {
-      for (const step of [8, 10, 12, 13, 14, 15]) snare[origin + step] = true;
+      for (const step of [8, 10, 12, 14]) snare[origin + step] = true;
       kick[origin] = true;
       kick[origin + 8] = groove !== "stalk";
     }
 
-    if (section !== "break") {
-      for (let i = 0; i < 8; i++) {
-        const motif = ostinato[i % ostinatoLen]!;
-        if (ostinatoRest[i % ostinatoLen]) continue;
-        bass[origin + i * 2] = midiToHz(chordToneMidi(rootMidi, scale, chord, motif, 0));
-      }
-      if (section === "B") {
-        for (let i = 0; i < 8; i++) {
-          if ((i + bar) % 3 !== 0) continue;
-          const motif = ostinato[i % ostinatoLen]!;
-          bass[origin + i * 2 + 1] = midiToHz(chordToneMidi(rootMidi, scale, chord, motif, 0));
-        }
-      }
-    } else {
+    if (section === "break") {
       bass[origin] = midiToHz(chordToneMidi(rootMidi, scale, chord, 0, -1));
       bass[origin + 8] = midiToHz(chordToneMidi(rootMidi, scale, chord, 0, 0));
-    }
-
-    const arpSparse = cue === "briefing" || cue === "defeat" || section === "break";
-    for (let i = 0; i < 8; i++) {
-      if (arpRest[i] || (arpSparse && i % 2 === 1)) continue;
-      const step = origin + i * 2;
-      arp[step] = midiToHz(chordToneMidi(rootMidi, scale, chord, arpFigure[i]!, 1));
-    }
-    if (section === "B" && !arpSparse) {
+    } else {
       for (let i = 0; i < 8; i++) {
-        if (i % 2 !== 0) continue;
-        arp[origin + i * 2 + 1] = midiToHz(chordToneMidi(rootMidi, scale, chord, arpFigure[i]!, 1));
+        const hit = riff[i];
+        if (!hit) continue;
+        bass[origin + i * 2] = midiToHz(chordToneMidi(rootMidi, scale, chord, hit.tone, hit.oct));
       }
     }
 
-    const sequence = section === "B" ? 2 : 0;
-    const melodyOct = 2;
-    if (section !== "fill") {
+    if (useArp) {
       for (let i = 0; i < 8; i++) {
-        const degree = melodyMotif[i];
+        if (i % 2 === 1 && section !== "lead") continue;
+        arp[origin + i * 2] = midiToHz(chordToneMidi(rootMidi, scale, chord, arpFigure[i]!, 1));
+      }
+    }
+
+    if (useMelody) {
+      const sequence = section === "lead" ? 2 : 0;
+      for (let i = 0; i < 8; i++) {
+        const degree = contour[i];
         if (degree === null) continue;
-        if (section === "A" && i % 2 === 1) continue;
-        if (section === "break" && i % 2 === 1) continue;
-        melody[origin + i * 2] = midiToHz(scaleToneMidi(rootMidi, scale, chord, degree + sequence, melodyOct));
+        melody[origin + i * 2] = midiToHz(scaleToneMidi(rootMidi, scale, chord, degree + sequence, 2));
       }
     }
-    if (section === "B") {
+    if (useCounter) {
       for (let i = 0; i < 8; i++) {
-        if (melodyMotif[i] !== null) continue;
+        if (contour[i] !== null) continue;
+        if (i % 2 === 1) continue;
         counter[origin + i * 2] = midiToHz(chordToneMidi(rootMidi, scale, chord, 2, 2));
       }
     }
   }
-
-  const voice = (options: MusicVoiceType[]) => rng.pick(options);
 
   return {
     cue,
     seed,
     missionIndex,
     bpm: bpmFor(cue, rng.int(64), missionIndex),
-    swing: groove === "break" || groove === "stalk" ? 0.08 + rng.next() * 0.22 : rng.next() * 0.12,
+    swing: groove === "break" || groove === "stalk" ? 0.06 + rng.next() * 0.16 : rng.next() * 0.08,
     bars: MUSIC_BARS,
     steps: MUSIC_STEPS,
     rootHz: midiToHz(rootMidi),
-    cutoff: 420 + rng.int(cue === "mission" ? 1100 : 700),
-    bassType: voice(["triangle", "sawtooth"]),
-    arpType: voice(["square", "triangle"]),
-    melodyType: voice(["triangle", "square", "sawtooth"]),
+    cutoff: 380 + rng.int(cue === "mission" ? 520 : 320),
+    bassType: rng.pick(["triangle", "sawtooth"]),
+    arpType: "sawtooth",
+    melodyType: rng.pick(["triangle", "sawtooth"]),
     delayBeats: rng.pick([0.5, 0.75]),
     bass,
     arp,
@@ -252,5 +279,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     kick,
     snare,
     hats,
+    openHats,
+    padRoot,
+    padFifth,
   };
 }
