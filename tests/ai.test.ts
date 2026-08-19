@@ -43,6 +43,7 @@ describe("enemy AI", () => {
     const raider = addUnit(s, 1, "infantry", 8, 8);
     const extra = addUnit(s, 1, "tank", 9, 9);
     const harvester = addUnit(s, 0, "harvester", 16, 16);
+    const playerYard = s.entities.find((e) => e.owner === 0 && e.kind === "constructionYard")!;
     s.tick = 720;
 
     tickAi(s);
@@ -50,8 +51,37 @@ describe("enemy AI", () => {
     expect(s.aiState).toBe("assault");
     expect(guard.attackTarget).toBeUndefined();
     expect(guard.path).toEqual([]);
-    expect([raider.attackTarget, extra.attackTarget]).toEqual([harvester.id, harvester.id]);
+    expect([raider.attackTarget, extra.attackTarget]).toEqual([harvester.id, playerYard.id]);
     expect(raider.path.length).toBeGreaterThan(0);
+  });
+
+  it("splits two assault raiders between a harvester and the player yard", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 2, 2);
+    const playerYard = addBuilding(s, 0, "constructionYard", 18, 18);
+    addUnit(s, 1, "infantry", 5, 2);
+    const even = addUnit(s, 1, "infantry", 8, 8);
+    const odd = addUnit(s, 1, "infantry", 9, 9);
+    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    s.tick = 720;
+
+    tickAi(s);
+
+    expect(s.aiState).toBe("assault");
+    expect(even.attackTarget).toBe(harvester.id);
+    expect(odd.attackTarget).toBe(playerYard.id);
+  });
+
+  it("places a turret when a threat is at the yard", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    addUnit(s, 0, "tank", 14, 12);
+    s.credits[1] = 5000;
+
+    tickAi(s);
+
+    expect(s.aiState).toBe("defense");
+    expect(s.entities.some((e) => e.owner === 1 && e.kind === "turret" && e.constructing > 0)).toBe(true);
   });
 
   it("retreats battered combat units to the enemy yard", () => {

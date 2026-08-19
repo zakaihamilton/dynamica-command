@@ -15,20 +15,29 @@
   transition: color 0.15s ease, filter 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
-.button:hover {
+.button:hover:not(:disabled) {
   color: var(--chrome-cyan);
   filter: brightness(1.12);
   border-color: color-mix(in srgb, var(--chrome-cyan) 55%, var(--chrome-bevel));
   transform: translateY(-1px);
 }
 
-.button:active {
+.button:active:not(:disabled) {
   transform: translateY(1px);
   box-shadow: inset 2px 2px var(--chrome-inset), 1px 1px var(--chrome-void);
 }
 
-.muted {
+.button:disabled {
   color: var(--chrome-muted);
+  cursor: not-allowed;
+  filter: saturate(0.55) brightness(0.82);
+}
+
+.muted {
+  background:
+    linear-gradient(105deg, rgba(255,255,255,0.04), transparent 26%),
+    linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -2px -2px var(--chrome-inset), 0 5px 16px rgba(0,0,0,0.3), 2px 2px var(--chrome-void);
 }
 
 @media (max-width: 799px) {

@@ -26,6 +26,7 @@ export function useGameLoop({
   terminalSaveRef,
   campaignRecordedRef,
   redraw,
+  onAlert,
 }: {
   stateRef: MutableRefObject<SimState>;
   setState: (s: SimState) => void;
@@ -44,6 +45,7 @@ export function useGameLoop({
   terminalSaveRef: MutableRefObject<boolean>;
   campaignRecordedRef: MutableRefObject<boolean>;
   redraw: (nowMs?: number, subTickAlpha?: number) => void;
+  onAlert: (text: string) => void;
 }) {
   useEffect(() => {
     const loop = startLoop({
@@ -59,6 +61,11 @@ export function useGameLoop({
         if (events.some((e) => e.type === "won")) beep("win");
         if (events.some((e) => e.type === "lost")) beep("lose");
         if (events.some((e) => e.type === "commandRejected")) beep("alert");
+        const alert = events.find((e) => e.type === "alert");
+        if (alert && alert.type === "alert") {
+          beep("alert");
+          onAlert(alert.text);
+        }
         if (events.some((e) => e.type === "destroyed")) {
           const spawned = burstsFromDestroyed(events, next, now, fxSeq.current);
           fxSeq.current = spawned.nextId;
@@ -125,6 +132,7 @@ export function useGameLoop({
     fxRef,
     fxSeq,
     keys,
+    onAlert,
     panAvailRef,
     panHold,
     pausedRef,

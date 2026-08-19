@@ -5,6 +5,12 @@ import { byId, closestApproach, distToEntity, living } from "./world";
 import { rngFromState, type Rng } from "../seed/rng";
 
 const CELL = 8;
+const ALERT_MUTE_TICKS = 72;
+
+type AlertMute = { harvesterUntil: number; yardUntil: number };
+type PendingAlerts = { harvester: boolean; yard: boolean };
+
+const alertMute = new WeakMap<SimState, AlertMute>();
 
 type CombatGrid = {
   cols: number;
@@ -124,6 +130,28 @@ function heightMultiplier(state: SimState, from: Entity, to: Entity): number {
   return source > target ? 1.12 : source < target ? 0.9 : 1;
 }
 
+function notePlayerAlert(attacker: Entity, target: Entity, pending: PendingAlerts): void {
+  if (attacker.owner !== 1 || target.owner !== 0) return;
+  if (target.kind === "constructionYard") pending.yard = true;
+  else if (target.kind === "harvester") pending.harvester = true;
+}
+
+function flushPlayerAlerts(state: SimState, pending: PendingAlerts, events: SimEvent[]): void {
+  const category = pending.yard ? "yard" : pending.harvester ? "harvester" : undefined;
+  if (!category) return;
+  const mute = alertMute.get(state) ?? { harvesterUntil: Number.NEGATIVE_INFINITY, yardUntil: Number.NEGATIVE_INFINITY };
+  const until = category === "yard" ? mute.yardUntil : mute.harvesterUntil;
+  if (state.tick < until) return;
+  if (category === "yard") mute.yardUntil = state.tick + ALERT_MUTE_TICKS;
+  else mute.harvesterUntil = state.tick + ALERT_MUTE_TICKS;
+  alertMute.set(state, mute);
+  events.push(
+    category === "yard"
+      ? { type: "alert", kind: "warning", text: "Construction yard under attack" }
+      : { type: "alert", kind: "contact", text: "Harvester under attack" },
+  );
+}
+
 function strike(
   state: SimState,
   e: Entity,
@@ -131,8 +159,10 @@ function strike(
   stats: ReturnType<typeof statsFor>,
   rng: Rng,
   events: SimEvent[],
+  pending: PendingAlerts,
 ): void {
   if (e.cooldown > 0) return;
+  notePlayerAlert(e, target, pending);
   const jitter = 0.85 + rng.next() * 0.3;
   const damage = stats.damage * jitter * damageMultiplier(stats.weapon, armorFor(target)) * heightMultiplier(state, e, target);
   target.hp -= damage;
@@ -165,6 +195,7 @@ function chase(state: SimState, e: Entity, target: Entity): void {
 
 export function tickCombat(state: SimState): SimEvent[] {
   const events: SimEvent[] = [];
+  const pending: PendingAlerts = { harvester: false, yard: false };
   const rng = rngFromState(state.rngState);
   const grid = buildGrid(state);
   for (const e of living(state)) {
@@ -184,7 +215,7 @@ export function tickCombat(state: SimState): SimEvent[] {
         const d = distToEntity(e, assigned);
         if (d <= st.range) {
           e.path = [];
-          if (lineOfSight(state, e, assigned)) strike(state, e, assigned, st, rng, events);
+          if (lineOfSight(state, e, assigned)) strike(state, e, assigned, st, rng, events, pending);
           if (e.attackTarget === undefined) e.idle = true;
         } else {
           chase(state, e, assigned);
@@ -195,7 +226,7 @@ export function tickCombat(state: SimState): SimEvent[] {
 
     if (ordered && e.path.length > 0) {
       const opportunity = closestEnemy(grid, e, st.range, false);
-      if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events);
+      if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
       continue;
     }
 
@@ -223,7 +254,7 @@ export function tickCombat(state: SimState): SimEvent[] {
     const d = distToEntity(e, target);
     if (d <= st.range && lineOfSight(state, e, target)) {
       e.path = [];
-      strike(state, e, target, st, rng, events);
+      strike(state, e, target, st, rng, events, pending);
       continue;
     }
 
@@ -233,6 +264,7 @@ export function tickCombat(state: SimState): SimEvent[] {
       e.attackTarget = undefined;
     }
   }
+  flushPlayerAlerts(state, pending, events);
   state.rngState = rng.state;
   return events;
 }

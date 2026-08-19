@@ -61,6 +61,20 @@ function shouldRetreat(state: SimState, averageHealth: number): boolean {
   return true;
 }
 
+function tryBuildTurret(state: SimState, yard: Entity, threat: Entity): boolean {
+  if (state.credits[1] < BUILDING_STATS.turret.cost) return false;
+  const cap = 1 + Math.floor(state.missionIndex / 2);
+  const turrets = living(state).filter((e) => e.owner === 1 && e.kind === "turret");
+  if (turrets.length >= cap) return false;
+  if (turrets.some((e) => e.constructing > 0)) return false;
+  const spot = findBuildSite(state, "turret", threat.x, threat.y, 12, 1)
+    ?? findBuildSite(state, "turret", yard.x, yard.y, 12, 1);
+  if (!spot) return false;
+  spawnBuilding(state, 1, "turret", spot.x, spot.y, BUILDING_STATS.turret.buildTicks);
+  state.credits[1] -= BUILDING_STATS.turret.cost;
+  return true;
+}
+
 function assignAssault(
   state: SimState,
   units: Entity[],
@@ -71,15 +85,16 @@ function assignAssault(
   const guards = homeGuardCount(state.missionIndex);
   const sorted = [...units].sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id);
   const raiders = sorted.slice(guards);
-  const prey = nearest(
+  const harvester = nearest(
     state,
     yard,
     (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0,
-  ) ?? playerYard;
-  for (const u of raiders) {
-    if (!retarget && u.attackTarget !== undefined && byId(state, u.attackTarget)) continue;
-    assignAttack(state, u, prey);
-  }
+  );
+  raiders.forEach((u, index) => {
+    if (!retarget && u.attackTarget !== undefined && byId(state, u.attackTarget)) return;
+    const target = harvester && index % 2 === 1 ? playerYard : harvester ?? playerYard;
+    assignAttack(state, u, target);
+  });
 }
 
 export function tickAi(state: SimState): void {
@@ -163,6 +178,7 @@ export function tickAi(state: SimState): void {
   else state.aiState = "economy";
 
   if (state.aiState === "defense" && threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) {
+    tryBuildTurret(state, yard, threat);
     for (const u of units) {
       if (u.attackTarget) continue;
       assignAttack(state, u, threat);

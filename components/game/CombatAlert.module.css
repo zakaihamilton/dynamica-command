@@ -1,0 +1,28 @@
+.banner {
+  pointer-events: none;
+  position: absolute;
+  z-index: 20;
+  top: 3.1rem;
+  left: 50%;
+  max-width: min(36rem, calc(100% - 2rem));
+  margin: 0;
+  padding: 0.45rem 0.9rem;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--chrome-alert) 55%, var(--chrome-inset));
+  background: color-mix(in srgb, var(--chrome-void) 88%, transparent);
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.55), inset 0 0 0 1px var(--chrome-inset);
+  color: var(--chrome-alert);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 1px 1px #000;
+}
+
+@media (max-width: 799px) {
+  .banner {
+    top: 2.6rem;
+    font-size: 0.64rem;
+  }
+}

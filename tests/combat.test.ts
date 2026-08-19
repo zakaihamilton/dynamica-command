@@ -183,3 +183,35 @@ describe("combat targeting", () => {
     expect(foe.hp).toBe(hp);
   });
 });
+
+describe("combat alerts", () => {
+  it("emits a contact alert when an enemy strikes a player harvester", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, "harvester", 5, 4);
+    addUnit(s, 1, "infantry", 4, 4);
+
+    expect(tickCombat(s)).toContainEqual({ type: "alert", kind: "contact", text: "Harvester under attack" });
+  });
+
+  it("emits a warning when an enemy strikes the player construction yard", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 5, 4);
+    addUnit(s, 1, "infantry", 4, 4);
+
+    expect(tickCombat(s)).toContainEqual({
+      type: "alert",
+      kind: "warning",
+      text: "Construction yard under attack",
+    });
+  });
+
+  it("mutes a second harvester strike inside the mute window", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, "harvester", 5, 4);
+    const attacker = addUnit(s, 1, "infantry", 4, 4);
+
+    expect(tickCombat(s).filter((event) => event.type === "alert")).toHaveLength(1);
+    attacker.cooldown = 0;
+    expect(tickCombat(s).filter((event) => event.type === "alert")).toHaveLength(0);
+  });
+});

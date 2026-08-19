@@ -18,7 +18,7 @@
   border: 1px solid var(--chrome-inset);
   background: linear-gradient(var(--chrome-steel-hi), var(--chrome-steel-lo));
   box-shadow: inset 1px 1px var(--chrome-bevel), inset -1px -1px var(--chrome-void);
-  color: var(--chrome-body);
+  color: var(--chrome-text);
   text-align: left;
   text-transform: uppercase;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;

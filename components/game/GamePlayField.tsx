@@ -4,6 +4,7 @@ import { tutorialPrompt } from "@/lib/sim/tutorial";
 import { objectiveProgress } from "@/lib/sim/objectives";
 import type { Campaign, SimState } from "@/lib/types";
 import { Battlefield } from "./Battlefield";
+import { CombatAlert } from "./CombatAlert";
 import { MissionResult } from "./MissionResult";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "./hooks/useGameCamera";
@@ -26,6 +27,7 @@ export function GamePlayField({
   onCampaignVictory,
   onRetry,
   onMenu,
+  combatAlert,
 }: {
   hostRef: Ref<HTMLDivElement>;
   canvasRef: Ref<HTMLCanvasElement>;
@@ -44,6 +46,7 @@ export function GamePlayField({
   onCampaignVictory: () => void;
   onRetry: () => void;
   onMenu: () => void;
+  combatAlert?: string | null;
 }) {
   const objective = objectiveProgress(state);
   return (
@@ -65,6 +68,7 @@ export function GamePlayField({
       onPointerLeave={onPointerLeave}
       onPointerUp={onPointerUp}
     >
+      {combatAlert ? <CombatAlert text={combatAlert} /> : null}
       <MissionResult
         state={state}
         onNextBriefing={onNextBriefing}

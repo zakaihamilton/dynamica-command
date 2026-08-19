@@ -56,6 +56,8 @@ export function GameClient({
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [combatAlert, setCombatAlert] = useState<string | null>(null);
+  const combatAlertClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cmdQ = useRef<Command[]>([]);
   const fxRef = useRef<FxBurst[]>([]);
   const fxSeq = useRef(1);
@@ -219,6 +221,15 @@ export function GameClient({
     onNavigateHome: session.goHome,
   });
 
+  const onAlert = useCallback((text: string) => {
+    setCombatAlert(text);
+    if (combatAlertClearRef.current) window.clearTimeout(combatAlertClearRef.current);
+    combatAlertClearRef.current = window.setTimeout(() => {
+      setCombatAlert(null);
+      combatAlertClearRef.current = null;
+    }, 3000);
+  }, []);
+
   useGameLoop({
     stateRef,
     setState,
@@ -237,6 +248,7 @@ export function GameClient({
     terminalSaveRef,
     campaignRecordedRef,
     redraw,
+    onAlert,
   });
 
   useEffect(() => {
@@ -252,6 +264,10 @@ export function GameClient({
   }, [pauseView]);
 
   useEffect(() => () => setMuted(false), []);
+
+  useEffect(() => () => {
+    if (combatAlertClearRef.current) window.clearTimeout(combatAlertClearRef.current);
+  }, []);
 
   const s = state;
   const grid = powerBreakdown(s, 0);
@@ -287,6 +303,7 @@ export function GameClient({
         onCampaignVictory={session.goCampaignVictory}
         onRetry={session.goRetry}
         onMenu={session.goMenu}
+        combatAlert={combatAlert}
       />
 
       <MobileCommandTray
