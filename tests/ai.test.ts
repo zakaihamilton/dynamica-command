@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { tickAi } from "../lib/sim/ai";
+import { RETREAT_MAX_TICKS, RETREAT_RECOVER_HEALTH, tickAi } from "../lib/sim/ai";
+import { createMission, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { powerFor } from "../lib/sim/world";
 
@@ -75,5 +76,81 @@ describe("enemy AI", () => {
     }));
     const end = wounded.path.at(-1)!;
     expect(Math.hypot(end.x - yard.x, end.y - yard.y)).toBeLessThan(4);
+  });
+
+  it("assigns an idle raider between assault waves", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 2, 2);
+    addBuilding(s, 0, "constructionYard", 18, 18);
+    const guard = addUnit(s, 1, "infantry", 5, 2);
+    const raider = addUnit(s, 1, "infantry", 8, 8);
+    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    s.tick = 721;
+
+    tickAi(s);
+
+    expect(s.aiState).toBe("assault");
+    expect(guard.attackTarget).toBeUndefined();
+    expect(raider.attackTarget).toBe(harvester.id);
+    expect(raider.path.length).toBeGreaterThan(0);
+  });
+
+  it("leaves retreat after HP recovers and recommits raiders", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 2, 2);
+    addBuilding(s, 0, "constructionYard", 18, 18);
+    const guard = addUnit(s, 1, "infantry", 5, 2);
+    const raider = addUnit(s, 1, "tank", 9, 9);
+    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    s.tick = 720;
+    raider.hp = 10;
+    guard.hp = 10;
+
+    tickAi(s);
+    expect(s.aiState).toBe("retreat");
+
+    guard.hp = guard.maxHp;
+    raider.hp = raider.maxHp;
+    expect(raider.hp / raider.maxHp).toBeGreaterThanOrEqual(RETREAT_RECOVER_HEALTH);
+    s.tick = 721;
+    tickAi(s);
+
+    expect(s.aiState).toBe("assault");
+    expect(s.aiRetreatLocked).toBeUndefined();
+    expect(guard.attackTarget).toBeUndefined();
+    expect(raider.attackTarget).toBe(harvester.id);
+  });
+
+  it("times out a long retreat and hunts even while still wounded", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 2, 2);
+    addBuilding(s, 0, "constructionYard", 18, 18);
+    const guard = addUnit(s, 1, "infantry", 5, 2);
+    const raider = addUnit(s, 1, "tank", 9, 9);
+    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    raider.hp = 10;
+    guard.hp = 10;
+    s.tick = 720;
+    tickAi(s);
+    expect(s.aiState).toBe("retreat");
+
+    s.tick = 720 + RETREAT_MAX_TICKS;
+    tickAi(s);
+
+    expect(s.aiState).toBe("assault");
+    expect(s.aiRetreatLocked).toBe(true);
+    expect(raider.attackTarget).toBe(harvester.id);
+  });
+
+  it("produces and assigns an attack during a short headless mission", () => {
+    const state = createMission({ seed: 421, missionIndex: 0 });
+    for (let i = 0; i < 800 && state.result === "playing"; i++) {
+      tick(state);
+    }
+    expect(state.unitsProduced[1]).toBeGreaterThan(0);
+    const raider = state.entities.find(
+      (entity) => entity.owner === 1 && entity.class === "unit" && entity.kind !== "harvester" && entity.hp > 0 && entity.attackTarget !== undefined,
+    );
+    expect(raider).toBeDefined();
   });
 });

@@ -340,6 +340,10 @@ export type SimState = {
   runtime?: MissionRuntime;
   tutorialStage?: TutorialStage;
   aiState?: AiBehavior;
+  /** Tick when the current retreat began. Cleared when the army leaves retreat. */
+  aiRetreatTick?: number;
+  /** After a timed-out retreat, stay out until average HP recovers to the leave threshold. */
+  aiRetreatLocked?: boolean;
 };
 
 export type Command =

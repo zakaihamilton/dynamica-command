@@ -1,11 +1,14 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
 import type { Entity, SimState, UnitKind } from "../types";
 import { findPath } from "./pathfinding";
-import { closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
+import { byId, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
 import { rngFromState } from "../seed/rng";
 import { missionDifficulty } from "./difficulty";
 
 const YARD_DEFENSE_RANGE = 14;
+export const RETREAT_ENTER_HEALTH = 0.35;
+export const RETREAT_RECOVER_HEALTH = 0.5;
+export const RETREAT_MAX_TICKS = 240;
 
 function tryBuildPower(state: SimState, yardX: number, yardY: number): boolean {
   if (state.credits[1] < BUILDING_STATS.power.cost) return false;
@@ -34,6 +37,49 @@ function assignAttack(state: SimState, unit: Entity, target: Entity): void {
 
 function homeGuardCount(missionIndex: number): number {
   return 1 + (missionIndex >= 4 ? 1 : 0);
+}
+
+function shouldRetreat(state: SimState, averageHealth: number): boolean {
+  if (averageHealth >= RETREAT_RECOVER_HEALTH) {
+    state.aiRetreatLocked = undefined;
+    state.aiRetreatTick = undefined;
+  }
+  if (state.aiRetreatLocked) return false;
+
+  const holding = state.aiState === "retreat" && averageHealth < RETREAT_RECOVER_HEALTH;
+  const entering = averageHealth < RETREAT_ENTER_HEALTH;
+  if (!holding && !entering) {
+    state.aiRetreatTick = undefined;
+    return false;
+  }
+  if (state.aiRetreatTick === undefined) state.aiRetreatTick = state.tick;
+  if (state.tick - state.aiRetreatTick >= RETREAT_MAX_TICKS) {
+    state.aiRetreatLocked = true;
+    state.aiRetreatTick = undefined;
+    return false;
+  }
+  return true;
+}
+
+function assignAssault(
+  state: SimState,
+  units: Entity[],
+  yard: Entity,
+  playerYard: Entity,
+  retarget: boolean,
+): void {
+  const guards = homeGuardCount(state.missionIndex);
+  const sorted = [...units].sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id);
+  const raiders = sorted.slice(guards);
+  const prey = nearest(
+    state,
+    yard,
+    (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0,
+  ) ?? playerYard;
+  for (const u of raiders) {
+    if (!retarget && u.attackTarget !== undefined && byId(state, u.attackTarget)) continue;
+    assignAttack(state, u, prey);
+  }
 }
 
 export function tickAi(state: SimState): void {
@@ -110,7 +156,7 @@ export function tickAi(state: SimState): void {
   );
   const units = enemyCombat(state);
   const averageHealth = units.length ? units.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / units.length : 1;
-  if (averageHealth < 0.35) state.aiState = "retreat";
+  if (shouldRetreat(state, averageHealth)) state.aiState = "retreat";
   else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";
   else if (playerYard && state.tick >= waveEvery) state.aiState = "assault";
   else if (units.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
@@ -121,19 +167,8 @@ export function tickAi(state: SimState): void {
       if (u.attackTarget) continue;
       assignAttack(state, u, threat);
     }
-  } else if (state.aiState === "assault" && playerYard && state.tick > 0 && state.tick % waveEvery === 0) {
-    const guards = homeGuardCount(state.missionIndex);
-    const sorted = [...units].sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id);
-    const raiders = sorted.slice(guards);
-    const prey = nearest(
-      state,
-      yard,
-      (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0,
-    ) ?? playerYard;
-    for (const u of raiders) {
-      if (u.attackTarget) continue;
-      assignAttack(state, u, prey);
-    }
+  } else if (state.aiState === "assault" && playerYard && state.tick > 0) {
+    assignAssault(state, units, yard, playerYard, state.tick % waveEvery === 0);
   } else if (state.aiState === "retreat") {
     for (const u of units) sendHome(state, u, yard);
   } else if (state.aiState === "economy" || state.aiState === "regroup") {

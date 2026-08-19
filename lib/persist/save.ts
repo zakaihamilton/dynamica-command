@@ -136,6 +136,10 @@ function normalizeState(value: unknown): SimState {
     if (e.suppression === undefined) e.suppression = 0;
   }
   if (!s.aiState) s.aiState = "economy";
+  if (typeof s.aiRetreatTick !== "number" || !Number.isInteger(s.aiRetreatTick)) {
+    delete s.aiRetreatTick;
+  }
+  if (s.aiRetreatLocked !== true) delete s.aiRetreatLocked;
   delete (s as { appliedUpgrades?: unknown }).appliedUpgrades;
   return s;
 }
