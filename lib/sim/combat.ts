@@ -1,6 +1,6 @@
 import { BUILDING_STATS, UNIT_STATS } from "../catalog";
 import type { ArmorType, BuildingKind, Entity, SimEvent, SimState, UnitKind, WeaponType } from "../types";
-import { findPath } from "./pathfinding";
+import { tryFindPath } from "./pathBudget";
 import { byId, closestApproach, distToEntity, living } from "./world";
 import { rngFromState, type Rng } from "../seed/rng";
 
@@ -190,7 +190,10 @@ function chase(state: SimState, e: Entity, target: Entity): void {
   const dest = target.class === "building" ? closestApproach(state, e, target) : target;
   const end = pathDest(e.path);
   const stale = !end || Math.hypot(end.x - dest.x, end.y - dest.y) > 1.25;
-  if (!e.path.length || stale) e.path = findPath(state, e, dest);
+  if (!e.path.length || stale) {
+    const path = tryFindPath(state, e, dest);
+    if (path !== undefined) e.path = path;
+  }
 }
 
 export function tickCombat(state: SimState): SimEvent[] {

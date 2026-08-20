@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { findPath } from "../lib/sim/pathfinding";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
 import { issue, tick } from "../lib/sim/api";
+import { PATH_BUDGET_PER_TICK, backgroundPathSearches, resetPathBudget, tryFindPath } from "../lib/sim/pathBudget";
 import { groundOrders } from "../lib/sim/orders";
 import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, terrainAccess, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
@@ -448,5 +449,37 @@ describe("power grid", () => {
     expect(grid.used).toBe(-BUILDING_STATS.barracks.power);
     expect(grid.surplus).toBe(grid.produced - grid.used);
     expect(powerFor(s, 0)).toBe(grid.surplus);
+  });
+});
+
+describe("pathfinding budget", () => {
+  it("caps background searches and still honors player orders", () => {
+    const s = makeFixture({ width: 16, height: 16, win: { kind: "annihilate" } });
+    const mover = addUnit(s, 0, "infantry", 1, 1);
+    resetPathBudget(0);
+    issue(s, { type: "move", unitIds: [mover.id], x: 8, y: 8 });
+    expect(mover.path.length).toBeGreaterThan(0);
+    expect(backgroundPathSearches()).toBe(0);
+
+    resetPathBudget(PATH_BUDGET_PER_TICK);
+    const hits: Array<ReturnType<typeof tryFindPath>> = [];
+    for (let i = 0; i < 10; i++) {
+      hits.push(tryFindPath(s, { x: 1, y: 1 }, { x: 10, y: 10 }));
+    }
+    expect(hits.filter((path) => path !== undefined)).toHaveLength(PATH_BUDGET_PER_TICK);
+    expect(backgroundPathSearches()).toBe(PATH_BUDGET_PER_TICK);
+  });
+
+  it("does not exceed the per-tick detour cap on a crowded map", () => {
+    const s = makeFixture({ width: 48, height: 24, win: { kind: "annihilate" } });
+    for (let i = 0; i < 12; i++) {
+      const y = i + 2;
+      addUnit(s, 0, "infantry", 4, y);
+      const mover = addUnit(s, 0, "infantry", 3, y);
+      mover.idle = false;
+      mover.path = [{ x: 4, y }, { x: 12, y }];
+    }
+    tick(s);
+    expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
   });
 });

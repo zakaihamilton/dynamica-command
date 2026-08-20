@@ -10,7 +10,8 @@ import { tickEconomy } from "./economy";
 import { makeFog, tickFog } from "./fog";
 import { applyCommands, issue } from "./orders";
 import { evaluateObjectives, inspect } from "./objectives";
-import { PATH_DIRS, diagonalCornerBlocked, findPath, stepAlongPath } from "./pathfinding";
+import { resetPathBudget, tryFindPath } from "./pathBudget";
+import { PATH_DIRS, diagonalCornerBlocked, stepAlongPath } from "./pathfinding";
 import { tickProduction } from "./production";
 import { tickRepair } from "./repair";
 import { canClimb, emptyRoleCounts, inBounds, isStaticWalkable, makeUnitOccupancy, spawnBuildingAt, spawnUnit } from "./world";
@@ -147,11 +148,12 @@ function tickMovement(state: SimState): void {
         if (e.blockedTicks === 1 || e.blockedTicks % 6 === 0) {
           const destination = e.path[e.path.length - 1];
           if (destination) {
-            const detour = findPath(state, e, destination, {
+            const detour = tryFindPath(state, e, destination, {
               avoidUnits: true,
               ignoreId: e.id,
               occupancy,
             });
+            if (!detour) continue;
             const detourFirst = detour[0];
             if (detourFirst) {
               const dx = Math.round(detourFirst.x);
@@ -373,6 +375,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
 }
 
 export function tick(state: SimState, commands?: Command[]): { state: SimState; events: SimEvent[] } {
+  resetPathBudget();
   const events: SimEvent[] = [];
   if (commands?.length) events.push(...applyCommands(state, commands));
   if (state.result !== "playing") return { state, events };
