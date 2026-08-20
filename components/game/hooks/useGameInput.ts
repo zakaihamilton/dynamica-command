@@ -12,7 +12,7 @@ import type { MobileCommand } from "../MobileCommandTray";
 function isContactTarget(s: SimState, entity: SimState["entities"][number]): boolean {
   return (
     entity.neutral === true &&
-    (s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction") &&
+    (s.runtime?.kind === "escort" || s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction") &&
     Boolean(s.runtime.targetIds?.includes(entity.id))
   );
 }
@@ -32,7 +32,7 @@ function entityAt(s: SimState, tx: number, ty: number) {
 
 function pickSelectableEntity(s: SimState, x: number, y: number, tx: number, ty: number, cam: Camera) {
   return (
-    pickEntity(s, x, y, cam, s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction") ??
+    pickEntity(s, x, y, cam, s.runtime?.kind === "escort" || s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction") ??
     entityAt(s, tx, ty)
   );
 }

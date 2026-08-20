@@ -329,6 +329,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
         const point = centerPoint(map, i, count);
         const target = spawnUnit(state, 0, kind === "escort" ? "tank" : "infantry", point.x, point.y);
         target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
+        target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
         if (kind === "extraction") target.marked = true;
         targetIds.push(target.id);
         if (kind === "escort") {
@@ -387,7 +388,7 @@ export function tick(state: SimState, commands?: Command[]): { state: SimState; 
   tickAi(state);
   tickFog(state);
   state.tick += 1;
-  tickScenario(state);
+  events.push(...tickScenario(state));
   events.push(...evaluateObjectives(state));
   return { state, events };
 }
@@ -407,9 +408,10 @@ function stepRoute(state: SimState, from: { x: number; y: number }, to: { x: num
   })), { x: to.x, y: to.y }];
 }
 
-function tickScenario(state: SimState): void {
+function tickScenario(state: SimState): SimEvent[] {
+  const events: SimEvent[] = [];
   const runtime = state.runtime;
-  if (!runtime || runtime.phase === "complete") return;
+  if (!runtime || runtime.phase === "complete") return events;
   const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
   if (runtime.kind === "extraction" && yard) {
     runtime.zone = { x: yard.x, y: yard.y };
@@ -426,6 +428,7 @@ function tickScenario(state: SimState): void {
       if (rescuers.some((rescuer) => Math.hypot(rescuer.x - e.x, rescuer.y - e.y) <= RESCUE_CONTACT_RADIUS)) {
         e.neutral = false;
         if (runtime.kind === "rescue") runtime.rescued += 1;
+        if (runtime.kind === "extraction") runtime.phase = "extraction";
       }
     }
   }
@@ -457,6 +460,7 @@ function tickScenario(state: SimState): void {
   if (timed && timed.target !== undefined) timed.completed = state.tick < timed.target;
   const keepUnits = runtime.secondary.find((objective) => objective.kind === "keepUnits");
   if (keepUnits) keepUnits.completed = state.entities.some((entity) => entity.owner === 0 && entity.class === "unit" && entity.hp > 0 && !entity.neutral);
+  return events;
 }
 
 export function createCampaignAndMission(seed: number, missionIndex: number) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMissionDuration, missionDebrief, shouldShowCommandSidebar } from "../lib/sim/debrief";
+import { formatMissionDuration, missionDebrief, missionMedals, missionScore, shouldShowCommandSidebar } from "../lib/sim/debrief";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 
 describe("mission debrief", () => {
@@ -43,5 +43,28 @@ describe("mission debrief", () => {
     expect(shouldShowCommandSidebar("playing")).toBe(true);
     expect(shouldShowCommandSidebar("won")).toBe(false);
     expect(shouldShowCommandSidebar("lost")).toBe(false);
+  });
+
+  it("awards medals only for the completed secondary conditions", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    state.result = "won";
+    state.runtime = {
+      kind: "annihilate",
+      phase: "complete",
+      targetIds: [],
+      rescued: 0,
+      required: 1,
+      secondary: [
+        { id: "yard", kind: "preserveYard", label: "Keep the yard standing", completed: true },
+        { id: "time", kind: "completeBefore", label: "Finish before the deadline", completed: true },
+      ],
+    };
+
+    expect(missionMedals(state)).toBe(3);
+    expect(missionScore(state)).toBeGreaterThan(0);
+    state.runtime.secondary[1]!.completed = false;
+    expect(missionMedals(state)).toBe(2);
+    state.losses.units[0] = 1;
+    expect(missionMedals(state)).toBe(1);
   });
 });

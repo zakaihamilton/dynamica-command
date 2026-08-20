@@ -1,5 +1,5 @@
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, producerFor, productionQueueSize, sellRefundFor } from "../catalog";
-import { TILE_RESOURCE, type BuildingKind, type Command, type Entity, type Formation, type SimEvent, type SimState, type UnitKind } from "../types";
+import { TILE_RESOURCE, type BuildingKind, type Command, type Entity, type Formation, type SimEvent, type SimState, type TutorialStage, type UnitKind } from "../types";
 import { findPath } from "./pathfinding";
 import { canRepair } from "./repair";
 import { canSell } from "./sell";
@@ -19,36 +19,75 @@ export function issue(state: SimState, command: Command): SimEvent[] {
       return [{ type: "commandRejected", reason: `training step: ${required}` }];
     }
   }
+  let events: SimEvent[];
   switch (command.type) {
     case "move":
-      return moveUnits(state, command.unitIds, command.x, command.y, command.formation);
+      events = moveUnits(state, command.unitIds, command.x, command.y, command.formation);
+      break;
     case "attackMove":
-      return attackMoveUnits(state, command.unitIds, command.x, command.y, command.formation);
+      events = attackMoveUnits(state, command.unitIds, command.x, command.y, command.formation);
+      break;
     case "attack":
-      return attackUnits(state, command.unitIds, command.targetId);
+      events = attackUnits(state, command.unitIds, command.targetId);
+      break;
     case "harvest":
-      return harvestUnits(state, command.unitIds, command.x, command.y);
+      events = harvestUnits(state, command.unitIds, command.x, command.y);
+      break;
     case "build":
-      return startBuild(state, command.building, command.x, command.y);
+      events = startBuild(state, command.building, command.x, command.y);
+      break;
     case "produce":
-      return startProduce(state, command.fromId, command.unit);
+      events = startProduce(state, command.fromId, command.unit);
+      break;
     case "cancelBuild":
-      return cancelBuild(state, command.building);
+      events = cancelBuild(state, command.building);
+      break;
     case "cancelProduce":
-      return cancelProduce(state, command.unit);
+      events = cancelProduce(state, command.unit);
+      break;
     case "repair":
-      return toggleRepair(state, command.buildingId);
+      events = toggleRepair(state, command.buildingId);
+      break;
     case "sell":
-      return sellBuilding(state, command.buildingId);
+      events = sellBuilding(state, command.buildingId);
+      break;
     case "stop":
-      return stopUnits(state, command.unitIds);
+      events = stopUnits(state, command.unitIds);
+      break;
     case "stance":
-      return setStance(state, command.unitIds, command.stance);
+      events = setStance(state, command.unitIds, command.stance);
+      break;
     case "formation":
-      return setFormation(state, command.unitIds, command.formation);
+      events = setFormation(state, command.unitIds, command.formation);
+      break;
     default:
-      return [];
+      events = [];
   }
+  if (!events.some((event) => event.type === "commandRejected")) advanceTutorialAfterCommand(state, command.type);
+  return events;
+}
+
+function advanceTutorialAfterCommand(state: SimState, type: Command["type"]): void {
+  if (!state.tutorialStage || state.tutorialStage === "complete") return;
+  const next: Partial<Record<TutorialStage, TutorialStage>> = {
+    move: "harvest",
+    harvest: "build",
+    build: "produce",
+    produce: "attack",
+    attack: "repair",
+    repair: "complete",
+  };
+  const expected: Record<string, Command["type"][]> = {
+    move: ["move", "attackMove"],
+    harvest: ["harvest"],
+    build: ["build"],
+    produce: ["produce"],
+    attack: ["attack", "attackMove"],
+    repair: ["repair"],
+  };
+  const stage = state.tutorialStage;
+  const nextStage = next[stage];
+  if (expected[stage]?.includes(type) && nextStage) state.tutorialStage = nextStage;
 }
 
 function moveUnits(state: SimState, ids: number[], x: number, y: number, formation?: Formation): SimEvent[] {
@@ -58,6 +97,8 @@ function moveUnits(state: SimState, ids: number[], x: number, y: number, formati
   const dests = destinationsForGroup(state, movers, tx, ty, formation);
   movers.forEach((e, index) => {
     e.attackTarget = undefined;
+    e.orderMode = "move";
+    e.orderDestination = dests[index] ?? { x: tx, y: ty };
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
@@ -74,6 +115,8 @@ function attackMoveUnits(state: SimState, ids: number[], x: number, y: number, f
   const dests = destinationsForGroup(state, movers, tx, ty, formation);
   movers.forEach((e, index) => {
     e.attackTarget = undefined;
+    e.orderMode = "attackMove";
+    e.orderDestination = dests[index] ?? { x: tx, y: ty };
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
@@ -195,6 +238,8 @@ function stopUnits(state: SimState, ids: number[]): SimEvent[] {
     if (!e || e.owner !== 0 || e.class !== "unit") continue;
     e.path = [];
     e.attackTarget = undefined;
+    e.orderMode = undefined;
+    e.orderDestination = undefined;
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = true;
@@ -226,6 +271,8 @@ function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent
     if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral) continue;
     if (e.kind === "harvester") continue;
     e.attackTarget = targetId;
+    e.orderMode = "attack";
+    e.orderDestination = { x: target.x, y: target.y };
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
@@ -270,6 +317,8 @@ function harvestUnits(state: SimState, ids: number[], x: number, y: number): Sim
     const e = byId(state, id);
     if (!e || e.kind !== "harvester" || e.owner !== 0 || e.neutral) continue;
     e.attackTarget = undefined;
+    e.orderMode = "move";
+    e.orderDestination = { x: Math.round(x), y: Math.round(y) };
     e.gatherX = Math.round(x);
     e.gatherY = Math.round(y);
     e.idle = false;

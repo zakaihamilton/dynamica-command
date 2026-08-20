@@ -25,6 +25,9 @@ export type WinCategoryKind =
 export type MissionKind = WinCategoryKind | "escort" | "sabotage" | "rescue" | "extraction";
 export type Formation = "line" | "column" | "wedge";
 export type Stance = "aggressive" | "defensive" | "hold";
+export type ScenarioRole = "convoy" | "stranded" | "cargo";
+export type OrderMode = "move" | "attackMove" | "attack";
+export type LossReason = "yardDestroyed" | "deadline" | "objectiveTargetLost";
 export type WeaponType = "smallArms" | "antiArmor" | "cannon";
 export type ArmorType = "light" | "heavy" | "structure";
 export type TutorialStage = "select" | "move" | "harvest" | "build" | "produce" | "attack" | "repair" | "complete";
@@ -136,6 +139,9 @@ export type Entity = {
   facing?: Facing;
   repairing?: boolean;
   neutral?: boolean;
+  scenarioRole?: ScenarioRole;
+  orderMode?: OrderMode;
+  orderDestination?: Vec2;
   stance?: Stance;
   suppression?: number;
   armor?: ArmorType;
@@ -334,6 +340,7 @@ export type SimState = {
   };
   win: WinCategory;
   result: "playing" | "won" | "lost";
+  lossReason?: LossReason;
   rngState: number;
   factions: [Faction, Faction];
   missionName: string;
@@ -369,6 +376,7 @@ export type SimEvent =
   | { type: "credits"; owner: Owner; amount: number }
   | { type: "won" }
   | { type: "lost" }
+  | { type: "objectiveExpired"; kind: MissionKind }
   | { type: "commandRejected"; reason: string }
   | { type: "alert"; kind: "warning" | "objective" | "contact"; text: string }
   | { type: "suppressed"; id: number };

@@ -1,7 +1,8 @@
 import type { PointerEventHandler, Ref } from "react";
 import type { PanAvailability, PanDir } from "@/lib/render/camera";
+import { TICKS_PER_SECOND } from "@/lib/catalog";
 import { tutorialPrompt } from "@/lib/sim/tutorial";
-import { objectiveProgress } from "@/lib/sim/objectives";
+import { formatHoldClock, objectiveProgress, secondaryProgress } from "@/lib/sim/objectives";
 import type { Campaign, SimState } from "@/lib/types";
 import { Battlefield } from "./Battlefield";
 import { CombatAlert } from "./CombatAlert";
@@ -49,6 +50,10 @@ export function GamePlayField({
   combatAlert?: string | null;
 }) {
   const objective = objectiveProgress(state);
+  const secondary = secondaryProgress(state).map((item) => `${item.completed ? "✓" : "○"} ${item.label}`);
+  const deadline = objective.deadlineTicks === undefined
+    ? undefined
+    : `Window ${formatHoldClock(Math.ceil(objective.deadlineTicks / TICKS_PER_SECOND))}`;
   return (
     <Battlefield
       hostRef={hostRef}
@@ -62,6 +67,8 @@ export function GamePlayField({
       levelCount={campaign.missions.length}
       missionName={state.missionName}
       objective={objective.label}
+      deadline={deadline}
+      secondary={secondary}
       biome={state.biome}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

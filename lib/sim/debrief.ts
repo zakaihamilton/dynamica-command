@@ -1,7 +1,7 @@
 import { TICKS_PER_SECOND } from "../catalog";
 import { objectiveHeadline } from "../gen/story";
 import type { Owner, SimState } from "../types";
-import { objectiveProgress } from "./objectives";
+import { objectiveProgress, secondaryProgress } from "./objectives";
 import { living } from "./world";
 
 export type ForceDebrief = {
@@ -31,20 +31,49 @@ export function shouldShowCommandSidebar(result: SimState["result"]): boolean {
   return result === "playing";
 }
 
+export function missionMedals(state: SimState): number {
+  if (state.result !== "won") return 0;
+  const secondaries = secondaryProgress(state);
+  const allSecondaries = secondaries.length > 0 && secondaries.every((objective) => objective.completed);
+  return 1 + (allSecondaries ? 1 : 0) + (state.losses.units[0] === 0 ? 1 : 0);
+}
+
+export function missionScore(state: SimState): number {
+  if (state.result !== "won") return 0;
+  const completedSecondaries = secondaryProgress(state).filter((objective) => objective.completed).length;
+  const remaining = state.runtime?.deadline !== undefined
+    ? Math.max(0, state.runtime.deadline - state.tick)
+    : 0;
+  return Math.max(
+    0,
+    1000 + state.creditsEarned[0] + completedSecondaries * 250 + Math.floor(remaining / TICKS_PER_SECOND) * 10
+      - state.losses.units[0] * 100 - state.losses.buildings[0] * 200,
+  );
+}
+
+function lossMessage(state: SimState): string {
+  if (state.lossReason === "deadline") return "Operation window expired.";
+  if (state.lossReason === "objectiveTargetLost") return "The convoy was lost.";
+  return "Construction yard destroyed.";
+}
+
 export function missionDebrief(state: SimState) {
   const objective = objectiveProgress(state);
   const won = state.result === "won";
   return {
-    outcome: won ? "Primary objective achieved." : "Construction yard destroyed.",
+    outcome: won ? "Primary objective achieved." : lossMessage(state),
     objective: {
       headline: objectiveHeadline(state.win),
       progress: objective.label,
     },
+    secondary: secondaryProgress(state),
     battle: {
       duration: formatMissionDuration(state.tick),
       creditsGathered: state.creditsEarned[0],
       unitsTrained: state.unitsProduced[0],
       structuresCompleted: state.buildingsCompleted[0],
+      score: missionScore(state),
+      medals: missionMedals(state),
     },
     forces: {
       friendly: forceDebrief(state, 0),

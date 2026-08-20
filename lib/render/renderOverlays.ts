@@ -239,7 +239,9 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     `HP ${Math.max(0, Math.round(e.hp))} / ${e.maxHp}`,
   ];
   if ((e.suppression ?? 0) > 0) lines.push(`Suppressed ${Math.ceil(e.suppression ?? 0)}%`);
-  if (isLockedContactUnit(state, e)) lines.push("Stranded");
+  if (e.scenarioRole === "convoy") lines.push("Convoy · protect the route");
+  else if (isLockedContactUnit(state, e)) lines.push("Stranded");
+  else if (e.scenarioRole === "cargo" && e.neutral) lines.push("Asset awaiting rescue");
   if (isExtractableUnit(state, e) && !e.neutral) {
     lines.push("Return to extraction zone");
   }

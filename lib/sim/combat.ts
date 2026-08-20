@@ -7,8 +7,8 @@ import { rngFromState, type Rng } from "../seed/rng";
 const CELL = 8;
 const ALERT_MUTE_TICKS = 72;
 
-type AlertMute = { harvesterUntil: number; yardUntil: number };
-type PendingAlerts = { harvester: boolean; yard: boolean };
+type AlertMute = { harvesterUntil: number; yardUntil: number; convoyUntil: number };
+type PendingAlerts = { harvester: boolean; yard: boolean; convoy: boolean };
 
 const alertMute = new WeakMap<SimState, AlertMute>();
 
@@ -28,8 +28,12 @@ function statsFor(e: Entity): { damage: number; range: number; cooldown: number;
   return { damage: 0, range: 0, cooldown: 0, weapon: "smallArms", splashRadius: 0, suppression: 0 };
 }
 
+function isCombatTarget(e: Entity): boolean {
+  return !e.neutral || e.scenarioRole === "convoy";
+}
+
 function isCombatThreat(e: Entity): boolean {
-  if (e.neutral) return false;
+  if (!isCombatTarget(e)) return false;
   if (e.class === "building" && e.constructing > 0) return false;
   return statsFor(e).damage > 0;
 }
@@ -70,7 +74,7 @@ function closestEnemy(
       if (!bucket) continue;
       for (const o of bucket) {
         if (o.hp <= 0) continue;
-        if (o.neutral) continue;
+        if (!isCombatTarget(o)) continue;
         if (o.owner === e.owner) continue;
         if (threatsOnly && !isCombatThreat(o)) continue;
         const d = distToEntity(e, o);
@@ -133,22 +137,30 @@ function heightMultiplier(state: SimState, from: Entity, to: Entity): number {
 function notePlayerAlert(attacker: Entity, target: Entity, pending: PendingAlerts): void {
   if (attacker.owner !== 1 || target.owner !== 0) return;
   if (target.kind === "constructionYard") pending.yard = true;
+  else if (target.scenarioRole === "convoy") pending.convoy = true;
   else if (target.kind === "harvester") pending.harvester = true;
 }
 
 function flushPlayerAlerts(state: SimState, pending: PendingAlerts, events: SimEvent[]): void {
-  const category = pending.yard ? "yard" : pending.harvester ? "harvester" : undefined;
+  const category = pending.yard ? "yard" : pending.convoy ? "convoy" : pending.harvester ? "harvester" : undefined;
   if (!category) return;
-  const mute = alertMute.get(state) ?? { harvesterUntil: Number.NEGATIVE_INFINITY, yardUntil: Number.NEGATIVE_INFINITY };
-  const until = category === "yard" ? mute.yardUntil : mute.harvesterUntil;
+  const mute = alertMute.get(state) ?? {
+    harvesterUntil: Number.NEGATIVE_INFINITY,
+    yardUntil: Number.NEGATIVE_INFINITY,
+    convoyUntil: Number.NEGATIVE_INFINITY,
+  };
+  const until = category === "yard" ? mute.yardUntil : category === "convoy" ? mute.convoyUntil : mute.harvesterUntil;
   if (state.tick < until) return;
   if (category === "yard") mute.yardUntil = state.tick + ALERT_MUTE_TICKS;
+  else if (category === "convoy") mute.convoyUntil = state.tick + ALERT_MUTE_TICKS;
   else mute.harvesterUntil = state.tick + ALERT_MUTE_TICKS;
   alertMute.set(state, mute);
   events.push(
     category === "yard"
       ? { type: "alert", kind: "warning", text: "Construction yard under attack" }
-      : { type: "alert", kind: "contact", text: "Harvester under attack" },
+      : category === "convoy"
+        ? { type: "alert", kind: "contact", text: "Convoy under attack" }
+        : { type: "alert", kind: "contact", text: "Harvester under attack" },
   );
 }
 
@@ -196,9 +208,19 @@ function chase(state: SimState, e: Entity, target: Entity): void {
   }
 }
 
+function resumeAttackMove(state: SimState, e: Entity): void {
+  if (e.orderMode !== "attackMove" || !e.orderDestination) {
+    e.idle = true;
+    return;
+  }
+  const path = tryFindPath(state, e, e.orderDestination);
+  if (path !== undefined) e.path = path;
+  e.idle = false;
+}
+
 export function tickCombat(state: SimState): SimEvent[] {
   const events: SimEvent[] = [];
-  const pending: PendingAlerts = { harvester: false, yard: false };
+  const pending: PendingAlerts = { harvester: false, yard: false, convoy: false };
   const rng = rngFromState(state.rngState);
   const grid = buildGrid(state);
   for (const e of living(state)) {
@@ -213,13 +235,13 @@ export function tickCombat(state: SimState): SimEvent[] {
       const assigned = byId(state, e.attackTarget);
       if (!assigned) {
         e.attackTarget = undefined;
-        e.idle = true;
+        resumeAttackMove(state, e);
       } else {
         const d = distToEntity(e, assigned);
         if (d <= st.range) {
           e.path = [];
           if (lineOfSight(state, e, assigned)) strike(state, e, assigned, st, rng, events, pending);
-          if (e.attackTarget === undefined) e.idle = true;
+          if (e.attackTarget === undefined) resumeAttackMove(state, e);
         } else {
           const intercept = e.owner === 1 && !isCombatThreat(assigned)
             ? closestEnemy(grid, e, st.range, true)
@@ -237,8 +259,23 @@ export function tickCombat(state: SimState): SimEvent[] {
     }
 
     if (ordered && e.path.length > 0) {
-      const opportunity = closestEnemy(grid, e, st.range, false);
-      if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
+      if (e.orderMode === "attackMove") {
+        const visible = acquire(grid, e, false);
+        if (visible && lineOfSight(state, e, visible)) {
+          e.attackTarget = visible.id;
+          e.path = [];
+          if (distToEntity(e, visible) <= st.range) {
+            strike(state, e, visible, st, rng, events, pending);
+            if (e.attackTarget === undefined) resumeAttackMove(state, e);
+          } else chase(state, e, visible);
+        } else {
+          const opportunity = closestEnemy(grid, e, st.range, false);
+          if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
+        }
+      } else {
+        const opportunity = closestEnemy(grid, e, st.range, false);
+        if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
+      }
       continue;
     }
 

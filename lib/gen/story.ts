@@ -46,7 +46,7 @@ function objectivePhrase(win: WinCategory): string {
     case "sabotage":
       return `sabotage ${win.targetCount ?? 1} enemy systems before the deadline`;
     case "rescue":
-      return `rescue ${win.targetCount ?? 1} stranded units`;
+      return `rescue ${win.targetCount ?? 1} stranded units before the deadline`;
     case "extraction":
       return `extract ${win.targetCount ?? 1} assets before the deadline`;
     default:
@@ -98,7 +98,7 @@ export function missionObjectives(
       case "sabotage":
         return `Sabotage ${win.targetCount ?? 1} enemy systems`;
       case "rescue":
-        return `Rescue ${win.targetCount ?? 1} stranded units`;
+        return `Rescue ${win.targetCount ?? 1} stranded units before the deadline`;
       case "extraction":
         return `Extract ${win.targetCount ?? 1} assets from ${place}`;
       default:

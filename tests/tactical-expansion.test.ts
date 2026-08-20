@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMission, issue, tick, inspect } from "../lib/sim/api";
+import { tickCombat } from "../lib/sim/combat";
 import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
@@ -68,6 +69,7 @@ describe("tactical expansion", () => {
     const state = missionOfKind(kind, 1);
     const neutral = state.entities.find((entity) => entity.neutral);
     expect(neutral).toBeDefined();
+    expect(neutral?.scenarioRole).toBe(kind === "escort" ? "convoy" : "stranded");
     if (kind === "escort") {
       expect(neutral?.path.at(-1)).toEqual(expect.objectContaining({ x: state.runtime?.zone?.x, y: state.runtime?.zone?.y }));
     } else {
@@ -218,7 +220,7 @@ describe("tactical expansion", () => {
     }
   });
 
-  it("completes a rescue quota even when the timed secondary objective expired", () => {
+  it("fails a rescue quota when the operation deadline expires", () => {
     const state = makeFixture({ win: { kind: "rescue", targetCount: 3, ticks: 10 } });
     addBuilding(state, 0, "constructionYard", 0, 0);
     state.tick = 10;
@@ -226,14 +228,58 @@ describe("tactical expansion", () => {
       kind: "rescue",
       phase: "active",
       targetIds: [],
-      rescued: 3,
+      deadline: 10,
+      rescued: 0,
       required: 3,
       secondary: [{ id: "time", kind: "completeBefore", label: "Complete before deadline", target: 10 }],
     };
 
-    tick(state);
+    const result = tick(state);
 
-    expect(state.result).toBe("won");
+    expect(state.result).toBe("lost");
+    expect(state.lossReason).toBe("deadline");
+    expect(result.events).toContainEqual({ type: "objectiveExpired", kind: "rescue" });
+  });
+
+  it("makes convoy units vulnerable and announces contact", () => {
+    const state = makeFixture({ width: 16, height: 12, win: { kind: "escort", targetCount: 1, ticks: 100 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const convoy = addUnit(state, 0, "tank", 6, 4);
+    convoy.neutral = true;
+    convoy.scenarioRole = "convoy";
+    const attacker = addUnit(state, 1, "antiArmor", 5, 4);
+    const hp = convoy.hp;
+
+    const events = tickCombat(state);
+
+    expect(convoy.hp).toBeLessThan(hp);
+    expect(attacker.attackTarget).toBe(convoy.id);
+    expect(events).toContainEqual({ type: "alert", kind: "contact", text: "Convoy under attack" });
+  });
+
+  it("fails escort when a convoy target is destroyed", () => {
+    const state = makeFixture({ win: { kind: "escort", targetCount: 1, ticks: 100 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const convoy = addUnit(state, 0, "tank", 6, 4);
+    convoy.neutral = true;
+    convoy.scenarioRole = "convoy";
+    convoy.hp = 0;
+    state.runtime = {
+      kind: "escort",
+      phase: "active",
+      targetIds: [convoy.id],
+      zone: { x: 10, y: 4 },
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    const result = tick(state);
+
+    expect(state.result).toBe("lost");
+    expect(state.lossReason).toBe("objectiveTargetLost");
+    expect(result.events).toContainEqual({ type: "lost" });
   });
 
   it("recovers suppression on non-combat units and seeds classic secondary objectives", () => {

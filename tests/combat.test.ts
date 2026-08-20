@@ -126,6 +126,35 @@ describe("combat targeting", () => {
     expect(attacker.idle).toBe(false);
   });
 
+  it("attack-move stops to engage a visible threat and leaves the route", () => {
+    const s = makeFixture({ width: 20, height: 12, win: { kind: "annihilate" } });
+    const attacker = addUnit(s, 0, "infantry", 4, 4);
+    const foe = addUnit(s, 1, "infantry", 8, 4);
+    issue(s, { type: "attackMove", unitIds: [attacker.id], x: 15, y: 4 });
+
+    tickCombat(s);
+
+    expect(attacker.orderMode).toBe("attackMove");
+    expect(attacker.attackTarget).toBe(foe.id);
+    expect(attacker.path.at(-1)).toEqual({ x: foe.x, y: foe.y });
+  });
+
+  it("attack-move resumes its destination after destroying a threat", () => {
+    const s = makeFixture({ width: 20, height: 12, win: { kind: "annihilate" } });
+    const attacker = addUnit(s, 0, "tank", 4, 4);
+    const foe = addUnit(s, 1, "infantry", 5, 4);
+    foe.hp = 1;
+    issue(s, { type: "attackMove", unitIds: [attacker.id], x: 15, y: 4 });
+
+    tickCombat(s);
+
+    expect(foe.hp).toBe(0);
+    expect(attacker.orderMode).toBe("attackMove");
+    expect(attacker.attackTarget).toBeUndefined();
+    expect(attacker.path.length).toBeGreaterThan(0);
+    expect(attacker.path.at(-1)).toEqual({ x: 15, y: 4 });
+  });
+
   it("keeps walking through a unit already in weapon range", () => {
     const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
     const attacker = addUnit(s, 0, "tank", 4, 4);

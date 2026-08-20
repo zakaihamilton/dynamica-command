@@ -47,6 +47,7 @@ import {
   drawFxLayer,
   isExtractableUnit,
   isLockedContactUnit,
+  isScenarioTarget,
 } from "./renderCombat";
 import {
   drawDamageOverlay,
@@ -75,6 +76,7 @@ export {
   entityAtPointer,
   isExtractableUnit,
   isLockedContactUnit,
+  isScenarioTarget,
   drawTooltip,
   drawUnitHealthMeter,
   tooltipLines,
@@ -242,7 +244,7 @@ export function renderWorld(
           constructionStage: constructionStage(e),
           profile,
         });
-    if (isLockedContactUnit(state, e)) drawRescueHalo(ctx, s.x, s.y, z, timeMs);
+    if (isScenarioTarget(state, e)) drawRescueHalo(ctx, s.x, s.y, z, timeMs);
     let img = rasterize(spec);
     if (spec.imageSrc && !isRasterReady(spec)) {
       const previous = lastReadySprite.get(e.id);
