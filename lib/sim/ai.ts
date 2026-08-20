@@ -9,6 +9,8 @@ const YARD_DEFENSE_RANGE = 14;
 export const RETREAT_ENTER_HEALTH = 0.35;
 export const RETREAT_RECOVER_HEALTH = 0.5;
 export const RETREAT_MAX_TICKS = 240;
+export const ASSAULT_DURATION = 90;
+const RAIDER_RETARGET_EVERY = 30;
 
 function tryBuildPower(state: SimState, yardX: number, yardY: number): boolean {
   if (state.credits[1] < BUILDING_STATS.power.cost) return false;
@@ -77,6 +79,59 @@ function tryBuildTurret(state: SimState, yard: Entity, threat: Entity): boolean 
   return true;
 }
 
+function tryExpandEconomy(state: SimState, yard: Entity): boolean {
+  const refineries = living(state).filter((e) => e.owner === 1 && e.kind === "refinery");
+  if (refineries.length >= 2) return false;
+  if (state.credits[1] < BUILDING_STATS.refinery.cost) return false;
+  const spot = findBuildSite(state, "refinery", yard.x + 3, yard.y + 3, 14, 1)
+    ?? findBuildSite(state, "refinery", yard.x, yard.y, 14, 1);
+  if (!spot) return false;
+  spawnBuilding(state, 1, "refinery", spot.x, spot.y, BUILDING_STATS.refinery.buildTicks);
+  state.credits[1] -= BUILDING_STATS.refinery.cost;
+  trySpawnUnit(state, 1, "harvester", spot.x, spot.y + 2);
+  return true;
+}
+
+function pickWantedUnit(state: SimState, rng: { chance: (p: number) => boolean }): UnitKind {
+  const playerTanks = living(state).filter((entity) => entity.owner === 0 && entity.kind === "tank").length;
+  const playerInfantry = living(state).filter((entity) => entity.owner === 0 && entity.kind === "infantry").length;
+  const playerAntiArmor = living(state).filter((entity) => entity.owner === 0 && entity.kind === "antiArmor").length;
+  if (playerTanks > playerInfantry) return "antiArmor";
+  if (playerAntiArmor > playerTanks) return "tank";
+  return rng.chance(0.4) ? "tank" : "infantry";
+}
+
+function nearestHostile(state: SimState, from: Entity): Entity | undefined {
+  return nearest(
+    state,
+    from,
+    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester",
+  );
+}
+
+function defenseThreat(state: SimState): Entity | undefined {
+  const sites = living(state).filter((e) => (
+    e.owner === 1 && (
+      e.kind === "constructionYard"
+      || e.kind === "refinery"
+      || (e.class === "unit" && e.kind === "harvester")
+    )
+  ));
+  let best: { threat: Entity; dist: number } | undefined;
+  for (const site of sites) {
+    const threat = nearestHostile(state, site);
+    if (!threat) continue;
+    const dist = distToEntity(site, threat);
+    if (dist > YARD_DEFENSE_RANGE) continue;
+    if (!best || dist < best.dist) best = { threat, dist };
+  }
+  return best?.threat;
+}
+
+function inAssaultWindow(tick: number, waveEvery: number): boolean {
+  return tick >= waveEvery && (tick % waveEvery) < ASSAULT_DURATION;
+}
+
 function assignAssault(
   state: SimState,
   units: Entity[],
@@ -116,15 +171,13 @@ export function tickAi(state: SimState): void {
     (state.tick - difficulty.enemyProductionStart) % difficulty.enemyProductionEvery === 0;
   const powerDeficit = powerFor(state, 1) < 0;
   if (productionWindow || powerDeficit) {
-    const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0 && !e.producing);
-    const barracks = enemyBuildings.find((e) => e.kind === "barracks" && e.constructing === 0 && !e.producing);
-    const playerTanks = living(state).filter((entity) => entity.owner === 0 && entity.kind === "tank").length;
-    const playerInfantry = living(state).filter((entity) => entity.owner === 0 && entity.kind === "infantry").length;
-    const want: UnitKind = playerTanks > playerInfantry ? "antiArmor" : rng.chance(0.4) ? "tank" : "infantry";
+    const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0);
+    const barracks = enemyBuildings.find((e) => e.kind === "barracks" && e.constructing === 0);
+    const want = pickWantedUnit(state, rng);
     const producer = want === "infantry" || want === "antiArmor" ? barracks : factory;
     const cost = UNIT_STATS[want].cost;
     const power = powerFor(state, 1);
-    if (producer && state.credits[1] >= cost && power >= 0) {
+    if (producer && !producer.producing && state.credits[1] >= cost && power >= 0) {
       state.credits[1] -= cost;
       producer.producing = { kind: want, remaining: UNIT_STATS[want].buildTicks };
     } else if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
@@ -143,6 +196,8 @@ export function tickAi(state: SimState): void {
       }
     } else if (power < 20) {
       tryBuildPower(state, yard.x, yard.y);
+    } else {
+      tryExpandEconomy(state, yard);
     }
   }
 
@@ -166,27 +221,24 @@ export function tickAi(state: SimState): void {
     if (b.hp < b.maxHp) b.repairing = true;
   }
 
-  const threat = nearest(
-    state,
-    yard,
-    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester",
-  );
+  const threat = defenseThreat(state);
   const units = enemyCombat(state);
   const averageHealth = units.length ? units.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / units.length : 1;
   if (shouldRetreat(state, averageHealth)) state.aiState = "retreat";
-  else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";
-  else if (playerYard && state.tick >= waveEvery) state.aiState = "assault";
+  else if (threat) state.aiState = "defense";
+  else if (playerYard && (inAssaultWindow(state.tick, waveEvery) || state.aiRetreatLocked)) state.aiState = "assault";
   else if (units.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
   else state.aiState = "economy";
 
-  if (state.aiState === "defense" && threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) {
+  if (state.aiState === "defense" && threat) {
     tryBuildTurret(state, yard, threat);
     for (const u of units) {
       if (u.attackTarget) continue;
       assignAttack(state, u, threat);
     }
   } else if (state.aiState === "assault" && playerYard && state.tick > 0) {
-    assignAssault(state, units, yard, playerYard, state.tick % waveEvery === 0);
+    const retarget = state.tick % waveEvery === 0 || state.tick % RAIDER_RETARGET_EVERY === 0;
+    assignAssault(state, units, yard, playerYard, retarget);
   } else if (state.aiState === "retreat") {
     for (const u of units) sendHome(state, u, yard);
   } else if (state.aiState === "economy" || state.aiState === "regroup") {

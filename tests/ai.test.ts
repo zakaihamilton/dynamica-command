@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RETREAT_MAX_TICKS, RETREAT_RECOVER_HEALTH, tickAi } from "../lib/sim/ai";
+import { ASSAULT_DURATION, RETREAT_MAX_TICKS, RETREAT_RECOVER_HEALTH, tickAi } from "../lib/sim/ai";
 import { createMission, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { powerFor } from "../lib/sim/world";
@@ -182,5 +182,75 @@ describe("enemy AI", () => {
       (entity) => entity.owner === 1 && entity.class === "unit" && entity.kind !== "harvester" && entity.hp > 0 && entity.attackTarget !== undefined,
     );
     expect(raider).toBeDefined();
+  });
+
+  it("leaves assault between pulse windows and pulls raiders home", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    const yard = addBuilding(s, 1, "constructionYard", 2, 2);
+    addBuilding(s, 0, "constructionYard", 18, 18);
+    addUnit(s, 1, "infantry", 5, 2);
+    const raider = addUnit(s, 1, "tank", 9, 9);
+    addUnit(s, 0, "harvester", 16, 16);
+    s.tick = 720 + ASSAULT_DURATION;
+
+    tickAi(s);
+
+    expect(s.aiState).not.toBe("assault");
+    expect(raider.attackTarget).toBeUndefined();
+    const end = raider.path.at(-1);
+    if (end) expect(Math.hypot(end.x - yard.x, end.y - yard.y)).toBeLessThan(6);
+  });
+
+  it("places a second refinery and harvester once the base is powered", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    addBuilding(s, 1, "power", 9, 12);
+    addBuilding(s, 1, "power", 15, 12);
+    addBuilding(s, 1, "barracks", 8, 9);
+    addBuilding(s, 1, "factory", 12, 9);
+    addBuilding(s, 1, "refinery", 12, 15);
+    const barracks = s.entities.find((e) => e.kind === "barracks")!;
+    const factory = s.entities.find((e) => e.kind === "factory")!;
+    barracks.producing = { kind: "infantry", remaining: 20 };
+    factory.producing = { kind: "tank", remaining: 20 };
+    s.credits[1] = 5000;
+    s.tick = 180;
+    expect(powerFor(s, 1)).toBeGreaterThanOrEqual(20);
+
+    tickAi(s);
+
+    expect(s.entities.filter((e) => e.owner === 1 && e.kind === "refinery")).toHaveLength(2);
+    expect(s.entities.some((e) => e.owner === 1 && e.kind === "harvester")).toBe(true);
+  });
+
+  it("defends a threatened harvester away from the yard", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 2, 2);
+    const harvester = addUnit(s, 1, "harvester", 18, 18);
+    const guard = addUnit(s, 1, "infantry", 16, 16);
+    const foe = addUnit(s, 0, "tank", 17, 18);
+    s.credits[1] = 5000;
+
+    tickAi(s);
+
+    expect(s.aiState).toBe("defense");
+    expect(guard.attackTarget).toBe(foe.id);
+    expect(harvester.attackTarget).toBeUndefined();
+  });
+
+  it("queues anti-armor when the player fields more tanks than infantry", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    addBuilding(s, 1, "power", 9, 12);
+    const barracks = addBuilding(s, 1, "barracks", 8, 9);
+    addUnit(s, 0, "tank", 2, 2);
+    addUnit(s, 0, "tank", 3, 2);
+    addUnit(s, 0, "infantry", 4, 2);
+    s.credits[1] = 5000;
+    s.tick = 180;
+
+    tickAi(s);
+
+    expect(barracks.producing?.kind).toBe("antiArmor");
   });
 });
