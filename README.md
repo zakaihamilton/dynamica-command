@@ -13,7 +13,7 @@ yarn
 yarn dev
 ```
 
-Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. Pause opens save/load, briefing, **music and sound toggles**, and an **assets browser** for generated sprites.
+Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) toggle **music and sound effects**. Pause also opens save/load, briefing, and an **assets browser** for generated sprites.
 
 | Script | What it does |
 | --- | --- |
@@ -110,7 +110,7 @@ scripts/       inspect + headless sim
 tests/         Vitest
 ```
 
-Sprites, biome tiles, roads, cliffs, portraits, SFX, and **background music** are **generated** (native-resolution shape specs + seeded palettes + Web Audio). The generated art is deterministic per seed, rendered on a minimum 640×480 surface, and uses no stock unit art. Pause **Options** toggles music and sound effects independently.
+Sprites, biome tiles, roads, cliffs, portraits, SFX, and **background music** are **generated** (native-resolution shape specs + seeded palettes + Web Audio). The generated art is deterministic per seed, rendered on a minimum 640×480 surface, and uses no stock unit art. Welcome and pause **Options** toggle music and sound effects independently.
 
 ### Headless API
 
