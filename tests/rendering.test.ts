@@ -3,7 +3,7 @@ import { makeFixture, setTile } from "../lib/sim/fixtures";
 import { minimapRegionForCell, terrainColors } from "../lib/render/minimap";
 import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../lib/types";
 import { generateMap } from "../lib/gen/map";
-import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform } from "../lib/render/iso";
+import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../lib/render/iso";
 import {
   ATLAS_CELL,
   atlasPixelAtTile,
@@ -29,6 +29,7 @@ import {
   weatherKindForBiome,
   weatherParticleAt,
 } from "../lib/render/terrainWeather";
+import { terrainContentKey } from "../lib/render/renderer";
 
 function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
   const rect = atlasRectForTile(tileX, tileY, atlas.mapWidth);
@@ -294,6 +295,22 @@ describe("terrain weather and water motion", () => {
     expect(oreSparkle(900, 2, 2, 1).twinkle).toBeLessThanOrEqual(1);
     expect(weatherKindForBiome("tundra grid")).toBe("snow");
     expect(weatherKindForBiome("volcanic shelf")).toBe("ember");
+  });
+});
+
+describe("terrain scroll cache key", () => {
+  it("ignores camera translation and changes with zoom or fog bucket", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    const cam = createCamera();
+    const a = terrainContentKey(state, cam, 640, 360);
+    cam.x += 40;
+    cam.y -= 18;
+    expect(terrainContentKey(state, cam, 640, 360)).toBe(a);
+    cam.zoom = 1.15;
+    expect(terrainContentKey(state, cam, 640, 360)).not.toBe(a);
+    cam.zoom = 1;
+    state.tick = 16;
+    expect(terrainContentKey(state, cam, 640, 360)).not.toBe(a);
   });
 });
 

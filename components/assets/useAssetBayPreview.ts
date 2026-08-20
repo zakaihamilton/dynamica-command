@@ -103,17 +103,15 @@ export function useAssetBayPreview({
       }
     };
     paint(0);
+    if (!playing) return;
     const loop = (now: number) => {
       if (lastNow === 0) lastNow = now;
       const dt = now - lastNow;
       lastNow = now;
-
-      if (playing) {
-        animTime += dt;
-        if (now - lastFrameTime > 140) {
-          frame = ((frame + 1) & 3) as AnimFrame;
-          lastFrameTime = now;
-        }
+      animTime += dt;
+      if (now - lastFrameTime > 140) {
+        frame = ((frame + 1) & 3) as AnimFrame;
+        lastFrameTime = now;
       }
       paint(animTime);
       raf = requestAnimationFrame(loop);

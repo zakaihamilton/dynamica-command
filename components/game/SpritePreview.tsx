@@ -39,9 +39,7 @@ export function SpritePreview({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    let raf = 0;
     let frame = 0;
-    let last = 0;
     let disposed = false;
     const paint = (animationFrame: 0 | 1 | 2 | 3) => {
       const spec = isUnit
@@ -98,18 +96,13 @@ export function SpritePreview({
     };
     paint(0);
     if (!isUnit) return;
-    const loop = (now: number) => {
-      if (now - last > 140) {
-        frame = (frame + 1) & 3;
-        last = now;
-        paint(frame as 0 | 1 | 2 | 3);
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
+    const id = window.setInterval(() => {
+      frame = (frame + 1) & 3;
+      paint(frame as 0 | 1 | 2 | 3);
+    }, 140);
     return () => {
       disposed = true;
-      cancelAnimationFrame(raf);
+      window.clearInterval(id);
     };
   }, [isUnit, kind, palette, profile]);
   return <canvas ref={ref} width={80} height={56} className={cx(styles.canvas, className)} aria-hidden />;

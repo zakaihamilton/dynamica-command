@@ -1,3 +1,26 @@
+export function briefingLineStarts(lines: readonly { text: string }[]): number[] {
+  const starts = [0];
+  for (const line of lines) starts.push(starts[starts.length - 1]! + line.text.length);
+  return starts;
+}
+
+export function briefingRevealedLines<T extends { text: string }>(
+  lines: readonly T[],
+  shown: number,
+): Array<T & { visible: string; started: boolean; complete: boolean }> {
+  const starts = briefingLineStarts(lines);
+  return lines.map((line, index) => {
+    const consumed = starts[index]!;
+    const chars = Math.max(0, Math.min(line.text.length, shown - consumed));
+    return {
+      ...line,
+      visible: line.text.slice(0, chars),
+      started: chars > 0,
+      complete: chars >= line.text.length,
+    };
+  });
+}
+
 /** Start offsets of words that do not fit on the current line and should wrap immediately. */
 export function wrapBreakOffsets(
   text: string,

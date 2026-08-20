@@ -10,6 +10,14 @@ import {
   unitAnim,
 } from "./anim";
 import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
+import {
+  emptyScrollLayer,
+  scrollLayerBlitOffset,
+  scrollLayerNeedsRebuild,
+  scrollLayerPaintCamera,
+  terrainScrollPad,
+  type ScrollLayer,
+} from "./scrollLayer";
 import { drawSprite, isRasterReady, rasterize } from "./sprites";
 import { drawUnitShadow, paintUnitMovementFx } from "./unitMotion";
 import { canPlaceBuilding, heightAt } from "../sim/world";
@@ -75,31 +83,27 @@ export {
 
 const TERRAIN_RENDER_REV = "world-atlas-v12-organic-cliffs";
 
-type TerrainLayer = {
-  canvas: HTMLCanvasElement | null;
-  key: string;
-};
-
-const terrainLayer: TerrainLayer = { canvas: null, key: "" };
+const terrainScroll: ScrollLayer = emptyScrollLayer();
+let terrainCanvas: HTMLCanvasElement | null = null;
 const entityById = new Map<number, Entity>();
 const drawList: Entity[] = [];
 const lastReadySprite = new Map<number, { spec: SpriteSpec; img: HTMLCanvasElement }>();
 
-function ensureTerrainCanvas(w: number, h: number): HTMLCanvasElement | null {
+function ensureTerrainCanvas(bw: number, bh: number): HTMLCanvasElement | null {
   if (typeof document === "undefined") return null;
-  if (!terrainLayer.canvas) {
-    terrainLayer.canvas = document.createElement("canvas");
+  if (!terrainCanvas) {
+    terrainCanvas = document.createElement("canvas");
   }
-  if (terrainLayer.canvas.width !== w || terrainLayer.canvas.height !== h) {
-    terrainLayer.canvas.width = w;
-    terrainLayer.canvas.height = h;
-    terrainLayer.key = "";
+  if (terrainCanvas.width !== bw || terrainCanvas.height !== bh) {
+    terrainCanvas.width = bw;
+    terrainCanvas.height = bh;
+    terrainScroll.key = "";
   }
-  return terrainLayer.canvas;
+  return terrainCanvas;
 }
 
-function terrainCacheKey(state: SimState, cam: Camera, w: number, h: number): string {
-  return `${state.seed}:${state.tick >> 4}:${state.width}x${state.height}:${state.biome}:${TERRAIN_RENDER_REV}:${cam.x.toFixed(1)}:${cam.y.toFixed(1)}:${cam.zoom.toFixed(3)}:${w}x${h}`;
+export function terrainContentKey(state: SimState, cam: Camera, w: number, h: number): string {
+  return `${state.seed}:${state.tick >> 4}:${state.width}x${state.height}:${state.biome}:${TERRAIN_RENDER_REV}:${cam.zoom.toFixed(3)}:${w}x${h}`;
 }
 
 function paintTerrain(ctx: CanvasRenderingContext2D, state: SimState, cam: Camera): void {
@@ -107,7 +111,7 @@ function paintTerrain(ctx: CanvasRenderingContext2D, state: SimState, cam: Camer
 }
 
 export function invalidateTerrainCache(): void {
-  terrainLayer.key = "";
+  terrainScroll.key = "";
 }
 
 export function renderWorld(
@@ -124,17 +128,22 @@ export function renderWorld(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
-  const key = terrainCacheKey(state, cam, w, h);
-  const layer = ensureTerrainCanvas(w, h);
-  if (layer && terrainLayer.key !== key) {
+  const pad = terrainScrollPad(cam.zoom);
+  const contentKey = terrainContentKey(state, cam, w, h);
+  const layer = ensureTerrainCanvas(w + pad * 2, h + pad * 2);
+  if (layer && scrollLayerNeedsRebuild(terrainScroll, contentKey, cam.x, cam.y)) {
     const tctx = layer.getContext("2d");
     if (tctx) {
-      paintTerrain(tctx, state, cam);
-      terrainLayer.key = key;
+      paintTerrain(tctx, state, scrollLayerPaintCamera(cam, pad));
+      terrainScroll.key = contentKey;
+      terrainScroll.originX = cam.x;
+      terrainScroll.originY = cam.y;
+      terrainScroll.pad = pad;
     }
   }
-  if (layer && terrainLayer.key === key) {
-    ctx.drawImage(layer, 0, 0);
+  if (layer && terrainScroll.key === contentKey) {
+    const blit = scrollLayerBlitOffset(terrainScroll, cam.x, cam.y);
+    ctx.drawImage(layer, blit.x, blit.y);
   } else {
     paintTerrain(ctx, state, cam);
   }
@@ -183,8 +192,6 @@ export function renderWorld(
   for (const e of drawList) {
     const entityAlpha = renderEntityOpacity(state, e, timeMs);
     if (entityAlpha <= 0.01) continue;
-    const pal = state.factions[e.owner]!.palette;
-    const profile = generateVisualProfile(state.seed, e.owner);
     let cx = e.x;
     let cy = e.y;
     let elev = entityElev(state, e);
@@ -202,6 +209,10 @@ export function renderWorld(
       cx = e.x + (fp.w - 1) / 2;
       cy = e.y + (fp.h - 1) / 2;
     }
+    const s = tileToScreen(cx, cy, cam, elev);
+    if (s.x < -cullPad || s.y < -cullPad || s.x > w + cullPad || s.y > h + cullPad) continue;
+    const pal = state.factions[e.owner]!.palette;
+    const profile = generateVisualProfile(state.seed, e.owner);
     const facing = resolveFacing(state, e, entityById, e.class === "unit" ? { x: cx, y: cy } : undefined);
 
     let spec = e.class === "unit"
@@ -218,8 +229,6 @@ export function renderWorld(
           constructionStage: constructionStage(e),
           profile,
         });
-    const s = tileToScreen(cx, cy, cam, elev);
-    if (s.x < -cullPad || s.y < -cullPad || s.x > w + cullPad || s.y > h + cullPad) continue;
     if (isLockedContactUnit(state, e)) drawRescueHalo(ctx, s.x, s.y, z, timeMs);
     let img = rasterize(spec);
     if (spec.imageSrc && !isRasterReady(spec)) {

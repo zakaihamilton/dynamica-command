@@ -9,7 +9,10 @@ const FAMILY_MATERIALS = [
 ] as const;
 const TERRAIN_TREATMENTS = ["modular", "armored", "expeditionary"] as const;
 
-export function generateCampaignVisualProfile(seed: number): CampaignVisualProfile {
+const campaignCache = new Map<number, CampaignVisualProfile>();
+const profileCache = new Map<string, FactionVisualProfile>();
+
+function computeCampaignVisualProfile(seed: number): CampaignVisualProfile {
   const rng = createRng(seed, "campaign-visual-profile");
   const family = rng.int(3) as CampaignVisualProfile["family"];
   return {
@@ -19,7 +22,7 @@ export function generateCampaignVisualProfile(seed: number): CampaignVisualProfi
   };
 }
 
-export function generateVisualProfile(seed: number, owner: Owner): FactionVisualProfile {
+function computeVisualProfile(seed: number, owner: Owner): FactionVisualProfile {
   const rng = createRng(seed, `visual-profile:${owner}`);
   const campaign = generateCampaignVisualProfile(seed);
   const designFamily = campaign.family;
@@ -31,6 +34,23 @@ export function generateVisualProfile(seed: number, owner: Owner): FactionVisual
     weathering: rng.int(4) as FactionVisualProfile["weathering"],
     lightRig: LIGHTS[(owner + rng.int(2)) % LIGHTS.length]!,
   };
+}
+
+export function generateCampaignVisualProfile(seed: number): CampaignVisualProfile {
+  const hit = campaignCache.get(seed);
+  if (hit) return hit;
+  const profile = computeCampaignVisualProfile(seed);
+  campaignCache.set(seed, profile);
+  return profile;
+}
+
+export function generateVisualProfile(seed: number, owner: Owner): FactionVisualProfile {
+  const key = `${seed}:${owner}`;
+  const hit = profileCache.get(key);
+  if (hit) return hit;
+  const profile = computeVisualProfile(seed, owner);
+  profileCache.set(key, profile);
+  return profile;
 }
 
 export function profileKey(profile: FactionVisualProfile): string {

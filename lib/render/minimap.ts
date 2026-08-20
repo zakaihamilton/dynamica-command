@@ -45,26 +45,16 @@ function entityColor(e: Entity, state: SimState): string {
   return pal.light;
 }
 
-let lastMinimapKey = "";
+let lastTerrainKey = "";
+let lastOverlayKey = "";
+let terrainCanvas: HTMLCanvasElement | null = null;
 
 export function invalidateMinimap(): void {
-  lastMinimapKey = "";
+  lastTerrainKey = "";
+  lastOverlayKey = "";
 }
 
-export function renderMinimap(
-  ctx: CanvasRenderingContext2D,
-  state: SimState,
-  view: { x: number; y: number }[],
-): void {
-  const w = ctx.canvas.width;
-  const h = ctx.canvas.height;
-  const viewKey = view.length
-    ? `${view[0]!.x.toFixed(2)},${view[0]!.y.toFixed(2)}:${view[2] ? `${view[2].x.toFixed(2)},${view[2].y.toFixed(2)}` : ""}`
-    : "";
-  const palKey = `${state.factions[0]?.palette.primary ?? ""}:${state.factions[1]?.palette.primary ?? ""}`;
-  const key = `${MINIMAP_RENDER_REV}:${state.seed}:${state.tick}:${state.result}:${w}x${h}:${viewKey}:${state.entities.length}:${palKey}`;
-  if (key === lastMinimapKey) return;
-  lastMinimapKey = key;
+function paintMinimapTerrain(ctx: CanvasRenderingContext2D, state: SimState, w: number, h: number): void {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   const atlas = getTerrainAtlas(state);
@@ -77,6 +67,16 @@ export function renderMinimap(
     const sw = state.width * atlas.cell;
     const sh = state.height * atlas.cell;
     ctx.drawImage(atlas.canvas, sx, sy, sw, sh, 0, 0, w, h);
+    const cellW = w / state.width;
+    const cellH = h / state.height;
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        const gain = fogTerrainGain(fogAt(state, x, y));
+        if (gain >= 0.98) continue;
+        ctx.fillStyle = `rgba(8,13,17,${1 - gain})`;
+        ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+      }
+    }
   } else {
     const cellW = w / state.width;
     const cellH = h / state.height;
@@ -90,18 +90,15 @@ export function renderMinimap(
       }
     }
   }
-  if (atlas.canvas) {
-    const cellW = w / state.width;
-    const cellH = h / state.height;
-    for (let y = 0; y < state.height; y++) {
-      for (let x = 0; x < state.width; x++) {
-        const gain = fogTerrainGain(fogAt(state, x, y));
-        if (gain >= 0.98) continue;
-        ctx.fillStyle = `rgba(8,13,17,${1 - gain})`;
-        ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
-      }
-    }
-  }
+}
+
+function paintMinimapOverlay(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  view: { x: number; y: number }[],
+  w: number,
+  h: number,
+): void {
   const sx = w / state.width;
   const sy = h / state.height;
   for (const e of state.entities) {
@@ -145,4 +142,44 @@ export function renderMinimap(
     ctx.lineWidth = 1.5;
     ctx.stroke();
   }
+}
+
+export function renderMinimap(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  view: { x: number; y: number }[],
+): void {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const viewKey = view.length
+    ? `${view[0]!.x.toFixed(2)},${view[0]!.y.toFixed(2)}:${view[2] ? `${view[2].x.toFixed(2)},${view[2].y.toFixed(2)}` : ""}`
+    : "";
+  const palKey = `${state.factions[0]?.palette.primary ?? ""}:${state.factions[1]?.palette.primary ?? ""}`;
+  const terrainKey = `${MINIMAP_RENDER_REV}:${state.seed}:${state.tick >> 4}:${state.biome}:${state.width}x${state.height}:${w}x${h}`;
+  const overlayKey = `${terrainKey}:${state.tick}:${state.result}:${viewKey}:${state.entities.length}:${palKey}`;
+  if (overlayKey === lastOverlayKey) return;
+
+  let terrainReady = false;
+  if (typeof document !== "undefined") {
+    if (!terrainCanvas) terrainCanvas = document.createElement("canvas");
+    if (terrainCanvas.width !== w || terrainCanvas.height !== h) {
+      terrainCanvas.width = w;
+      terrainCanvas.height = h;
+      lastTerrainKey = "";
+    }
+    if (lastTerrainKey !== terrainKey) {
+      const tctx = terrainCanvas.getContext("2d");
+      if (tctx) {
+        paintMinimapTerrain(tctx, state, w, h);
+        lastTerrainKey = terrainKey;
+      }
+    }
+    if (lastTerrainKey === terrainKey) {
+      ctx.drawImage(terrainCanvas, 0, 0);
+      terrainReady = true;
+    }
+  }
+  if (!terrainReady) paintMinimapTerrain(ctx, state, w, h);
+  paintMinimapOverlay(ctx, state, view, w, h);
+  lastOverlayKey = overlayKey;
 }

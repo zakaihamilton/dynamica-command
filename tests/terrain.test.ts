@@ -9,6 +9,7 @@ import type { BuildingKind } from "../lib/types";
 import { TILE_BLOCKED, TILE_WATER } from "../lib/types";
 import { cameraViewQuad, createCamera, TILE_H, tileToScreen } from "../lib/render/iso";
 import { cameraPanBounds, canPan, clampCamera, panAvailability } from "../lib/render/camera";
+import { visibleTileRange } from "../lib/render/terrainPaint";
 
 describe("terrain height", () => {
   it("interpolates unit elevation between neighboring tiles", () => {
@@ -321,5 +322,26 @@ describe("camera pan bounds", () => {
     expect(avail.right).toBe(false);
     expect(avail.up).toBe(false);
     expect(avail.down).toBe(false);
+  });
+});
+
+describe("visible tile range", () => {
+  it("includes on-screen tiles and excludes far-off map cells", () => {
+    const cam = createCamera();
+    cam.x = 400;
+    cam.y = 80;
+    cam.zoom = 1;
+    const range = visibleTileRange(cam, 800, 600, 48, 48);
+    const onScreen = tileToScreen(8, 8, cam);
+    expect(onScreen.x).toBeGreaterThan(0);
+    expect(onScreen.x).toBeLessThan(800);
+    expect(onScreen.y).toBeGreaterThan(0);
+    expect(onScreen.y).toBeLessThan(600);
+    expect(8).toBeGreaterThanOrEqual(range.x0);
+    expect(8).toBeLessThan(range.x1);
+    expect(8).toBeGreaterThanOrEqual(range.y0);
+    expect(8).toBeLessThan(range.y1);
+    expect(range.x1 - range.x0).toBeLessThan(48 + 14 * 2);
+    expect(40 >= range.x1 || 40 >= range.y1 || 40 < range.x0 || 40 < range.y0).toBe(true);
   });
 });

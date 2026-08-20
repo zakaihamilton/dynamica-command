@@ -2,6 +2,19 @@ import { tick } from "../sim/api";
 import type { Command, SimEvent, SimState } from "../types";
 
 export const TICK_MS = 1000 / 12;
+export const MAX_TICKS_PER_FRAME = 3;
+
+export function frameTickBudget(
+  acc: number,
+  tickMs = TICK_MS,
+  maxTicks = MAX_TICKS_PER_FRAME,
+): { ticks: number; acc: number } {
+  const available = Math.max(0, Math.floor(acc / tickMs));
+  if (available <= maxTicks) {
+    return { ticks: available, acc: acc - available * tickMs };
+  }
+  return { ticks: maxTicks, acc: 0 };
+}
 
 export type LoopHandle = {
   stop: () => void;
@@ -44,14 +57,15 @@ export function startLoop({
     }
     acc += now - last;
     last = now;
-    while (acc >= TICK_MS && state.result === "playing") {
+    const budget = frameTickBudget(acc);
+    acc = budget.acc;
+    for (let i = 0; i < budget.ticks && state.result === "playing"; i++) {
       const cmds = drainCommands();
       const out = tick(state, cmds.length ? cmds : undefined);
       state = out.state;
       setState(state);
       onTick?.(state, out.events, now);
       onEvents?.(out.events);
-      acc -= TICK_MS;
     }
     if (state.result !== "playing") acc = 0;
     const subTickAlpha = state.result === "playing" ? Math.max(0, Math.min(1, acc / TICK_MS)) : 1;

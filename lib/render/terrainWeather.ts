@@ -23,6 +23,24 @@ export type WaterCaustic = {
 };
 
 const PARTICLE_COUNT = 120;
+const particleSprites = new Map<string, HTMLCanvasElement>();
+
+function particleSprite(color: string): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  const hit = particleSprites.get(color);
+  if (hit) return hit;
+  const canvas = document.createElement("canvas");
+  canvas.width = 16;
+  canvas.height = 16;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(8, 8, 8, 4.96, 0, 0, Math.PI * 2);
+  ctx.fill();
+  particleSprites.set(color, canvas);
+  return canvas;
+}
 
 export function weatherKindForBiome(biome: BiomeName): WeatherKind {
   if (biome === "tundra grid") return "snow";
@@ -334,10 +352,17 @@ export function paintTerrainWeather(
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     const particle = weatherParticleAt(state.seed, state.biome, i, clockMs, w, h);
     ctx.globalAlpha = particle.alpha;
-    ctx.fillStyle = particle.color;
-    ctx.beginPath();
-    ctx.ellipse(particle.x, particle.y, particle.size, particle.size * 0.62, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const sprite = particleSprite(particle.color);
+    const radiusX = particle.size;
+    const radiusY = particle.size * 0.62;
+    if (sprite) {
+      ctx.drawImage(sprite, particle.x - radiusX, particle.y - radiusY, radiusX * 2, radiusY * 2);
+    } else {
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.ellipse(particle.x, particle.y, radiusX, radiusY, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.restore();
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "@/lib/ui/cx";
 import styles from "./CreditsCounter.module.css";
 
@@ -18,15 +18,30 @@ function CreditsIcon() {
   );
 }
 
+function formatCredits(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
 export function CreditsCounter({ value }: { value: number }) {
-  const [shown, setShown] = useState(value);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const shownRef = useRef(value);
+  const digitsRef = useRef<HTMLElement>(null);
   const flashTimer = useRef<number | null>(null);
+
+  const writeDigits = () => {
+    const el = digitsRef.current;
+    if (el) el.textContent = formatCredits(shownRef.current);
+  };
+
+  useLayoutEffect(writeDigits);
+
   useEffect(() => {
     const from = shownRef.current;
     const to = value;
-    if (from === to) return;
+    if (from === to) {
+      writeDigits();
+      return;
+    }
     setFlash(to > from ? "up" : "down");
     if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(() => setFlash(null), 480);
@@ -38,7 +53,7 @@ export function CreditsCounter({ value }: { value: number }) {
       const eased = 1 - (1 - t) * (1 - t);
       const next = Math.round(from + (to - from) * eased);
       shownRef.current = next;
-      setShown(next);
+      writeDigits();
       if (t < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
@@ -47,6 +62,7 @@ export function CreditsCounter({ value }: { value: number }) {
       if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     };
   }, [value]);
+
   return (
     <div className={cx(styles.counter, flash === "up" && styles.up, flash === "down" && styles.down)} aria-label={`${value} available credits`}>
       <CreditsIcon />
@@ -54,8 +70,8 @@ export function CreditsCounter({ value }: { value: number }) {
       <div className={styles.lcd}>
         <span className={styles.currency}>$</span>
         <span className={styles.readout}>
-          <strong data-testid="credits" className={styles.digits}>
-            {shown.toLocaleString("en-US")}
+          <strong ref={digitsRef} data-testid="credits" className={styles.digits}>
+            {formatCredits(value)}
           </strong>
         </span>
       </div>
