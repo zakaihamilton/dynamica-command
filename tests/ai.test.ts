@@ -1,11 +1,88 @@
 import { describe, expect, it } from "vitest";
 import { RETREAT_MAX_TICKS, RETREAT_RECOVER_HEALTH, tickAi } from "../lib/sim/ai";
 import { createMission, tick } from "../lib/sim/api";
-import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
+import { tickMissionDirector } from "../lib/sim/director";
+import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
 import { powerFor } from "../lib/sim/world";
 
 describe("enemy AI", () => {
+  it("builds toward a contested resource lane before committing another wave", () => {
+    const s = makeFixture({ width: 36, height: 36, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 4, 4);
+    addBuilding(s, 1, "power", 7, 4);
+    addBuilding(s, 1, "refinery", 4, 8);
+    addBuilding(s, 0, "constructionYard", 30, 30);
+    setTile(s, 18, 4, TILE_RESOURCE, 1200);
+    s.credits[1] = 5000;
+    s.runtime = {
+      kind: "annihilate",
+      phase: "active",
+      targetIds: [],
+      rescued: 0,
+      required: 1,
+      secondary: [],
+      director: { phase: "pressure", pressureStart: 100, finaleStart: 1000, eventCount: 1 },
+    };
+
+    s.tick = 180;
+    tickAi(s);
+    expect(s.entities.some((e) => e.owner === 1 && e.kind === "power" && e.constructing > 0 && e.x > 8)).toBe(true);
+
+    s.tick = 324;
+    tickAi(s);
+    expect(s.entities.some((e) => e.owner === 1 && e.kind === "refinery" && e.constructing > 0 && e.x > 10)).toBe(true);
+  });
+
+  it("expands into an unserved resource lane on a generated campaign map", () => {
+    const s = createMission({ seed: 0, missionIndex: 0 });
+    const initialBuildingIds = new Set(s.entities.filter((entity) => entity.owner === 1 && entity.class === "building").map((entity) => entity.id));
+    const yard = s.entities.find((entity) => entity.owner === 1 && entity.kind === "constructionYard")!;
+    const director = s.runtime!.director!;
+    const difficulty = missionDifficulty(s.missionIndex);
+    const productionTick = difficulty.enemyProductionStart
+      + Math.ceil((director.pressureStart - difficulty.enemyProductionStart) / difficulty.enemyProductionEvery) * difficulty.enemyProductionEvery;
+
+    s.tick = director.pressureStart;
+    tickMissionDirector(s);
+    s.tick = productionTick;
+    tickAi(s);
+
+    expect(s.entities.some((entity) =>
+      entity.owner === 1 &&
+      entity.class === "building" &&
+      entity.kind === "refinery" &&
+      entity.constructing > 0 &&
+      !initialBuildingIds.has(entity.id) &&
+      Math.hypot(entity.x - yard.x, entity.y - yard.y) >= 10,
+    )).toBe(true);
+  });
+
+  it("posts a combat unit on the contested resource lane", () => {
+    const s = makeFixture({ width: 36, height: 36, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 4, 4);
+    addBuilding(s, 1, "power", 7, 4);
+    addBuilding(s, 1, "refinery", 4, 8);
+    setTile(s, 18, 4, TILE_RESOURCE, 1200);
+    const homeGuard = addUnit(s, 1, "infantry", 6, 4);
+    const laneGuard = addUnit(s, 1, "tank", 12, 8);
+    s.runtime = {
+      kind: "annihilate",
+      phase: "active",
+      targetIds: [],
+      rescued: 0,
+      required: 1,
+      secondary: [],
+      director: { phase: "pressure", pressureStart: 100, finaleStart: 1000, eventCount: 1 },
+    };
+
+    tickAi(s);
+
+    expect(homeGuard.orderDestination).toBeUndefined();
+    expect(laneGuard.orderDestination).toEqual({ x: 18, y: 4 });
+    expect(laneGuard.orderMode).toBe("move");
+  });
+
   it("builds a power plant before a factory when the grid is in deficit", () => {
     const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
     addBuilding(s, 1, "constructionYard", 12, 12);

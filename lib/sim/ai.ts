@@ -1,11 +1,14 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
-import type { Entity, SimState, UnitKind } from "../types";
+import { TILE_RESOURCE } from "../types";
+import type { Entity, MissionDirectorPhase, SimState, UnitKind, Vec2 } from "../types";
 import { tryFindPath } from "./pathBudget";
-import { byId, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
+import { BUILDING_PLACEMENT_RADIUS, byId, canPlaceBuilding, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
 import { rngFromState } from "../seed/rng";
 import { missionDifficulty } from "./difficulty";
 
 const YARD_DEFENSE_RANGE = 14;
+const RESOURCE_SCAN_INTERVAL = 24;
+const resourcePointCache = new WeakMap<SimState, { tick: number; point?: Vec2 }>();
 export const RETREAT_ENTER_HEALTH = 0.35;
 export const RETREAT_RECOVER_HEALTH = 0.5;
 export const RETREAT_MAX_TICKS = 240;
@@ -22,6 +25,123 @@ function tryBuildPower(state: SimState, yardX: number, yardY: number): boolean {
 function tryBuildRefinery(state: SimState, yardX: number, yardY: number): boolean {
   if (state.credits[1] < BUILDING_STATS.refinery.cost) return false;
   const spot = findBuildSite(state, "refinery", yardX + 3, yardY, 12, 1);
+  if (!spot) return false;
+  spawnBuilding(state, 1, "refinery", spot.x, spot.y, BUILDING_STATS.refinery.buildTicks);
+  state.credits[1] -= BUILDING_STATS.refinery.cost;
+  return true;
+}
+
+function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function directorPhase(state: SimState): MissionDirectorPhase {
+  if (state.tutorialStage !== undefined) return "opening";
+  return state.runtime?.director?.phase
+    ?? (state.tick >= missionDifficulty(state.missionIndex).enemyAssaultEvery ? "pressure" : "opening");
+}
+
+function contestedResourcePoint(state: SimState, yard: Entity): Vec2 | undefined {
+  const cached = resourcePointCache.get(state);
+  if (cached && state.tick - cached.tick < RESOURCE_SCAN_INTERVAL) return cached.point;
+
+  const playerYard = nearest(
+    state,
+    yard,
+    (entity) => entity.owner === 0 && entity.kind === "constructionYard",
+  );
+  let best: Vec2 | undefined;
+  let bestScore = Infinity;
+  let fallback: Vec2 | undefined;
+  let fallbackDistance = Infinity;
+  for (let y = 0; y < state.height; y++) {
+    for (let x = 0; x < state.width; x++) {
+      const index = y * state.width + x;
+      if (state.tiles[index] !== TILE_RESOURCE || (state.resourceAmount[index] ?? 0) <= 0) continue;
+      const point = { x, y };
+      const enemyDistance = distance(yard, point);
+      if (enemyDistance < 10) continue;
+      if (hasBuildingNear(state, "refinery", point, 8)) continue;
+      if (enemyDistance < fallbackDistance) {
+        fallbackDistance = enemyDistance;
+        fallback = point;
+      }
+      const playerDistance = playerYard ? distance(playerYard, point) : enemyDistance;
+      const score = enemyDistance + Math.abs(enemyDistance - playerDistance) * 0.25;
+      if (score < bestScore) {
+        bestScore = score;
+        best = point;
+      }
+    }
+  }
+  const point = best ?? fallback;
+  resourcePointCache.set(state, { tick: state.tick, point });
+  return point;
+}
+
+function hasBuildingNear(state: SimState, kind: "power" | "refinery", point: Vec2, radius: number): boolean {
+  return living(state).some(
+    (entity) => entity.owner === 1 && entity.class === "building" && entity.kind === kind && distance(entity, point) <= radius,
+  );
+}
+
+function forwardRelaySite(state: SimState, yard: Entity, point: Vec2): Vec2 | undefined {
+  const dx = point.x - yard.x;
+  const dy = point.y - yard.y;
+  const length = Math.hypot(dx, dy);
+  if (length <= 0) return undefined;
+  const direction = { x: dx / length, y: dy / length };
+  const minimumForwardDistance = BUILDING_PLACEMENT_RADIUS / 2;
+
+  for (let retreat = 0; retreat <= Math.ceil(length); retreat += 1) {
+    const desired = {
+      x: Math.round(point.x - direction.x * retreat),
+      y: Math.round(point.y - direction.y * retreat),
+    };
+    const spot = findBuildSite(state, "power", desired.x, desired.y, 4, 1);
+    if (!spot || distance(spot, yard) < minimumForwardDistance) continue;
+    return spot;
+  }
+  return undefined;
+}
+
+function forwardRefinerySite(state: SimState, yard: Entity, point: Vec2): Vec2 | undefined {
+  const cx = Math.round(point.x);
+  const cy = Math.round(point.y);
+  for (let radius = 0; radius <= 10; radius += 1) {
+    for (let dy = -radius; dy <= radius; dy += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (radius > 0 && Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+        const spot = { x: cx + dx, y: cy + dy };
+        if (distance(spot, yard) < 10) continue;
+        if (canPlaceBuilding(state, "refinery", spot.x, spot.y, 1)) return spot;
+      }
+    }
+  }
+  return undefined;
+}
+
+function tryBuildForwardInfrastructure(state: SimState, yard: Entity): boolean {
+  if (directorPhase(state) === "opening" || powerFor(state, 1) < 0) return false;
+  const point = contestedResourcePoint(state, yard);
+  if (!point) return false;
+
+  const refineries = living(state).filter(
+    (entity) => entity.owner === 1 && entity.class === "building" && entity.kind === "refinery",
+  );
+  if (refineries.length >= 2 || hasBuildingNear(state, "refinery", point, 8)) return false;
+
+  if (!hasBuildingNear(state, "power", point, 8)) {
+    if (state.credits[1] < BUILDING_STATS.power.cost) return false;
+    const spot = forwardRelaySite(state, yard, point);
+    if (!spot) return false;
+    spawnBuilding(state, 1, "power", spot.x, spot.y, BUILDING_STATS.power.buildTicks);
+    state.credits[1] -= BUILDING_STATS.power.cost;
+    return true;
+  }
+
+  if (state.credits[1] < BUILDING_STATS.refinery.cost) return false;
+  const spot = forwardRefinerySite(state, yard, point);
   if (!spot) return false;
   spawnBuilding(state, 1, "refinery", spot.x, spot.y, BUILDING_STATS.refinery.buildTicks);
   state.credits[1] -= BUILDING_STATS.refinery.cost;
@@ -95,6 +215,19 @@ function guardScenarioObjectives(state: SimState, units: Entity[]): void {
   });
 }
 
+function guardResourceLane(state: SimState, units: Entity[], yard: Entity): void {
+  if (directorPhase(state) === "opening") return;
+  const point = contestedResourcePoint(state, yard);
+  const guardIndex = homeGuardCount(state.missionIndex);
+  if (!point || units.length <= guardIndex) return;
+
+  const guard = [...units]
+    .sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id)[guardIndex];
+  if (!guard || guard.attackTarget !== undefined) return;
+  if (guard.orderDestination && distance(guard.orderDestination, point) < 2 && guard.orderMode === "move") return;
+  assignMove(state, guard, point);
+}
+
 function homeGuardCount(missionIndex: number): number {
   return 1 + (missionIndex >= 4 ? 1 : 0);
 }
@@ -145,11 +278,13 @@ function assignAssault(
   const guards = homeGuardCount(state.missionIndex);
   const sorted = [...units].sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id);
   const raiders = sorted.slice(guards);
-  const harvester = nearest(
-    state,
-    yard,
-    (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0,
-  );
+  const resourcePoint = contestedResourcePoint(state, yard);
+  const laneHarvester = resourcePoint
+    ? nearest(state, resourcePoint, (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0)
+    : undefined;
+  const harvester = laneHarvester && resourcePoint && distToEntity(resourcePoint, laneHarvester) <= 12
+    ? laneHarvester
+    : nearest(state, yard, (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0);
   raiders.forEach((u, index) => {
     if (!retarget && u.attackTarget !== undefined && byId(state, u.attackTarget)) return;
     const objectiveTarget = scenarioAssaultTarget(state, u);
@@ -170,6 +305,7 @@ export function tickAi(state: SimState): void {
   }
 
   const difficulty = missionDifficulty(state.missionIndex);
+  const phase = directorPhase(state);
   const productionWindow =
     state.tick >= difficulty.enemyProductionStart &&
     (state.tick - difficulty.enemyProductionStart) % difficulty.enemyProductionEvery === 0;
@@ -186,6 +322,8 @@ export function tickAi(state: SimState): void {
     const power = powerFor(state, 1);
     if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
       // Restore the grid before expanding.
+    } else if (phase !== "opening" && tryBuildForwardInfrastructure(state, yard)) {
+      // Contest a remote resource lane before committing to another assault wave.
     } else if (!hasRefinery && tryBuildRefinery(state, yard.x, yard.y)) {
       // Keep ore income before spending on combat.
     } else if (!hasHarvester && factory && queueUnit(state, factory, "harvester")) {
@@ -258,6 +396,9 @@ export function tickAi(state: SimState): void {
       sendHome(state, u, yard);
     }
     guardScenarioObjectives(state, units);
+    if (!state.runtime || (state.runtime.kind !== "sabotage" && state.runtime.kind !== "destroyMarked")) {
+      guardResourceLane(state, units, yard);
+    }
   }
   state.rngState = rng.state;
 }
