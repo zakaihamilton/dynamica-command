@@ -4,7 +4,7 @@ import { generateCampaignVisualProfile } from "../gen/visualProfile";
 import type { BuildingKind, Entity, SimState } from "../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, SURFACE_CONCRETE } from "../types";
 import { fogAt } from "../sim/fog";
-import { HEIGHT_STEP, TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, tileToScreen, type Camera } from "./iso";
+import { HEIGHT_STEP, TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, screenToTile, tileToScreen, type Camera } from "./iso";
 import {
   atlasRectForTile,
   biomeMaterials,
@@ -568,6 +568,41 @@ function paintCellProps(
   ctx.restore();
 }
 
+export function visibleTileRange(
+  cam: Camera,
+  screenW: number,
+  screenH: number,
+  mapWidth: number,
+  mapHeight: number,
+): { x0: number; y0: number; x1: number; y1: number } {
+  const marginX = TILE_W * cam.zoom * 2;
+  const marginY = TILE_H * cam.zoom * 2;
+  const elevLift = 4 * HEIGHT_STEP * cam.zoom;
+  const cliffDrop = TILE_H * cam.zoom * 6;
+  const samples = [
+    screenToTile(-marginX, -marginY - elevLift, cam),
+    screenToTile(screenW + marginX, -marginY - elevLift, cam),
+    screenToTile(screenW + marginX, screenH + marginY + cliffDrop, cam),
+    screenToTile(-marginX, screenH + marginY + cliffDrop, cam),
+  ];
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const point of samples) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  const pad = 6;
+  const x0 = Math.max(-MAP_SKIRT, Math.floor(minX) - pad);
+  const y0 = Math.max(-MAP_SKIRT, Math.floor(minY) - pad);
+  const x1 = Math.min(mapWidth + MAP_SKIRT, Math.ceil(maxX) + pad + 1);
+  const y1 = Math.min(mapHeight + MAP_SKIRT, Math.ceil(maxY) + pad + 1);
+  return { x0, y0, x1, y1 };
+}
+
 function visitVisibleTiles(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -577,10 +612,12 @@ function visitVisibleTiles(
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
   const margin = TILE_W * cam.zoom * 2;
-  const x0 = -MAP_SKIRT;
-  const y0 = -MAP_SKIRT;
-  const x1 = state.width + MAP_SKIRT;
-  const y1 = state.height + MAP_SKIRT;
+  const range = visibleTileRange(cam, w, h, state.width, state.height);
+  const x0 = range.x0;
+  const y0 = range.y0;
+  const x1 = range.x1;
+  const y1 = range.y1;
+  if (x0 >= x1 || y0 >= y1) return;
   const depth0 = x0 + y0;
   const depth1 = (x1 - 1) + (y1 - 1);
   for (let depth = depth0; depth <= depth1; depth++) {

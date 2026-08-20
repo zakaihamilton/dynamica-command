@@ -102,30 +102,37 @@ export const Face = memo(function Face({
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = w * dpr;
     c.height = h * dpr;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = true;
+    if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
     let t = 0;
     let last = performance.now();
     let raf = 0;
+    let lastSig = "";
     const loop = (now: number) => {
       t += Math.min(32, now - last) * (60 / 1000);
       last = now;
-      const ctx = c.getContext("2d");
-      if (!ctx) {
-        raf = requestAnimationFrame(loop);
-        return;
-      }
-      ctx.imageSmoothingEnabled = true;
-      if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
       const currentTone = toneRef.current;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = currentTone === "enemy" ? "#1c1210" : currentTone === "command" ? "#12160f" : "#10140c";
-      ctx.fillRect(0, 0, w, h);
       const currentFace = whoRef.current.face;
       const asset = getPortraitAsset(currentFace.portraitId);
       const image = portraitRef.current;
-      if (asset && image && loadedIdRef.current === currentFace.portraitId) {
-        const speaking = talkingRef.current;
-        const mouthOpen = speaking && portraitSpeechFrame(t, currentFace.portraitId, asset.frameCount) === 2;
-        const blinking = asset.frameCount >= 2 && portraitBlinking(t, currentFace.portraitId);
+      const loaded = Boolean(asset && image && loadedIdRef.current === currentFace.portraitId);
+      const speaking = talkingRef.current;
+      const mouthOpen = Boolean(
+        loaded && asset && speaking && portraitSpeechFrame(t, currentFace.portraitId, asset.frameCount) === 2,
+      );
+      const blinking = Boolean(loaded && asset && asset.frameCount >= 2 && portraitBlinking(t, currentFace.portraitId));
+      const sig = `${currentFace.portraitId}:${loaded}:${speaking}:${mouthOpen}:${blinking}:${currentTone}`;
+      if (sig === lastSig) {
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      lastSig = sig;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = currentTone === "enemy" ? "#1c1210" : currentTone === "command" ? "#12160f" : "#10140c";
+      ctx.fillRect(0, 0, w, h);
+      if (asset && image && loaded) {
         drawPortraitFrame(ctx, image, asset, 0, 0, 0, w, h);
         if (mouthOpen) {
           drawPortraitClippedFrame(

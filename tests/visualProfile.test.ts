@@ -10,6 +10,7 @@ describe("cinematic visual profiles", () => {
   it("derives stable but varied faction identities from seed and owner", () => {
     for (const seed of [0, 42, 421, 1847, 9999]) {
       expect(generateVisualProfile(seed, 0)).toEqual(generateVisualProfile(seed, 0));
+      expect(generateVisualProfile(seed, 0)).toBe(generateVisualProfile(seed, 0));
     }
     const profiles = [0, 42, 421, 1847, 8162, 9999].flatMap((seed) => [
       profileKey(generateVisualProfile(seed, 0)),

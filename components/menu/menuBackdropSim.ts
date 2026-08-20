@@ -12,6 +12,7 @@ import { generateMap } from "@/lib/gen/map";
 import { generateCampaignVisualProfile, generateVisualProfile } from "@/lib/gen/visualProfile";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
 import { rasterize } from "@/lib/render/sprites";
+import { CINEMA_SCROLL_PAD, scrollLayerBlitOffset, scrollLayerPaintCamera } from "@/lib/render/scrollLayer";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
 import type { BuildingKind, UnitKind } from "@/lib/types";
 
@@ -140,6 +141,150 @@ function tileKind(tile: number): "clear" | "water" | "resource" | "blocked" {
   return "clear";
 }
 
+function cinemaCamera(w: number, h: number, t: number): Camera {
+  return {
+    zoom: 0.92,
+    x: w * 0.52 + Math.sin(t * 0.004) * 140,
+    y: h * 0.08 + Math.cos(t * 0.0032) * 70,
+  };
+}
+
+function cinemaOrigin(w: number, h: number): { x: number; y: number } {
+  return { x: w * 0.52, y: h * 0.08 };
+}
+
+function paintCinemaTile(
+  ctx: CanvasRenderingContext2D,
+  scene: ReturnType<typeof createCinemaScene>,
+  cam: Camera,
+  x: number,
+  y: number,
+  kind: "clear" | "water" | "resource" | "blocked",
+  pulseT?: number,
+): void {
+  const { map, campaignProfile } = scene;
+  const elev = map.heights[y * map.width + x] ?? 1;
+  const s = tileToScreen(x, y, cam, elev);
+  const east = x + 1 < map.width ? map.heights[y * map.width + x + 1] ?? 0 : 0;
+  const south = y + 1 < map.height ? map.heights[(y + 1) * map.width + x] ?? 0 : 0;
+  const dropE = Math.max(0, elev - east);
+  const dropS = Math.max(0, elev - south);
+  const tw = TILE_W * cam.zoom;
+  const th = TILE_H * cam.zoom;
+  if (dropE > 0 || dropS > 0) {
+    drawElevationFaces(
+      ctx,
+      s.x,
+      s.y,
+      tw,
+      th,
+      HEIGHT_STEP * cam.zoom,
+      dropE,
+      dropS,
+      x * 13 + y * 7,
+      cliffFaces(map.biome, elev, campaignProfile),
+      x,
+      y,
+    );
+  }
+  const img = rasterize(
+    tileSprite(kind, elev, {
+      biome: map.biome,
+      variant: (x * 13 + y * 7) % 64,
+      surface: map.surfaces[y * map.width + x],
+      resourceLevel: 4,
+      campaignProfile,
+    }),
+  );
+  if (kind === "resource" && pulseT !== undefined) {
+    ctx.globalAlpha = 0.85 + Math.sin(pulseT * 0.08 + x + y) * 0.15;
+  }
+  const padX = TILE_SPRITE_PAD_X * cam.zoom;
+  const padY = TILE_SPRITE_PAD_Y * cam.zoom;
+  ctx.drawImage(img, s.x - tw / 2 - padX, s.y - padY, tw + padX * 2, th + padY * 2);
+  ctx.globalAlpha = 1;
+}
+
+function paintCinemaStatic(
+  ctx: CanvasRenderingContext2D,
+  scene: ReturnType<typeof createCinemaScene>,
+  cam: Camera,
+  w: number,
+  h: number,
+): void {
+  const { map, us, them, buildings } = scene;
+  const margin = TILE_W * cam.zoom;
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      const kind = tileKind(map.tiles[y * map.width + x]!);
+      if (kind === "resource") continue;
+      const elev = map.heights[y * map.width + x] ?? 1;
+      const s = tileToScreen(x, y, cam, elev);
+      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
+      paintCinemaTile(ctx, scene, cam, x, y, kind);
+    }
+  }
+  const profile0 = generateVisualProfile(CINEMA_SEED, 0);
+  const profile1 = generateVisualProfile(CINEMA_SEED, 1);
+  for (const b of buildings) {
+    const elev = map.heights[Math.floor(b.y) * map.width + Math.floor(b.x)] ?? 1;
+    const s = tileToScreen(b.x, b.y, cam, elev);
+    const pal = b.owner === 0 ? us.palette : them.palette;
+    const spec = buildingSprite(b.kind, pal, { profile: b.owner === 0 ? profile0 : profile1 });
+    const img = rasterize(spec);
+    const ax = (spec.anchorX ?? spec.w / 2) * cam.zoom;
+    const ay = (spec.anchorY ?? spec.h) * cam.zoom;
+    ctx.drawImage(img, s.x - ax, s.y + (TILE_H / 2) * cam.zoom - ay, spec.w * cam.zoom, spec.h * cam.zoom);
+  }
+}
+
+type CinemaTerrainCache = {
+  canvas: HTMLCanvasElement | null;
+  sizeKey: string;
+  originX: number;
+  originY: number;
+  pad: number;
+};
+
+const cinemaTerrain: CinemaTerrainCache = {
+  canvas: null,
+  sizeKey: "",
+  originX: 0,
+  originY: 0,
+  pad: CINEMA_SCROLL_PAD,
+};
+
+function ensureCinemaTerrain(
+  scene: ReturnType<typeof createCinemaScene>,
+  w: number,
+  h: number,
+): CinemaTerrainCache | null {
+  if (typeof document === "undefined") return null;
+  const pad = CINEMA_SCROLL_PAD;
+  const origin = cinemaOrigin(w, h);
+  const sizeKey = `${w}x${h}`;
+  if (!cinemaTerrain.canvas) cinemaTerrain.canvas = document.createElement("canvas");
+  const canvas = cinemaTerrain.canvas;
+  const bw = w + pad * 2;
+  const bh = h + pad * 2;
+  if (cinemaTerrain.sizeKey === sizeKey && canvas.width === bw && canvas.height === bh) {
+    return cinemaTerrain;
+  }
+  canvas.width = bw;
+  canvas.height = bh;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, bw, bh);
+  const paintCam = scrollLayerPaintCamera({ x: origin.x, y: origin.y, zoom: 0.92 }, pad);
+  paintCinemaStatic(ctx, scene, paintCam, bw, bh);
+  cinemaTerrain.sizeKey = sizeKey;
+  cinemaTerrain.originX = origin.x;
+  cinemaTerrain.originY = origin.y;
+  cinemaTerrain.pad = pad;
+  return cinemaTerrain;
+}
+
 export function renderCinemaFrame(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -148,14 +293,10 @@ export function renderCinemaFrame(
   scene: ReturnType<typeof createCinemaScene>,
   shots: Shot[],
 ) {
-  const { map, us, them, campaignProfile, buildings, actors } = scene;
+  const { map, us, them, actors } = scene;
 
   ctx.imageSmoothingEnabled = false;
-  const cam: Camera = {
-    zoom: 0.92,
-    x: w * 0.52 + Math.sin(t * 0.004) * 140,
-    y: h * 0.08 + Math.cos(t * 0.0032) * 70,
-  };
+  const cam = cinemaCamera(w, h, t);
 
   const sky = ctx.createLinearGradient(0, 0, 0, h);
   sky.addColorStop(0, "#0a1018");
@@ -164,51 +305,26 @@ export function renderCinemaFrame(
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, w, h);
 
+  const cached = ensureCinemaTerrain(scene, w, h);
+  if (cached?.canvas) {
+    const blit = scrollLayerBlitOffset(
+      { originX: cached.originX, originY: cached.originY, pad: cached.pad },
+      cam.x,
+      cam.y,
+    );
+    ctx.drawImage(cached.canvas, blit.x, blit.y);
+  } else {
+    paintCinemaStatic(ctx, scene, cam, w, h);
+  }
+
   const margin = TILE_W * cam.zoom;
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
+      if (tileKind(map.tiles[y * map.width + x]!) !== "resource") continue;
       const elev = map.heights[y * map.width + x] ?? 1;
       const s = tileToScreen(x, y, cam, elev);
       if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
-      const kind = tileKind(map.tiles[y * map.width + x]!);
-      const east = x + 1 < map.width ? map.heights[y * map.width + x + 1] ?? 0 : 0;
-      const south = y + 1 < map.height ? map.heights[(y + 1) * map.width + x] ?? 0 : 0;
-      const dropE = Math.max(0, elev - east);
-      const dropS = Math.max(0, elev - south);
-      const tw = TILE_W * cam.zoom;
-      const th = TILE_H * cam.zoom;
-      if (dropE > 0 || dropS > 0) {
-        drawElevationFaces(
-          ctx,
-          s.x,
-          s.y,
-          tw,
-          th,
-          HEIGHT_STEP * cam.zoom,
-          dropE,
-          dropS,
-          x * 13 + y * 7,
-          cliffFaces(map.biome, elev, campaignProfile),
-          x,
-          y,
-        );
-      }
-      const img = rasterize(
-        tileSprite(kind, elev, {
-          biome: map.biome,
-          variant: (x * 13 + y * 7) % 64,
-          surface: map.surfaces[y * map.width + x],
-          resourceLevel: 4,
-          campaignProfile,
-        }),
-      );
-      if (kind === "resource") {
-        ctx.globalAlpha = 0.85 + Math.sin(t * 0.08 + x + y) * 0.15;
-      }
-      const padX = TILE_SPRITE_PAD_X * cam.zoom;
-      const padY = TILE_SPRITE_PAD_Y * cam.zoom;
-      ctx.drawImage(img, s.x - tw / 2 - padX, s.y - padY, tw + padX * 2, th + padY * 2);
-      ctx.globalAlpha = 1;
+      paintCinemaTile(ctx, scene, cam, x, y, "resource", t);
     }
   }
 
@@ -234,33 +350,17 @@ export function renderCinemaFrame(
     if (shots[i]!.life <= 0) shots.splice(i, 1);
   }
 
-  type DrawItem =
-    | { type: "b"; x: number; y: number; kind: BuildingKind; owner: 0 | 1 }
-    | { type: "u"; x: number; y: number; kind: UnitKind; owner: 0 | 1 };
-  const list: DrawItem[] = [
-    ...buildings.map((b) => ({ type: "b" as const, ...b })),
-    ...actors.map((a) => ({ type: "u" as const, x: a.x, y: a.y, kind: a.kind, owner: a.owner })),
-  ];
-  list.sort((a, b) => a.x + a.y - (b.x + b.y));
-
-  for (const item of list) {
-    const elev = map.heights[Math.floor(item.y) * map.width + Math.floor(item.x)] ?? 1;
-    const s = tileToScreen(item.x, item.y, cam, elev);
-    const pal = item.owner === 0 ? us.palette : them.palette;
-    const profile = generateVisualProfile(CINEMA_SEED, item.owner);
-    if (item.type === "b") {
-      const spec = buildingSprite(item.kind, pal, { profile });
-      const img = rasterize(spec);
-      const ax = (spec.anchorX ?? spec.w / 2) * cam.zoom;
-      const ay = (spec.anchorY ?? spec.h) * cam.zoom;
-      ctx.drawImage(img, s.x - ax, s.y + (TILE_H / 2) * cam.zoom - ay, spec.w * cam.zoom, spec.h * cam.zoom);
-    } else {
-      const spec = unitSprite(item.kind, pal, { profile });
-      const img = rasterize(spec);
-      const ax = (spec.anchorX ?? spec.w / 2) * cam.zoom;
-      const ay = (spec.anchorY ?? spec.h) * cam.zoom;
-      ctx.drawImage(img, s.x - ax, s.y + (TILE_H / 2) * cam.zoom - ay, spec.w * cam.zoom, spec.h * cam.zoom);
-    }
+  const profile0 = generateVisualProfile(CINEMA_SEED, 0);
+  const profile1 = generateVisualProfile(CINEMA_SEED, 1);
+  for (const a of actors) {
+    const elev = map.heights[Math.floor(a.y) * map.width + Math.floor(a.x)] ?? 1;
+    const s = tileToScreen(a.x, a.y, cam, elev);
+    const pal = a.owner === 0 ? us.palette : them.palette;
+    const spec = unitSprite(a.kind, pal, { profile: a.owner === 0 ? profile0 : profile1 });
+    const img = rasterize(spec);
+    const ax = (spec.anchorX ?? spec.w / 2) * cam.zoom;
+    const ay = (spec.anchorY ?? spec.h) * cam.zoom;
+    ctx.drawImage(img, s.x - ax, s.y + (TILE_H / 2) * cam.zoom - ay, spec.w * cam.zoom, spec.h * cam.zoom);
   }
 
   for (const sh of shots) {

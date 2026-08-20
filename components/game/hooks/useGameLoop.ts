@@ -49,6 +49,28 @@ export function useGameLoop({
   onAlert: (text: string) => void;
 }) {
   useEffect(() => {
+    let idleHandle: number | null = null;
+    let idleViaTimeout = false;
+    const cancelIdle = () => {
+      if (idleHandle === null) return;
+      if (idleViaTimeout) clearTimeout(idleHandle);
+      else if (typeof cancelIdleCallback === "function") cancelIdleCallback(idleHandle);
+      idleHandle = null;
+    };
+    const scheduleAutosave = () => {
+      cancelIdle();
+      const run = () => {
+        idleHandle = null;
+        writeSave(localStorageAdapter(), stateRef.current);
+      };
+      if (typeof requestIdleCallback === "function") {
+        idleViaTimeout = false;
+        idleHandle = requestIdleCallback(run);
+      } else {
+        idleViaTimeout = true;
+        idleHandle = window.setTimeout(run, 0);
+      }
+    };
     const loop = startLoop({
       getState: () => stateRef.current,
       setState: (next) => {
@@ -57,7 +79,7 @@ export function useGameLoop({
       drainCommands: () => cmdQ.current.splice(0, cmdQ.current.length),
       isPaused: () => pausedRef.current,
       onTick: (next, events, now) => {
-        if (next.tick % 48 === 0) writeSave(localStorageAdapter(), next);
+        if (next.tick % 48 === 0) scheduleAutosave();
         if (next.tick % 6 === 0) setState({ ...next, entities: [...next.entities] });
         if (events.some((e) => e.type === "won")) {
           beep("win");
@@ -128,7 +150,10 @@ export function useGameLoop({
         redraw(now, subTickAlpha);
       },
     });
-    return () => loop.stop();
+    return () => {
+      cancelIdle();
+      loop.stop();
+    };
   }, [
     applyEdgePan,
     camRef,
