@@ -14,6 +14,7 @@ import { resetPathBudget, tryFindPath } from "./pathBudget";
 import { PATH_DIRS, diagonalCornerBlocked, stepAlongPath } from "./pathfinding";
 import { tickProduction } from "./production";
 import { tickRepair } from "./repair";
+import { ensureMissionDirector, tickMissionDirector } from "./director";
 import { canClimb, emptyRoleCounts, inBounds, isStaticWalkable, makeUnitOccupancy, spawnBuildingAt, spawnUnit } from "./world";
 import type { Command } from "../types";
 import { missionDifficulty } from "./difficulty";
@@ -371,6 +372,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     };
   }
 
+  ensureMissionDirector(state);
   tickFog(state);
   return state;
 }
@@ -385,6 +387,7 @@ export function tick(state: SimState, commands?: Command[]): { state: SimState; 
   tickMovement(state);
   events.push(...tickCombat(state));
   events.push(...tickRepair(state));
+  events.push(...tickMissionDirector(state));
   tickAi(state);
   tickFog(state);
   state.tick += 1;

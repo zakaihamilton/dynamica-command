@@ -28,6 +28,7 @@ export type Stance = "aggressive" | "defensive" | "hold";
 export type ScenarioRole = "convoy" | "stranded" | "cargo";
 export type OrderMode = "move" | "attackMove" | "attack";
 export type LossReason = "yardDestroyed" | "deadline" | "objectiveTargetLost";
+export type MissionDirectorPhase = "opening" | "pressure" | "finale";
 export type WeaponType = "smallArms" | "antiArmor" | "cannon";
 export type ArmorType = "light" | "heavy" | "structure";
 export type TutorialStage = "select" | "move" | "harvest" | "build" | "produce" | "attack" | "repair" | "complete";
@@ -42,6 +43,13 @@ export type SecondaryObjective = {
   completed?: boolean;
 };
 
+export type MissionDirectorState = {
+  phase: MissionDirectorPhase;
+  pressureStart: number;
+  finaleStart: number;
+  eventCount: number;
+};
+
 export type MissionRuntime = {
   kind: MissionKind;
   phase: "active" | "extraction" | "complete";
@@ -52,6 +60,7 @@ export type MissionRuntime = {
   required: number;
   extractedIds?: number[];
   secondary: SecondaryObjective[];
+  director?: MissionDirectorState;
 };
 
 export const RESCUE_CONTACT_RADIUS = 2.5;
