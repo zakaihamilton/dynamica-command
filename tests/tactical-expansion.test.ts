@@ -6,6 +6,15 @@ import { missionDifficulty } from "../lib/sim/difficulty";
 import { BUILDING_STATS, STARTING_CREDITS, UNIT_STATS } from "../lib/catalog";
 import { tooltipLines, tileTooltipLines } from "../lib/render/renderer";
 import { objectiveProgress } from "../lib/sim/objectives";
+import type { MissionKind } from "../lib/types";
+
+function missionOfKind(kind: MissionKind, missionIndex: number) {
+  for (let seed = 0; seed < 200; seed++) {
+    const state = createMission({ seed, missionIndex });
+    if (state.missionKind === kind) return state;
+  }
+  throw new Error(`No ${kind} mission at index ${missionIndex} in seeds 0–199`);
+}
 
 describe("tactical expansion", () => {
   it("starts missions with more credits and half-cost units and buildings", () => {
@@ -55,12 +64,11 @@ describe("tactical expansion", () => {
     expect(tutorialPrompt(state)).toContain("select");
   });
 
-  it("creates neutral scenario actors without allowing auto-targeting", () => {
-    const state = createMission({ seed: 0, missionIndex: 1 });
-    if (state.missionKind !== "escort" && state.missionKind !== "rescue") return;
+  it.each(["escort", "rescue"] as const)("creates %s neutrals without allowing auto-targeting", (kind) => {
+    const state = missionOfKind(kind, 1);
     const neutral = state.entities.find((entity) => entity.neutral);
     expect(neutral).toBeDefined();
-    if (state.missionKind === "escort") {
+    if (kind === "escort") {
       expect(neutral?.path.at(-1)).toEqual(expect.objectContaining({ x: state.runtime?.zone?.x, y: state.runtime?.zone?.y }));
     } else {
       expect(neutral?.path).toEqual([]);

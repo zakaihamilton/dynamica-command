@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { issue } from "../lib/sim/api";
 import { tickCombat } from "../lib/sim/combat";
-import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
+import { addBuilding, addUnit, makeFixture, setHeight } from "../lib/sim/fixtures";
 
 describe("combat targeting", () => {
   it("prefers a combat unit over a closer passive building", () => {
@@ -219,6 +219,84 @@ describe("combat targeting", () => {
     expect(holder.attackTarget).toBeUndefined();
     expect(holder.path).toEqual([]);
     expect(foe.hp).toBe(hp);
+  });
+});
+
+describe("combat damage model", () => {
+  function strikeDamage(kind: "infantry" | "antiArmor" | "tank", target: "infantry" | "tank" | "power", seed = 7) {
+    const s = makeFixture({ seed, width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, kind, 4, 4);
+    const foe = target === "power" ? addBuilding(s, 1, "power", 5, 4) : addUnit(s, 1, target, 5, 4);
+    const hp = foe.hp;
+    tickCombat(s);
+    return hp - foe.hp;
+  }
+
+  it("applies smallArms poorly against heavy armor and structures", () => {
+    const vsLight = strikeDamage("infantry", "infantry");
+    const vsHeavy = strikeDamage("infantry", "tank");
+    const vsStructure = strikeDamage("infantry", "power");
+    expect(vsLight).toBeGreaterThanOrEqual(4.25);
+    expect(vsLight).toBeLessThanOrEqual(5.75);
+    expect(vsHeavy).toBeGreaterThanOrEqual(1.91);
+    expect(vsHeavy).toBeLessThanOrEqual(2.59);
+    expect(vsStructure).toBeGreaterThanOrEqual(0.85);
+    expect(vsStructure).toBeLessThanOrEqual(1.15);
+    expect(vsLight).toBeGreaterThan(vsHeavy);
+    expect(vsHeavy).toBeGreaterThan(vsStructure);
+  });
+
+  it("applies antiArmor best against heavy armor", () => {
+    const vsHeavy = strikeDamage("antiArmor", "tank");
+    const vsLight = strikeDamage("antiArmor", "infantry");
+    const vsStructure = strikeDamage("antiArmor", "power");
+    expect(vsHeavy).toBeGreaterThanOrEqual(11.47);
+    expect(vsHeavy).toBeLessThanOrEqual(15.53);
+    expect(vsLight).toBeGreaterThanOrEqual(7.65);
+    expect(vsLight).toBeLessThanOrEqual(10.35);
+    expect(vsStructure).toBeGreaterThanOrEqual(8.07);
+    expect(vsStructure).toBeLessThanOrEqual(10.93);
+    expect(vsHeavy).toBeGreaterThan(vsLight);
+    expect(vsHeavy).toBeGreaterThan(vsStructure);
+  });
+
+  it("applies cannon splash to a neighbor of the primary target", () => {
+    const s = makeFixture({ seed: 7, width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, "tank", 4, 4);
+    const primary = addUnit(s, 1, "infantry", 5, 4);
+    const splash = addUnit(s, 1, "infantry", 5, 5);
+    const primaryHp = primary.hp;
+    const splashHp = splash.hp;
+    tickCombat(s);
+    expect(primary.hp).toBeLessThan(primaryHp);
+    expect(splash.hp).toBeLessThan(splashHp);
+    expect(primaryHp - primary.hp).toBeGreaterThan(splashHp - splash.hp);
+  });
+
+  it("deals more damage from high ground than from low ground", () => {
+    const high = makeFixture({ seed: 7, width: 16, height: 12, win: { kind: "annihilate" } });
+    setHeight(high, 4, 4, 2);
+    addUnit(high, 0, "infantry", 4, 4);
+    const highFoe = addUnit(high, 1, "infantry", 5, 4);
+    const highHp = highFoe.hp;
+    tickCombat(high);
+
+    const low = makeFixture({ seed: 7, width: 16, height: 12, win: { kind: "annihilate" } });
+    setHeight(low, 5, 4, 2);
+    addUnit(low, 0, "infantry", 4, 4);
+    const lowFoe = addUnit(low, 1, "infantry", 5, 4);
+    const lowHp = lowFoe.hp;
+    tickCombat(low);
+
+    expect(highHp - highFoe.hp).toBeGreaterThan(lowHp - lowFoe.hp);
+  });
+
+  it("applies suppression on a combat hit", () => {
+    const s = makeFixture({ seed: 7, width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, "infantry", 4, 4);
+    const foe = addUnit(s, 1, "infantry", 5, 4);
+    tickCombat(s);
+    expect(foe.suppression).toBeGreaterThan(0);
   });
 });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RETREAT_MAX_TICKS, RETREAT_RECOVER_HEALTH, tickAi } from "../lib/sim/ai";
 import { createMission, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
+import { missionDifficulty } from "../lib/sim/difficulty";
 import { powerFor } from "../lib/sim/world";
 
 describe("enemy AI", () => {
@@ -182,5 +183,79 @@ describe("enemy AI", () => {
       (entity) => entity.owner === 1 && entity.class === "unit" && entity.kind !== "harvester" && entity.hp > 0 && entity.attackTarget !== undefined,
     );
     expect(raider).toBeDefined();
+  });
+
+  it("queues anti-armor when the player fields more tanks than infantry", () => {
+    const s = makeFixture({ width: 28, height: 28, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    addBuilding(s, 1, "power", 16, 12);
+    addBuilding(s, 1, "barracks", 8, 12);
+    addBuilding(s, 1, "refinery", 12, 16);
+    addUnit(s, 1, "harvester", 18, 16);
+    addUnit(s, 0, "tank", 2, 2);
+    addUnit(s, 0, "tank", 3, 2);
+    s.credits[1] = 5000;
+    s.tick = 180;
+
+    tickAi(s);
+
+    const barracks = s.entities.find((e) => e.owner === 1 && e.kind === "barracks");
+    expect(barracks?.producing?.kind).toBe("antiArmor");
+  });
+
+  it("does not place turrets past the mission cap", () => {
+    const s = makeFixture({ width: 28, height: 28, win: { kind: "annihilate" } });
+    s.missionIndex = 4;
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    addBuilding(s, 1, "turret", 10, 12);
+    addBuilding(s, 1, "turret", 14, 12);
+    addBuilding(s, 1, "turret", 12, 10);
+    addUnit(s, 0, "tank", 14, 14);
+    s.credits[1] = 5000;
+
+    tickAi(s);
+
+    expect(s.aiState).toBe("defense");
+    expect(s.entities.filter((e) => e.owner === 1 && e.kind === "turret")).toHaveLength(3);
+    expect(s.entities.some((e) => e.kind === "turret" && e.constructing > 0)).toBe(false);
+  });
+
+  it("spawns a hold-the-line wave on the assault interval", () => {
+    const s = makeFixture({ width: 28, height: 28, win: { kind: "holdTheLine", ticks: 10_000 } });
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    const before = s.entities.filter((e) => e.owner === 1 && e.class === "unit").length;
+    s.tick = missionDifficulty(0).enemyAssaultEvery;
+
+    tickAi(s);
+
+    const spawned = s.entities.filter((e) => e.owner === 1 && e.class === "unit" && (e.kind === "tank" || e.kind === "infantry"));
+    expect(spawned.length).toBe(before + 1);
+  });
+
+  it("rebuilds a harvester when the last one is gone", () => {
+    const s = makeFixture({ width: 28, height: 28, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    addBuilding(s, 1, "power", 16, 12);
+    addBuilding(s, 1, "factory", 12, 8);
+    addBuilding(s, 1, "refinery", 8, 16);
+    s.credits[1] = 5000;
+    s.tick = 180;
+
+    tickAi(s);
+
+    const factory = s.entities.find((e) => e.owner === 1 && e.kind === "factory");
+    expect(factory?.producing?.kind).toBe("harvester");
+  });
+
+  it("rebuilds a refinery when none remain", () => {
+    const s = makeFixture({ width: 28, height: 28, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    addBuilding(s, 1, "power", 16, 12);
+    s.credits[1] = 5000;
+    s.tick = 180;
+
+    tickAi(s);
+
+    expect(s.entities.some((e) => e.owner === 1 && e.kind === "refinery" && e.constructing > 0)).toBe(true);
   });
 });

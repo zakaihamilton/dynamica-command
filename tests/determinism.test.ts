@@ -76,6 +76,19 @@ describe("determinism", () => {
     expect(inspect(a)).toEqual(inspect(b));
   });
 
+  it("replays 400 ticks identically for seeds 0 and 421", () => {
+    for (const seed of [0, 421]) {
+      const a = createMission({ seed, missionIndex: 0 });
+      const b = createMission({ seed, missionIndex: 0 });
+      for (let i = 0; i < 400 && a.result === "playing"; i++) {
+        tick(a);
+        tick(b);
+      }
+      expect(inspect(a)).toEqual(inspect(b));
+      expect(a.tick).toBeGreaterThan(24);
+    }
+  });
+
   it("different seeds diverge", () => {
     const a = createCampaign(1);
     const b = createCampaign(2);
