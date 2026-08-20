@@ -139,6 +139,7 @@ describe("portrait DNA", () => {
     expect(PORTRAIT_MOUTH_CLIP.cx).toBeCloseTo(0.5);
     expect(PORTRAIT_MOUTH_CLIP.cy).toBeGreaterThan(0.55);
     expect(PORTRAIT_MOUTH_CLIP.cy).toBeLessThan(0.75);
+    expect(PORTRAIT_MOUTH_CLIP.cy - PORTRAIT_MOUTH_CLIP.ry).toBeGreaterThanOrEqual(0.52);
     expect(PORTRAIT_EYE_CLIPS).toHaveLength(2);
     for (const clip of [PORTRAIT_MOUTH_CLIP, ...PORTRAIT_EYE_CLIPS]) {
       expect(clip.cx - clip.rx).toBeGreaterThanOrEqual(0);
@@ -219,6 +220,15 @@ describe("portrait DNA", () => {
     expect(nearby.cx).toBeCloseTo(0.49);
     expect(nearby.cy).toBeCloseTo(0.63);
     expect(nearby.rx).toBe(PORTRAIT_MOUTH_CLIP.rx);
+    expect(nearby.cy - nearby.ry).toBeGreaterThanOrEqual(0.52);
+  });
+
+  it("keeps generic mouth clips when detection latches onto a nose", () => {
+    expect(
+      choosePortraitMouthClip({ cx: 0.5, cy: 0.53, rx: 0.15, ry: 0.075 }),
+    ).toEqual(PORTRAIT_MOUTH_CLIP);
+    const lifted = choosePortraitMouthClip({ cx: 0.5, cy: 0.56, rx: 0.15, ry: 0.075 });
+    expect(lifted.cy - lifted.ry).toBeGreaterThanOrEqual(0.52);
   });
 
   it("does not shift already-aligned portrait sheets", () => {
@@ -228,8 +238,9 @@ describe("portrait DNA", () => {
     const solved = resolvePortraitAnimation(idle, idle, idle, width, height);
     expect(portraitHasDrift(solved.blink)).toBe(false);
     expect(portraitHasDrift(solved.talk)).toBe(false);
-    expect(solved.mouthClip.cy).toBeGreaterThanOrEqual(0.48);
+    expect(solved.mouthClip.cy).toBeGreaterThanOrEqual(0.56);
     expect(solved.mouthClip.cy).toBeLessThanOrEqual(0.7);
+    expect(solved.mouthClip.cy - solved.mouthClip.ry).toBeGreaterThanOrEqual(0.52);
     expect(solved.talk).toEqual(PORTRAIT_OFFSET_NONE);
   });
 

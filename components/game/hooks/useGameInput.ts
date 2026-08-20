@@ -1,6 +1,6 @@
 import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "react";
 import { beep } from "@/lib/audio/synth";
-import { pickEntity } from "@/lib/render/pick";
+import { finalizeMultiSelect, pickEntity } from "@/lib/render/pick";
 import { pickTile, visibleBuildingAt } from "@/lib/render/renderer";
 import { panCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { screenToTile, tileToScreen, type Camera } from "@/lib/render/iso";
@@ -271,7 +271,7 @@ export function useGameInput({
         const sp = tileToScreen(en.x, en.y, camRef.current, elev);
         if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) ids.push(en.id);
       }
-      commitSelection(ids);
+      commitSelection(finalizeMultiSelect(s.entities, ids));
     } else {
       const hit = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
       if (e.pointerType === "touch" && selectedRef.current.size > 0 && !hit) {

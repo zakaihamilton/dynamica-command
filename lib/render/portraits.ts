@@ -34,7 +34,7 @@ export const PORTRAIT_MEASURE_HEIGHT = 240;
 
 // Destination-space ellipses used to composite blink/speech frames onto a
 // stable idle sheet. Full-frame swaps flicker because generated sheets drift.
-export const PORTRAIT_MOUTH_CLIP: PortraitClip = { cx: 0.5, cy: 0.58, rx: 0.16, ry: 0.085 };
+export const PORTRAIT_MOUTH_CLIP: PortraitClip = { cx: 0.5, cy: 0.58, rx: 0.16, ry: 0.06 };
 export const PORTRAIT_EYE_CLIPS: readonly PortraitClip[] = [
   { cx: 0.36, cy: 0.405, rx: 0.135, ry: 0.075 },
   { cx: 0.64, cy: 0.405, rx: 0.135, ry: 0.075 },
@@ -97,10 +97,11 @@ export function portraitHasDrift(offset: PortraitOffset, threshold = PORTRAIT_DR
 }
 
 export function choosePortraitMouthClip(detected: PortraitClip, fallback = PORTRAIT_MOUTH_CLIP): PortraitClip {
-  if (detected.cy < 0.48 || detected.cy > 0.7 || Math.abs(detected.cx - fallback.cx) > 0.1) {
+  if (detected.cy < 0.56 || detected.cy > 0.7 || Math.abs(detected.cx - fallback.cx) > 0.1) {
     return fallback;
   }
-  return { ...fallback, cx: detected.cx, cy: detected.cy };
+  const minCy = 0.52 + fallback.ry;
+  return { ...fallback, cx: detected.cx, cy: Math.max(detected.cy, minCy) };
 }
 
 export function resolvePortraitAnimation(
@@ -171,7 +172,7 @@ function detectMouthFromViseme(
   const talk = lumaBuffer(talkRgba, width, height);
   const x0 = Math.floor(width * 0.32);
   const x1 = Math.ceil(width * 0.68);
-  const y0 = Math.floor(height * 0.48);
+  const y0 = Math.floor(height * 0.54);
   const y1 = Math.ceil(height * 0.72);
   if (x1 <= x0 || y1 <= y0) return null;
 
