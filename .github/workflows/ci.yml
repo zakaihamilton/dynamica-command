@@ -27,6 +27,7 @@ jobs:
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: yarn health:documentation
+      - run: yarn health:dead-code
       - run: yarn health:duplication
 
   e2e:

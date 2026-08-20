@@ -17,6 +17,7 @@ export function MenuBackdrop() {
     const shots: Shot[] = [];
     let raf = 0;
     let t = 0;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -28,7 +29,7 @@ export function MenuBackdrop() {
     const frame = () => {
       t += 1;
       renderCinemaFrame(ctx, canvas.width, canvas.height, t, scene, shots);
-      raf = requestAnimationFrame(frame);
+      if (!reduceMotion) raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 

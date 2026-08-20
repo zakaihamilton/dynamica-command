@@ -4,12 +4,13 @@ import { selectionPulse } from "./anim";
 import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
 import { drawSprite } from "./sprites";
 import { fogAt } from "../sim/fog";
-import { isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
+import { isMountainScenery } from "../gen/map";
 import { terrainAccess } from "../sim/world";
 import { canSell } from "../sim/sell";
 import { isExtractableUnit, isLockedContactUnit } from "./renderCombat";
 import type { FxBurst } from "./fx";
 import type { BuildingKind, Entity, SimState, SpriteSpec, UnitKind } from "../types";
+import { SceneryMemo } from "./sceneryMemo";
 
 export type RenderExtras = {
   cursor?: { x: number; y: number } | null;
@@ -23,20 +24,10 @@ export type RenderExtras = {
   render3dUnits?: boolean;
 };
 
-const sceneryMemo = new Map<number, ScenerySample>();
+const sceneryMemo = new SceneryMemo();
 
-function sceneryKey(x: number, y: number): number {
-  return ((x + 512) << 12) | (y + 512);
-}
-
-function memoScenery(state: SimState, x: number, y: number): ScenerySample {
-  const k = sceneryKey(x, y);
-  let sample = sceneryMemo.get(k);
-  if (!sample) {
-    sample = sceneryAt(state, x, y);
-    sceneryMemo.set(k, sample);
-  }
-  return sample;
+function memoScenery(state: SimState, x: number, y: number) {
+  return sceneryMemo.sample(state, x, y);
 }
 
 export function drawDiamond(

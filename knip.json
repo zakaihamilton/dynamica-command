@@ -12,5 +12,13 @@
     "lib/**/*.{ts,tsx}",
     "scripts/*.ts"
   ],
+  "include": [
+    "files",
+    "dependencies",
+    "devDependencies",
+    "unlisted",
+    "binaries",
+    "unresolved"
+  ],
   "ignoreDependencies": ["sharp"]
 }

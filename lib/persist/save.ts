@@ -12,7 +12,8 @@ export type StorageAdapter = {
 };
 
 export const SAVE_PREFIX = "genesis-protocol:save:";
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
+const LEGACY_SAVE_VERSION = 1;
 
 type SaveEnvelope = {
   version: typeof SAVE_VERSION;
@@ -60,7 +61,7 @@ function decodeSave(raw: string): { state: SimState; savedAt: number } {
   let value = parsed;
   let savedAt = 0;
   if (isRecord(parsed) && "state" in parsed) {
-    if (parsed.version !== SAVE_VERSION || !isNumber(parsed.savedAt)) {
+    if ((parsed.version !== SAVE_VERSION && parsed.version !== LEGACY_SAVE_VERSION) || !isNumber(parsed.savedAt)) {
       throw new Error("Unsupported save version");
     }
     value = parsed.state;
@@ -166,6 +167,23 @@ export function readSave(storage: StorageAdapter, seed: number): SimState | null
 
 export function removeSave(storage: StorageAdapter, seed: number): void {
   storage.removeItem(saveKey(seed));
+}
+
+/** Save keys whose payload cannot be migrated into a playable state. */
+export function listUnreadableSaves(storage: StorageAdapter): string[] {
+  const unreadable: string[] = [];
+  for (const key of storage.keys()) {
+    if (!key.startsWith(SAVE_PREFIX)) continue;
+    const seed = key.slice(SAVE_PREFIX.length);
+    if (!/^\d{4}$/.test(seed)) continue;
+    try {
+      const { state } = decodeSave(storage.getItem(key) ?? "");
+      if (state.seed !== Number(seed)) unreadable.push(seed);
+    } catch {
+      unreadable.push(seed);
+    }
+  }
+  return unreadable.sort();
 }
 
 export function listSaves(storage: StorageAdapter): SaveMeta[] {

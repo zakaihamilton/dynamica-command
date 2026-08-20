@@ -3,6 +3,8 @@
   min-height: 100vh;
   min-height: 100dvh;
   padding: clamp(0.75rem, 2.5vh, 1.25rem) 1rem;
+  /* Leave a whole CSS pixel of scroll room so controls never end up fractionally clipped. */
+  padding-bottom: calc(clamp(0.75rem, 2.5vh, 1.25rem) + 1px);
   overflow-y: auto;
   scrollbar-color: var(--chrome-bevel) var(--chrome-steel-lo);
   color: var(--chrome-body);
@@ -47,7 +49,7 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: clamp(0.75rem, 2vh, 1rem);
+  gap: clamp(0.75rem, 1.75vh, 1rem);
   padding: clamp(1rem, 3vh, 1.5rem);
   min-height: 0;
   min-width: 0;
@@ -71,6 +73,10 @@
   align-items: center;
   gap: 0.75rem;
   flex-shrink: 0;
+}
+
+.actions :global(button) {
+  scroll-margin-block-end: 2px;
 }
 
 .tone {

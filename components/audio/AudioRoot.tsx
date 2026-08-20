@@ -6,6 +6,7 @@ import {
   TITLE_MUSIC_SEED,
   TUTORIAL_MUSIC_MISSION,
   musicCueFromPath,
+  pauseMusic,
   setMusicCue,
   setMusicEnabled,
   unlockAudio,
@@ -29,6 +30,10 @@ function AudioRootInner() {
 
   useEffect(() => {
     const cue = musicCueFromPath(pathname);
+    if (!cue) {
+      pauseMusic();
+      return;
+    }
     const parsed = parseSeed(seedParam ?? "");
     const missionIndex = pathname.startsWith("/tutorial")
       ? TUTORIAL_MUSIC_MISSION

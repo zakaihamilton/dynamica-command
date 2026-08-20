@@ -17,8 +17,7 @@ jobs:
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: yarn health:dead-code
-        continue-on-error: true
       - run: yarn health:coverage
         continue-on-error: true
-      - run: yarn jscpd lib components
-        continue-on-error: true
+      - run: yarn health:performance
+      - run: yarn health:duplication

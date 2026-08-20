@@ -10,6 +10,8 @@ import {
   atlasRectForTile,
   bakeTerrainAtlasData,
   fogTerrainGain,
+  getTerrainAtlas,
+  invalidateTerrainAtlas,
   oreCrystalCluster,
   oreVeinAt,
   oreVeinPeak,
@@ -17,6 +19,7 @@ import {
   ORE_GLINT_RIDGE,
   ORE_VEIN_PROBES,
   resourceSignature,
+  terrainLayoutSignature,
   sampleTerrainMaterial,
   terrainAtlasKey,
   biomeMaterials,
@@ -174,14 +177,23 @@ describe("seeded terrain atlas", () => {
     expect(box).toEqual({ x: 100, y: 42, w: 96, h: 48 });
   });
 
-  it("invalidates the atlas when any resource cell is harvested", () => {
+  it("keeps the base atlas stable during partial harvests and invalidates it when ore is exhausted", () => {
     const state = makeFixture({ width: 10, height: 10, win: { kind: "annihilate" }, seed: 832 });
     setTile(state, 1, 0, TILE_RESOURCE, 800);
+    invalidateTerrainAtlas();
+    const atlas = getTerrainAtlas(state);
     const before = terrainAtlasKey(state);
+    const layoutBefore = terrainLayoutSignature(state.tiles, state.surfaces);
     const sigBefore = resourceSignature(state.resourceAmount);
     state.resourceAmount[1] = 200;
     expect(resourceSignature(state.resourceAmount)).not.toBe(sigBefore);
+    expect(terrainLayoutSignature(state.tiles, state.surfaces)).toBe(layoutBefore);
+    expect(terrainAtlasKey(state)).toBe(before);
+    expect(getTerrainAtlas(state)).toBe(atlas);
+    state.tiles[1] = TILE_CLEAR;
+    expect(terrainLayoutSignature(state.tiles, state.surfaces)).not.toBe(layoutBefore);
     expect(terrainAtlasKey(state)).not.toBe(before);
+    expect(getTerrainAtlas(state)).not.toBe(atlas);
   });
 });
 
@@ -258,6 +270,11 @@ describe("ore veins", () => {
       cluster!.shards.some((shard) => Math.hypot(shard.dx - burst.dx, shard.dy - burst.dy) < 6)
     ));
     expect(grouped).toBe(true);
+    state.resourceAmount[2 * state.width + 3] = 120;
+    const depleted = oreCrystalCluster(state, 3, 2);
+    expect(depleted).not.toBeNull();
+    expect(depleted!.intensity).toBeLessThan(cluster!.intensity);
+    expect(depleted!.shards.length).toBeLessThanOrEqual(cluster!.shards.length);
     state.resourceAmount[2 * state.width + 3] = ORE_CRYSTAL_MIN_AMOUNT;
     expect(oreCrystalCluster(state, 3, 2)).toBeNull();
   });
@@ -321,6 +338,16 @@ describe("terrain weather and water motion", () => {
     expect(water.some((tile) => tile.x === 46 && tile.y === 46)).toBe(false);
     expect(ore.some((tile) => tile.x === 2 && tile.y === 2)).toBe(true);
     expect(ore.some((tile) => tile.x === 46 && tile.y === 46)).toBe(false);
+  });
+
+  it("drops exhausted ore from the dynamic FX index without rescanning the map", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    setTile(state, 2, 2, TILE_RESOURCE, 800);
+    const cam = createCamera();
+    expect(visibleFxTileCoords(state, cam, 800, 600, "ore")).toContainEqual({ x: 2, y: 2 });
+    state.tiles[2 * state.width + 2] = TILE_CLEAR;
+    state.tick += 1;
+    expect(visibleFxTileCoords(state, cam, 800, 600, "ore")).not.toContainEqual({ x: 2, y: 2 });
   });
 
   it("skips caustic clipping on interior water tiles", () => {

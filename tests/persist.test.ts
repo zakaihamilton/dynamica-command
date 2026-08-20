@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { deserializeState, listSaves, memoryStorage, readSave, removeSave, saveKey, SAVE_VERSION, serializeState, writeSave } from "../lib/persist/save";
+import { deserializeState, listSaves, listUnreadableSaves, memoryStorage, readSave, removeSave, saveKey, SAVE_VERSION, serializeState, writeSave } from "../lib/persist/save";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { tick } from "../lib/sim/api";
 
@@ -38,6 +38,9 @@ describe("persist", () => {
     storage.setItem(saveKey(421), JSON.stringify({ version: SAVE_VERSION + 1, savedAt: 1, state }));
     expect(readSave(storage, 421)).toBeNull();
 
+    storage.setItem(saveKey(421), JSON.stringify({ version: 1, savedAt: 1, state }));
+    expect(readSave(storage, 421)?.seed).toBe(421);
+
     storage.setItem(saveKey(421), JSON.stringify({ version: SAVE_VERSION, savedAt: 1, state: { ...state, seed: 9 } }));
     expect(readSave(storage, 421)).toBeNull();
     expect(() => deserializeState(JSON.stringify({ nope: true }))).toThrow("Invalid save state");
@@ -66,6 +69,17 @@ describe("persist", () => {
 
     expect(readSave(storage, 9)).toBeNull();
     expect(readSave(storage, 10)).not.toBeNull();
+  });
+
+  it("reports unreadable saves so the menu can offer a safe reset", () => {
+    const storage = memoryStorage();
+    storage.setItem(saveKey(421), "not json");
+    storage.setItem(saveKey(9), JSON.stringify({ version: SAVE_VERSION + 1, savedAt: 1, state: {} }));
+    const mismatched = makeFixture({ seed: 10, win: { kind: "annihilate" } });
+    storage.setItem(saveKey(77), JSON.stringify({ version: SAVE_VERSION, savedAt: 1, state: mismatched }));
+    writeSave(storage, makeFixture({ seed: 10, win: { kind: "annihilate" } }));
+
+    expect(listUnreadableSaves(storage)).toEqual(["0009", "0077", "0421"]);
   });
 
   it("backfills biome and surface metadata in legacy saves", () => {

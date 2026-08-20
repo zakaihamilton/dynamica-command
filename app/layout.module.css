@@ -1,5 +1,8 @@
 .html {
   height: 100%;
+  --font-geist-sans: Arial, Helvetica, sans-serif;
+  --font-geist-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono",
+    "Courier New", monospace;
   --chrome-void: #05080e;
   --chrome-bg: #070b12;
   --chrome-steel-lo: #121820;
@@ -47,4 +50,15 @@
 
 .body :global(button:disabled) {
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .html :global(*),
+  .html :global(*::before),
+  .html :global(*::after) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,5 +1,5 @@
 import { cliffFaces, drawElevationFaces, fillElevationPoly, tileCliffGeometry } from "../gen/assets";
-import { MAP_SKIRT, isMountainScenery, sceneryAt, type ScenerySample } from "../gen/map";
+import { MAP_SKIRT, isMountainScenery } from "../gen/map";
 import { generateCampaignVisualProfile } from "../gen/visualProfile";
 import type { BuildingKind, Entity, SimState } from "../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, SURFACE_CONCRETE } from "../types";
@@ -17,21 +17,12 @@ import {
   tileVariant,
   type TerrainAtlas,
 } from "./terrainAtlas";
+import { SceneryMemo } from "./sceneryMemo";
 
-const sceneryMemo = new Map<number, ScenerySample>();
+const sceneryMemo = new SceneryMemo();
 
-function sceneryKey(x: number, y: number): number {
-  return ((x + 512) << 12) | (y + 512);
-}
-
-function memoScenery(state: SimState, x: number, y: number): ScenerySample {
-  const k = sceneryKey(x, y);
-  let sample = sceneryMemo.get(k);
-  if (!sample) {
-    sample = sceneryAt(state, x, y);
-    sceneryMemo.set(k, sample);
-  }
-  return sample;
+function memoScenery(state: SimState, x: number, y: number) {
+  return sceneryMemo.sample(state, x, y);
 }
 
 const SHROUD_FILL = "#080d11";
@@ -368,7 +359,7 @@ function drawOreCrystals(
   const gemHi = rgbMix(mats.light, { r: 255, g: 246, b: 210 }, 0.62);
   ctx.save();
   ctx.translate(s.x, s.y);
-  const alpha = ctx.globalAlpha;
+  const alpha = ctx.globalAlpha * cluster.intensity;
   ctx.fillStyle = `rgb(${mats.dark.r},${mats.dark.g},${mats.dark.b})`;
   for (const burst of cluster.bursts) {
     ctx.globalAlpha = alpha * 0.32;
@@ -702,7 +693,6 @@ export function paintTerrainWorld(
 ): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
-  sceneryMemo.clear();
   const atlas = getTerrainAtlas(state);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";

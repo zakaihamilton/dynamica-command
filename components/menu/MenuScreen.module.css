@@ -111,6 +111,19 @@
   text-align: left;
 }
 
+.recovery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-alert) 55%, var(--chrome-inset));
+  background: color-mix(in srgb, var(--chrome-alert) 10%, var(--chrome-void));
+  color: #ffb08a;
+  font-size: 0.68rem;
+}
+
 .overlay {
   position: absolute;
   inset: 0;

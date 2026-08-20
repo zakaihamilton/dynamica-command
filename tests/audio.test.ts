@@ -64,7 +64,7 @@ describe("generated audio", () => {
   });
 
   it("maps routes onto music cues", () => {
-    expect(musicCueFromPath("/")).toBe("menu");
+    expect(musicCueFromPath("/")).toBeNull();
     expect(musicCueFromPath("/briefing")).toBe("briefing");
     expect(musicCueFromPath("/play")).toBe("mission");
     expect(musicCueFromPath("/tutorial")).toBe("mission");

@@ -36,6 +36,7 @@ export type {
 } from "./terrainOre";
 export {
   resourceSignature,
+  terrainLayoutSignature,
   atlasRectForTile,
   waterShoreDist,
   sampleTerrainMaterial,

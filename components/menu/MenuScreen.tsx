@@ -6,9 +6,9 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
-import { TITLE_MUSIC_SEED, setMusicCue, setMusicEnabled as applyMusicEnabled } from "@/lib/audio/music";
+import { setMusicEnabled as applyMusicEnabled } from "@/lib/audio/music";
 import { setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
-import { listSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
+import { listSaves, listUnreadableSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
 import { defaultSettings, readSettings, writeSettings } from "@/lib/persist/settings";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
@@ -28,6 +28,7 @@ export function MenuScreen() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [saves, setSaves] = useState(() => [] as ReturnType<typeof listSaves>);
+  const [unreadableSaves, setUnreadableSaves] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [view, setView] = useState<"main" | "newGame" | "options">("main");
   const [settings, setSettings] = useState(() => defaultSettings());
@@ -35,16 +36,13 @@ export function MenuScreen() {
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      setSaves(listSaves(localStorageAdapter()));
+      const storage = localStorageAdapter();
+      setSaves(listSaves(storage));
+      setUnreadableSaves(listUnreadableSaves(storage));
       setSettings(readSettings(localStorageAdapter()));
     });
     return () => cancelAnimationFrame(frame);
   }, []);
-
-  useEffect(() => {
-    const n = parseSeed(code);
-    setMusicCue("menu", n !== null && code.length === 4 ? n : TITLE_MUSIC_SEED);
-  }, [code]);
 
   const preview = useMemo(() => {
     const n = parseSeed(code);
@@ -97,8 +95,16 @@ export function MenuScreen() {
   }, [code, router]);
 
   const deleteSave = useCallback((saveSeed: string) => {
-    removeSave(localStorageAdapter(), Number(saveSeed));
-    setSaves(listSaves(localStorageAdapter()));
+    const storage = localStorageAdapter();
+    removeSave(storage, Number(saveSeed));
+    setSaves(listSaves(storage));
+    setUnreadableSaves(listUnreadableSaves(storage));
+  }, []);
+
+  const resetUnreadableSave = useCallback((saveSeed: string) => {
+    const storage = localStorageAdapter();
+    removeSave(storage, Number(saveSeed));
+    setUnreadableSaves(listUnreadableSaves(storage));
   }, []);
 
   useEffect(() => {
@@ -162,6 +168,16 @@ export function MenuScreen() {
             onResume={(seed) => router.push(`/play?seed=${seed}&resume=1`)}
             onDelete={deleteSave}
           />
+          {unreadableSaves.length ? (
+            <div className={styles.recovery} role="alert">
+              <span>Unreadable save{unreadableSaves.length === 1 ? "" : "s"}: {unreadableSaves.join(", ")}</span>
+              {unreadableSaves.map((seed) => (
+                <ConsoleButton key={seed} tooltip={`Remove unreadable save ${seed}`} onClick={() => resetUnreadableSave(seed)}>
+                  Reset {seed}
+                </ConsoleButton>
+              ))}
+            </div>
+          ) : null}
         </MetalPanel>
       </div>
 

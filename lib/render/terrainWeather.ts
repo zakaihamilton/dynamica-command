@@ -3,7 +3,7 @@ import type { BiomeName, SimState } from "../types";
 import { TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
 import { TILE_H, TILE_W, expandIsoDiamond, tileToScreen, type Camera } from "./iso";
-import { fogTerrainGain, oreCrystalCluster, biomeMaterials, resourceSignature } from "./terrainAtlas";
+import { fogTerrainGain, oreCrystalCluster, biomeMaterials } from "./terrainAtlas";
 import { visibleTileRange, WATER_COVER } from "./terrainPaint";
 
 export type WeatherKind = "snow" | "ash" | "dust" | "ember" | "pollen" | "mist";
@@ -28,7 +28,7 @@ const particleSprites = new Map<string, HTMLCanvasElement>();
 type FxTileIndex = {
   water: number[];
   ore: number[];
-  resourceSig: number;
+  oreValidatedTick: number;
   width: number;
   height: number;
 };
@@ -47,19 +47,17 @@ function buildFxTileIndex(state: SimState): FxTileIndex {
   return {
     water,
     ore,
-    resourceSig: resourceSignature(state.resourceAmount),
+    oreValidatedTick: state.tick,
     width: state.width,
     height: state.height,
   };
 }
 
-function rebuildOreTiles(state: SimState, index: FxTileIndex): void {
-  index.ore.length = 0;
-  const size = state.width * state.height;
-  for (let i = 0; i < size; i++) {
-    if (state.tiles[i] === TILE_RESOURCE) index.ore.push(i);
+function pruneExhaustedOreTiles(state: SimState, index: FxTileIndex): void {
+  for (let i = index.ore.length - 1; i >= 0; i--) {
+    if (state.tiles[index.ore[i]!] !== TILE_RESOURCE) index.ore.splice(i, 1);
   }
-  index.resourceSig = resourceSignature(state.resourceAmount);
+  index.oreValidatedTick = state.tick;
 }
 
 function ensureFxTileIndex(state: SimState): FxTileIndex {
@@ -69,8 +67,7 @@ function ensureFxTileIndex(state: SimState): FxTileIndex {
     fxTileCache.set(state, index);
     return index;
   }
-  const sig = resourceSignature(state.resourceAmount);
-  if (sig !== index.resourceSig) rebuildOreTiles(state, index);
+  if (index.oreValidatedTick !== state.tick) pruneExhaustedOreTiles(state, index);
   return index;
 }
 

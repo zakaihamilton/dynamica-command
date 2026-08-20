@@ -43,8 +43,22 @@ export function resourceSignature(amounts: number[]): number {
   return h;
 }
 
+/**
+ * The atlas only needs rebuilding when a tile's visual class changes. Ore
+ * quantity is intentionally excluded: its changing richness is painted by the
+ * dynamic crystal and glint layers, while an exhausted tile changes class from
+ * resource to ground.
+ */
+export function terrainLayoutSignature(tiles: number[], surfaces: number[]): number {
+  let h = tiles.length;
+  for (let i = 0; i < tiles.length; i++) h = (Math.imul(h, 33) + (tiles[i] ?? 0)) | 0;
+  h = (Math.imul(h, 33) + surfaces.length) | 0;
+  for (let i = 0; i < surfaces.length; i++) h = (Math.imul(h, 33) + (surfaces[i] ?? 0)) | 0;
+  return h;
+}
+
 export function makeAtlasKey(state: AtlasWorld, grainGeneration: number): string {
-  return `${TERRAIN_ATLAS_REV}:${state.seed}:${state.missionIndex ?? 0}:${state.biome}:${state.width}x${state.height}:${resourceSignature(state.resourceAmount)}:${grainGeneration}`;
+  return `${TERRAIN_ATLAS_REV}:${state.seed}:${state.missionIndex ?? 0}:${state.biome}:${state.width}x${state.height}:${terrainLayoutSignature(state.tiles, state.surfaces)}:${grainGeneration}`;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -170,9 +184,8 @@ export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: num
     color = elev >= 3 ? mats.high : elev === 2 ? mixRgb(mats.mid, mats.high, 0.42) : elev <= 0 ? mats.low : mats.mid;
     if (waterNeighbor(state, x, y)) color = mixRgb(color, mats.shore, 0.4);
     if (ore) {
-      const richness = Math.min(1, resourceAt(state, x, y) / 900);
-      color = mixRgb(color, mats.dark, 0.2 + richness * 0.08);
-      color = mixRgb(color, mats.ore, 0.12 + richness * 0.1);
+      color = mixRgb(color, mats.dark, 0.28);
+      color = mixRgb(color, mats.ore, 0.22);
     }
     if (scenery.kind === TILE_BLOCKED) color = mixRgb(color, mats.blocked, 0.55);
     const east = sceneryAt(state, x + 1, y).elev;

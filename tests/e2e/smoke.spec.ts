@@ -134,6 +134,19 @@ test("resumes a seeded save from the menu", async ({ page }) => {
   await expect(page.getByTestId("credits")).toHaveText("9,876");
 });
 
+test("offers to reset an unreadable save from the welcome screen", async ({ page }) => {
+  await page.addInitScript(({ key }) => {
+    localStorage.setItem(key, "not valid json");
+  }, { key: saveKey(421) });
+
+  await page.goto("/");
+  const recovery = page.getByRole("alert").filter({ hasText: "Unreadable save: 0421" });
+  await expect(recovery).toContainText("Unreadable save: 0421");
+  await page.getByRole("button", { name: "Reset 0421" }).click();
+  await expect(recovery).toHaveCount(0);
+  await expect(page.evaluate((key) => localStorage.getItem(key), saveKey(421))).resolves.toBeNull();
+});
+
 test("loads the last save from the pause menu", async ({ page }) => {
   const state = distinctiveSave();
   await deployToBattlefield(page);

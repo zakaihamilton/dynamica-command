@@ -20,6 +20,7 @@ const ATTACK_S = 0.012;
 
 let enabled = true;
 let ducked = false;
+let paused = false;
 let cue: MusicCue = "menu";
 let seed = TITLE_MUSIC_SEED;
 let missionIndex = 0;
@@ -45,11 +46,11 @@ let padLfoGain: GainNode | null = null;
 let fadeGen = 0;
 let noiseBuf: AudioBuffer | null = null;
 
-export function musicCueFromPath(pathname: string): MusicCue {
+export function musicCueFromPath(pathname: string): MusicCue | null {
   if (pathname.startsWith("/briefing")) return "briefing";
   if (pathname.startsWith("/play") || pathname.startsWith("/tutorial")) return "mission";
   if (pathname.startsWith("/campaign-complete")) return "victory";
-  return "menu";
+  return null;
 }
 
 export function isMusicEnabled(): boolean {
@@ -359,7 +360,7 @@ function stopMusic(): void {
 }
 
 function ensureMusicPlaying(): void {
-  if (!enabled) return;
+  if (!enabled || paused) return;
   const audio = resumeAudio();
   if (!audio) return;
   if (!pattern) pattern = composeMusic(seed, cue, missionIndex);
@@ -396,19 +397,30 @@ function applyPattern(next: MusicPattern): void {
 }
 
 export function setMusicCue(nextCue: MusicCue, nextSeed: number, nextMissionIndex = 0): void {
-  if (cue === nextCue && seed === nextSeed && missionIndex === nextMissionIndex && pattern) return;
+  paused = false;
+  if (cue === nextCue && seed === nextSeed && missionIndex === nextMissionIndex && pattern) {
+    ensureMusicPlaying();
+    return;
+  }
   cue = nextCue;
   seed = nextSeed;
   missionIndex = nextMissionIndex;
   const next = composeMusic(nextSeed, nextCue, nextMissionIndex);
   if (timer) applyPattern(next);
   else pattern = next;
+  ensureMusicPlaying();
 }
 
 export function setMusicEnabled(value: boolean): void {
   enabled = value;
   if (!value) stopMusic();
   else ensureMusicPlaying();
+}
+
+/** Silence music for route-only surfaces without changing the saved preference. */
+export function pauseMusic(): void {
+  paused = true;
+  stopMusic();
 }
 
 export function setMusicDucked(value: boolean): void {
