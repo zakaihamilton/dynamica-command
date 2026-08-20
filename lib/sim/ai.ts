@@ -1,6 +1,6 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
 import type { Entity, SimState, UnitKind } from "../types";
-import { findPath } from "./pathfinding";
+import { tryFindPath } from "./pathBudget";
 import { byId, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "./world";
 import { rngFromState } from "../seed/rng";
 import { missionDifficulty } from "./difficulty";
@@ -26,13 +26,15 @@ function enemyCombat(state: SimState): Entity[] {
 function sendHome(state: SimState, unit: Entity, yard: Entity): void {
   unit.attackTarget = undefined;
   unit.idle = false;
-  unit.path = findPath(state, unit, closestApproach(state, unit, yard));
+  const path = tryFindPath(state, unit, closestApproach(state, unit, yard));
+  if (path !== undefined) unit.path = path;
 }
 
 function assignAttack(state: SimState, unit: Entity, target: Entity): void {
   unit.attackTarget = target.id;
   unit.idle = false;
-  unit.path = findPath(state, unit, closestApproach(state, unit, target));
+  const path = tryFindPath(state, unit, closestApproach(state, unit, target));
+  if (path !== undefined) unit.path = path;
 }
 
 function homeGuardCount(missionIndex: number): number {
