@@ -130,7 +130,7 @@ export function draw3dModel(
       for (let v = 0; v < numVerts; v++) {
         const vi = vertIndices[v]!;
         let x = positions[vi * 3]!;
-        let y = positions[vi * 3 + 1]!;
+        const y = positions[vi * 3 + 1]!;
         let z = positions[vi * 3 + 2]!;
 
         // Articulated node transformations around pivot
