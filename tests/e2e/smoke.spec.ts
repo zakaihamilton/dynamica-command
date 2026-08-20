@@ -4,7 +4,8 @@ import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from ".
 import { SAVE_VERSION, saveKey } from "../../lib/persist/save";
 import type { SimState } from "../../lib/types";
 
-async function skipTutorial(page: Page, seed = 421) {
+/** Fixture so briefing/play tests can skip the first-deploy /tutorial gate. */
+async function markTutorialComplete(page: Page, seed = 421) {
   const progress = { ...freshCampaignProgress(seed), tutorialComplete: true };
   await page.addInitScript(({ key, raw }) => {
     localStorage.setItem(key, raw);
@@ -18,8 +19,8 @@ async function skipTutorial(page: Page, seed = 421) {
   });
 }
 
-async function openBriefing(page: Page) {
-  await skipTutorial(page);
+async function openBriefingSkippingTutorial(page: Page) {
+  await markTutorialComplete(page);
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
   const seed = page.getByLabel("Four digit theater seed");
@@ -29,13 +30,25 @@ async function openBriefing(page: Page) {
 }
 
 async function deployToBattlefield(page: Page) {
-  await openBriefing(page);
+  await openBriefingSkippingTutorial(page);
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
 }
 
+test("first deploy routes through tutorial to briefing", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await page.getByLabel("Four digit theater seed").fill("0421");
+  await page.getByRole("button", { name: "Launch" }).click();
+  await expect(page).toHaveURL(/\/tutorial\?seed=0421/);
+  await expect(page.getByTestId("tutorial-overlay")).toBeVisible();
+  await page.getByRole("button", { name: "Skip training" }).click();
+  await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
+  await expect(page.getByTestId("mission-objectives")).toBeVisible();
+});
+
 test("launches a seeded campaign from menu to battlefield", async ({ page }) => {
-  await openBriefing(page);
+  await openBriefingSkippingTutorial(page);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();
   await expect(page.getByTestId("mission-objectives")).toContainText(/construction yard/i);
 
@@ -47,13 +60,13 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
 });
 
 test("shows briefing portraits before launch", async ({ page }) => {
-  await openBriefing(page);
+  await openBriefingSkippingTutorial(page);
   await expect(page.getByTestId("briefing-portrait").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Replay" })).toBeVisible();
 });
 
 test("replays the incoming transmission from the start", async ({ page }) => {
-  await openBriefing(page);
+  await openBriefingSkippingTutorial(page);
   await page.keyboard.press(" ");
   const lastLine = page.getByTestId("briefing-line").nth(2);
   await expect(lastLine).toBeVisible();

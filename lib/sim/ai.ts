@@ -19,6 +19,23 @@ function tryBuildPower(state: SimState, yardX: number, yardY: number): boolean {
   return true;
 }
 
+function tryBuildRefinery(state: SimState, yardX: number, yardY: number): boolean {
+  if (state.credits[1] < BUILDING_STATS.refinery.cost) return false;
+  const spot = findBuildSite(state, "refinery", yardX + 3, yardY, 12, 1);
+  if (!spot) return false;
+  spawnBuilding(state, 1, "refinery", spot.x, spot.y, BUILDING_STATS.refinery.buildTicks);
+  state.credits[1] -= BUILDING_STATS.refinery.cost;
+  return true;
+}
+
+function queueUnit(state: SimState, producer: Entity, kind: UnitKind): boolean {
+  const cost = UNIT_STATS[kind].cost;
+  if (state.credits[1] < cost || powerFor(state, 1) < 0) return false;
+  state.credits[1] -= cost;
+  producer.producing = { kind, remaining: UNIT_STATS[kind].buildTicks };
+  return true;
+}
+
 function enemyCombat(state: SimState): Entity[] {
   return living(state).filter((e) => e.owner === 1 && e.class === "unit" && e.kind !== "harvester");
 }
@@ -118,17 +135,21 @@ export function tickAi(state: SimState): void {
   if (productionWindow || powerDeficit) {
     const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0 && !e.producing);
     const barracks = enemyBuildings.find((e) => e.kind === "barracks" && e.constructing === 0 && !e.producing);
+    const hasRefinery = enemyBuildings.some((e) => e.kind === "refinery");
+    const hasHarvester = living(state).some((e) => e.owner === 1 && e.kind === "harvester");
     const playerTanks = living(state).filter((entity) => entity.owner === 0 && entity.kind === "tank").length;
     const playerInfantry = living(state).filter((entity) => entity.owner === 0 && entity.kind === "infantry").length;
     const want: UnitKind = playerTanks > playerInfantry ? "antiArmor" : rng.chance(0.4) ? "tank" : "infantry";
     const producer = want === "infantry" || want === "antiArmor" ? barracks : factory;
-    const cost = UNIT_STATS[want].cost;
     const power = powerFor(state, 1);
-    if (producer && state.credits[1] >= cost && power >= 0) {
-      state.credits[1] -= cost;
-      producer.producing = { kind: want, remaining: UNIT_STATS[want].buildTicks };
-    } else if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
+    if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
       // Restore the grid before expanding.
+    } else if (!hasRefinery && tryBuildRefinery(state, yard.x, yard.y)) {
+      // Keep ore income before spending on combat.
+    } else if (!hasHarvester && factory && queueUnit(state, factory, "harvester")) {
+      // Replace a lost harvester before more combat units.
+    } else if (producer && queueUnit(state, producer, want)) {
+      // Counter-produce against the player mix.
     } else if (state.credits[1] >= BUILDING_STATS.barracks.cost && !barracks) {
       const spot = findBuildSite(state, "barracks", yard.x - 3, yard.y, 12, 1);
       if (spot) {
