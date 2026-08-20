@@ -13,6 +13,7 @@
     "inspect": "tsx scripts/inspect.ts",
     "sim": "tsx scripts/sim.ts",
     "balance": "tsx scripts/balance.ts",
+    "compress-art": "tsx scripts/compress-art.ts",
     "test:e2e": "playwright test",
     "health": "repnix check",
     "health:dead-code": "knip",
@@ -40,6 +41,7 @@
     "license-checker": "^25.0.1",
     "markdownlint-cli2": "^0.23.2",
     "repnix": "^0.3.14",
+    "sharp": "^0.35.3",
     "tsx": "^4.23.12",
     "typescript": "^5",
     "vitest": "^4.1.10"

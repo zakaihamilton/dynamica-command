@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { setMusicCue, setMusicDucked, TUTORIAL_MUSIC_MISSION } from "@/lib/audio/music";
 import { setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
 import { createCampaign } from "@/lib/gen/campaign";
-import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
+import { listBuildingRasterSources } from "@/lib/gen/visualAssets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { cameraViewQuad } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
@@ -264,7 +264,7 @@ export function GameClient({
   });
 
   useEffect(() => {
-    preloadRasterSources(listTacticalRasterSources());
+    preloadRasterSources(listBuildingRasterSources());
   }, []);
 
   useEffect(() => {

@@ -24,7 +24,7 @@ describe("asset API contract", () => {
     const asset = assetById("wreck:infantry");
     expect(asset).toBeDefined();
     const spec = assetPreviewSpec(asset!);
-    expect(spec.imageSrc).toMatch(/\/art\/sprites\/.+\.png$/);
+    expect(spec.imageSrc).toMatch(/\/art\/sprites\/.+\.webp$/);
     expect(spec.svg).toBeUndefined();
     const live = assetPreviewSpec(assetById("unit:infantry")!, 2);
     expect(spec.imageSrc).toBe(live.imageSrc);

@@ -28,7 +28,7 @@ function createPortraitAssets(role: CharacterRole, prefix: string): PortraitAsse
     const number = String(sheet).padStart(2, "0");
     return {
       id: `${prefix}-${number}`,
-      src: `/art/portraits/${prefix}-${number}.png`,
+      src: `/art/portraits/${prefix}-${number}.webp`,
       role,
       sheet,
       feminine: feminineSheets.has(sheet),
