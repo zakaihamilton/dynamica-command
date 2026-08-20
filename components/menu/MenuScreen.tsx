@@ -34,12 +34,11 @@ export function MenuScreen() {
   const seedInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setSaves(listSaves(localStorageAdapter())));
+    const frame = requestAnimationFrame(() => {
+      setSaves(listSaves(localStorageAdapter()));
+      setSettings(readSettings(localStorageAdapter()));
+    });
     return () => cancelAnimationFrame(frame);
-  }, []);
-
-  useEffect(() => {
-    setSettings(readSettings(localStorageAdapter()));
   }, []);
 
   useEffect(() => {
