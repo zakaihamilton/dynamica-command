@@ -83,6 +83,23 @@ describe("unitTransformTracker sub-tick interpolation and dynamics", () => {
     expect(dyn.turretYaw).toBeCloseTo(0, 1);
   });
 
+  it("resolves attack targets from an entity id map when provided", () => {
+    const state = createMission({ seed: 101, missionIndex: 0 });
+    const unit = state.entities.find((e) => e.class === "unit");
+    if (!unit) throw new Error("Expected unit");
+    unit.kind = "tank";
+    const target = state.entities.find((e) => e.owner !== unit.owner && e.hp > 0);
+    if (!target) throw new Error("Expected opposing entity");
+    unit.attackTarget = target.id;
+    const byId = new Map(state.entities.map((entity) => [entity.id, entity]));
+    updateUnitHistory(state, 1000);
+    computeUnitDynamicTransform(unit, state, 0, 1050, byId);
+    computeUnitDynamicTransform(unit, state, 0, 1100, byId);
+    const dyn = computeUnitDynamicTransform(unit, state, 0, 1400, byId);
+    const expected = Math.atan2(target.y - unit.y, target.x - unit.x) - Math.PI / 4;
+    expect(dyn.turretYaw).toBeCloseTo(expected, 1);
+  });
+
   it("animates leg angles during movement", () => {
     const state = createMission({ seed: 101, missionIndex: 0 });
     const unit = state.entities.find((e) => e.class === "unit");

@@ -91,6 +91,7 @@ export function computeUnitDynamicTransform(
   state: SimState,
   subTickAlpha: number,
   clockMs: number,
+  entityById?: Map<number, Entity>,
 ): UnitDynamicTransform {
   let hist = historyMap.get(e.id);
   if (!hist) {
@@ -156,8 +157,9 @@ export function computeUnitDynamicTransform(
   let targetTurretYaw = targetYaw;
   let barrelPitch = 0;
   if (e.attackTarget !== undefined) {
-    const targetEntity = state.entities.find((t) => t.id === e.attackTarget && t.hp > 0);
-    if (targetEntity) {
+    const targetEntity = entityById?.get(e.attackTarget) ??
+      state.entities.find((t) => t.id === e.attackTarget);
+    if (targetEntity && targetEntity.hp > 0) {
       const tDx = targetEntity.x - x;
       const tDy = targetEntity.y - y;
       targetTurretYaw = Math.atan2(tDy, tDx) - Math.PI / 4;

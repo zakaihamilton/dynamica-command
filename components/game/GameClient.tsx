@@ -9,6 +9,7 @@ import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { cameraViewQuad } from "@/lib/render/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { renderWorld, type RenderExtras } from "@/lib/render/renderer";
+import { drawPerfHud, isPerfHudEnabled } from "@/lib/render/perfHud";
 import { preloadRasterSources } from "@/lib/render/sprites";
 import { cullFx, type FxBurst } from "@/lib/render/fx";
 import { localStorageAdapter } from "@/lib/persist/save";
@@ -76,6 +77,8 @@ export function GameClient({
     repairMode: false,
     sellMode: false,
   });
+  const worldCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const miniCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const commitSelection = useCallback((ids: number[]) => {
     selected.current = new Set(ids);
@@ -159,7 +162,11 @@ export function GameClient({
       canvas.width = dimensions.width;
       canvas.height = dimensions.height;
     }
-    const ctx = canvas.getContext("2d");
+    let ctx = worldCtxRef.current;
+    if (!ctx || ctx.canvas !== canvas) {
+      ctx = canvas.getContext("2d", { alpha: false });
+      worldCtxRef.current = ctx;
+    }
     if (!ctx) return;
     extrasRef.current.cursor = cursorRef.current;
     extrasRef.current.placeKind = place.current;
@@ -171,13 +178,23 @@ export function GameClient({
     extrasRef.current.subTickAlpha = subTickAlpha;
     fxRef.current = cullFx(fxRef.current, now);
     extrasRef.current.fx = fxRef.current;
-    renderWorld(ctx, s, camRef.current, selected.current, hoverRef.current, extrasRef.current);
+    const worldTimings = renderWorld(ctx, s, camRef.current, selected.current, hoverRef.current, extrasRef.current);
     const mini = miniRef.current;
+    let minimapMs = 0;
     if (mini) {
-      const mctx = mini.getContext("2d");
-      if (mctx) {
-        renderMinimap(mctx, s, cameraViewQuad(camRef.current, canvas.width, canvas.height));
+      let mctx = miniCtxRef.current;
+      if (!mctx || mctx.canvas !== mini) {
+        mctx = mini.getContext("2d", { alpha: false });
+        miniCtxRef.current = mctx;
       }
+      if (mctx) {
+        const miniStarted = worldTimings ? performance.now() : 0;
+        renderMinimap(mctx, s, cameraViewQuad(camRef.current, canvas.width, canvas.height));
+        if (worldTimings) minimapMs = performance.now() - miniStarted;
+      }
+    }
+    if (worldTimings && isPerfHudEnabled()) {
+      drawPerfHud(ctx, now, worldTimings, minimapMs);
     }
   }, [boxRef, camRef, cursorRef, hoverRef, place, repair, sell]);
 

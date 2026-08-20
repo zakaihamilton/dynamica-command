@@ -12,6 +12,7 @@ import { fogAt } from "../sim/fog";
 import { atlasPixelAtTile, fogTerrainGain, getTerrainAtlas, terrainColors } from "./terrainAtlas";
 
 const MINIMAP_RENDER_REV = "world-atlas-v2";
+export const MINIMAP_OVERLAY_TICK_SHIFT = 1;
 
 export type MinimapRegion = "ground" | "elevation-mid" | "elevation-high" | "water" | "resource" | "blocked" | "road" | "concrete";
 
@@ -144,6 +145,21 @@ function paintMinimapOverlay(
   }
 }
 
+export function minimapCacheKeys(
+  state: SimState,
+  view: { x: number; y: number }[],
+  w: number,
+  h: number,
+): { terrainKey: string; overlayKey: string } {
+  const viewKey = view.length
+    ? `${view[0]!.x.toFixed(2)},${view[0]!.y.toFixed(2)}:${view[2] ? `${view[2].x.toFixed(2)},${view[2].y.toFixed(2)}` : ""}`
+    : "";
+  const palKey = `${state.factions[0]?.palette.primary ?? ""}:${state.factions[1]?.palette.primary ?? ""}`;
+  const terrainKey = `${MINIMAP_RENDER_REV}:${state.seed}:${state.tick >> 4}:${state.biome}:${state.width}x${state.height}:${w}x${h}`;
+  const overlayKey = `${terrainKey}:${state.tick >> MINIMAP_OVERLAY_TICK_SHIFT}:${state.result}:${viewKey}:${state.entities.length}:${palKey}`;
+  return { terrainKey, overlayKey };
+}
+
 export function renderMinimap(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -151,12 +167,7 @@ export function renderMinimap(
 ): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
-  const viewKey = view.length
-    ? `${view[0]!.x.toFixed(2)},${view[0]!.y.toFixed(2)}:${view[2] ? `${view[2].x.toFixed(2)},${view[2].y.toFixed(2)}` : ""}`
-    : "";
-  const palKey = `${state.factions[0]?.palette.primary ?? ""}:${state.factions[1]?.palette.primary ?? ""}`;
-  const terrainKey = `${MINIMAP_RENDER_REV}:${state.seed}:${state.tick >> 4}:${state.biome}:${state.width}x${state.height}:${w}x${h}`;
-  const overlayKey = `${terrainKey}:${state.tick}:${state.result}:${viewKey}:${state.entities.length}:${palKey}`;
+  const { terrainKey, overlayKey } = minimapCacheKeys(state, view, w, h);
   if (overlayKey === lastOverlayKey) return;
 
   let terrainReady = false;

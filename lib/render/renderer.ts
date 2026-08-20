@@ -26,6 +26,7 @@ import { canSell } from "../sim/sell";
 import { computeUnitDynamicTransform, updateUnitHistory } from "./gl/unitTransformTracker";
 import { paintBuildingPlates, paintTerrainWorld } from "./terrainPaint";
 import { paintOreGlints, paintTerrainWeather, paintWaterFx } from "./terrainWeather";
+import { isPerfHudEnabled, type WorldPhaseTimings } from "./perfHud";
 import {
   entityAtPointer,
   entityElev,
@@ -121,12 +122,22 @@ export function renderWorld(
   selected: Set<number>,
   hoverTile: { x: number; y: number } | null,
   extras: RenderExtras = {},
-): void {
+): WorldPhaseTimings | null {
+  const profile = isPerfHudEnabled();
+  const timings: WorldPhaseTimings = { terrain: 0, fx: 0, entities: 0, combat: 0 };
+  let mark = profile ? performance.now() : 0;
+  const lap = (key: keyof WorldPhaseTimings) => {
+    if (!profile) return;
+    const now = performance.now();
+    timings[key] = now - mark;
+    mark = now;
+  };
+
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
   ctx.clearRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
+  ctx.imageSmoothingQuality = "medium";
 
   const pad = terrainScrollPad(cam.zoom);
   const contentKey = terrainContentKey(state, cam, w, h);
@@ -147,6 +158,7 @@ export function renderWorld(
   } else {
     paintTerrain(ctx, state, cam);
   }
+  lap("terrain");
   const clock = extras.clockMs;
   const timeMs = animClock(state.tick, clock);
   paintWaterFx(ctx, state, cam, timeMs);
@@ -173,6 +185,7 @@ export function renderWorld(
       }
     }
   }
+  lap("fx");
 
   entityById.clear();
   drawList.length = 0;
@@ -200,7 +213,7 @@ export function renderWorld(
     const damageStage = bAnim?.damageStage ?? (e.hp / e.maxHp < 0.34 ? 2 : e.hp / e.maxHp < 0.67 ? 1 : 0);
 
     if (e.class === "unit") {
-      const dyn = computeUnitDynamicTransform(e, state, extras.subTickAlpha ?? 0, timeMs);
+      const dyn = computeUnitDynamicTransform(e, state, extras.subTickAlpha ?? 0, timeMs, entityById);
       cx = dyn.x;
       cy = dyn.y;
       elev = dyn.z;
@@ -377,6 +390,7 @@ export function renderWorld(
       ctx.restore();
     }
   }
+  lap("entities");
 
   drawCombatEffects(ctx, state, cam, drawList, entityById, (st, ent) => resolveFacing(st, ent, entityById), clock);
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
@@ -445,4 +459,6 @@ export function renderWorld(
       drawTooltip(ctx, s.x, s.y - 18 * cam.zoom, tileTooltipLines(state, hoverTile.x, hoverTile.y), w, h, true);
     }
   }
+  lap("combat");
+  return profile ? timings : null;
 }
