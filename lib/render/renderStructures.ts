@@ -6,7 +6,7 @@ import type { BuildingAnim } from "./anim";
 import type { BuildingKind, Entity, SimState } from "../types";
 import { entityElev } from "./renderPicking";
 import { buildTurretHeadModel, type UnitModel } from "./gl/modelLoader";
-import { draw3dModel } from "./gl/modelRenderer";
+import { drawCachedTurretModel } from "./gl/turretRaster";
 
 export const turretAimMap = new Map<number, { angle: number; lastMs: number }>();
 
@@ -215,7 +215,7 @@ export function drawTurretCannon(
   const pal = state.factions[e.owner]?.palette ?? state.factions[0]?.palette;
   const model = getTurretModel();
   const recoilRatio = isFiring ? (e.cooldown - 11) / 3 : 0;
-  draw3dModel(ctx, model, mountX, mountY - 3 * z, z, angle - Math.PI / 4, pal, recoilRatio);
+  drawCachedTurretModel(ctx, model, mountX, mountY - 3 * z, z, angle - Math.PI / 4, pal, recoilRatio);
 
   // Twin Muzzle calculations (Left & Right offset perpendicular to aim angle)
   const forwardDist = 26 * z - recoil;
@@ -250,9 +250,12 @@ export function drawTurretCannon(
     ctx.setLineDash([]);
 
     // Impact targeting reticle
+    ctx.fillStyle = "rgba(70, 226, 255, 0.28)";
+    if (e.owner !== 0) ctx.fillStyle = "rgba(255, 77, 54, 0.28)";
+    ctx.beginPath();
+    ctx.arc(b.x, targetY, 4.2 * z, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = laserGlow;
-    ctx.shadowColor = laserGlow;
-    ctx.shadowBlur = 6 * z;
     ctx.beginPath();
     ctx.arc(b.x, targetY, 2.5 * z, 0, Math.PI * 2);
     ctx.fill();
@@ -267,10 +270,11 @@ export function drawTurretCannon(
 
     // Dual radiant flares
     for (const [mx, my] of [[muzzleLX, muzzleLY], [muzzleRX, muzzleRY]]) {
-      // Outer thermal bloom
+      ctx.fillStyle = "rgba(255, 170, 40, 0.22)";
+      ctx.beginPath();
+      ctx.arc(mx, my, flashR * 2.1, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = "rgba(255, 170, 40, 0.4)";
-      ctx.shadowColor = "#ffaa28";
-      ctx.shadowBlur = 10 * z;
       ctx.beginPath();
       ctx.arc(mx, my, flashR * 1.5, 0, Math.PI * 2);
       ctx.fill();

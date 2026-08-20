@@ -69,17 +69,25 @@ export function drawCombatEffects(
     const py = ay + (by - ay) * u;
     const anti = e.kind === "antiArmor";
     const heavy = e.kind === "tank" || e.kind === "turret";
+    const coreWidth = Math.max(1, Math.round(z * (heavy ? 3 : anti ? 2 : 1)));
+    const glowWidth = coreWidth + Math.max(2, Math.round((heavy ? 5 : 3) * z));
+    const coreColor = anti ? "#ff8b3d" : heavy ? "#ffe08a" : "#f6d06c";
+    const glowColor = anti ? "rgba(255, 90, 40, 0.32)" : "rgba(255, 213, 106, 0.34)";
     ctx.save();
+    ctx.lineCap = "round";
     ctx.globalAlpha = 0.55 + (1 - u) * 0.35;
-    ctx.strokeStyle = anti ? "#ff8b3d" : heavy ? "#ffe08a" : "#f6d06c";
-    ctx.lineWidth = Math.max(1, Math.round(z * (heavy ? 3 : anti ? 2 : 1)));
-    ctx.shadowColor = anti ? "#ff5a28" : "#ffd56a";
-    ctx.shadowBlur = (heavy ? 7 : 4) * z;
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth = glowWidth;
     ctx.beginPath();
     ctx.moveTo(Math.round(ax), Math.round(ay));
     ctx.lineTo(Math.round(px), Math.round(py));
     ctx.stroke();
-    ctx.shadowBlur = 0;
+    ctx.strokeStyle = coreColor;
+    ctx.lineWidth = coreWidth;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(ax), Math.round(ay));
+    ctx.lineTo(Math.round(px), Math.round(py));
+    ctx.stroke();
     if (anti) {
       for (let i = 1; i <= 3; i++) {
         const trail = Math.max(0, u - i * 0.045);

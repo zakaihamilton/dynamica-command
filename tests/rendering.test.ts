@@ -28,8 +28,11 @@ import {
   waterCaustic,
   weatherKindForBiome,
   weatherParticleAt,
+  visibleFxTileCoords,
+  waterFxNeedsClip,
 } from "../lib/render/terrainWeather";
 import { terrainContentKey } from "../lib/render/renderer";
+import { minimapCacheKeys, MINIMAP_OVERLAY_TICK_SHIFT } from "../lib/render/minimap";
 
 function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
   const rect = atlasRectForTile(tileX, tileY, atlas.mapWidth);
@@ -296,6 +299,40 @@ describe("terrain weather and water motion", () => {
     expect(weatherKindForBiome("tundra grid")).toBe("snow");
     expect(weatherKindForBiome("volcanic shelf")).toBe("ember");
   });
+
+  it("culls water and ore FX to the visible tile range", () => {
+    const state = makeFixture({ width: 48, height: 48, win: { kind: "annihilate" }, seed: 832 });
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        setTile(state, x, y, TILE_WATER);
+      }
+    }
+    setTile(state, 2, 2, TILE_RESOURCE, 800);
+    setTile(state, 46, 46, TILE_RESOURCE, 800);
+    const cam = createCamera();
+    cam.x = 400;
+    cam.y = 80;
+    cam.zoom = 1;
+    const water = visibleFxTileCoords(state, cam, 800, 600, "water");
+    const ore = visibleFxTileCoords(state, cam, 800, 600, "ore");
+    expect(water.length).toBeGreaterThan(0);
+    expect(water.length).toBeLessThan(48 * 48);
+    expect(water.some((tile) => tile.x === 8 && tile.y === 8)).toBe(true);
+    expect(water.some((tile) => tile.x === 46 && tile.y === 46)).toBe(false);
+    expect(ore.some((tile) => tile.x === 2 && tile.y === 2)).toBe(true);
+    expect(ore.some((tile) => tile.x === 46 && tile.y === 46)).toBe(false);
+  });
+
+  it("skips caustic clipping on interior water tiles", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    for (let y = 2; y <= 4; y++) {
+      for (let x = 2; x <= 4; x++) {
+        setTile(state, x, y, TILE_WATER);
+      }
+    }
+    expect(waterFxNeedsClip(state, 3, 3)).toBe(false);
+    expect(waterFxNeedsClip(state, 2, 3)).toBe(true);
+  });
 });
 
 describe("terrain scroll cache key", () => {
@@ -339,5 +376,19 @@ describe("minimap classification", () => {
     expect(colors.low).not.toBe(colors.mid);
     expect(colors.mid).not.toBe(colors.high);
     expect(colors.water).not.toBe(colors.road);
+  });
+
+  it("throttles overlay cache keys to every other sim tick", () => {
+    const state = makeFixture({ width: 10, height: 10, win: { kind: "annihilate" }, seed: 832 });
+    const view = [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 4 }, { x: 0, y: 4 }];
+    state.tick = 2;
+    const even = minimapCacheKeys(state, view, 96, 96);
+    state.tick = 3;
+    const odd = minimapCacheKeys(state, view, 96, 96);
+    state.tick = 4;
+    const next = minimapCacheKeys(state, view, 96, 96);
+    expect(MINIMAP_OVERLAY_TICK_SHIFT).toBe(1);
+    expect(odd.overlayKey).toBe(even.overlayKey);
+    expect(next.overlayKey).not.toBe(even.overlayKey);
   });
 });

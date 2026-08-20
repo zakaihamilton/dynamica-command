@@ -1,10 +1,10 @@
-import { featureEdgeMask, MAP_SKIRT, sceneryAt } from "../gen/map";
+import { featureEdgeMask, sceneryAt } from "../gen/map";
 import type { BiomeName, SimState } from "../types";
 import { TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
 import { TILE_H, TILE_W, expandIsoDiamond, tileToScreen, type Camera } from "./iso";
-import { fogTerrainGain, oreCrystalCluster, biomeMaterials } from "./terrainAtlas";
-import { WATER_COVER } from "./terrainPaint";
+import { fogTerrainGain, oreCrystalCluster, biomeMaterials, resourceSignature } from "./terrainAtlas";
+import { visibleTileRange, WATER_COVER } from "./terrainPaint";
 
 export type WeatherKind = "snow" | "ash" | "dust" | "ember" | "pollen" | "mist";
 
@@ -24,6 +24,98 @@ export type WaterCaustic = {
 
 const PARTICLE_COUNT = 120;
 const particleSprites = new Map<string, HTMLCanvasElement>();
+
+type FxTileIndex = {
+  water: number[];
+  ore: number[];
+  resourceSig: number;
+  width: number;
+  height: number;
+};
+
+let fxTileCache = new WeakMap<SimState, FxTileIndex>();
+
+function buildFxTileIndex(state: SimState): FxTileIndex {
+  const water: number[] = [];
+  const ore: number[] = [];
+  const size = state.width * state.height;
+  for (let i = 0; i < size; i++) {
+    const kind = state.tiles[i];
+    if (kind === TILE_WATER) water.push(i);
+    else if (kind === TILE_RESOURCE) ore.push(i);
+  }
+  return {
+    water,
+    ore,
+    resourceSig: resourceSignature(state.resourceAmount),
+    width: state.width,
+    height: state.height,
+  };
+}
+
+function rebuildOreTiles(state: SimState, index: FxTileIndex): void {
+  index.ore.length = 0;
+  const size = state.width * state.height;
+  for (let i = 0; i < size; i++) {
+    if (state.tiles[i] === TILE_RESOURCE) index.ore.push(i);
+  }
+  index.resourceSig = resourceSignature(state.resourceAmount);
+}
+
+function ensureFxTileIndex(state: SimState): FxTileIndex {
+  let index = fxTileCache.get(state);
+  if (!index || index.width !== state.width || index.height !== state.height) {
+    index = buildFxTileIndex(state);
+    fxTileCache.set(state, index);
+    return index;
+  }
+  const sig = resourceSignature(state.resourceAmount);
+  if (sig !== index.resourceSig) rebuildOreTiles(state, index);
+  return index;
+}
+
+export function resetFxTileIndex(): void {
+  fxTileCache = new WeakMap();
+}
+
+export function waterFxNeedsClip(state: SimState, x: number, y: number): boolean {
+  return featureEdgeMask(state, x, y).bank !== 0;
+}
+
+export function visibleFxTileCoords(
+  state: SimState,
+  cam: Camera,
+  screenW: number,
+  screenH: number,
+  kind: "water" | "ore",
+): { x: number; y: number }[] {
+  const index = ensureFxTileIndex(state);
+  const range = visibleTileRange(cam, screenW, screenH, state.width, state.height);
+  const src = kind === "water" ? index.water : index.ore;
+  const out: { x: number; y: number }[] = [];
+  const width = state.width;
+  for (const i of src) {
+    const x = i % width;
+    const y = (i - x) / width;
+    if (x < range.x0 || x >= range.x1 || y < range.y0 || y >= range.y1) continue;
+    out.push({ x, y });
+  }
+  return out;
+}
+
+function forVisibleIndexedTiles(
+  indices: number[],
+  width: number,
+  range: { x0: number; y0: number; x1: number; y1: number },
+  visit: (x: number, y: number) => void,
+): void {
+  for (const i of indices) {
+    const x = i % width;
+    const y = (i - x) / width;
+    if (x < range.x0 || x >= range.x1 || y < range.y0 || y >= range.y1) continue;
+    visit(x, y);
+  }
+}
 
 function particleSprite(color: string): HTMLCanvasElement | null {
   if (typeof document === "undefined") return null;
@@ -213,10 +305,8 @@ export function paintWaterFx(
   const tw = TILE_W * z;
   const th = TILE_H * z;
   const margin = tw;
-  const x0 = Math.max(-MAP_SKIRT, 0);
-  const y0 = Math.max(-MAP_SKIRT, 0);
-  const x1 = state.width;
-  const y1 = state.height;
+  const range = visibleTileRange(cam, w, h, state.width, state.height);
+  const index = ensureFxTileIndex(state);
   const hi = biomeMaterials(state.biome).waterHi;
   const highlight = rgbCss(hi);
   const foamFill = state.biome === "volcanic shelf"
@@ -226,57 +316,58 @@ export function paintWaterFx(
   const scrollB = clockMs * 0.01;
   const spacingA = 20 * z;
   const spacingB = 33 * z;
-  for (let y = y0; y < y1; y++) {
-    for (let x = x0; x < x1; x++) {
-      if (state.tiles[y * state.width + x] !== TILE_WATER) continue;
-      const fog = fogAt(state, x, y);
-      if (fog === 0) continue;
-      const s = tileToScreen(x, y, cam, 0);
-      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
-      const caustic = waterCaustic(clockMs, x, y);
-      const gain = fogTerrainGain(fog);
-      const cover = expandIsoDiamond(s.x, s.y, tw, th, WATER_COVER);
+  forVisibleIndexedTiles(index.water, state.width, range, (x, y) => {
+    const fog = fogAt(state, x, y);
+    if (fog === 0) return;
+    const s = tileToScreen(x, y, cam, 0);
+    if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) return;
+    const caustic = waterCaustic(clockMs, x, y);
+    const gain = fogTerrainGain(fog);
+    const cover = expandIsoDiamond(s.x, s.y, tw, th, WATER_COVER);
+    const bank = featureEdgeMask(state, x, y).bank;
+    const needsClip = bank !== 0;
+    if (needsClip) {
       ctx.save();
       isoDiamond(ctx, cover.x, cover.y, cover.w, cover.h);
       ctx.clip();
-      ctx.fillStyle = highlight;
-      ctx.globalAlpha = (0.045 + (Math.sin(clockMs * 0.0009 + (s.x + s.y) * 0.012) + 1) * 0.035) * gain;
-      isoDiamond(ctx, cover.x, cover.y, cover.w, cover.h);
-      ctx.fill();
-      ctx.strokeStyle = highlight;
-      strokeCausticFamily(ctx, s.x, s.y, tw, th, -0.5, spacingA, scrollA, caustic.alpha * 0.85 * gain, Math.max(1.15, z * 1.7));
-      strokeCausticFamily(ctx, s.x, s.y, tw, th, 0.42, spacingB, scrollB, caustic.alpha * 0.55 * gain, Math.max(0.9, z * 1.2));
-      ctx.restore();
-      const bank = featureEdgeMask(state, x, y).bank;
-      if (!bank) continue;
-      const n: [number, number] = [s.x, s.y];
-      const e: [number, number] = [s.x + tw / 2, s.y + th / 2];
-      const so: [number, number] = [s.x, s.y + th];
-      const we: [number, number] = [s.x - tw / 2, s.y + th / 2];
-      const mid = [s.x, s.y + th * 0.5] as const;
-      const edges: Array<[number, [number, number], [number, number]]> = [
-        [1, n, e],
-        [2, e, so],
-        [4, so, we],
-        [8, we, n],
-      ];
-      ctx.save();
-      ctx.fillStyle = foamFill;
-      ctx.globalAlpha = (0.2 + caustic.alpha * 0.35) * gain;
-      const bob = Math.sin(caustic.phase) * 1.4 * z;
-      for (const [bit, a, b] of edges) {
-        if (!(bank & bit)) continue;
-        const mx = (a[0] + b[0]) * 0.5;
-        const my = (a[1] + b[1]) * 0.5;
-        const ix = (mid[0] - mx) * 0.22;
-        const iy = (mid[1] - my) * 0.22;
-        ctx.beginPath();
-        ctx.ellipse(mx + ix, my + iy + bob, tw * 0.18, th * 0.07, 0.35, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
     }
-  }
+    ctx.fillStyle = highlight;
+    ctx.globalAlpha = (0.045 + (Math.sin(clockMs * 0.0009 + (s.x + s.y) * 0.012) + 1) * 0.035) * gain;
+    isoDiamond(ctx, cover.x, cover.y, cover.w, cover.h);
+    ctx.fill();
+    ctx.strokeStyle = highlight;
+    strokeCausticFamily(ctx, s.x, s.y, tw, th, -0.5, spacingA, scrollA, caustic.alpha * 0.85 * gain, Math.max(1.15, z * 1.7));
+    strokeCausticFamily(ctx, s.x, s.y, tw, th, 0.42, spacingB, scrollB, caustic.alpha * 0.55 * gain, Math.max(0.9, z * 1.2));
+    if (needsClip) ctx.restore();
+    else ctx.globalAlpha = 1;
+    if (!bank) return;
+    const n: [number, number] = [s.x, s.y];
+    const e: [number, number] = [s.x + tw / 2, s.y + th / 2];
+    const so: [number, number] = [s.x, s.y + th];
+    const we: [number, number] = [s.x - tw / 2, s.y + th / 2];
+    const mid = [s.x, s.y + th * 0.5] as const;
+    const edges: Array<[number, [number, number], [number, number]]> = [
+      [1, n, e],
+      [2, e, so],
+      [4, so, we],
+      [8, we, n],
+    ];
+    ctx.save();
+    ctx.fillStyle = foamFill;
+    ctx.globalAlpha = (0.2 + caustic.alpha * 0.35) * gain;
+    const bob = Math.sin(caustic.phase) * 1.4 * z;
+    for (const [bit, a, b] of edges) {
+      if (!(bank & bit)) continue;
+      const mx = (a[0] + b[0]) * 0.5;
+      const my = (a[1] + b[1]) * 0.5;
+      const ix = (mid[0] - mx) * 0.22;
+      const iy = (mid[1] - my) * 0.22;
+      ctx.beginPath();
+      ctx.ellipse(mx + ix, my + iy + bob, tw * 0.18, th * 0.07, 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
 }
 
 export function paintOreGlints(
@@ -289,54 +380,53 @@ export function paintOreGlints(
   const h = ctx.canvas.height;
   const z = cam.zoom;
   const margin = TILE_W * z;
-  for (let y = 0; y < state.height; y++) {
-    for (let x = 0; x < state.width; x++) {
-      if (state.tiles[y * state.width + x] !== TILE_RESOURCE) continue;
-      const fog = fogAt(state, x, y);
-      if (fog === 0) continue;
-      const elev = sceneryAt(state, x, y).elev;
-      const origin = tileToScreen(x, y, cam, elev);
-      if (origin.x < -margin || origin.y < -margin || origin.x > w + margin || origin.y > h + margin) continue;
-      const cluster = oreCrystalCluster(state, x, y);
-      if (!cluster) continue;
-      const gain = fogTerrainGain(fog) * Math.min(1, cluster.intensity);
-      const s = tileToScreen(x, y, cam, elev);
-      const baseX = s.x;
-      const baseY = s.y;
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      const halo = oreSparkle(clockMs, x, y, 0);
-      ctx.globalAlpha = halo.glow * gain * 0.16;
-      ctx.fillStyle = "#ffe9a8";
+  const range = visibleTileRange(cam, w, h, state.width, state.height);
+  const index = ensureFxTileIndex(state);
+  forVisibleIndexedTiles(index.ore, state.width, range, (x, y) => {
+    const fog = fogAt(state, x, y);
+    if (fog === 0) return;
+    const elev = sceneryAt(state, x, y).elev;
+    const origin = tileToScreen(x, y, cam, elev);
+    if (origin.x < -margin || origin.y < -margin || origin.x > w + margin || origin.y > h + margin) return;
+    const cluster = oreCrystalCluster(state, x, y);
+    if (!cluster) return;
+    const gain = fogTerrainGain(fog) * Math.min(1, cluster.intensity);
+    const s = tileToScreen(x, y, cam, elev);
+    const baseX = s.x;
+    const baseY = s.y;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const halo = oreSparkle(clockMs, x, y, 0);
+    ctx.globalAlpha = halo.glow * gain * 0.16;
+    ctx.fillStyle = "#ffe9a8";
+    ctx.beginPath();
+    ctx.ellipse(baseX, baseY + TILE_H * z * 0.5, TILE_W * z * 0.28, TILE_H * z * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    cluster.shards.forEach((shard, sparkIndex) => {
+      const spark = oreSparkle(clockMs, x, y, sparkIndex);
+      const dx = shard.dx * z;
+      const dy = shard.dy * z;
+      const lean = shard.lean * z;
+      const rise = shard.rise * z;
+      const tipX = baseX + dx + lean;
+      const tipY = baseY + dy - rise;
+      const t = 0.18 + spark.sweep * 0.72;
+      const sweepX = baseX + dx + lean * t;
+      const sweepY = baseY + dy - rise * t;
+      ctx.globalAlpha = (0.05 + spark.sweep * 0.1) * gain;
+      ctx.fillStyle = "#fff4c4";
       ctx.beginPath();
-      ctx.ellipse(baseX, baseY + TILE_H * z * 0.5, TILE_W * z * 0.28, TILE_H * z * 0.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(sweepX, sweepY, 2.2 * z, 1.1 * z, 0, 0, Math.PI * 2);
       ctx.fill();
-      cluster.shards.forEach((shard, index) => {
-        const spark = oreSparkle(clockMs, x, y, index);
-        const dx = shard.dx * z;
-        const dy = shard.dy * z;
-        const lean = shard.lean * z;
-        const rise = shard.rise * z;
-        const tipX = baseX + dx + lean;
-        const tipY = baseY + dy - rise;
-        const t = 0.18 + spark.sweep * 0.72;
-        const sweepX = baseX + dx + lean * t;
-        const sweepY = baseY + dy - rise * t;
-        ctx.globalAlpha = (0.05 + spark.sweep * 0.1) * gain;
-        ctx.fillStyle = "#fff4c4";
-        ctx.beginPath();
-        ctx.ellipse(sweepX, sweepY, 2.2 * z, 1.1 * z, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = (0.04 + spark.glow * 0.16) * gain;
-        ctx.fillStyle = "#ffe07a";
-        ctx.beginPath();
-        ctx.ellipse(tipX, tipY, 1.6 * z, 1.6 * z, 0, 0, Math.PI * 2);
-        ctx.fill();
-        drawSparkleStar(ctx, tipX, tipY, (2.2 + spark.twinkle * 1.8) * z, spark.twinkle * gain * 0.55);
-      });
-      ctx.restore();
-    }
-  }
+      ctx.globalAlpha = (0.04 + spark.glow * 0.16) * gain;
+      ctx.fillStyle = "#ffe07a";
+      ctx.beginPath();
+      ctx.ellipse(tipX, tipY, 1.6 * z, 1.6 * z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      drawSparkleStar(ctx, tipX, tipY, (2.2 + spark.twinkle * 1.8) * z, spark.twinkle * gain * 0.55);
+    });
+    ctx.restore();
+  });
 }
 
 export function paintTerrainWeather(
