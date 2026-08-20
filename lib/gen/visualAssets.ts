@@ -9,13 +9,13 @@ export type TextureArtKey = "brushed" | "worn" | "crt";
  * the existing simulation-facing sprite dimensions and anchors.
  */
 export const SPRITE_ART: Record<BuildingKind, string> = {
-  constructionYard: "/art/sprites/sleek-modular/construction-yard-v2.png",
-  power: "/art/sprites/sleek-modular/power-v2.png",
-  refinery: "/art/sprites/sleek-modular/refinery-v2.png",
-  barracks: "/art/sprites/sleek-modular/barracks-v2.png",
-  factory: "/art/sprites/sleek-modular/factory-v2.png",
-  turret: "/art/sprites/sleek-modular/turret-v2.png",
-  objective: "/art/sprites/sleek-modular/objective-v2.png",
+  constructionYard: "/art/sprites/sleek-modular/construction-yard-v2.webp",
+  power: "/art/sprites/sleek-modular/power-v2.webp",
+  refinery: "/art/sprites/sleek-modular/refinery-v2.webp",
+  barracks: "/art/sprites/sleek-modular/barracks-v2.webp",
+  factory: "/art/sprites/sleek-modular/factory-v2.webp",
+  turret: "/art/sprites/sleek-modular/turret-v2.webp",
+  objective: "/art/sprites/sleek-modular/objective-v2.webp",
 };
 
 
@@ -31,44 +31,44 @@ export type UnitView =
 
 export const UNIT_DIRECTION_ART: Record<UnitKind, Record<UnitView, string>> = {
   harvester: {
-    "front-right": "/art/sprites/sleek-modular/harvester-front-right-v1.png",
-    front: "/art/sprites/sleek-modular/harvester-front.png",
-    right: "/art/sprites/sleek-modular/harvester-right-v2.png",
-    "front-left": "/art/sprites/sleek-modular/harvester-front-left-v1.png",
-    "back-left": "/art/sprites/sleek-modular/harvester-back-left-v1.png",
-    back: "/art/sprites/sleek-modular/harvester-back.png",
-    left: "/art/sprites/sleek-modular/harvester-left-v2.png",
-    "back-right": "/art/sprites/sleek-modular/harvester-back-right-v1.png",
+    "front-right": "/art/sprites/sleek-modular/harvester-front-right-v1.webp",
+    front: "/art/sprites/sleek-modular/harvester-front.webp",
+    right: "/art/sprites/sleek-modular/harvester-right-v2.webp",
+    "front-left": "/art/sprites/sleek-modular/harvester-front-left-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/harvester-back-left-v1.webp",
+    back: "/art/sprites/sleek-modular/harvester-back.webp",
+    left: "/art/sprites/sleek-modular/harvester-left-v2.webp",
+    "back-right": "/art/sprites/sleek-modular/harvester-back-right-v1.webp",
   },
   infantry: {
-    "front-right": "/art/sprites/sleek-modular/infantry-front-right-v1.png",
-    front: "/art/sprites/sleek-modular/infantry-front-v1.png",
-    right: "/art/sprites/sleek-modular/infantry-right-v1.png",
-    "front-left": "/art/sprites/sleek-modular/infantry-front-left-v1.png",
-    "back-left": "/art/sprites/sleek-modular/infantry-back-left-v1.png",
-    back: "/art/sprites/sleek-modular/infantry-back-v1.png",
-    left: "/art/sprites/sleek-modular/infantry-left-v1.png",
-    "back-right": "/art/sprites/sleek-modular/infantry-back-right-v1.png",
+    "front-right": "/art/sprites/sleek-modular/infantry-front-right-v1.webp",
+    front: "/art/sprites/sleek-modular/infantry-front-v1.webp",
+    right: "/art/sprites/sleek-modular/infantry-right-v1.webp",
+    "front-left": "/art/sprites/sleek-modular/infantry-front-left-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/infantry-back-left-v1.webp",
+    back: "/art/sprites/sleek-modular/infantry-back-v1.webp",
+    left: "/art/sprites/sleek-modular/infantry-left-v1.webp",
+    "back-right": "/art/sprites/sleek-modular/infantry-back-right-v1.webp",
   },
   antiArmor: {
-    "front-right": "/art/sprites/sleek-modular/anti-armor-front-right-v1.png",
-    front: "/art/sprites/sleek-modular/anti-armor-front.png",
-    right: "/art/sprites/sleek-modular/anti-armor-right.png",
-    "front-left": "/art/sprites/sleek-modular/anti-armor-front-left-v1.png",
-    "back-left": "/art/sprites/sleek-modular/anti-armor-back-left-v1.png",
-    back: "/art/sprites/sleek-modular/anti-armor-back.png",
-    left: "/art/sprites/sleek-modular/anti-armor-left.png",
-    "back-right": "/art/sprites/sleek-modular/anti-armor-back-right-v1.png",
+    "front-right": "/art/sprites/sleek-modular/anti-armor-front-right-v1.webp",
+    front: "/art/sprites/sleek-modular/anti-armor-front.webp",
+    right: "/art/sprites/sleek-modular/anti-armor-right.webp",
+    "front-left": "/art/sprites/sleek-modular/anti-armor-front-left-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/anti-armor-back-left-v1.webp",
+    back: "/art/sprites/sleek-modular/anti-armor-back.webp",
+    left: "/art/sprites/sleek-modular/anti-armor-left.webp",
+    "back-right": "/art/sprites/sleek-modular/anti-armor-back-right-v1.webp",
   },
   tank: {
-    "front-right": "/art/sprites/sleek-modular/tank-front-right-v1.png",
-    front: "/art/sprites/sleek-modular/tank-front.png",
-    right: "/art/sprites/sleek-modular/tank-right.png",
-    "front-left": "/art/sprites/sleek-modular/tank-front-left-v1.png",
-    "back-left": "/art/sprites/sleek-modular/tank-back-left-v1.png",
-    back: "/art/sprites/sleek-modular/tank-back.png",
-    left: "/art/sprites/sleek-modular/tank-left.png",
-    "back-right": "/art/sprites/sleek-modular/tank-back-right-v1.png",
+    "front-right": "/art/sprites/sleek-modular/tank-front-right-v1.webp",
+    front: "/art/sprites/sleek-modular/tank-front.webp",
+    right: "/art/sprites/sleek-modular/tank-right.webp",
+    "front-left": "/art/sprites/sleek-modular/tank-front-left-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/tank-back-left-v1.webp",
+    back: "/art/sprites/sleek-modular/tank-back.webp",
+    left: "/art/sprites/sleek-modular/tank-left.webp",
+    "back-right": "/art/sprites/sleek-modular/tank-back-right-v1.webp",
   },
 };
 
@@ -96,9 +96,9 @@ export function unitViewForFacing(facing: Facing): UnitView {
 }
 
 export const TERRAIN_ART = {
-  modular: "/art/terrain/modular-v1.png",
-  armored: "/art/terrain/armored-v1.png",
-  expeditionary: "/art/terrain/expeditionary-v1.png",
+  modular: "/art/terrain/modular-v1.webp",
+  armored: "/art/terrain/armored-v1.webp",
+  expeditionary: "/art/terrain/expeditionary-v1.webp",
 } as const;
 
 export const RASTER_ART: Record<RasterArtKey, string> = {
