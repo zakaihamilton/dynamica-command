@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TILE_H, createCamera, tileToScreen } from "../lib/render/iso";
-import { pickEntity } from "../lib/render/pick";
+import { finalizeMultiSelect, pickEntity } from "../lib/render/pick";
 import { pickTile } from "../lib/render/renderer";
 import { issue, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
@@ -59,6 +59,33 @@ describe("harvester selection", () => {
     const pos = tileToScreen(u.x, u.y, cam, heightAt(s, 5, 5));
     const hit = pickEntity(s, pos.x, pos.y + TILE_H / 4, cam);
     expect(hit?.id).toBe(u.id);
+  });
+
+  it("drops harvesters from a mixed box select", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const harvester = addUnit(s, 0, "harvester", 3, 3);
+    const infantry = addUnit(s, 0, "infantry", 4, 4);
+    const tank = addUnit(s, 0, "tank", 5, 5);
+    expect(finalizeMultiSelect(s.entities, [harvester.id, infantry.id, tank.id])).toEqual([
+      infantry.id,
+      tank.id,
+    ]);
+  });
+
+  it("keeps a harvester-only box select", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const a = addUnit(s, 0, "harvester", 3, 3);
+    const b = addUnit(s, 0, "harvester", 4, 4);
+    expect(finalizeMultiSelect(s.entities, [a.id, b.id])).toEqual([a.id, b.id]);
+  });
+
+  it("keeps a single-click harvester selection", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const h = addUnit(s, 0, "harvester", 5, 5);
+    expect(finalizeMultiSelect(s.entities, [h.id])).toEqual([h.id]);
+    const cam = createCamera();
+    const pos = tileToScreen(h.x, h.y, cam, heightAt(s, 5, 5));
+    expect(pickEntity(s, pos.x, pos.y - 12, cam)?.id).toBe(h.id);
   });
 
   it("picks an elevated top surface instead of the cliff face below it", () => {

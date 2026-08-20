@@ -86,6 +86,12 @@ describe("structure repair", () => {
     expect(canRepair(full)).toBe(false);
   });
 
+  it("restores about half as much HP per tick as a 15-second full repair", () => {
+    expect(repairHpPerTick("barracks")).toBe(3);
+    expect(repairHpPerTick("constructionYard")).toBe(9);
+    expect(Math.ceil(BUILDING_STATS.barracks.hp / repairHpPerTick("barracks"))).toBe(300);
+  });
+
   it("charges a positive cost for a repair tick", () => {
     expect(repairCostFor("power", repairHpPerTick("power"))).toBeGreaterThan(0);
     expect(repairCostFor("constructionYard", repairHpPerTick("constructionYard"))).toBeGreaterThan(0);

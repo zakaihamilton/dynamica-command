@@ -35,3 +35,10 @@ export function pickEntity(state: SimState, sx: number, sy: number, cam: Camera,
   if (!tile) return undefined;
   return visibleBuildingAt(state, tile.x, tile.y);
 }
+
+/** Drop harvesters from a multi-select unless the box contains only harvesters. */
+export function finalizeMultiSelect(entities: readonly Entity[], ids: readonly number[]): number[] {
+  const kinds = new Map(entities.map((entity) => [entity.id, entity.kind]));
+  const combat = ids.filter((id) => kinds.get(id) !== "harvester");
+  return combat.length > 0 ? combat : [...ids];
+}
