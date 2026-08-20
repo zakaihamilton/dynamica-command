@@ -117,12 +117,12 @@ export function missionObjectives(
 
 export function generateBriefing(
   campaign: Pick<Campaign, "world" | "factions" | "characters">,
-  mission: Pick<MissionDef, "name" | "win" | "index">,
+  mission: Pick<MissionDef, "name" | "win" | "index" | "biome">,
 ): BriefingLine[] {
   const { advisor, commander, enemyLeader } = campaign.characters;
   const [us, them] = campaign.factions;
   const place = campaign.world.name;
-  const biome = biomeLabel(campaign.world.biome);
+  const biome = biomeLabel(mission.biome);
   const analyst = characterLabel(advisor);
   const you = characterLabel(commander);
   const foe = characterLabel(enemyLeader);

@@ -22,7 +22,7 @@ describe("terrain height", () => {
   });
 
   it("generated maps have a heightmap with varied elevation", () => {
-    const map = generateMap(0, { index: 0, win: { kind: "annihilate" }, mapSize: 48 });
+    const map = generateMap(0, { index: 0, win: { kind: "annihilate" }, mapSize: 48, biome: "ash plains" });
     expect(map.heights).toHaveLength(48 * 48);
     const stats = { 0: 0, 1: 0, 2: 0, 3: 0 };
     for (const h of map.heights) {
@@ -35,7 +35,7 @@ describe("terrain height", () => {
   });
 
   it("start areas are flat enough to place a construction yard", () => {
-    const map = generateMap(42, { index: 0, win: { kind: "razeAll" }, mapSize: 48 });
+    const map = generateMap(42, { index: 0, win: { kind: "razeAll" }, mapSize: 48, biome: "ash plains" });
     const fp = BUILDING_STATS.constructionYard.footprint;
     const h0 = map.heights[map.playerStart.y * map.width + map.playerStart.x];
     for (let oy = 0; oy < fp.h; oy++) {
@@ -125,7 +125,7 @@ describe("mission footprints", () => {
 
 describe("map skirt scenery", () => {
   it("generates deterministic mountains and water outside the playable map", () => {
-    const map = generateMap(42, { index: 0, win: { kind: "annihilate" }, mapSize: 24 });
+    const map = generateMap(42, { index: 0, win: { kind: "annihilate" }, mapSize: 24, biome: "ash plains" });
     const world = { ...map, seed: 42 };
     const a = skirtSample(42, map.biome, -3, 8, map.width, map.height);
     const b = skirtSample(42, map.biome, -3, 8, map.width, map.height);
@@ -157,7 +157,7 @@ describe("map skirt scenery", () => {
   });
 
   it("marks river banks and mountain ridges on region edges", () => {
-    const map = generateMap(42, { index: 0, win: { kind: "annihilate" }, mapSize: 24 });
+    const map = generateMap(42, { index: 0, win: { kind: "annihilate" }, mapSize: 24, biome: "ash plains" });
     const world = { ...map, seed: 42 };
     let banked = 0;
     let ridged = 0;
@@ -185,7 +185,7 @@ describe("map skirt scenery", () => {
 
 describe("organic map generation", () => {
   it("forms blob-like water instead of isolated speckle", () => {
-    const map = generateMap(0, { index: 0, win: { kind: "annihilate" }, mapSize: 48 });
+    const map = generateMap(0, { index: 0, win: { kind: "annihilate" }, mapSize: 48, biome: "ash plains" });
     let water = 0;
     let neighborSum = 0;
     for (let y = 0; y < map.height; y++) {
@@ -218,7 +218,7 @@ describe("organic map generation", () => {
   }, 30_000);
 
   it("forms broad elevation regions and non-linear surface routes", () => {
-    const map = generateMap(832, { index: 0, win: { kind: "annihilate" }, mapSize: 48 });
+    const map = generateMap(832, { index: 0, win: { kind: "annihilate" }, mapSize: 48, biome: "ash plains" });
     let elevated = 0;
     let adjacentElevated = 0;
     const roadDiagonals = new Set<number>();
