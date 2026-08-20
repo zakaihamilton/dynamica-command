@@ -15,13 +15,15 @@ Genesis Protocol is a single, fully client-side Next.js 16 + React 19 browser RT
 Node 22 and Yarn 1.22.22 are preinstalled. The startup update script runs `yarn install --frozen-lockfile` and `yarn playwright install chromium`, so dependencies and the e2e browser are already present when you start.
 
 Standard commands (defined in `package.json`, don't duplicate — reference there):
+
 - `yarn dev` — Next.js dev server on port 3000 (this is the app; run it to test the UI).
-- `yarn test` — Vitest, 296 headless unit tests, no browser needed.
+- `yarn test` — Vitest, 328 headless unit tests, no browser needed.
 - `yarn build` — production build.
 - `yarn test:e2e` — Playwright. Its `webServer` runs `yarn build && PORT=3100 ... yarn start`, so it builds and serves its own production server on port 3100 (independent of the port-3000 dev server); it needs the Chromium installed by the update script.
 - `yarn inspect <seed>` / `yarn sim --seed <seed> --mission <n> --ticks <n>` — headless CLIs via `tsx`.
 
 Non-obvious caveats:
+
 - `yarn lint` currently reports one pre-existing error (`prefer-const` in `lib/render/gl/modelRenderer.ts`) on a clean checkout. It is unrelated to environment setup.
 - The e2e smoke tests in `tests/e2e/smoke.spec.ts` currently fail on a clean checkout: a first-time seed deploy routes to `/tutorial`, but the tests assert `/briefing`. This is a pre-existing app/test discrepancy, not an environment issue (`responsive.spec.ts` and the server build both pass).
 - To manually reach the battlefield: New Game → enter a seed (or use ROLL) → Launch → advance through the first-deploy tutorial (Spacebar / Skip) → briefing → Launch. The seed field is split into individual digit inputs, so ROLL is the most reliable way to seed it in automated/browser testing.

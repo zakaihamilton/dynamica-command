@@ -23,6 +23,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Deploy**. Pr
 | `yarn test:e2e` | Playwright browser smoke test (run `yarn playwright install chromium` once) |
 | `yarn inspect 0421` | Dump generated campaign JSON |
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
+| `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
 
 ## How a seed works
 

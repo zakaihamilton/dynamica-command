@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { findPath } from "../lib/sim/pathfinding";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
 import { issue, tick } from "../lib/sim/api";
+import { tickAi } from "../lib/sim/ai";
+import { tickCombat } from "../lib/sim/combat";
 import { PATH_BUDGET_PER_TICK, backgroundPathSearches, resetPathBudget, tryFindPath } from "../lib/sim/pathBudget";
 import { groundOrders } from "../lib/sim/orders";
 import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, terrainAccess, unitAt } from "../lib/sim/world";
@@ -481,5 +483,36 @@ describe("pathfinding budget", () => {
     }
     tick(s);
     expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
+  });
+
+  it("does not clear AI paths when the budget is exhausted before tickAi", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 18, 18);
+    addBuilding(s, 0, "constructionYard", 2, 2);
+    const raider = addUnit(s, 1, "infantry", 10, 10);
+    raider.hp = 10;
+    const prior = [{ x: 11, y: 10 }, { x: 12, y: 10 }, { x: 13, y: 10 }];
+    raider.path = prior.map((p) => ({ ...p }));
+    raider.idle = false;
+
+    resetPathBudget(0);
+    expect(() => tickAi(s)).not.toThrow();
+    expect(s.aiState).toBe("retreat");
+    expect(raider.path).toEqual(prior);
+    expect(backgroundPathSearches()).toBe(0);
+  });
+
+  it("does not clear a combat chase path when the budget is exhausted", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const attacker = addUnit(s, 0, "tank", 4, 4);
+    addUnit(s, 1, "infantry", 14, 4);
+    const prior = [{ x: 5, y: 4 }, { x: 6, y: 4 }];
+    attacker.path = prior.map((p) => ({ ...p }));
+    attacker.idle = true;
+
+    resetPathBudget(0);
+    expect(() => tickCombat(s)).not.toThrow();
+    expect(attacker.path).toEqual(prior);
+    expect(backgroundPathSearches()).toBe(0);
   });
 });

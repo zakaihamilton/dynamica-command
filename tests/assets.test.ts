@@ -108,14 +108,14 @@ describe("tactical procedural assets", () => {
       );
       expect(views.every((spec) => spec.rotation === undefined)).toBe(true);
       expect(new Set(views.map((spec) => spec.imageSrc)).size).toBe(8);
-      expect(views[0]!.imageSrc).toMatch(/-right(?:-v[12])?\.png/);
-      expect(views[1]!.imageSrc).toContain("-front-right-v1.png");
-      expect(views[2]!.imageSrc).toMatch(/-front(?:-v1)?\.png/);
-      expect(views[3]!.imageSrc).toContain("-front-left-v1.png");
-      expect(views[4]!.imageSrc).toMatch(/-left(?:-v[12])?\.png/);
-      expect(views[5]!.imageSrc).toContain("-back-left-v1.png");
-      expect(views[6]!.imageSrc).toMatch(/-back(?:-v1)?\.png/);
-      expect(views[7]!.imageSrc).toContain("-back-right-v1.png");
+      expect(views[0]!.imageSrc).toMatch(/-right(?:-v[12])?\.webp/);
+      expect(views[1]!.imageSrc).toContain("-front-right-v1.webp");
+      expect(views[2]!.imageSrc).toMatch(/-front(?:-v1)?\.webp/);
+      expect(views[3]!.imageSrc).toContain("-front-left-v1.webp");
+      expect(views[4]!.imageSrc).toMatch(/-left(?:-v[12])?\.webp/);
+      expect(views[5]!.imageSrc).toContain("-back-left-v1.webp");
+      expect(views[6]!.imageSrc).toMatch(/-back(?:-v1)?\.webp/);
+      expect(views[7]!.imageSrc).toContain("-back-right-v1.webp");
     }
   });
 
@@ -145,7 +145,7 @@ describe("tactical procedural assets", () => {
       ...Object.values(UNIT_DIRECTION_ART).flatMap((views) => Object.values(views).map((src) => basename(src))),
     ]);
     const dir = resolve(process.cwd(), "public/art/sprites/sleek-modular");
-    for (const file of readdirSync(dir).filter((name) => name.endsWith(".png"))) {
+    for (const file of readdirSync(dir).filter((name) => name.endsWith(".webp"))) {
       expect(used.has(file), file).toBe(true);
     }
   });
@@ -327,7 +327,7 @@ function validateSpec(spec: { w: number; h: number; pixelScale?: number; anchorX
   expect(spec.anchorX ?? spec.w / 2).toBeGreaterThanOrEqual(0);
   expect(spec.anchorY ?? spec.h).toBeGreaterThanOrEqual(0);
   if (spec.kind === "unit" || spec.kind === "building") {
-    if (spec.imageSrc) expect(spec.imageSrc).toMatch(/^\/art\/sprites\/.+\.png$/);
+    if (spec.imageSrc) expect(spec.imageSrc).toMatch(/^\/art\/sprites\/.+\.webp$/);
     else {
       expect(spec.svg).toMatch(/<svg /);
       expect(svgMarks(spec.svg)).toBeGreaterThan(2);

@@ -1,0 +1,24 @@
+name: Nightly health
+
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn health:dead-code
+        continue-on-error: true
+      - run: yarn health:coverage
+        continue-on-error: true
+      - run: yarn jscpd lib components
+        continue-on-error: true
