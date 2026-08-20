@@ -101,6 +101,11 @@
   backdrop-filter: blur(4px);
 }
 
+.actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .full {
   width: 100%;
   text-align: left;

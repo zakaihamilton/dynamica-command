@@ -68,11 +68,17 @@ describe("shortcut matching", () => {
     expect(gameCommandFromKey({ key: "q" }, { ...play, typing: true })).toBeNull();
     expect(gameCommandFromKey({ key: "q", repeat: true }, play)).toBeNull();
     expect(menuCommandFromKey({ key: "n" }, { typing: false, setupOpen: false })).toEqual({ type: "newGame" });
+    expect(menuCommandFromKey({ key: "o" }, { typing: false, setupOpen: false })).toEqual({ type: "options" });
     expect(menuCommandFromKey({ key: "a" }, { typing: false, setupOpen: false })).toBeNull();
     expect(menuCommandFromKey({ key: "Enter" }, { typing: false, setupOpen: false })).toBeNull();
     expect(menuCommandFromKey({ key: "Enter" }, { typing: false, setupOpen: true })).toEqual({ type: "deploy" });
     expect(menuCommandFromKey({ key: "r" }, { typing: false, setupOpen: true })).toEqual({ type: "randomize" });
+    expect(menuCommandFromKey({ key: "o" }, { typing: false, setupOpen: true })).toBeNull();
     expect(menuCommandFromKey({ key: "Escape" }, { typing: true, setupOpen: true })).toEqual({ type: "back" });
+    expect(menuCommandFromKey({ key: "Escape" }, { typing: false, setupOpen: false, optionsOpen: true })).toEqual({ type: "back" });
+    expect(menuCommandFromKey({ key: "m" }, { typing: false, setupOpen: false, optionsOpen: true })).toEqual({ type: "toggleSound" });
+    expect(menuCommandFromKey({ key: "u" }, { typing: false, setupOpen: false, optionsOpen: true })).toEqual({ type: "toggleMusic" });
+    expect(menuCommandFromKey({ key: "n" }, { typing: false, setupOpen: false, optionsOpen: true })).toBeNull();
     expect(briefingCommandFromKey({ key: " " }, { typing: false, revealed: false })).toEqual({ type: "skip" });
     expect(briefingCommandFromKey({ key: " " }, { typing: false, revealed: true })).toEqual({ type: "launch" });
     expect(briefingCommandFromKey({ key: "Enter" }, { typing: false, revealed: true })).toEqual({ type: "launch" });

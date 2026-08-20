@@ -6,13 +6,16 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
-import { TITLE_MUSIC_SEED, setMusicCue } from "@/lib/audio/music";
+import { TITLE_MUSIC_SEED, setMusicCue, setMusicEnabled as applyMusicEnabled } from "@/lib/audio/music";
+import { setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
 import { listSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
+import { defaultSettings, readSettings, writeSettings } from "@/lib/persist/settings";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey, SHORTCUT } from "@/lib/ui/shortcuts";
 import { MenuBackdrop } from "./MenuBackdrop";
 import { MenuHero } from "./MenuHero";
+import { MenuOptions } from "./MenuOptions";
 import { NewGameSetup } from "./NewGameSetup";
 import { ResumeList } from "./ResumeList";
 import styles from "./MenuScreen.module.css";
@@ -26,12 +29,17 @@ export function MenuScreen() {
   const [code, setCode] = useState("");
   const [saves, setSaves] = useState(() => [] as ReturnType<typeof listSaves>);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"main" | "newGame">("main");
+  const [view, setView] = useState<"main" | "newGame" | "options">("main");
+  const [settings, setSettings] = useState(() => defaultSettings());
   const seedInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setSaves(listSaves(localStorageAdapter())));
     return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    setSettings(readSettings(localStorageAdapter()));
   }, []);
 
   useEffect(() => {
@@ -49,6 +57,28 @@ export function MenuScreen() {
     setCode((current) => current.length === 4 ? current : rollSeed());
     setError("");
     setView("newGame");
+  }, []);
+
+  const openOptions = useCallback(function openOptions() {
+    setView("options");
+  }, []);
+
+  const toggleSound = useCallback(function toggleSound() {
+    setSettings((current) => {
+      const next = { ...current, sfxEnabled: !current.sfxEnabled };
+      applySfxEnabled(next.sfxEnabled);
+      writeSettings(localStorageAdapter(), next);
+      return next;
+    });
+  }, []);
+
+  const toggleMusic = useCallback(function toggleMusic() {
+    setSettings((current) => {
+      const next = { ...current, musicEnabled: !current.musicEnabled };
+      applyMusicEnabled(next.musicEnabled);
+      writeSettings(localStorageAdapter(), next);
+      return next;
+    });
   }, []);
 
   const randomize = useCallback(function randomize() {
@@ -77,17 +107,21 @@ export function MenuScreen() {
       const command = menuCommandFromKey(e, {
         typing: isEditableTarget(e.target),
         setupOpen: view === "newGame",
+        optionsOpen: view === "options",
       });
       if (!command) return;
       e.preventDefault();
       if (command.type === "newGame") openNewGame();
+      else if (command.type === "options") openOptions();
+      else if (command.type === "toggleSound") toggleSound();
+      else if (command.type === "toggleMusic") toggleMusic();
       else if (command.type === "deploy") launch();
       else if (command.type === "randomize") randomize();
       else if (command.type === "back") setView("main");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [view, openNewGame, launch, randomize]);
+  }, [view, openNewGame, openOptions, toggleSound, toggleMusic, launch, randomize]);
 
   const previewLine = preview
     ? `${preview.world.name} · ${preview.factions[0].name} vs ${preview.factions[1].name}`
@@ -105,20 +139,30 @@ export function MenuScreen() {
       <div className={styles.content}>
         <MenuHero />
         <MetalPanel className={styles.panel}>
-          <ConsoleButton
-            className={styles.full}
-            tooltip="Open campaign setup"
-            shortcut={SHORTCUT.newGame}
-            onClick={openNewGame}
-          >
-            NEW GAME
-          </ConsoleButton>
+          <div className={styles.actions}>
+            <ConsoleButton
+              className={styles.full}
+              tooltip="Open campaign setup"
+              shortcut={SHORTCUT.newGame}
+              onClick={openNewGame}
+            >
+              NEW GAME
+            </ConsoleButton>
+            <ConsoleButton
+              className={styles.full}
+              tooltip="Audio and game options"
+              shortcut={SHORTCUT.options}
+              onClick={openOptions}
+            >
+              OPTIONS
+            </ConsoleButton>
+          </div>
 
-        <ResumeList
-          saves={saves}
-          onResume={(seed) => router.push(`/play?seed=${seed}&resume=1`)}
-          onDelete={deleteSave}
-        />
+          <ResumeList
+            saves={saves}
+            onResume={(seed) => router.push(`/play?seed=${seed}&resume=1`)}
+            onDelete={deleteSave}
+          />
         </MetalPanel>
       </div>
 
@@ -135,6 +179,16 @@ export function MenuScreen() {
             }}
             onRandomize={randomize}
             onLaunch={launch}
+            onBack={() => setView("main")}
+          />
+        </div>
+      ) : view === "options" ? (
+        <div className={styles.overlay}>
+          <MenuOptions
+            sfxEnabled={settings.sfxEnabled}
+            musicEnabled={settings.musicEnabled}
+            onToggleSound={toggleSound}
+            onToggleMusic={toggleMusic}
             onBack={() => setView("main")}
           />
         </div>
