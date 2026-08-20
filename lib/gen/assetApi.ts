@@ -3,7 +3,7 @@ import { buildingSprite, rubbleSprite, unitSprite, wreckSprite } from "./assets"
 import { listGeneratedAssets, type CatalogAsset } from "./assetCatalog";
 import { generateVisualProfile } from "./visualProfile";
 import { generateFactions } from "./factions";
-import { rotatedSpriteBounds } from "../render/sprites";
+import { rotatedSpriteBounds } from "./spriteBounds";
 import type { Facing, ShapeSpec, SpriteSpec } from "../types";
 
 export const ASSET_API_VERSION = 1;
