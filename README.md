@@ -110,7 +110,7 @@ scripts/       inspect + headless sim
 tests/         Vitest
 ```
 
-Sprites, biome tiles, roads, cliffs, portraits, SFX, and **background music** are **generated** (native-resolution shape specs + seeded palettes + Web Audio). The generated art is deterministic per seed, rendered on a minimum 640×480 surface, and uses no stock unit art. Pause **Options** toggles music and sound effects independently.
+Sprites, biome tiles, roads, cliffs, and portraits combine **procedural specs** (seeded palettes, shape specs, talking-head compositing) with **pre-rendered WebP rasters** in `public/art`. SFX and background music are generated in Web Audio. Pause **Options** toggles music and sound effects independently.
 
 ### Headless API
 
