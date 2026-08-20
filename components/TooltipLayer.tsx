@@ -22,11 +22,16 @@ export function TooltipLayer() {
   const nodeRef = useRef<HTMLDivElement>(null);
   const hoverRef = useRef<HTMLElement | null>(null);
   const forcedRef = useRef<HTMLElement | null>(null);
+  const keyboardDismissedRef = useRef(false);
 
   useEffect(() => {
     const forcedEl = () => document.querySelector("[data-tooltip-open]") as HTMLElement | null;
 
     const paint = () => {
+      if (keyboardDismissedRef.current) {
+        setTip(null);
+        return;
+      }
       const el = forcedEl() ?? hoverRef.current;
       forcedRef.current = forcedEl();
       if (!el) {
@@ -50,6 +55,7 @@ export function TooltipLayer() {
     const onOver = (e: PointerEvent) => {
       const el = tooltipTarget(e.target);
       if (!el) return;
+      keyboardDismissedRef.current = false;
       hoverRef.current = el;
       paint();
     };
@@ -66,8 +72,17 @@ export function TooltipLayer() {
     const onFocus = (e: FocusEvent) => {
       const el = tooltipTarget(e.target);
       if (!el) return;
+      keyboardDismissedRef.current = false;
       hoverRef.current = el;
       paint();
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (["Alt", "Control", "Meta", "Shift"].includes(e.key)) return;
+      keyboardDismissedRef.current = true;
+      hoverRef.current = null;
+      forcedRef.current = null;
+      setTip(null);
     };
 
     const onBlur = (e: FocusEvent) => {
@@ -83,6 +98,7 @@ export function TooltipLayer() {
     document.addEventListener("pointerout", onOut);
     document.addEventListener("focusin", onFocus);
     document.addEventListener("focusout", onBlur);
+    document.addEventListener("keydown", onKeyDown);
     window.addEventListener("scroll", onScrollOrResize, true);
     window.addEventListener("resize", onScrollOrResize);
     const mo = new MutationObserver(paint);
@@ -93,6 +109,7 @@ export function TooltipLayer() {
       document.removeEventListener("pointerout", onOut);
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", onBlur);
+      document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
       mo.disconnect();
