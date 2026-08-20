@@ -10,6 +10,16 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
       <p className={styles.objectiveLabel}>Primary objective</p>
       <p className={styles.objectiveHeadline}>{debrief.objective.headline}</p>
       <p className={styles.objectiveProgress}>{debrief.objective.progress}</p>
+      {debrief.secondary.length ? (
+        <div className={styles.secondaryList} aria-label="Secondary objectives">
+          <p className={styles.objectiveLabel}>Secondary objectives</p>
+          {debrief.secondary.map((objective) => (
+            <p className={objective.completed ? styles.secondaryComplete : styles.secondaryIncomplete} key={objective.id}>
+              {objective.completed ? "✓" : "○"} {objective.label}
+            </p>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -23,6 +33,8 @@ export function MissionBattleRecord({ debrief }: { debrief: MissionDebrief }) {
         <div><dt>Credits gathered</dt><dd>{debrief.battle.creditsGathered}</dd></div>
         <div><dt>Units trained</dt><dd>{debrief.battle.unitsTrained}</dd></div>
         <div><dt>Structures completed</dt><dd>{debrief.battle.structuresCompleted}</dd></div>
+        <div><dt>Mission score</dt><dd>{debrief.battle.score}</dd></div>
+        <div><dt>Medals</dt><dd>{debrief.battle.medals} / 3</dd></div>
       </dl>
     </section>
   );

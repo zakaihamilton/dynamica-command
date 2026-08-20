@@ -95,6 +95,26 @@
   font-weight: 700;
 }
 
+.secondaryList {
+  margin-top: 0.75rem;
+  text-align: left;
+}
+
+.secondaryComplete,
+.secondaryIncomplete {
+  margin: 0.3rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.secondaryComplete {
+  color: var(--chrome-gold);
+}
+
+.secondaryIncomplete {
+  color: var(--chrome-muted);
+}
+
 .metrics {
   margin: 0.7rem 0 0;
   display: grid;

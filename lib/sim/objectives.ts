@@ -1,5 +1,5 @@
 import { labelFor, TICKS_PER_SECOND } from "../catalog";
-import type { InspectReport, SimEvent, SimState } from "../types";
+import type { InspectReport, MissionRuntime, SimEvent, SimState } from "../types";
 import { formatSeed } from "../seed/rng";
 import { living } from "./world";
 
@@ -8,64 +8,104 @@ export function formatHoldClock(seconds: number): string {
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 }
 
-export function objectiveProgress(state: SimState): { current: number; target: number; label: string } {
+export type ObjectiveProgress = {
+  current: number;
+  target: number;
+  label: string;
+  deadlineTicks?: number;
+  phase?: MissionRuntime["phase"];
+};
+
+export type SecondaryProgress = {
+  id: string;
+  label: string;
+  completed: boolean;
+};
+
+function deadlineTicks(state: SimState): number | undefined {
+  if (state.runtime?.deadline !== undefined) return Math.max(0, state.runtime.deadline - state.tick);
+  if (["escort", "sabotage", "rescue", "extraction"].includes(state.win.kind) && state.win.ticks !== undefined) {
+    return Math.max(0, state.win.ticks - state.tick);
+  }
+  if (state.win.kind === "holdTheLine" && state.win.ticks !== undefined) return Math.max(0, state.win.ticks - state.tick);
+  return undefined;
+}
+
+export function secondaryProgress(state: SimState): SecondaryProgress[] {
+  return (state.runtime?.secondary ?? []).map((objective) => ({
+    id: objective.id,
+    label: objective.label,
+    completed: objective.completed === true,
+  }));
+}
+
+export function objectiveProgress(state: SimState): ObjectiveProgress {
   const w = state.win;
+  let progress: { current: number; target: number; label: string };
   switch (w.kind) {
     case "harvestQuota":
-      return {
+      progress = {
         current: state.creditsEarned[0],
         target: w.target ?? 0,
         label: `Extracted ${state.creditsEarned[0]} / ${w.target}`,
       };
+      break;
     case "forceQuota": {
       const current = w.role ? (state.unitsProducedByRole[w.role] ?? 0) : state.unitsProduced[0];
-      return {
+      progress = {
         current,
         target: w.target ?? 0,
         label: w.role
           ? `${labelFor(w.role)} ${current} / ${w.target}`
           : `Units built ${current} / ${w.target}`,
       };
+      break;
     }
     case "structureQuota": {
       const current = w.building
         ? (state.buildingsCompletedByKind[w.building] ?? 0)
         : state.buildingsCompleted[0];
-      return {
+      progress = {
         current,
         target: w.target ?? 0,
         label: w.building
           ? `${labelFor(w.building)} ${current} / ${w.target}`
           : `Buildings ${current} / ${w.target}`,
       };
+      break;
     }
     case "destroyMarked": {
       const ids = w.targetIds ?? [];
       const remaining = ids.filter((id) => state.entities.some((e) => e.id === id && e.hp > 0)).length;
       const current = ids.length - remaining;
-      return { current, target: ids.length, label: `Targets ${current} / ${ids.length}` };
+      progress = { current, target: ids.length, label: `Targets ${current} / ${ids.length}` };
+      break;
     }
     case "razeAll": {
       const left = living(state).filter((e) => e.owner === 1 && e.class === "building").length;
-      return { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "All structures down" : `Enemy buildings left ${left}` };
+      progress = { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "All structures down" : `Enemy buildings left ${left}` };
+      break;
     }
     case "decapitate": {
       const cy = living(state).some((e) => e.owner === 1 && e.kind === "constructionYard");
-      return { current: cy ? 0 : 1, target: 1, label: cy ? "Destroy enemy construction yard" : "Yard destroyed" };
+      progress = { current: cy ? 0 : 1, target: 1, label: cy ? "Destroy enemy construction yard" : "Yard destroyed" };
+      break;
     }
     case "annihilate": {
       const left = living(state).filter((e) => e.owner === 1).length;
-      return { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "Theater clear" : `Hostiles left ${left}` };
+      progress = { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "Theater clear" : `Hostiles left ${left}` };
+      break;
     }
     case "holdTheLine": {
       const t = w.ticks ?? 0;
       const left = Math.max(0, t - state.tick);
       const seconds = Math.ceil(left / TICKS_PER_SECOND);
-      return {
+      progress = {
         current: Math.min(state.tick, t),
         target: t,
         label: left <= 0 ? "Held" : `Hold ${formatHoldClock(seconds)}`,
       };
+      break;
     }
     case "escort":
     case "rescue":
@@ -74,28 +114,28 @@ export function objectiveProgress(state: SimState): { current: number; target: n
       const current = runtime?.rescued ?? 0;
       const target = w.targetCount ?? runtime?.required ?? 1;
       const label = w.kind === "escort" ? `Convoy ${current} / ${target}` : w.kind === "rescue" ? `Rescued ${current} / ${target}` : `Extracted ${current} / ${target}`;
-      return { current, target, label };
+      progress = { current, target, label };
+      break;
     }
     case "sabotage": {
       const ids = w.targetIds ?? [];
       const current = ids.filter((id) => !state.entities.some((e) => e.id === id && e.hp > 0)).length;
-      return { current, target: ids.length || w.targetCount || 1, label: `Systems ${current} / ${ids.length || w.targetCount || 1}` };
+      progress = { current, target: ids.length || w.targetCount || 1, label: `Systems ${current} / ${ids.length || w.targetCount || 1}` };
+      break;
     }
     default:
-      return { current: 0, target: 1, label: "Unknown" };
+      progress = { current: 0, target: 1, label: "Unknown" };
   }
+  return { ...progress, deadlineTicks: deadlineTicks(state), phase: state.runtime?.phase };
 }
 
 export function evaluateObjectives(state: SimState): SimEvent[] {
   if (state.result !== "playing") return [];
   const playerCy = living(state).some((e) => e.owner === 0 && e.kind === "constructionYard");
-  const playerForce = living(state).filter((e) => e.owner === 0);
-  if (!playerCy && playerForce.length === 0) {
-    state.result = "lost";
-    return [{ type: "lost" }];
-  }
   if (!playerCy) {
     state.result = "lost";
+    state.lossReason = "yardDestroyed";
+    if (state.runtime) state.runtime.phase = "complete";
     return [{ type: "lost" }];
   }
 
@@ -137,16 +177,12 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
     case "escort":
     case "extraction":
       won = (state.runtime?.rescued ?? 0) >= (w.targetCount ?? state.runtime?.required ?? Infinity);
-      if (state.tick >= (w.ticks ?? Infinity)) won = false;
       break;
     case "rescue":
-      // Rescue quota completion is the primary objective. The deadline is tracked
-      // as a secondary objective, so reaching 3/3 must still finish the mission.
       won = (state.runtime?.rescued ?? 0) >= (w.targetCount ?? state.runtime?.required ?? Infinity);
       break;
     case "sabotage":
       won = (w.targetIds ?? []).length > 0 && (w.targetIds ?? []).every((id) => !state.entities.some((e) => e.id === id && e.hp > 0));
-      if (state.tick >= (w.ticks ?? Infinity)) won = false;
       break;
     default:
       break;
@@ -154,7 +190,24 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
 
   if (won) {
     state.result = "won";
+    if (state.runtime) state.runtime.phase = "complete";
     return [{ type: "won" }];
+  }
+
+  if (state.runtime && ["escort", "sabotage", "rescue", "extraction"].includes(state.runtime.kind)) {
+    if (state.runtime.kind === "escort" && state.runtime.targetIds.some((id) => !state.entities.some((e) => e.id === id && e.hp > 0))) {
+      state.result = "lost";
+      state.lossReason = "objectiveTargetLost";
+      state.runtime.phase = "complete";
+      return [{ type: "lost" }];
+    }
+    const deadline = state.runtime.deadline ?? w.ticks;
+    if (deadline !== undefined && state.tick >= deadline) {
+      state.result = "lost";
+      state.lossReason = "deadline";
+      state.runtime.phase = "complete";
+      return [{ type: "objectiveExpired", kind: state.runtime.kind }, { type: "lost" }];
+    }
   }
   return [];
 }

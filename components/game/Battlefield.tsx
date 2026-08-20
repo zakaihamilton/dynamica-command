@@ -18,6 +18,8 @@ export function Battlefield({
   levelCount,
   missionName,
   objective,
+  deadline,
+  secondary,
   biome,
   children,
   onPointerDown,
@@ -36,6 +38,8 @@ export function Battlefield({
   levelCount: number;
   missionName: string;
   objective: string;
+  deadline?: string;
+  secondary?: string[];
   biome: BiomeName;
   children?: ReactNode;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
@@ -73,8 +77,16 @@ export function Battlefield({
           </div>
           <div className={styles.mission}>{missionName}</div>
         </div>
-        <div className={styles.objective} data-testid="objective">
-          {objective}
+        <div className={styles.objectiveStack}>
+          <div className={styles.objective} data-testid="objective">
+            {objective}
+          </div>
+          {deadline ? <div className={styles.deadline}>{deadline}</div> : null}
+          {secondary?.length ? (
+            <div className={styles.secondary} data-testid="secondary-objectives">
+              {secondary.map((item) => <div key={item}>{item}</div>)}
+            </div>
+          ) : null}
         </div>
       </div>
       {children}

@@ -129,12 +129,21 @@ function normalizeState(value: unknown): SimState {
     s.buildingsCompletedByKind = {};
   }
   if (!Array.isArray(s.entities)) s.entities = [];
+  const scenarioRole =
+    s.runtime?.kind === "escort" ? "convoy" :
+    s.runtime?.kind === "rescue" ? "stranded" :
+    s.runtime?.kind === "extraction" ? "cargo" :
+    undefined;
+  const scenarioTargetIds = new Set(s.runtime?.targetIds ?? []);
   for (const e of s.entities) {
     if (!e.queue) e.queue = [];
     if (e.facing === undefined) e.facing = e.owner === 0 ? 0 : 4;
     if (e.repairing === undefined) e.repairing = false;
     if (e.stance === undefined) e.stance = "aggressive";
     if (e.suppression === undefined) e.suppression = 0;
+    if (e.scenarioRole === undefined && e.class === "unit" && scenarioRole && scenarioTargetIds.has(e.id)) {
+      e.scenarioRole = scenarioRole;
+    }
   }
   if (!s.aiState) s.aiState = "economy";
   if (typeof s.aiRetreatTick !== "number" || !Number.isInteger(s.aiRetreatTick)) {

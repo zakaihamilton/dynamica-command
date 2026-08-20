@@ -83,7 +83,15 @@ export function GameClient({
   const commitSelection = useCallback((ids: number[]) => {
     selected.current = new Set(ids);
     setSelectedIds(ids);
-  }, []);
+    const current = stateRef.current;
+    if (current.tutorialStage === "select" && ids.some((id) => {
+      const entity = current.entities.find((item) => item.id === id);
+      return entity?.owner === 0 && entity.class === "unit" && entity.kind === "infantry" && !entity.neutral;
+    })) {
+      current.tutorialStage = "move";
+      setState({ ...current, entities: [...current.entities] });
+    }
+  }, [setState, stateRef]);
 
   const camera = useGameCamera({ stateRef, canvasRef, hostRef });
   const {

@@ -99,6 +99,33 @@ describe("persist", () => {
     expect(loaded.losses).toEqual({ units: [0, 0], buildings: [0, 0] });
   });
 
+  it("backfills scenario roles for legacy scenario targets", () => {
+    const cases = [
+      ["escort", "convoy"],
+      ["rescue", "stranded"],
+      ["extraction", "cargo"],
+    ] as const;
+
+    for (const [kind, role] of cases) {
+      const state = makeFixture({ seed: 77, win: { kind, targetCount: 1, ticks: 100 } });
+      const target = addUnit(state, 0, kind === "escort" ? "tank" : "infantry", 6, 6);
+      target.neutral = true;
+      state.runtime = {
+        kind,
+        phase: "active",
+        targetIds: [target.id],
+        zone: { x: 6, y: 6 },
+        deadline: 100,
+        rescued: 0,
+        required: 1,
+        secondary: [],
+      };
+
+      const loaded = deserializeState(serializeState(state));
+      expect(loaded.entities.find((entity) => entity.id === target.id)?.scenarioRole).toBe(role);
+    }
+  });
+
   it("expands legacy fog grids to cover the map skirt", () => {
     const s = makeFixture({ seed: 77, win: { kind: "annihilate" } });
     const raw = JSON.parse(serializeState(s)) as { fog: number[]; width: number; height: number };

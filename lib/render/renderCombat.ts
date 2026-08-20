@@ -17,6 +17,10 @@ export function isLockedContactUnit(state: SimState, e: Entity): boolean {
   );
 }
 
+export function isScenarioTarget(state: SimState, e: Entity): boolean {
+  return e.class === "unit" && Boolean(state.runtime?.targetIds.includes(e.id));
+}
+
 export function isExtractableUnit(state: SimState, e: Entity): boolean {
   return (
     e.class === "unit" &&

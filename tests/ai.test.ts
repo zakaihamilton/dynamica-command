@@ -73,6 +73,53 @@ describe("enemy AI", () => {
     expect(odd.attackTarget).toBe(playerYard.id);
   });
 
+  it("prioritizes a live convoy over the default harassment targets", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "escort", targetCount: 1, ticks: 5000 } });
+    addBuilding(s, 1, "constructionYard", 2, 2);
+    addBuilding(s, 0, "constructionYard", 18, 18);
+    addUnit(s, 1, "infantry", 5, 2);
+    const raider = addUnit(s, 1, "tank", 8, 8);
+    const convoy = addUnit(s, 0, "tank", 15, 15);
+    convoy.neutral = true;
+    convoy.scenarioRole = "convoy";
+    addUnit(s, 0, "harvester", 16, 16);
+    s.runtime = {
+      kind: "escort",
+      phase: "active",
+      targetIds: [convoy.id],
+      zone: { x: 20, y: 20 },
+      deadline: 5000,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+    s.tick = 720;
+
+    tickAi(s);
+
+    expect(raider.attackTarget).toBe(convoy.id);
+  });
+
+  it("stations a guard near marked sabotage targets", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "sabotage", targetCount: 1, ticks: 5000 } });
+    addBuilding(s, 1, "constructionYard", 2, 2);
+    const target = addBuilding(s, 1, "objective", 10, 10, 0, true);
+    const guard = addUnit(s, 1, "infantry", 8, 8);
+    s.runtime = {
+      kind: "sabotage",
+      phase: "active",
+      targetIds: [target.id],
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    tickAi(s);
+
+    expect(guard.orderMode).toBe("move");
+    expect(guard.path.at(-1)).toEqual(expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }));
+  });
+
   it("places a turret when a threat is at the yard", () => {
     const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
     addBuilding(s, 1, "constructionYard", 12, 12);

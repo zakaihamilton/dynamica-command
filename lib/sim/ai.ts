@@ -42,6 +42,8 @@ function enemyCombat(state: SimState): Entity[] {
 
 function sendHome(state: SimState, unit: Entity, yard: Entity): void {
   unit.attackTarget = undefined;
+  unit.orderMode = "move";
+  unit.orderDestination = { x: yard.x, y: yard.y };
   unit.idle = false;
   const path = tryFindPath(state, unit, closestApproach(state, unit, yard));
   if (path !== undefined) unit.path = path;
@@ -49,9 +51,48 @@ function sendHome(state: SimState, unit: Entity, yard: Entity): void {
 
 function assignAttack(state: SimState, unit: Entity, target: Entity): void {
   unit.attackTarget = target.id;
+  unit.orderMode = "attack";
+  unit.orderDestination = { x: target.x, y: target.y };
   unit.idle = false;
   const path = tryFindPath(state, unit, closestApproach(state, unit, target));
   if (path !== undefined) unit.path = path;
+}
+
+function assignMove(state: SimState, unit: Entity, destination: { x: number; y: number }): void {
+  unit.attackTarget = undefined;
+  unit.orderMode = "move";
+  unit.orderDestination = { x: destination.x, y: destination.y };
+  unit.idle = false;
+  const path = tryFindPath(state, unit, destination);
+  if (path !== undefined) unit.path = path;
+}
+
+function scenarioAssaultTarget(state: SimState, from: Entity): Entity | undefined {
+  const runtime = state.runtime;
+  if (!runtime) return undefined;
+  const candidates = runtime.targetIds
+    .map((id) => byId(state, id))
+    .filter((entity): entity is Entity => {
+      if (!entity || entity.hp <= 0 || entity.owner !== 0) return false;
+      if (runtime.kind === "escort") return entity.scenarioRole === "convoy";
+      if (runtime.kind === "extraction") return entity.scenarioRole === "cargo" && !entity.neutral && !runtime.extractedIds?.includes(entity.id);
+      if (runtime.kind === "rescue") return entity.scenarioRole === "stranded" && !entity.neutral;
+      return false;
+    });
+  return candidates.sort((a, b) => distToEntity(from, a) - distToEntity(from, b) || a.id - b.id)[0];
+}
+
+function guardScenarioObjectives(state: SimState, units: Entity[]): void {
+  const runtime = state.runtime;
+  if (!runtime || (runtime.kind !== "sabotage" && runtime.kind !== "destroyMarked")) return;
+  const targets = runtime.targetIds
+    .map((id) => byId(state, id))
+    .filter((entity): entity is Entity => !!entity && entity.hp > 0 && entity.owner === 1);
+  if (!targets.length || !units.length) return;
+  targets.forEach((target, index) => {
+    const guard = units[index % units.length]!;
+    if (guard.attackTarget === undefined) assignMove(state, guard, closestApproach(state, guard, target));
+  });
 }
 
 function homeGuardCount(missionIndex: number): number {
@@ -111,7 +152,8 @@ function assignAssault(
   );
   raiders.forEach((u, index) => {
     if (!retarget && u.attackTarget !== undefined && byId(state, u.attackTarget)) return;
-    const target = harvester && index % 2 === 1 ? playerYard : harvester ?? playerYard;
+    const objectiveTarget = scenarioAssaultTarget(state, u);
+    const target = objectiveTarget ?? (harvester && index % 2 === 1 ? playerYard : harvester ?? playerYard);
     assignAttack(state, u, target);
   });
 }
@@ -215,6 +257,7 @@ export function tickAi(state: SimState): void {
       if (distToEntity(u, yard) <= YARD_DEFENSE_RANGE) continue;
       sendHome(state, u, yard);
     }
+    guardScenarioObjectives(state, units);
   }
   state.rngState = rng.state;
 }

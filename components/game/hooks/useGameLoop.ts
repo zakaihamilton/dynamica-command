@@ -7,6 +7,7 @@ import { localStorageAdapter, writeSave } from "@/lib/persist/save";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
 import type { Camera } from "@/lib/render/iso";
+import { missionMedals, missionScore } from "@/lib/sim/debrief";
 import type { Command, SimState } from "@/lib/types";
 
 export function useGameLoop({
@@ -143,9 +144,8 @@ export function useGameLoop({
         }
         if (s.result === "won" && !campaignRecordedRef.current) {
           campaignRecordedRef.current = true;
-          const medals = 1 + (s.runtime?.secondary.every((objective) => objective.kind !== "preserveYard" || s.entities.some((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0)) ? 1 : 0) + (s.losses.units[0] === 0 ? 1 : 0);
           const progress = readCampaignProgress(localStorageAdapter(), s.seed);
-          writeCampaignProgress(localStorageAdapter(), completeMission(progress, s.missionIndex, medals, Math.max(0, s.creditsEarned[0] - s.losses.units[0] * 100)));
+          writeCampaignProgress(localStorageAdapter(), completeMission(progress, s.missionIndex, missionMedals(s), missionScore(s)));
         }
         redraw(now, subTickAlpha);
       },
