@@ -1,9 +1,25 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createMission } from "../../lib/sim/api";
+import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_VERSION, saveKey } from "../../lib/persist/save";
 import type { SimState } from "../../lib/types";
 
+async function skipTutorial(page: Page, seed = 421) {
+  const progress = { ...freshCampaignProgress(seed), tutorialComplete: true };
+  await page.addInitScript(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, {
+    key: campaignKey(seed),
+    raw: JSON.stringify({
+      version: CAMPAIGN_PROGRESS_VERSION,
+      savedAt: Date.now(),
+      progress,
+    }),
+  });
+}
+
 async function openBriefing(page: Page) {
+  await skipTutorial(page);
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
   const seed = page.getByLabel("Four digit theater seed");
