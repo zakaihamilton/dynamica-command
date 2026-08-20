@@ -13,7 +13,7 @@ yarn
 yarn dev
 ```
 
-Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. Pause opens save/load, briefing, **music and sound toggles**, and an **assets browser** for generated sprites.
+Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) toggle **music and sound effects**. Pause also opens save/load, briefing, and an **assets browser** for generated sprites.
 
 | Script | What it does |
 | --- | --- |
@@ -23,6 +23,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Pr
 | `yarn test:e2e` | Playwright browser smoke test (run `yarn playwright install chromium` once) |
 | `yarn inspect 0421` | Dump generated campaign JSON |
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
+| `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
 
 ## How a seed works
 
@@ -110,7 +111,7 @@ scripts/       inspect + headless sim
 tests/         Vitest
 ```
 
-Units, buildings, portraits, biomes, and terrain plates are **seed-tinted rasters** under `public/art`, composited with procedural specs (cliffs, wrecks, damage overlays). SFX and **background music** are generated in Web Audio from the seed. Pause **Options** toggles music and sound effects independently.
+Units, buildings, portraits, biomes, and terrain plates are **seed-tinted rasters** under `public/art`, composited with procedural specs (cliffs, wrecks, damage overlays). SFX and **background music** are generated in Web Audio from the seed. Welcome and pause **Options** toggle music and sound effects independently.
 
 ### Headless API
 

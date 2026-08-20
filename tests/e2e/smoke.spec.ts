@@ -59,6 +59,25 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
   await expect(page.getByTestId("credits")).toBeVisible();
 });
 
+test("toggles music and sound from welcome options", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "OPTIONS" }).click();
+  await expect(page.getByRole("heading", { name: "Game options" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Music: On" }).click();
+  await expect(page.getByRole("button", { name: "Music: Off" })).toBeVisible();
+  await page.getByRole("button", { name: "Sound effects: On" }).click();
+  await expect(page.getByRole("button", { name: "Sound effects: Off" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByRole("heading", { name: "Game options" })).toHaveCount(0);
+
+  await page.reload();
+  await page.getByRole("button", { name: "OPTIONS" }).click();
+  await expect(page.getByRole("button", { name: "Music: Off" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sound effects: Off" })).toBeVisible();
+});
+
 test("shows briefing portraits before launch", async ({ page }) => {
   await openBriefingSkippingTutorial(page);
   await expect(page.getByTestId("briefing-portrait").first()).toBeVisible();

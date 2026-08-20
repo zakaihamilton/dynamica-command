@@ -13,6 +13,7 @@
     "inspect": "tsx scripts/inspect.ts",
     "sim": "tsx scripts/sim.ts",
     "balance": "tsx scripts/balance.ts",
+    "compress-art": "tsx scripts/compress-art.ts",
     "test:e2e": "playwright test",
     "health": "repnix check",
     "health:dead-code": "knip",

@@ -37,9 +37,12 @@ export type GameCommand =
 
 export type MenuCommand =
   | { type: "newGame" }
+  | { type: "options" }
   | { type: "deploy" }
   | { type: "randomize" }
-  | { type: "back" };
+  | { type: "back" }
+  | { type: "toggleSound" }
+  | { type: "toggleMusic" };
 export type BriefingCommand = { type: "launch" } | { type: "skip" } | { type: "replay" };
 export type AssetsCommand =
   | { type: "close" }
@@ -180,9 +183,16 @@ export function gameCommandFromKey(
 
 export function menuCommandFromKey(
   e: KeyEventLike,
-  ctx: { typing: boolean; setupOpen: boolean },
+  ctx: { typing: boolean; setupOpen: boolean; optionsOpen?: boolean },
 ): MenuCommand | null {
   if (e.repeat || modified(e)) return null;
+  if (ctx.optionsOpen) {
+    if (isEscape(e)) return { type: "back" };
+    if (ctx.typing) return null;
+    if (letter(e) === "m") return { type: "toggleSound" };
+    if (letter(e) === "u") return { type: "toggleMusic" };
+    return null;
+  }
   if (ctx.setupOpen) {
     if (isEscape(e)) return { type: "back" };
     if (ctx.typing) return null;
@@ -192,6 +202,7 @@ export function menuCommandFromKey(
   }
   if (ctx.typing) return null;
   if (letter(e) === "n") return { type: "newGame" };
+  if (letter(e) === "o") return { type: "options" };
   return null;
 }
 
