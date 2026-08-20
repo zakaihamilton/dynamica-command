@@ -63,7 +63,7 @@ describe("seeded terrain atlas", () => {
     expect(terrainAtlasKey(first)).toBe(a.key);
     expect(c.key).not.toBe(a.key);
     expect(a.data).not.toEqual(c.data);
-    const generated = generateMap(832, { index: 0, win: { kind: "annihilate" }, mapSize: 48 });
+    const generated = generateMap(832, { index: 0, win: { kind: "annihilate" }, mapSize: 48, biome: "ash plains" });
     const world = { ...generated, seed: 832, missionIndex: 0 };
     expect(sampleTerrainMaterial(world, 4, 4)).toEqual(sampleTerrainMaterial(world, 4, 4));
   });

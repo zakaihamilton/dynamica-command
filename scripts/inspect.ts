@@ -17,6 +17,7 @@ const missions = campaign.missions.map((m) => {
   return {
     index: m.index,
     name: m.name,
+    biome: m.biome,
     win: m.win,
     briefing: m.briefing,
     map: describeMap(map),

@@ -24,7 +24,7 @@ export function BriefingMast({
         </ConsoleLabel>
         <h1 className={styles.title}>{def.name}</h1>
         <p className={styles.world}>
-          {campaign.world.name} · {biomeLabel(campaign.world.biome)} · {campaign.world.era}
+          {campaign.world.name} · {biomeLabel(def.biome)} · {campaign.world.era}
         </p>
       </div>
       <p className={styles.aside}>

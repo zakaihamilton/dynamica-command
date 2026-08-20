@@ -210,6 +210,7 @@ export type MissionDef = {
   briefing: BriefingLine[];
   win: WinCategory;
   mapSize: number;
+  biome: BiomeName;
   kind?: MissionKind;
 };
 

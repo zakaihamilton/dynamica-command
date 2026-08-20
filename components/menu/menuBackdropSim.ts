@@ -9,6 +9,7 @@ import {
 } from "@/lib/gen/assets";
 import { generateFactions } from "@/lib/gen/factions";
 import { generateMap } from "@/lib/gen/map";
+import { generateWorld } from "@/lib/gen/world";
 import { generateCampaignVisualProfile, generateVisualProfile } from "@/lib/gen/visualProfile";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
 import { rasterize } from "@/lib/render/sprites";
@@ -35,6 +36,7 @@ export function createCinemaScene() {
     index: 0,
     win: { kind: "razeAll" },
     mapSize: 28,
+    biome: generateWorld(CINEMA_SEED).biome,
   });
   const [us, them] = generateFactions(CINEMA_SEED);
   const campaignProfile = generateCampaignVisualProfile(CINEMA_SEED);

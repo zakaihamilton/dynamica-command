@@ -1,5 +1,4 @@
 import { createRng, type Rng } from "../seed/rng";
-import { generateWorld } from "./world";
 import {
   SURFACE_CONCRETE,
   SURFACE_NONE,
@@ -365,10 +364,10 @@ export function mapSizeForMission(index: number): number {
 
 export function generateMap(
   seed: number,
-  mission: Pick<MissionDef, "index" | "win" | "mapSize">,
+  mission: Pick<MissionDef, "index" | "win" | "mapSize" | "biome">,
 ): GeneratedMap {
   const rng = createRng(seed, `map:${mission.index}`);
-  const biome = generateWorld(seed).biome;
+  const biome = mission.biome;
   const tuning = biomeTuning(biome);
   const width = mission.mapSize;
   const height = mission.mapSize;
