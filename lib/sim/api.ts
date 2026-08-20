@@ -362,7 +362,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     state.runtime = {
       kind: mission.win.kind,
       phase: "active",
-      targetIds: mission.win.targetIds ?? [],
+      targetIds: state.win.targetIds ?? mission.win.targetIds ?? [],
       rescued: 0,
       required: mission.win.targetCount ?? 1,
       secondary: [

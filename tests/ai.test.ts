@@ -197,6 +197,29 @@ describe("enemy AI", () => {
     expect(guard.path.at(-1)).toEqual(expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }));
   });
 
+  it("keeps generated destroy-marked targets available to the AI guard logic", () => {
+    const s = createMission({ seed: 421, missionIndex: 5 });
+    expect(s.win.kind).toBe("destroyMarked");
+    expect(s.runtime?.targetIds).toEqual(s.win.targetIds);
+
+    const targetIds = s.runtime?.targetIds ?? [];
+    expect(targetIds.length).toBeGreaterThan(0);
+
+    tickAi(s);
+
+    const guards = s.entities.filter(
+      (entity) => entity.owner === 1 && entity.class === "unit" && entity.kind !== "harvester" && entity.orderMode === "move",
+    );
+    expect(guards.length).toBeGreaterThanOrEqual(targetIds.length);
+    for (const targetId of targetIds) {
+      const target = s.entities.find((entity) => entity.id === targetId)!;
+      expect(guards.some((guard) => {
+        const destination = guard.orderDestination;
+        return destination !== undefined && Math.hypot(destination.x - target.x, destination.y - target.y) <= 4;
+      })).toBe(true);
+    }
+  });
+
   it("places a turret when a threat is at the yard", () => {
     const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
     addBuilding(s, 1, "constructionYard", 12, 12);
