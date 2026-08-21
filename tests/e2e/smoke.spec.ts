@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createMission } from "../../lib/sim/api";
 import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_VERSION, saveKey } from "../../lib/persist/save";
@@ -34,6 +34,28 @@ async function deployToBattlefield(page: Page) {
   await openBriefingSkippingTutorial(page);
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
+}
+
+async function canvasDigest(canvas: Locator): Promise<number> {
+  return canvas.evaluate((element) => {
+    const context = (element as HTMLCanvasElement).getContext("2d");
+    if (!context) throw new Error("Canvas context unavailable");
+    const { data } = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
+    let hash = 2166136261;
+    for (let i = 0; i < data.length; i += 4) {
+      hash ^= data[i] ?? 0;
+      hash = Math.imul(hash, 16777619);
+      hash ^= data[i + 1] ?? 0;
+      hash = Math.imul(hash, 16777619);
+      hash ^= data[i + 2] ?? 0;
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  });
+}
+
+async function nextFrame(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 }
 
 test("first deploy routes through tutorial to briefing", async ({ page }) => {
@@ -91,6 +113,46 @@ test("keeps the tactical radar readable and usable across breakpoints", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(radar).toBeVisible();
   expect(await radar.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(0);
+});
+
+test("keeps tactical radar clicks anchored and cleans up interrupted drags", async ({ page }) => {
+  await deployToBattlefield(page);
+  const radar = page.getByTestId("tactical-radar");
+  await expect(radar).toBeVisible();
+
+  const box = await radar.boundingBox();
+  expect(box).not.toBeNull();
+  const startX = box!.x + box!.width * 0.5;
+  const startY = box!.y + box!.height * 0.5;
+
+  await page.mouse.move(startX, startY);
+  await nextFrame(page);
+  const beforeDrag = await canvasDigest(radar);
+
+  await page.mouse.down();
+  await nextFrame(page);
+  expect(await canvasDigest(radar)).toBe(beforeDrag);
+
+  await page.mouse.move(startX + 2, startY + 2);
+  await nextFrame(page);
+  expect(await canvasDigest(radar)).toBe(beforeDrag);
+  await expect(radar).not.toHaveAttribute("data-dragging", "true");
+
+  await page.mouse.move(startX + 48, startY + 24);
+  await expect(radar).toHaveAttribute("data-dragging", "true");
+  await nextFrame(page);
+  expect(await canvasDigest(radar)).not.toBe(beforeDrag);
+
+  await radar.dispatchEvent("pointercancel", { bubbles: true, pointerId: 1 });
+  await expect(radar).not.toHaveAttribute("data-dragging", "true");
+  await page.mouse.up();
+
+  await page.keyboard.press("h");
+  await nextFrame(page);
+  const beforeClick = await canvasDigest(radar);
+  await radar.click({ position: { x: 8, y: 8 } });
+  await nextFrame(page);
+  expect(await canvasDigest(radar)).not.toBe(beforeClick);
 });
 
 test("toggles music and sound from welcome options", async ({ page }) => {
