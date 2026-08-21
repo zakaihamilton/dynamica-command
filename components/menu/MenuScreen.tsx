@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { ConsoleButton } from "@/components/ui/ConsoleButton";
-import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { setMusicEnabled as applyMusicEnabled } from "@/lib/audio/music";
@@ -13,12 +11,11 @@ import { listSaves, listUnreadableSaves, localStorageAdapter, removeSave } from 
 import { readCampaignProgress } from "@/lib/persist/campaign";
 import { defaultSettings, readSettings, writeSettings } from "@/lib/persist/settings";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
-import { isEditableTarget, menuCommandFromKey, SHORTCUT } from "@/lib/ui/shortcuts";
+import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
 import { MenuBackdrop } from "./MenuBackdrop";
 import { MenuHero } from "./MenuHero";
-import { MenuOptions } from "./MenuOptions";
-import { NewGameSetup } from "./NewGameSetup";
-import { ResumeList } from "./ResumeList";
+import { MenuMainPanel } from "./MenuMainPanel";
+import { MenuOverlay, type MenuView } from "./MenuOverlay";
 import styles from "./MenuScreen.module.css";
 
 function rollSeed(): string {
@@ -31,7 +28,7 @@ export function MenuScreen() {
   const [saves, setSaves] = useState(() => [] as ReturnType<typeof listSaves>);
   const [unreadableSaves, setUnreadableSaves] = useState<string[]>([]);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"main" | "newGame" | "options">("main");
+  const [view, setView] = useState<MenuView>("main");
   const [settings, setSettings] = useState(() => defaultSettings());
   const seedInput = useRef<HTMLInputElement>(null);
 
@@ -147,71 +144,35 @@ export function MenuScreen() {
 
       <div className={styles.content}>
         <MenuHero />
-        <MetalPanel className={styles.panel}>
-          <div className={styles.actions}>
-            <ConsoleButton
-              className={styles.full}
-              tooltip="Open campaign setup"
-              shortcut={SHORTCUT.newGame}
-              onClick={openNewGame}
-            >
-              NEW GAME
-            </ConsoleButton>
-            <ConsoleButton
-              className={styles.full}
-              tooltip="Audio and game options"
-              shortcut={SHORTCUT.options}
-              onClick={openOptions}
-            >
-              OPTIONS
-            </ConsoleButton>
-          </div>
-
-          <ResumeList
-            saves={saves}
-            onResume={(seed) => router.push(`/play?seed=${seed}&resume=1`)}
-            onDelete={deleteSave}
-          />
-          {unreadableSaves.length ? (
-            <div className={styles.recovery} role="alert">
-              <span>Unreadable save{unreadableSaves.length === 1 ? "" : "s"}: {unreadableSaves.join(", ")}</span>
-              {unreadableSaves.map((seed) => (
-                <ConsoleButton key={seed} tooltip={`Remove unreadable save ${seed}`} onClick={() => resetUnreadableSave(seed)}>
-                  Reset {seed}
-                </ConsoleButton>
-              ))}
-            </div>
-          ) : null}
-        </MetalPanel>
+        <MenuMainPanel
+          saves={saves}
+          unreadableSaves={unreadableSaves}
+          onNewGame={openNewGame}
+          onOptions={openOptions}
+          onResume={(seed) => router.push(`/play?seed=${seed}&resume=1`)}
+          onDelete={deleteSave}
+          onResetUnreadable={resetUnreadableSave}
+        />
       </div>
 
-      {view === "newGame" ? (
-        <div className={styles.overlay}>
-          <NewGameSetup
-            code={code}
-            error={error}
-            previewLine={previewLine}
-            inputRef={seedInput}
-            onChange={(value) => {
-              setCode(value);
-              setError("");
-            }}
-            onRandomize={randomize}
-            onLaunch={launch}
-            onBack={() => setView("main")}
-          />
-        </div>
-      ) : view === "options" ? (
-        <div className={styles.overlay}>
-          <MenuOptions
-            settings={settings}
-            onToggleSound={toggleSound}
-            onToggleMusic={toggleMusic}
-            onVolumeChange={updateVolume}
-            onBack={() => setView("main")}
-          />
-        </div>
-      ) : null}
+      <MenuOverlay
+        view={view}
+        code={code}
+        error={error}
+        previewLine={previewLine}
+        inputRef={seedInput}
+        settings={settings}
+        onChange={(value) => {
+          setCode(value);
+          setError("");
+        }}
+        onRandomize={randomize}
+        onLaunch={launch}
+        onToggleSound={toggleSound}
+        onToggleMusic={toggleMusic}
+        onVolumeChange={updateVolume}
+        onBack={() => setView("main")}
+      />
     </div>
   );
 }

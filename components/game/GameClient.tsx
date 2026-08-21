@@ -10,14 +10,10 @@ import { preloadRasterSources } from "@/lib/render/sprites";
 import type { FxBurst } from "@/lib/render/fx";
 import { localStorageAdapter } from "@/lib/persist/save";
 import { readSettings } from "@/lib/persist/settings";
-import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
-import { powerBreakdown } from "@/lib/sim/world";
 import type { Command, SimState } from "@/lib/types";
 import type { PauseView, CommandTab } from "@/lib/ui/shortcuts";
-import { CommandSidebar } from "./CommandSidebar";
 import { GamePlayField } from "./GamePlayField";
-import { MobileCommandTray } from "./MobileCommandTray";
-import { PauseMenu } from "./PauseMenu";
+import { GameOverlays } from "./GameOverlays";
 import { useGameCamera } from "./hooks/useGameCamera";
 import { useGameActions } from "./hooks/useGameActions";
 import { useGameInput } from "./hooks/useGameInput";
@@ -97,37 +93,22 @@ export function GameClient({
     jumpHome,
     centerSelection,
     resetCamera,
-    isMinimapDragging,
-    onMinimapPointerDown,
-    onMinimapPointerMove,
-    onMinimapPointerUp,
   } = camera;
 
   const actions = useGameActions({ stateRef, cmdQ, selected });
   const {
     place,
-    placeKind,
     setPlaceKind,
     repair,
-    repairMode,
     setRepairMode,
     sell,
-    sellMode,
     setSellMode,
     mobileCommand,
-    mobileCommandState,
     setMobileCommandState,
     clearTools,
-    chooseMobileCommand,
-    cancelMobileCommand,
     issueSelectedCommand,
-    togglePlace,
     toggleRepair,
     toggleSell,
-    cancelBuilding,
-    availableProducer,
-    queueUnit,
-    cancelUnit,
     activateCameo,
   } = actions;
 
@@ -292,8 +273,6 @@ export function GameClient({
   }, []);
 
   const s = state;
-  const grid = powerBreakdown(s, 0);
-  const selectedEnt = s.entities.find((e) => selectedIds.includes(e.id) && e.hp > 0);
   const pal = s.factions[0].palette;
 
   return (
@@ -328,78 +307,24 @@ export function GameClient({
         combatAlert={combatAlert}
       />
 
-      <MobileCommandTray
-        command={mobileCommandState}
-        onCommand={chooseMobileCommand}
-        onStop={() => issueSelectedCommand("stop")}
-        onRepair={toggleRepair}
-        onSell={toggleSell}
-        onStance={(stance) => issueSelectedCommand("stance", stance)}
-        onFormation={(formation) => issueSelectedCommand("formation", formation)}
-        onCancel={cancelMobileCommand}
+      <GameOverlays
+        campaign={campaign}
+        state={s}
+        playerVisualProfile={playerVisualProfile}
+        selectedIds={selectedIds}
+        miniRef={miniRef}
+        activeTab={activeTab}
+        onTab={setActiveTab}
+        paused={paused}
+        pauseView={pauseView}
+        pauseNotice={pauseNotice}
+        audioSettings={audioSettings}
+        camera={camera}
+        setPauseView={setPauseView}
+        setPauseNotice={setPauseNotice}
+        actions={actions}
+        session={session}
       />
-
-      {shouldShowCommandSidebar(s.result) ? (
-        <CommandSidebar
-          factionName={campaign.factions[0].name}
-          state={s}
-          palette={pal}
-          profile={playerVisualProfile}
-          selected={selectedEnt}
-          placeKind={placeKind}
-          repairMode={repairMode}
-          sellMode={sellMode}
-          activeTab={activeTab}
-          power={grid.surplus}
-          produced={grid.produced}
-          used={grid.used}
-          miniRef={miniRef}
-          onPause={session.openPauseMenu}
-          onMinimapPointerDown={onMinimapPointerDown}
-          onMinimapPointerMove={onMinimapPointerMove}
-          onMinimapPointerUp={onMinimapPointerUp}
-          isMinimapDragging={isMinimapDragging}
-          onTab={setActiveTab}
-          onRepair={toggleRepair}
-          onSell={toggleSell}
-          onPlace={togglePlace}
-          onCancelBuilding={cancelBuilding}
-          onQueueUnit={queueUnit}
-          onCancelUnit={cancelUnit}
-          availableProducer={availableProducer}
-          onStop={() => issueSelectedCommand("stop")}
-          onStance={(stance) => issueSelectedCommand("stance", stance)}
-          onFormation={(formation) => issueSelectedCommand("formation", formation)}
-        />
-      ) : null}
-
-      {paused ? (
-        <PauseMenu
-          view={pauseView}
-          notice={pauseNotice}
-          settings={audioSettings}
-          palette={pal}
-          onResume={session.resumeMission}
-          onSave={session.saveMission}
-          onLoad={session.loadMission}
-          onBriefing={session.viewMissionBriefing}
-          onRestart={session.restartMission}
-          onAssets={() => {
-            setPauseView("assets");
-            setPauseNotice("");
-          }}
-          onOptions={() => {
-            setPauseView("options");
-            setPauseNotice("");
-          }}
-          onMenu={session.goMenu}
-          onToggleSound={session.toggleSound}
-          onToggleMusic={session.toggleMusic}
-          onVolumeChange={session.updateVolume}
-          onBack={() => setPauseView("main")}
-          onCloseAssets={() => setPauseView("main")}
-        />
-      ) : null}
     </div>
   );
 }

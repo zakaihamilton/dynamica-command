@@ -182,3 +182,5 @@ export function useGameActions({
     activateCameo,
   };
 }
+
+export type GameActions = ReturnType<typeof useGameActions>;

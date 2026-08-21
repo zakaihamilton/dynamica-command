@@ -216,3 +216,5 @@ export function useGameCamera({
     onMinimapPointerUp,
   };
 }
+
+export type GameCamera = ReturnType<typeof useGameCamera>;

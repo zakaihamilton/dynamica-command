@@ -223,3 +223,5 @@ export function useGameSession({
     goRetry,
   };
 }
+
+export type GameSession = ReturnType<typeof useGameSession>;

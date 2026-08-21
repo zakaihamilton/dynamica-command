@@ -93,50 +93,6 @@
     0 2px 0 var(--chrome-void);
 }
 
-.panel {
-  margin-top: 1.75rem;
-  width: 100%;
-  max-width: 32rem;
-  padding: 1.5rem;
-  backdrop-filter: blur(4px);
-}
-
-.actions {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.full {
-  width: 100%;
-  text-align: left;
-}
-
-.recovery {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--chrome-alert) 55%, var(--chrome-inset));
-  background: color-mix(in srgb, var(--chrome-alert) 10%, var(--chrome-void));
-  color: #ffb08a;
-  font-size: 0.68rem;
-}
-
-.overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.75);
-  padding: 1rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
 @media (min-width: 640px) {
   .title {
     font-size: 6.5rem;
