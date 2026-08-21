@@ -7,15 +7,18 @@ const CLASSIC_DIRECTOR_DURATION = 3600;
 const CLASSIC_DURATION_STEP = 480;
 
 export function directorTimeline(state: SimState): { pressureStart: number; finaleStart: number } {
+  const convoyStaging = state.runtime?.kind === "escort" ? state.runtime.convoyStartTick ?? 0 : 0;
   const duration = Math.max(
     360,
-    state.win.ticks ?? CLASSIC_DIRECTOR_DURATION + state.missionIndex * CLASSIC_DURATION_STEP,
+    (state.win.ticks ?? CLASSIC_DIRECTOR_DURATION + state.missionIndex * CLASSIC_DURATION_STEP) + convoyStaging,
   );
   const difficulty = missionDifficulty(state.missionIndex);
-  const pressureStart = Math.min(
-    Math.max(240, Math.round(duration * 0.28)),
-    difficulty.enemyAssaultEvery,
-  );
+  const pressureStart = state.runtime?.kind === "escort"
+    ? Math.max(convoyStaging + 240, Math.round(duration * 0.28))
+    : Math.min(
+        Math.max(240, Math.round(duration * 0.28)),
+        difficulty.enemyAssaultEvery,
+      );
   const finaleStart = Math.max(pressureStart + 360, Math.round(duration * 0.75));
   return { pressureStart, finaleStart };
 }
@@ -36,6 +39,7 @@ export function ensureMissionDirector(state: SimState): MissionRuntime | undefin
 }
 
 function phaseAt(state: SimState, director: NonNullable<MissionRuntime["director"]>): MissionDirectorPhase {
+  if (state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined) return "opening";
   if (state.tick >= director.finaleStart) return "finale";
   if (state.tick >= director.pressureStart) return "pressure";
   return "opening";

@@ -194,7 +194,7 @@ function scenarioAssaultTarget(state: SimState, from: Entity): Entity | undefine
     .map((id) => byId(state, id))
     .filter((entity): entity is Entity => {
       if (!entity || entity.hp <= 0 || entity.owner !== 0) return false;
-      if (runtime.kind === "escort") return entity.scenarioRole === "convoy";
+      if (runtime.kind === "escort") return runtime.convoyStartTick === undefined && entity.scenarioRole === "convoy";
       if (runtime.kind === "extraction") return entity.scenarioRole === "cargo" && !entity.neutral && !runtime.extractedIds?.includes(entity.id);
       if (runtime.kind === "rescue") return entity.scenarioRole === "stranded" && !entity.neutral;
       return false;
@@ -370,13 +370,17 @@ export function tickAi(state: SimState): void {
   const threat = nearest(
     state,
     yard,
-    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester",
+    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester" && !(
+      e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined
+    ),
   );
   const units = enemyCombat(state);
   const averageHealth = units.length ? units.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / units.length : 1;
   if (shouldRetreat(state, averageHealth)) state.aiState = "retreat";
   else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";
-  else if (playerYard && state.tick >= waveEvery) state.aiState = "assault";
+  else if (playerYard && state.tick >= waveEvery && !(
+    state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined
+  )) state.aiState = "assault";
   else if (units.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
   else state.aiState = "economy";
 

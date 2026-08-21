@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMission, issue, tick, inspect } from "../lib/sim/api";
+import { CONVOY_STAGING_TICKS, createMission, issue, tick, inspect } from "../lib/sim/api";
 import { tickCombat } from "../lib/sim/combat";
 import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
@@ -71,6 +71,10 @@ describe("tactical expansion", () => {
     expect(neutral).toBeDefined();
     expect(neutral?.scenarioRole).toBe(kind === "escort" ? "convoy" : "stranded");
     if (kind === "escort") {
+      expect(neutral?.path).toEqual([]);
+      expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
+      expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS);
+      for (let i = 0; i <= CONVOY_STAGING_TICKS; i++) tick(state);
       expect(neutral?.path.at(-1)).toEqual(expect.objectContaining({ x: state.runtime?.zone?.x, y: state.runtime?.zone?.y }));
     } else {
       expect(neutral?.path).toEqual([]);

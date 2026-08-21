@@ -1,4 +1,4 @@
-import { UNIT_STATS, footprintOf } from "../catalog";
+import { footprintOf } from "../catalog";
 import { buildingSprite, unitSprite } from "../gen/assets";
 import { generateVisualProfile } from "../gen/visualProfile";
 import type { BuildingKind, Entity, SimState, SpriteSpec, UnitKind } from "../types";
@@ -376,22 +376,6 @@ export function renderWorld(
     if (!entityById.has(id) || (entityById.get(id)?.hp ?? 0) <= 0) lastReadySprite.delete(id);
   }
 
-  for (const id of selected) {
-    const selectedEntity = entityById.get(id);
-    if (!selectedEntity || selectedEntity.owner !== 0) continue;
-    const center = tileToScreen(selectedEntity.x, selectedEntity.y, cam, entityElev(state, selectedEntity));
-    const range = selectedEntity.kind === "turret" ? 7 : selectedEntity.class === "unit" ? UNIT_STATS[selectedEntity.kind as UnitKind].range : 0;
-    if (range > 0) {
-      ctx.save();
-      ctx.strokeStyle = "rgba(100, 220, 255, 0.45)";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4 * z, 4 * z]);
-      ctx.beginPath();
-      ctx.ellipse(center.x, center.y + TILE_H * z * 0.5, range * TILE_W * z * 0.5, range * TILE_H * z * 0.5, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
   lap("entities");
 
   drawCombatEffects(ctx, state, cam, drawList, entityById, (st, ent) => resolveFacing(st, ent, entityById), clock);

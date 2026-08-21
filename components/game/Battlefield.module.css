@@ -91,6 +91,14 @@
   letter-spacing: 0.12em;
 }
 
+.stagingWindow {
+  margin-top: 0.12rem;
+  color: var(--chrome-cyan);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
 .secondary {
   margin-top: 0.2rem;
   color: var(--chrome-muted);

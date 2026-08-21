@@ -13,6 +13,7 @@ type PendingAlerts = { harvester: boolean; yard: boolean; convoy: boolean };
 const alertMute = new WeakMap<SimState, AlertMute>();
 
 type CombatGrid = {
+  state: SimState;
   cols: number;
   rows: number;
   cells: Entity[][];
@@ -28,12 +29,13 @@ function statsFor(e: Entity): { damage: number; range: number; cooldown: number;
   return { damage: 0, range: 0, cooldown: 0, weapon: "smallArms", splashRadius: 0, suppression: 0 };
 }
 
-function isCombatTarget(e: Entity): boolean {
+function isCombatTarget(state: SimState, e: Entity): boolean {
+  if (e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined) return false;
   return !e.neutral || e.scenarioRole === "convoy";
 }
 
-function isCombatThreat(e: Entity): boolean {
-  if (!isCombatTarget(e)) return false;
+function isCombatThreat(state: SimState, e: Entity): boolean {
+  if (!isCombatTarget(state, e)) return false;
   if (e.class === "building" && e.constructing > 0) return false;
   return statsFor(e).damage > 0;
 }
@@ -51,7 +53,7 @@ function buildGrid(state: SimState): CombatGrid {
     const cy = Math.max(0, Math.min(rows - 1, Math.floor(e.y / CELL)));
     cells[cy * cols + cx]!.push(e);
   }
-  return { cols, rows, cells, order, all };
+  return { state, cols, rows, cells, order, all };
 }
 
 function closestEnemy(
@@ -74,9 +76,9 @@ function closestEnemy(
       if (!bucket) continue;
       for (const o of bucket) {
         if (o.hp <= 0) continue;
-        if (!isCombatTarget(o)) continue;
+        if (!isCombatTarget(grid.state, o)) continue;
         if (o.owner === e.owner) continue;
-        if (threatsOnly && !isCombatThreat(o)) continue;
+        if (threatsOnly && !isCombatThreat(grid.state, o)) continue;
         const d = distToEntity(e, o);
         if (d > maxDist) continue;
         const rank = grid.order.get(o.id) ?? Infinity;
@@ -256,7 +258,7 @@ export function tickCombat(state: SimState): SimEvent[] {
           if (lineOfSight(state, e, assigned)) strike(state, e, assigned, st, rng, events, pending);
           if (e.attackTarget === undefined) resumeAttackMove(state, e);
         } else {
-          const intercept = e.owner === 1 && !isCombatThreat(assigned)
+          const intercept = e.owner === 1 && !isCombatThreat(state, assigned)
             ? closestEnemy(grid, e, st.range, true)
             : undefined;
           if (intercept && lineOfSight(state, e, intercept)) {
@@ -299,7 +301,7 @@ export function tickCombat(state: SimState): SimEvent[] {
     const defend = stance === "defensive";
     const inRangeThreat = hold ? undefined : closestEnemy(grid, e, st.range, true);
     let target = inRangeThreat ?? (hold ? undefined : e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined);
-    if (target && !isCombatThreat(target)) {
+    if (target && !isCombatThreat(state, target)) {
       const threat = hold || defend ? closestEnemy(grid, e, st.range, true) : acquire(grid, e, true);
       if (threat) {
         target = threat;

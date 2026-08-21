@@ -21,6 +21,8 @@ import { missionDifficulty } from "./difficulty";
 
 export { issue, inspect };
 
+export const CONVOY_STAGING_TICKS = 180 * 12;
+
 function cellOf(state: SimState, x: number, y: number): number {
   return Math.round(y) * state.width + Math.round(x);
 }
@@ -333,17 +335,15 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
         target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
         if (kind === "extraction") target.marked = true;
         targetIds.push(target.id);
-        if (kind === "escort") {
-          target.path = stepRoute(state, target, map.enemyStart);
-        }
       }
     }
     const runtime: MissionRuntime = {
       kind,
       phase: "active",
       targetIds,
+      convoyStartTick: kind === "escort" ? CONVOY_STAGING_TICKS : undefined,
       zone: kind === "escort" ? map.enemyStart : map.playerStart,
-      deadline: state.tick + (mission.win.ticks ?? 3600),
+      deadline: state.tick + (mission.win.ticks ?? 3600) + (kind === "escort" ? CONVOY_STAGING_TICKS : 0),
       rescued: 0,
       required: count,
       secondary: [
@@ -434,6 +434,13 @@ function tickScenario(state: SimState): SimEvent[] {
         if (runtime.kind === "extraction") runtime.phase = "extraction";
       }
     }
+  }
+  if (runtime.kind === "escort" && runtime.convoyStartTick !== undefined && state.tick >= runtime.convoyStartTick) {
+    for (const id of runtime.targetIds) {
+      const convoy = state.entities.find((entity) => entity.id === id && entity.hp > 0);
+      if (convoy?.scenarioRole === "convoy" && convoy.neutral) convoy.path = stepRoute(state, convoy, state.runtime!.zone!);
+    }
+    delete runtime.convoyStartTick;
   }
   if (runtime.kind === "escort" || runtime.kind === "extraction") {
     const zone = runtime.zone;

@@ -54,6 +54,7 @@ export type MissionRuntime = {
   kind: MissionKind;
   phase: "active" | "extraction" | "complete";
   targetIds: number[];
+  convoyStartTick?: number;
   zone?: Vec2;
   deadline?: number;
   rescued: number;

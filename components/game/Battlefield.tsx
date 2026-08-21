@@ -19,6 +19,7 @@ export function Battlefield({
   missionName,
   objective,
   deadline,
+  stagingWindow,
   secondary,
   biome,
   children,
@@ -39,6 +40,7 @@ export function Battlefield({
   missionName: string;
   objective: string;
   deadline?: string;
+  stagingWindow?: string;
   secondary?: string[];
   biome: BiomeName;
   children?: ReactNode;
@@ -82,6 +84,7 @@ export function Battlefield({
             {objective}
           </div>
           {deadline ? <div className={styles.deadline}>{deadline}</div> : null}
+          {stagingWindow ? <div className={styles.stagingWindow}>{stagingWindow}</div> : null}
           {secondary?.length ? (
             <div className={styles.secondary} data-testid="secondary-objectives">
               {secondary.map((item) => <div key={item}>{item}</div>)}
