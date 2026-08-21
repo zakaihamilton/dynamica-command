@@ -7,34 +7,96 @@
   overflow: hidden;
   padding: 0.25rem;
   border: 2px solid var(--chrome-inset);
-  background: var(--chrome-void);
+  background: color-mix(in srgb, var(--chrome-void) 88%, var(--chrome-cyan) 12%);
   box-shadow: inset 2px 2px var(--chrome-inset), inset -2px -2px color-mix(in srgb, var(--p, var(--chrome-steel-hi)) 45%, var(--chrome-steel-hi)), 2px 2px 0 var(--chrome-inset);
-}
-
-.frame::after {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 4px;
-  background: repeating-linear-gradient(to bottom, transparent 0 2px, color-mix(in srgb, var(--chrome-cyan) 8%, transparent) 2px 3px);
 }
 
 .canvas {
   display: block;
   height: 10rem;
   width: 100%;
-  cursor: crosshair;
-  background: #000;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  background: #07151d;
+  image-rendering: auto;
+}
+
+.canvas[data-dragging="true"] {
+  cursor: grabbing;
 }
 
 .sweep {
   pointer-events: none;
   position: absolute;
   inset: 4px;
-  background: linear-gradient(to bottom, transparent 35%, color-mix(in srgb, var(--chrome-cyan) 22%, transparent) 50%, transparent 65%);
-  animation: radar-scan 4.5s linear infinite;
+  background: linear-gradient(to bottom, transparent 42%, color-mix(in srgb, var(--chrome-cyan) 15%, transparent) 50%, transparent 58%);
+  opacity: 0.78;
+  mix-blend-mode: screen;
+  animation: radar-scan 5.5s linear infinite;
+}
+
+.help {
+  margin: 0.25rem 0 0;
+  color: var(--chrome-muted);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem 0.55rem;
+  margin-top: 0.35rem;
+  color: var(--chrome-muted);
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.48rem;
+  height: 0.48rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-body) 35%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 4px color-mix(in srgb, currentColor 36%, transparent);
+}
+
+.selectedSwatch {
+  background: transparent;
+  border: 1px solid #8ff9f2;
+}
+
+.objectiveSwatch {
+  background: #ffe066;
+  border-radius: 1px;
+  transform: rotate(45deg) scale(0.82);
+}
+
+.viewSwatch {
+  width: 0.58rem;
+  height: 0.42rem;
+  background: transparent;
+  border: 1px solid #f4ffff;
+  border-radius: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep {
+    animation: none;
+    opacity: 0.2;
+    transform: translateY(-12%);
+  }
 }
 
 @keyframes radar-scan {
@@ -45,5 +107,10 @@
 @media (max-width: 799px) {
   .canvas {
     height: 118px;
+  }
+
+  .help,
+  .legend {
+    font-size: 0.48rem;
   }
 }

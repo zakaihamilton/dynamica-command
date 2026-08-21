@@ -3,6 +3,7 @@ import { HEIGHT_STEP, TILE_H, TILE_W, type Camera } from "./iso";
 import { cameraViewQuad, screenToGroundTile } from "./iso";
 
 export const PAN_STEP = 10;
+export const MINIMAP_DRAG_THRESHOLD = 6;
 
 export type PanDir = "left" | "right" | "up" | "down";
 
@@ -115,6 +116,36 @@ export function panOffset(dir: PanDir, step = PAN_STEP): { dx: number; dy: numbe
 export function panCamera(cam: Camera, dx: number, dy: number, bounds?: CameraBounds): void {
   cam.x += dx;
   cam.y += dy;
+  if (bounds) clampCamera(cam, bounds);
+}
+
+export function minimapPoint(
+  pointerX: number,
+  pointerY: number,
+  minimapWidth: number,
+  minimapHeight: number,
+  mapWidth: number,
+  mapHeight: number,
+): { x: number; y: number } {
+  const px = Math.max(0, Math.min(minimapWidth, pointerX));
+  const py = Math.max(0, Math.min(minimapHeight, pointerY));
+  return {
+    x: (px / Math.max(1, minimapWidth)) * mapWidth,
+    y: (py / Math.max(1, minimapHeight)) * mapHeight,
+  };
+}
+
+/** Translate the isometric camera by a drag delta expressed in map tiles. */
+export function panCameraByMinimapDelta(
+  cam: Camera,
+  deltaX: number,
+  deltaY: number,
+  bounds?: CameraBounds,
+): void {
+  const tileX = (TILE_W / 2) * cam.zoom;
+  const tileY = (TILE_H / 2) * cam.zoom;
+  cam.x -= (deltaX - deltaY) * tileX;
+  cam.y -= (deltaX + deltaY) * tileY;
   if (bounds) clampCamera(cam, bounds);
 }
 

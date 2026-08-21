@@ -417,5 +417,8 @@ describe("minimap classification", () => {
     expect(MINIMAP_OVERLAY_TICK_SHIFT).toBe(1);
     expect(odd.overlayKey).toBe(even.overlayKey);
     expect(next.overlayKey).not.toBe(even.overlayKey);
+
+    const selected = minimapCacheKeys(state, view, 96, 96, new Set([1, 3]));
+    expect(selected.overlayKey).not.toBe(next.overlayKey);
   });
 });

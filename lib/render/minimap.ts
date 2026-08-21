@@ -11,8 +11,9 @@ import {
 import { fogAt } from "../sim/fog";
 import { atlasPixelAtTile, fogTerrainGain, getTerrainAtlas, terrainColors } from "./terrainAtlas";
 
-const MINIMAP_RENDER_REV = "world-atlas-v2";
+const MINIMAP_RENDER_REV = "world-atlas-v3";
 export const MINIMAP_OVERLAY_TICK_SHIFT = 1;
+const MINIMAP_FOG_COLOR = { r: 7, g: 15, b: 21 };
 
 export type MinimapRegion = "ground" | "elevation-mid" | "elevation-high" | "water" | "resource" | "blocked" | "road" | "concrete";
 
@@ -72,9 +73,12 @@ function paintMinimapTerrain(ctx: CanvasRenderingContext2D, state: SimState, w: 
     const cellH = h / state.height;
     for (let y = 0; y < state.height; y++) {
       for (let x = 0; x < state.width; x++) {
-        const gain = fogTerrainGain(fogAt(state, x, y));
-        if (gain >= 0.98) continue;
-        ctx.fillStyle = `rgba(8,13,17,${1 - gain})`;
+        const fog = fogAt(state, x, y);
+        if (fog >= 2) continue;
+        const gain = fogTerrainGain(fog);
+        ctx.fillStyle = fog === 0
+          ? `rgb(${MINIMAP_FOG_COLOR.r},${MINIMAP_FOG_COLOR.g},${MINIMAP_FOG_COLOR.b})`
+          : `rgba(${MINIMAP_FOG_COLOR.r},${MINIMAP_FOG_COLOR.g},${MINIMAP_FOG_COLOR.b},${1 - gain})`;
         ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
       }
     }
@@ -85,8 +89,15 @@ function paintMinimapTerrain(ctx: CanvasRenderingContext2D, state: SimState, w: 
     for (let y = 0; y < state.height; y++) {
       for (let x = 0; x < state.width; x++) {
         const [r, g, b] = atlasPixelAtTile(baked, x, y);
-        const gain = fogTerrainGain(fogAt(state, x, y));
-        ctx.fillStyle = `rgb(${Math.round(r * gain)},${Math.round(g * gain)},${Math.round(b * gain)})`;
+        const fogState = fogAt(state, x, y);
+        if (fogState === 0) {
+          ctx.fillStyle = `rgb(${MINIMAP_FOG_COLOR.r},${MINIMAP_FOG_COLOR.g},${MINIMAP_FOG_COLOR.b})`;
+          ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+          continue;
+        }
+        const gain = fogTerrainGain(fogState);
+        const fog = 1 - gain;
+        ctx.fillStyle = `rgb(${Math.round(r * gain + MINIMAP_FOG_COLOR.r * fog)},${Math.round(g * gain + MINIMAP_FOG_COLOR.g * fog)},${Math.round(b * gain + MINIMAP_FOG_COLOR.b * fog)})`;
         ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
       }
     }
@@ -99,35 +110,63 @@ function paintMinimapOverlay(
   view: { x: number; y: number }[],
   w: number,
   h: number,
+  selectedIds: ReadonlySet<number>,
 ): void {
   const sx = w / state.width;
   const sy = h / state.height;
+  const targetIds = new Set(state.runtime?.targetIds ?? []);
   for (const e of state.entities) {
     if (e.hp <= 0) continue;
     const fog = fogAt(state, Math.round(e.x), Math.round(e.y));
     if (e.owner === 1 && fog !== 2) continue;
+    const x = e.x * sx;
+    const y = e.y * sy;
     ctx.fillStyle = entityColor(e, state);
-    const bw = e.class === "building" ? 6 : 3;
-    const bh = e.class === "building" ? 6 : 3;
-    ctx.fillRect(e.x * sx - 1, e.y * sy - 1, bw, bh);
+    const size = e.class === "building" ? 6 : 3;
+    ctx.fillRect(x - size / 2, y - size / 2, size, size);
+    if (selectedIds.has(e.id)) {
+      ctx.strokeStyle = "#8ff9f2";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(4, size * 0.85), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (targetIds.has(e.id)) {
+      ctx.strokeStyle = "#ffe066";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y - Math.max(4, size));
+      ctx.lineTo(x + Math.max(4, size), y);
+      ctx.lineTo(x, y + Math.max(4, size));
+      ctx.lineTo(x - Math.max(4, size), y);
+      ctx.closePath();
+      ctx.stroke();
+    }
   }
   const zone = state.runtime?.zone;
   if (zone && missionUsesObjectiveZone(state.runtime?.kind)) {
-    ctx.strokeStyle = "#e8c86a";
-    ctx.lineWidth = 1.5;
+    const zx = zone.x * sx;
+    const zy = zone.y * sy;
+    const radiusX = Math.max(3, OBJECTIVE_ZONE_RADIUS * sx);
+    const radiusY = Math.max(3, OBJECTIVE_ZONE_RADIUS * sy);
+    ctx.fillStyle = "rgba(232, 200, 106, 0.08)";
     ctx.beginPath();
-    ctx.ellipse(
-      zone.x * sx,
-      zone.y * sy,
-      Math.max(3, OBJECTIVE_ZONE_RADIUS * sx),
-      Math.max(3, OBJECTIVE_ZONE_RADIUS * sy),
-      0,
-      0,
-      Math.PI * 2,
-    );
+    ctx.ellipse(zx, zy, radiusX, radiusY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#e8c86a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(zx, zy, radiusX, radiusY, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(zx - 3, zy);
+    ctx.lineTo(zx + 3, zy);
+    ctx.moveTo(zx, zy - 3);
+    ctx.lineTo(zx, zy + 3);
     ctx.stroke();
   }
   if (view.length >= 2) {
+    ctx.save();
     ctx.beginPath();
     for (let i = 0; i < view.length; i++) {
       const p = view[i]!;
@@ -137,12 +176,20 @@ function paintMinimapOverlay(
       else ctx.lineTo(px, py);
     }
     ctx.closePath();
-    ctx.fillStyle = "rgba(255, 248, 210, 0.12)";
+    ctx.fillStyle = "rgba(143, 249, 242, 0.08)";
     ctx.fill();
-    ctx.strokeStyle = "#fff8e8";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#f4ffff";
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.shadowColor = "rgba(143, 249, 242, 0.55)";
+    ctx.shadowBlur = 4;
     ctx.stroke();
+    ctx.restore();
   }
+}
+
+function selectedKey(selectedIds: ReadonlySet<number> | undefined): string {
+  return selectedIds ? [...selectedIds].sort((a, b) => a - b).join(",") : "";
 }
 
 export function minimapCacheKeys(
@@ -150,13 +197,15 @@ export function minimapCacheKeys(
   view: { x: number; y: number }[],
   w: number,
   h: number,
+  selectedIds?: ReadonlySet<number>,
 ): { terrainKey: string; overlayKey: string } {
   const viewKey = view.length
     ? `${view[0]!.x.toFixed(2)},${view[0]!.y.toFixed(2)}:${view[2] ? `${view[2].x.toFixed(2)},${view[2].y.toFixed(2)}` : ""}`
     : "";
   const palKey = `${state.factions[0]?.palette.primary ?? ""}:${state.factions[1]?.palette.primary ?? ""}`;
+  const selectedKeyValue = selectedKey(selectedIds);
   const terrainKey = `${MINIMAP_RENDER_REV}:${state.seed}:${state.tick >> 4}:${state.biome}:${state.width}x${state.height}:${w}x${h}`;
-  const overlayKey = `${terrainKey}:${state.tick >> MINIMAP_OVERLAY_TICK_SHIFT}:${state.result}:${viewKey}:${state.entities.length}:${palKey}`;
+  const overlayKey = `${terrainKey}:${state.tick >> MINIMAP_OVERLAY_TICK_SHIFT}:${state.result}:${viewKey}:${state.entities.length}:${palKey}:${selectedKeyValue}`;
   return { terrainKey, overlayKey };
 }
 
@@ -164,10 +213,11 @@ export function renderMinimap(
   ctx: CanvasRenderingContext2D,
   state: SimState,
   view: { x: number; y: number }[],
+  selectedIds: ReadonlySet<number> = new Set(),
 ): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
-  const { terrainKey, overlayKey } = minimapCacheKeys(state, view, w, h);
+  const { terrainKey, overlayKey } = minimapCacheKeys(state, view, w, h, selectedIds);
   if (overlayKey === lastOverlayKey) return;
 
   let terrainReady = false;
@@ -191,6 +241,6 @@ export function renderMinimap(
     }
   }
   if (!terrainReady) paintMinimapTerrain(ctx, state, w, h);
-  paintMinimapOverlay(ctx, state, view, w, h);
+  paintMinimapOverlay(ctx, state, view, w, h, selectedIds);
   lastOverlayKey = overlayKey;
 }

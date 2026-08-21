@@ -99,6 +99,7 @@ export function GameClient({
     jumpHome,
     centerSelection,
     resetCamera,
+    isMinimapDragging,
     onMinimapPointerDown,
     onMinimapPointerMove,
     onMinimapPointerUp,
@@ -191,7 +192,7 @@ export function GameClient({
       }
       if (mctx) {
         const miniStarted = worldTimings ? performance.now() : 0;
-        renderMinimap(mctx, s, cameraViewQuad(camRef.current, canvas.width, canvas.height));
+        renderMinimap(mctx, s, cameraViewQuad(camRef.current, canvas.width, canvas.height), selected.current);
         if (worldTimings) minimapMs = performance.now() - miniStarted;
       }
     }
@@ -375,6 +376,7 @@ export function GameClient({
           onMinimapPointerDown={onMinimapPointerDown}
           onMinimapPointerMove={onMinimapPointerMove}
           onMinimapPointerUp={onMinimapPointerUp}
+          isMinimapDragging={isMinimapDragging}
           onTab={setActiveTab}
           onRepair={toggleRepair}
           onSell={toggleSell}

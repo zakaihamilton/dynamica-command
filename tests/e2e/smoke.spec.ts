@@ -60,6 +60,39 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
   await expect(page.getByTestId("credits")).toBeVisible();
 });
 
+test("keeps the tactical radar readable and usable across breakpoints", async ({ page }) => {
+  await deployToBattlefield(page);
+  const radar = page.getByTestId("tactical-radar");
+  await expect(radar).toBeVisible();
+  await expect(radar).toHaveAttribute("aria-label", /click to focus.*drag to pan/i);
+  await expect(page.getByText("ALLY", { exact: true })).toBeVisible();
+
+  const desktopStyles = await radar.evaluate((element) => {
+    const frame = element.parentElement;
+    const sweep = frame?.querySelector("span");
+    return {
+      touchAction: getComputedStyle(element).touchAction,
+      imageRendering: getComputedStyle(element).imageRendering,
+      frameOverlay: frame ? getComputedStyle(frame, "::after").backgroundImage : "none",
+      sweepAnimation: sweep ? getComputedStyle(sweep).animationName : "none",
+    };
+  });
+  expect(desktopStyles.touchAction).toBe("none");
+  expect(desktopStyles.imageRendering).toBe("auto");
+  expect(desktopStyles.frameOverlay).toBe("none");
+  expect(desktopStyles.sweepAnimation).toMatch(/radar-scan/);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(async () => radar.evaluate((element) => {
+    const sweep = element.parentElement?.querySelector("span");
+    return sweep ? getComputedStyle(sweep).animationName : "none";
+  })).toBe("none");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(radar).toBeVisible();
+  expect(await radar.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(0);
+});
+
 test("toggles music and sound from welcome options", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "OPTIONS" }).click();

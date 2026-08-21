@@ -28,6 +28,7 @@ export function CommandSidebar({
   onMinimapPointerDown,
   onMinimapPointerMove,
   onMinimapPointerUp,
+  isMinimapDragging,
   onTab,
   onRepair,
   onSell,
@@ -57,6 +58,7 @@ export function CommandSidebar({
   onMinimapPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerUp: PointerEventHandler<HTMLCanvasElement>;
+  isMinimapDragging: boolean;
   onTab: (tab: CommandTab) => void;
   onRepair: () => void;
   onSell: () => void;
@@ -80,6 +82,9 @@ export function CommandSidebar({
           onPointerDown={onMinimapPointerDown}
           onPointerMove={onMinimapPointerMove}
           onPointerUp={onMinimapPointerUp}
+          isDragging={isMinimapDragging}
+          friendlyColor={state.factions[0]?.palette.light ?? palette.light}
+          hostileColor={state.factions[1]?.palette.light ?? "#ff8b83"}
         />
       </div>
 

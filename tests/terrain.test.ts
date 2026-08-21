@@ -8,7 +8,15 @@ import { BUILDING_STATS, footprintOf } from "../lib/catalog";
 import type { BuildingKind } from "../lib/types";
 import { TILE_BLOCKED, TILE_WATER } from "../lib/types";
 import { cameraViewQuad, createCamera, TILE_H, tileToScreen } from "../lib/render/iso";
-import { cameraPanBounds, canPan, clampCamera, panAvailability } from "../lib/render/camera";
+import {
+  cameraPanBounds,
+  canPan,
+  clampCamera,
+  MINIMAP_DRAG_THRESHOLD,
+  minimapPoint,
+  panAvailability,
+  panCameraByMinimapDelta,
+} from "../lib/render/camera";
 import { visibleTileRange } from "../lib/render/terrainPaint";
 
 describe("terrain height", () => {
@@ -287,6 +295,34 @@ describe("minimap camera view", () => {
     const ys = quad.map((p) => p.y);
     expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(8);
     expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(8);
+  });
+});
+
+describe("minimap camera interaction", () => {
+  it("maps pointer coordinates into clamped map space", () => {
+    expect(minimapPoint(-4, 120, 200, 100, 48, 64)).toEqual({ x: 0, y: 64 });
+    expect(minimapPoint(100, 50, 200, 100, 48, 64)).toEqual({ x: 24, y: 32 });
+    expect(minimapPoint(240, -20, 200, 100, 48, 64)).toEqual({ x: 48, y: 0 });
+  });
+
+  it("translates the camera by the same map-space drag delta", () => {
+    const cam = createCamera();
+    cam.x = 500;
+    cam.y = 300;
+    panCameraByMinimapDelta(cam, 2, 1);
+    expect(cam.x).toBe(468);
+    expect(cam.y).toBe(252);
+    expect(MINIMAP_DRAG_THRESHOLD).toBeGreaterThan(0);
+  });
+
+  it("clamps minimap drag movement to camera bounds", () => {
+    const cam = createCamera();
+    const bounds = cameraPanBounds(cam, 48, 48, 640, 480);
+    panCameraByMinimapDelta(cam, 10_000, -10_000, bounds);
+    expect(cam.x).toBeGreaterThanOrEqual(bounds.minX);
+    expect(cam.x).toBeLessThanOrEqual(bounds.maxX);
+    expect(cam.y).toBeGreaterThanOrEqual(bounds.minY);
+    expect(cam.y).toBeLessThanOrEqual(bounds.maxY);
   });
 });
 
