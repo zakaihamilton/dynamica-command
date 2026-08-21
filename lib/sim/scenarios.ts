@@ -4,9 +4,11 @@ import type {
   BuildingKind,
   MissionDef,
   MissionRuntime,
+  SimEvent,
   SimState,
   Vec2,
 } from "../types";
+import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
 import { PATH_DIRS, diagonalCornerBlocked } from "./pathfinding";
 import { canClimb, inBounds, isStaticWalkable, isWalkable, spawnBuildingAt, spawnUnit } from "./world";
 
@@ -169,4 +171,73 @@ function convoyStartPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart" |
     x: Math.max(2, Math.min(map.width - 3, anchorX + offset.x)),
     y: Math.max(2, Math.min(map.height - 3, anchorY + offset.y)),
   };
+}
+
+function stepRoute(from: Vec2, to: Vec2): Vec2[] {
+  return [...Array.from({ length: 3 }, (_, i) => ({
+    x: Math.round(from.x + (to.x - from.x) * (i + 1) / 4),
+    y: Math.round(from.y + (to.y - from.y) * (i + 1) / 4),
+  })), { x: to.x, y: to.y }];
+}
+
+export function tickScenario(state: SimState): SimEvent[] {
+  const events: SimEvent[] = [];
+  const runtime = state.runtime;
+  if (!runtime || runtime.phase === "complete") return events;
+  const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
+  if (runtime.kind === "extraction" && yard) {
+    runtime.zone = { x: yard.x, y: yard.y };
+  }
+  if (runtime.kind === "rescue" || runtime.kind === "extraction") {
+    const rescuers = state.entities.filter(
+      (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !e.neutral,
+    );
+    for (const id of runtime.targetIds) {
+      const e = state.entities.find((item) => item.id === id && item.hp > 0);
+      if (!e?.neutral) continue;
+      e.path = [];
+      e.idle = true;
+      if (rescuers.some((rescuer) => Math.hypot(rescuer.x - e.x, rescuer.y - e.y) <= RESCUE_CONTACT_RADIUS)) {
+        e.neutral = false;
+        if (runtime.kind === "rescue") runtime.rescued += 1;
+        if (runtime.kind === "extraction") runtime.phase = "extraction";
+      }
+    }
+  }
+  if (runtime.kind === "escort" && runtime.convoyStartTick !== undefined && state.tick >= runtime.convoyStartTick) {
+    for (const id of runtime.targetIds) {
+      const convoy = state.entities.find((entity) => entity.id === id && entity.hp > 0);
+      if (convoy?.scenarioRole === "convoy" && convoy.neutral) convoy.path = stepRoute(convoy, state.runtime!.zone!);
+    }
+    delete runtime.convoyStartTick;
+  }
+  if (runtime.kind === "escort" || runtime.kind === "extraction") {
+    const zone = runtime.zone;
+    if (zone) {
+      if (runtime.kind === "extraction") {
+        const extracted = new Set(runtime.extractedIds ?? []);
+        for (const id of runtime.targetIds) {
+          if (extracted.has(id)) continue;
+          const e = state.entities.find((item) => item.id === id && item.hp > 0);
+          if (!e || e.neutral || !inObjectiveZone(e.x, e.y, zone)) continue;
+          extracted.add(id);
+          e.marked = false;
+        }
+        runtime.extractedIds = [...extracted];
+        runtime.rescued = extracted.size;
+      } else {
+        runtime.rescued = runtime.targetIds.filter((id) => {
+          const e = state.entities.find((item) => item.id === id && item.hp > 0);
+          return !!e && inObjectiveZone(e.x, e.y, zone);
+        }).length;
+      }
+    }
+  }
+  const preserve = runtime.secondary.find((objective) => objective.kind === "preserveYard");
+  if (preserve) preserve.completed = !!yard;
+  const timed = runtime.secondary.find((objective) => objective.kind === "completeBefore");
+  if (timed && timed.target !== undefined) timed.completed = state.tick < timed.target;
+  const keepUnits = runtime.secondary.find((objective) => objective.kind === "keepUnits");
+  if (keepUnits) keepUnits.completed = state.entities.some((entity) => entity.owner === 0 && entity.class === "unit" && entity.hp > 0 && !entity.neutral);
+  return events;
 }

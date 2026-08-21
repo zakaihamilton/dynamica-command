@@ -5,12 +5,9 @@ import { setMusicCue, setMusicDucked, TUTORIAL_MUSIC_MISSION } from "@/lib/audio
 import { createCampaign } from "@/lib/gen/campaign";
 import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
-import { cameraViewQuad } from "@/lib/render/iso";
-import { renderMinimap } from "@/lib/render/minimap";
-import { renderWorld, type RenderExtras } from "@/lib/render/renderer";
-import { drawPerfHud, isPerfHudEnabled } from "@/lib/render/perfHud";
+import type { RenderExtras } from "@/lib/render/renderer";
 import { preloadRasterSources } from "@/lib/render/sprites";
-import { cullFx, type FxBurst } from "@/lib/render/fx";
+import type { FxBurst } from "@/lib/render/fx";
 import { localStorageAdapter } from "@/lib/persist/save";
 import { readSettings } from "@/lib/persist/settings";
 import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
@@ -21,12 +18,13 @@ import { CommandSidebar } from "./CommandSidebar";
 import { GamePlayField } from "./GamePlayField";
 import { MobileCommandTray } from "./MobileCommandTray";
 import { PauseMenu } from "./PauseMenu";
-import { useGameCamera, renderDimensions } from "./hooks/useGameCamera";
+import { useGameCamera } from "./hooks/useGameCamera";
 import { useGameActions } from "./hooks/useGameActions";
 import { useGameInput } from "./hooks/useGameInput";
 import { useGameKeyboard } from "./hooks/useGameKeyboard";
 import { useGameLoop } from "./hooks/useGameLoop";
 import { initialMission, useGameSession } from "./hooks/useGameSession";
+import { renderGameFrame } from "./renderFrame";
 import styles from "./GameClient.module.css";
 
 export function GameClient({
@@ -160,49 +158,29 @@ export function GameClient({
     const canvas = canvasRef.current;
     const host = hostRef.current;
     if (!s || !canvas || !host) return;
-    const dimensions = renderDimensions(host);
-    if (canvas.width !== dimensions.width || canvas.height !== dimensions.height) {
-      canvas.width = dimensions.width;
-      canvas.height = dimensions.height;
-    }
-    let ctx = worldCtxRef.current;
-    if (!ctx || ctx.canvas !== canvas) {
-      ctx = canvas.getContext("2d", { alpha: false });
-      worldCtxRef.current = ctx;
-    }
-    if (!ctx) return;
-    extrasRef.current.cursor = cursorRef.current;
-    extrasRef.current.placeKind = place.current;
-    extrasRef.current.repairMode = repair.current;
-    extrasRef.current.sellMode = sell.current;
-    const now = nowMs ?? performance.now();
-    extrasRef.current.clockMs = now;
-    extrasRef.current.selectBox = boxRef.current;
-    extrasRef.current.subTickAlpha = subTickAlpha;
-    fxRef.current = cullFx(fxRef.current, now);
-    extrasRef.current.fx = fxRef.current;
-    const perfStarted = isPerfHudEnabled() ? performance.now() : 0;
-    const worldTimings = renderWorld(ctx, s, camRef.current, selected.current, hoverRef.current, extrasRef.current);
-    const mini = miniRef.current;
-    let minimapMs = 0;
-    if (mini) {
-      let mctx = miniCtxRef.current;
-      if (!mctx || mctx.canvas !== mini) {
-        mctx = mini.getContext("2d", { alpha: false });
-        miniCtxRef.current = mctx;
-      }
-      if (mctx) {
-        const miniStarted = worldTimings ? performance.now() : 0;
-        renderMinimap(mctx, s, cameraViewQuad(camRef.current, canvas.width, canvas.height), selected.current);
-        if (worldTimings) minimapMs = performance.now() - miniStarted;
-      }
-    }
-    if (worldTimings && isPerfHudEnabled()) {
-      drawPerfHud(ctx, now, worldTimings, minimapMs);
-    }
-    if (perfStarted > 0) {
-      canvas.dataset.perfFrameMs = (performance.now() - perfStarted).toFixed(2);
-    }
+    const frame = renderGameFrame({
+      state: s,
+      canvas,
+      host,
+      worldCtx: worldCtxRef.current,
+      miniCanvas: miniRef.current,
+      miniCtx: miniCtxRef.current,
+      cam: camRef.current,
+      selected: selected.current,
+      hover: hoverRef.current,
+      cursor: cursorRef.current,
+      placeKind: place.current,
+      repairMode: repair.current,
+      sellMode: sell.current,
+      selectBox: boxRef.current,
+      extras: extrasRef.current,
+      fx: fxRef.current,
+      nowMs,
+      subTickAlpha,
+    });
+    worldCtxRef.current = frame.worldCtx;
+    miniCtxRef.current = frame.miniCtx;
+    fxRef.current = frame.fx;
   }, [boxRef, camRef, cursorRef, hoverRef, place, repair, sell]);
 
   const session = useGameSession({

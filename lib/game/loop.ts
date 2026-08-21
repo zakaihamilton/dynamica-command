@@ -3,6 +3,8 @@ import type { Command, SimEvent, SimState } from "../types";
 
 export const TICK_MS = 1000 / 12;
 export const MAX_TICKS_PER_FRAME = 3;
+/** A temporary catch-up burst lets the sim recover from a short rendering hitch. */
+export const MAX_CATCH_UP_TICKS_PER_FRAME = 12;
 
 export function frameTickBudget(
   acc: number,
@@ -10,10 +12,9 @@ export function frameTickBudget(
   maxTicks = MAX_TICKS_PER_FRAME,
 ): { ticks: number; acc: number } {
   const available = Math.max(0, Math.floor(acc / tickMs));
-  if (available <= maxTicks) {
-    return { ticks: available, acc: acc - available * tickMs };
-  }
-  return { ticks: maxTicks, acc: 0 };
+  const frameCap = available > maxTicks ? Math.max(maxTicks, MAX_CATCH_UP_TICKS_PER_FRAME) : maxTicks;
+  const ticks = Math.min(available, frameCap);
+  return { ticks, acc: Math.max(0, acc - ticks * tickMs) };
 }
 
 export type LoopHandle = {
