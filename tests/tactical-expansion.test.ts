@@ -71,6 +71,10 @@ describe("tactical expansion", () => {
     expect(neutral).toBeDefined();
     expect(neutral?.scenarioRole).toBe(kind === "escort" ? "convoy" : "stranded");
     if (kind === "escort") {
+      const convoy = state.entities.filter((entity) => entity.scenarioRole === "convoy");
+      const spread = Math.max(...convoy.map((entity) => Math.hypot(entity.x - convoy[0]!.x, entity.y - convoy[0]!.y)));
+      expect(spread).toBeLessThan(4);
+      expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 20)).toBe(true);
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
       expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS);

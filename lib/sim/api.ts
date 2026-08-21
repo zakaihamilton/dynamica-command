@@ -329,7 +329,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
       }
     } else {
       for (let i = 0; i < count; i++) {
-        const point = centerPoint(map, i, count);
+        const point = kind === "escort" ? convoyStartPoint(map, i) : centerPoint(map, i, count);
         const target = spawnUnit(state, 0, kind === "escort" ? "tank" : "infantry", point.x, point.y);
         target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
         target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
@@ -401,6 +401,28 @@ function centerPoint(map: { playerStart: { x: number; y: number }; enemyStart: {
   return {
     x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * t),
     y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * t),
+  };
+}
+
+function convoyStartPoint(map: {
+  playerStart: { x: number; y: number };
+  enemyStart: { x: number; y: number };
+  width: number;
+  height: number;
+}, index: number) {
+  const offsets = [
+    { x: 0, y: 0 },
+    { x: 1, y: 1 },
+    { x: -1, y: 1 },
+    { x: 1, y: -1 },
+  ];
+  const offset = offsets[index % offsets.length]!;
+  const routeT = 0.4;
+  const anchorX = Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * routeT);
+  const anchorY = Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * routeT);
+  return {
+    x: Math.max(2, Math.min(map.width - 3, anchorX + offset.x)),
+    y: Math.max(2, Math.min(map.height - 3, anchorY + offset.y)),
   };
 }
 
