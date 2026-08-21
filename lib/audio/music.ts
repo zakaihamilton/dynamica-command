@@ -1,5 +1,6 @@
 import {
   composeMusic,
+  STEPS_PER_BAR,
   TITLE_MUSIC_SEED,
   TUTORIAL_MUSIC_MISSION,
   type MusicCue,
@@ -196,13 +197,12 @@ function syncDelay(audio: AudioContext, p: MusicPattern): void {
   delayNode.delayTime.setTargetAtTime(sec, audio.currentTime, 0.04);
 }
 
-function retunePad(bar: number): void {
-  const audio = getAudioContext();
-  if (!audio || !pattern || !padOscA || !padOscB) return;
+function retunePad(audio: AudioContext, bar: number, time: number): void {
+  if (!pattern || !padOscA || !padOscB) return;
   const i = ((bar % pattern.bars) + pattern.bars) % pattern.bars;
   const root = pattern.padRoot[i] ?? pattern.rootHz;
   const fifth = pattern.padFifth[i] ?? root * 1.5;
-  const t = audio.currentTime;
+  const t = Math.max(time, audio.currentTime);
   padOscA.frequency.setTargetAtTime(root, t, 0.06);
   padOscB.frequency.setTargetAtTime(fifth * 1.003, t, 0.06);
 }
@@ -212,7 +212,7 @@ function scheduleStep(audio: AudioContext, dest: AudioNode, when: number, index:
   if (!p) return;
   const stepDur = 60 / p.bpm / 4;
   const t = when + (index % 2 === 1 ? p.swing * stepDur : 0);
-  if (index % 16 === 0) retunePad(index / 16);
+  if (index % STEPS_PER_BAR === 0) retunePad(audio, index / STEPS_PER_BAR, t);
 
   const bass = p.bass[index];
   const arp = p.arp[index];
@@ -412,9 +412,9 @@ function applyPattern(next: MusicPattern): void {
     if (gen !== fadeGen) return;
     pattern = next;
     step = 0;
-    retunePad(0);
     const c = getAudioContext();
     if (!c || !musicGain) return;
+    retunePad(c, 0, c.currentTime);
     syncDelay(c, next);
     const t = c.currentTime;
     musicGain.gain.cancelScheduledValues(t);

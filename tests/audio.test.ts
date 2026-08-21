@@ -4,6 +4,7 @@ import {
   midiToHz,
   MUSIC_BARS,
   MUSIC_STEPS,
+  STEPS_PER_BAR,
   TUTORIAL_MUSIC_MISSION,
 } from "../lib/audio/compose";
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../lib/audio/music";
@@ -29,7 +30,53 @@ describe("generated audio", () => {
     expect(composeMusic(421, "mission", 0)).not.toEqual(composeMusic(421, "mission", TUTORIAL_MUSIC_MISSION));
   });
 
-  it("keeps cue tempos in their industrial ranges and fills 16-bar lanes", () => {
+  it("builds a long-form arrangement with contrasting phrases and fills", () => {
+    expect(MUSIC_BARS).toBe(32);
+    const half = STEPS_PER_BAR * (MUSIC_BARS / 2);
+    const fillBars = [7, 15, 23, 31];
+
+    for (const seed of [0, 421, 9999]) {
+      const pattern = composeMusic(seed, "mission", 3);
+      const firstHalf = [
+        pattern.bass.slice(0, half),
+        pattern.arp.slice(0, half),
+        pattern.melody.slice(0, half),
+        pattern.kick.slice(0, half),
+        pattern.snare.slice(0, half),
+        pattern.padRoot.slice(0, MUSIC_BARS / 2),
+      ];
+      const secondHalf = [
+        pattern.bass.slice(half),
+        pattern.arp.slice(half),
+        pattern.melody.slice(half),
+        pattern.kick.slice(half),
+        pattern.snare.slice(half),
+        pattern.padRoot.slice(MUSIC_BARS / 2),
+      ];
+
+      expect(firstHalf.some((lane, index) => JSON.stringify(lane) !== JSON.stringify(secondHalf[index]))).toBe(true);
+      expect(new Set(pattern.padRoot).size).toBeGreaterThan(2);
+      for (const bar of fillBars) {
+        const start = bar * STEPS_PER_BAR;
+        expect(pattern.snare.slice(start, start + STEPS_PER_BAR).filter(Boolean).length).toBeGreaterThan(0);
+      }
+      const penultimateFill = pattern.snare.slice(23 * STEPS_PER_BAR, 24 * STEPS_PER_BAR).filter(Boolean).length;
+      const finalFill = pattern.snare.slice(31 * STEPS_PER_BAR, 32 * STEPS_PER_BAR).filter(Boolean).length;
+      expect(finalFill).toBeGreaterThan(penultimateFill);
+    }
+  });
+
+  it("keeps victory drums active through the breakdown", () => {
+    const pattern = composeMusic(421, "victory");
+    const breakdownStart = 16 * STEPS_PER_BAR;
+    const breakdownEnd = 23 * STEPS_PER_BAR;
+
+    expect(pattern.kick.slice(breakdownStart, breakdownEnd).some(Boolean)).toBe(true);
+    expect(pattern.snare.slice(breakdownStart, breakdownEnd).some(Boolean)).toBe(true);
+    expect(pattern.hats.slice(breakdownStart, breakdownEnd).some(Boolean)).toBe(true);
+  });
+
+  it("keeps cue tempos in their industrial ranges and fills long-form lanes", () => {
     const ranges = {
       menu: [72, 88],
       briefing: [64, 80],
