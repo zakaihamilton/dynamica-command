@@ -385,7 +385,7 @@ function toggleRepair(state: SimState, buildingId: number): SimEvent[] {
   }
   if (!canRepair(e)) return [];
   e.repairing = true;
-  return [];
+  return [{ type: "repairStarted", x: e.x, y: e.y }];
 }
 
 function refundQueuedUnits(state: SimState, e: Entity): void {
@@ -406,7 +406,7 @@ function sellBuilding(state: SimState, buildingId: number): SimEvent[] {
   e.hp = 0;
   e.repairing = false;
   state.losses.buildings[0] += 1;
-  return [{ type: "destroyed", id: e.id, kind: String(e.kind) }];
+  return [{ type: "sold", id: e.id, kind: String(e.kind), x: e.x, y: e.y }];
 }
 
 function cancelProduce(state: SimState, unit: UnitKind): SimEvent[] {

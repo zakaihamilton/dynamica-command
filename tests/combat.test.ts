@@ -68,6 +68,26 @@ describe("combat targeting", () => {
     expect(foe.hp).toBeLessThan(hp);
   });
 
+  it("emits immutable weapon and position data for battlefield audio", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const attacker = addUnit(s, 0, "tank", 4, 4);
+    const foe = addUnit(s, 1, "infantry", 5, 4);
+    const events = tickCombat(s);
+    const combat = events.find((event) => event.type === "combat");
+
+    expect(combat).toMatchObject({
+      type: "combat",
+      owner: 0,
+      weapon: "cannon",
+      x: attacker.x,
+      y: attacker.y,
+      targetX: foe.x,
+      targetY: foe.y,
+      targetOwner: 1,
+      targetKind: "infantry",
+    });
+  });
+
   it("does not let a turret fire until construction finishes", () => {
     const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
     const turret = addBuilding(s, 0, "turret", 4, 4, 12);

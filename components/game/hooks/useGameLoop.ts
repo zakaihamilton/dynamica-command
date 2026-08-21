@@ -1,6 +1,7 @@
 import { useEffect, type MutableRefObject } from "react";
-import { beep } from "@/lib/audio/synth";
-import { setMusicCue } from "@/lib/audio/music";
+import { dispatchBattlefieldAudio } from "@/lib/audio/battlefield";
+import { setMusicCue, setMusicIntensity, type MusicIntensity } from "@/lib/audio/music";
+import { playSfx } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
 import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { localStorageAdapter, writeSave } from "@/lib/persist/save";
@@ -50,6 +51,8 @@ export function useGameLoop({
   onAlert: (text: string) => void;
 }) {
   useEffect(() => {
+    let appliedIntensity: MusicIntensity = "calm";
+    let lastCombatTick = Number.NEGATIVE_INFINITY;
     let idleHandle: number | null = null;
     let idleViaTimeout = false;
     const cancelIdle = () => {
@@ -82,18 +85,33 @@ export function useGameLoop({
       onTick: (next, events, now) => {
         if (next.tick % 48 === 0) scheduleAutosave();
         if (next.tick % 6 === 0) setState({ ...next, entities: [...next.entities] });
+        if (events.some((event) => event.type === "combat")) lastCombatTick = next.tick;
+        const phase = next.runtime?.director?.phase;
+        const alert = events.find((event) => event.type === "alert");
+        let desiredIntensity: MusicIntensity = phase === "finale" ? "critical" : phase === "pressure" ? "engaged" : "calm";
+        if (next.tick - lastCombatTick <= 48) desiredIntensity = desiredIntensity === "critical" ? desiredIntensity : "engaged";
+        if (alert?.type === "alert" && alert.kind === "warning") desiredIntensity = "critical";
+        if (desiredIntensity !== appliedIntensity) {
+          appliedIntensity = desiredIntensity;
+          setMusicIntensity(desiredIntensity);
+        }
+        dispatchBattlefieldAudio(
+          events,
+          camRef.current,
+          canvasRef.current?.width ?? 1,
+          canvasRef.current?.height ?? 1,
+        );
         if (events.some((e) => e.type === "won")) {
-          beep("win");
+          playSfx("victory", { force: true });
           setMusicCue("victory", next.seed, next.missionIndex);
         }
         if (events.some((e) => e.type === "lost")) {
-          beep("lose");
+          playSfx("defeat", { force: true });
           setMusicCue("defeat", next.seed, next.missionIndex);
         }
-        if (events.some((e) => e.type === "commandRejected")) beep("alert");
-        const alert = events.find((e) => e.type === "alert");
+        if (events.some((e) => e.type === "commandRejected")) playSfx("uiError");
         if (alert && alert.type === "alert") {
-          beep("alert");
+          playSfx(alert.kind === "warning" ? "warning" : alert.kind === "objective" ? "objective" : "contact", { force: true });
           onAlert(alert.text);
         }
         if (events.some((e) => e.type === "destroyed")) {

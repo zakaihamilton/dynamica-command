@@ -381,7 +381,21 @@ export type Command =
 export type SimEvent =
   | { type: "produced"; owner: Owner; kind: UnitKind }
   | { type: "built"; owner: Owner; kind: BuildingKind }
-  | { type: "destroyed"; id: number; kind: string }
+  | { type: "destroyed"; id: number; kind: string; x: number; y: number }
+  | { type: "sold"; id: number; kind: string; x: number; y: number }
+  | { type: "repairStarted"; x: number; y: number }
+  | {
+      type: "combat";
+      owner: Owner;
+      weapon: WeaponType;
+      x: number;
+      y: number;
+      targetX: number;
+      targetY: number;
+      targetOwner: Owner;
+      targetKind: string;
+      destroyed: boolean;
+    }
   | { type: "credits"; owner: Owner; amount: number }
   | { type: "won" }
   | { type: "lost" }

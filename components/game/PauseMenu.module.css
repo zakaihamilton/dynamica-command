@@ -32,6 +32,39 @@
   gap: 0.5rem;
 }
 
+.volumeControls {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--chrome-inset);
+}
+
+.volumeControl {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--chrome-body);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.volumeLabel {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.volumeLabel output {
+  color: var(--chrome-cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+.volumeRange {
+  width: 100%;
+  accent-color: var(--chrome-cyan);
+}
+
 .action {
   width: 100%;
   text-align: left;

@@ -2,9 +2,10 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import { useRouter } from "next/navigation";
 import { setMusicEnabled as applyMusicEnabled } from "@/lib/audio/music";
 import { beep, setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
+import { setAudioLevels, type AudioVolumeKey } from "@/lib/audio/mixer";
 import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
 import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
-import { writeSettings } from "@/lib/persist/settings";
+import { writeSettings, type GameSettings } from "@/lib/persist/settings";
 import { formatSeed } from "@/lib/seed/rng";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission } from "@/lib/sim/tutorial";
@@ -37,10 +38,8 @@ export function useGameSession({
   setPauseNotice,
   campaignRecordedRef,
   terminalSaveRef,
-  sfxEnabled,
-  musicEnabled,
-  setSfxEnabled,
-  setMusicEnabled,
+  settings,
+  setSettings,
 }: {
   seed: number;
   stateRef: MutableRefObject<SimState>;
@@ -57,10 +56,8 @@ export function useGameSession({
   setPauseNotice: Dispatch<SetStateAction<string>>;
   campaignRecordedRef: MutableRefObject<boolean>;
   terminalSaveRef: MutableRefObject<boolean>;
-  sfxEnabled: boolean;
-  musicEnabled: boolean;
-  setSfxEnabled: Dispatch<SetStateAction<boolean>>;
-  setMusicEnabled: Dispatch<SetStateAction<boolean>>;
+  settings: GameSettings;
+  setSettings: Dispatch<SetStateAction<GameSettings>>;
 }) {
   const router = useRouter();
 
@@ -138,18 +135,25 @@ export function useGameSession({
   ]);
 
   const toggleSound = useCallback(() => {
-    const next = !sfxEnabled;
-    setSfxEnabled(next);
-    applySfxEnabled(next);
-    writeSettings(localStorageAdapter(), { sfxEnabled: next, musicEnabled });
-  }, [musicEnabled, setSfxEnabled, sfxEnabled]);
+    const next = { ...settings, sfxEnabled: !settings.sfxEnabled };
+    setSettings(next);
+    applySfxEnabled(next.sfxEnabled);
+    writeSettings(localStorageAdapter(), next);
+  }, [setSettings, settings]);
 
   const toggleMusic = useCallback(() => {
-    const next = !musicEnabled;
-    setMusicEnabled(next);
-    applyMusicEnabled(next);
-    writeSettings(localStorageAdapter(), { sfxEnabled, musicEnabled: next });
-  }, [musicEnabled, setMusicEnabled, sfxEnabled]);
+    const next = { ...settings, musicEnabled: !settings.musicEnabled };
+    setSettings(next);
+    applyMusicEnabled(next.musicEnabled);
+    writeSettings(localStorageAdapter(), next);
+  }, [setSettings, settings]);
+
+  const updateVolume = useCallback((key: AudioVolumeKey, value: number) => {
+    const next = { ...settings, [key]: value };
+    setSettings(next);
+    setAudioLevels(next);
+    writeSettings(localStorageAdapter(), next);
+  }, [setSettings, settings]);
 
   const advanceTutorial = useCallback(() => {
     const stages: NonNullable<SimState["tutorialStage"]>[] = ["select", "move", "harvest", "build", "produce", "attack", "repair", "complete"];
@@ -208,6 +212,7 @@ export function useGameSession({
     restartMission,
     toggleSound,
     toggleMusic,
+    updateVolume,
     advanceTutorial,
     exitTutorial,
     resultPrimary,

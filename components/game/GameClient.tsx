@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { setMusicCue, setMusicDucked, TUTORIAL_MUSIC_MISSION } from "@/lib/audio/music";
-import { setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
 import { createCampaign } from "@/lib/gen/campaign";
 import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
@@ -59,12 +58,7 @@ export function GameClient({
   const [pauseView, setPauseView] = useState<PauseView>("main");
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
-  const [sfxEnabled, setSfxEnabled] = useState(() => {
-    const settings = readSettings(localStorageAdapter());
-    applySfxEnabled(settings.sfxEnabled);
-    return settings.sfxEnabled;
-  });
-  const [musicEnabled, setMusicEnabled] = useState(() => readSettings(localStorageAdapter()).musicEnabled);
+  const [audioSettings, setAudioSettings] = useState(() => readSettings(localStorageAdapter()));
   const [combatAlert, setCombatAlert] = useState<string | null>(null);
   const combatAlertClearRef = useRef<number | null>(null);
   const cmdQ = useRef<Command[]>([]);
@@ -222,10 +216,8 @@ export function GameClient({
     setPauseNotice,
     campaignRecordedRef,
     terminalSaveRef,
-    sfxEnabled,
-    musicEnabled,
-    setSfxEnabled,
-    setMusicEnabled,
+    settings: audioSettings,
+    setSettings: setAudioSettings,
   });
 
   const { keys } = useGameKeyboard({
@@ -401,8 +393,7 @@ export function GameClient({
         <PauseMenu
           view={pauseView}
           notice={pauseNotice}
-          sfxEnabled={sfxEnabled}
-          musicEnabled={musicEnabled}
+          settings={audioSettings}
           palette={pal}
           onResume={session.resumeMission}
           onSave={session.saveMission}
@@ -420,6 +411,7 @@ export function GameClient({
           onMenu={session.goMenu}
           onToggleSound={session.toggleSound}
           onToggleMusic={session.toggleMusic}
+          onVolumeChange={session.updateVolume}
           onBack={() => setPauseView("main")}
           onCloseAssets={() => setPauseView("main")}
         />

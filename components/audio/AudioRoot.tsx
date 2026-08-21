@@ -9,9 +9,11 @@ import {
   pauseMusic,
   setMusicCue,
   setMusicEnabled,
+  isAudioUnlocked,
   unlockAudio,
 } from "@/lib/audio/music";
 import { setSfxEnabled } from "@/lib/audio/synth";
+import { setAudioLevels } from "@/lib/audio/mixer";
 import { localStorageAdapter } from "@/lib/persist/save";
 import { readSettings } from "@/lib/persist/settings";
 import { parseSeed } from "@/lib/seed/rng";
@@ -24,6 +26,7 @@ function AudioRootInner() {
 
   useEffect(() => {
     const settings = readSettings(localStorageAdapter());
+    setAudioLevels(settings);
     setSfxEnabled(settings.sfxEnabled);
     setMusicEnabled(settings.musicEnabled);
   }, []);
@@ -43,11 +46,16 @@ function AudioRootInner() {
 
   useEffect(() => {
     const unlock = () => unlockAudio();
+    const onVisibility = () => {
+      if (!document.hidden && isAudioUnlocked()) unlockAudio();
+    };
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 

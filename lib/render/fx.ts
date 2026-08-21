@@ -59,8 +59,8 @@ export function burstsFromDestroyed(
     const entity = state.entities.find((item) => item.id === event.id);
     const kind = event.kind;
     const entityClass = entity?.class ?? entityClassOf(kind);
-    const x = entity?.x ?? 0;
-    const y = entity?.y ?? 0;
+    const x = event.x;
+    const y = event.y;
     const tx = Math.round(x);
     const ty = Math.round(y);
     const elev = state.heights[ty * state.width + tx] ?? 1;

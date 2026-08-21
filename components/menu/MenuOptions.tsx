@@ -1,18 +1,20 @@
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { PauseOptions } from "@/components/game/PauseOptions";
+import type { AudioVolumeKey } from "@/lib/audio/mixer";
+import type { GameSettings } from "@/lib/persist/settings";
 import pauseStyles from "@/components/game/PauseMenu.module.css";
 
 export function MenuOptions({
-  sfxEnabled,
-  musicEnabled,
+  settings,
   onToggleSound,
   onToggleMusic,
+  onVolumeChange,
   onBack,
 }: {
-  sfxEnabled: boolean;
-  musicEnabled: boolean;
+  settings: GameSettings;
   onToggleSound: () => void;
   onToggleMusic: () => void;
+  onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
 }) {
   return (
@@ -24,10 +26,10 @@ export function MenuOptions({
     >
       <PauseOptions
         titleId="menu-options-title"
-        sfxEnabled={sfxEnabled}
-        musicEnabled={musicEnabled}
+        settings={settings}
         onToggleSound={onToggleSound}
         onToggleMusic={onToggleMusic}
+        onVolumeChange={onVolumeChange}
         onBack={onBack}
         backTooltip="Return to the main menu"
       />

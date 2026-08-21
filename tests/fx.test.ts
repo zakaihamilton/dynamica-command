@@ -43,8 +43,8 @@ describe("combat fx bursts", () => {
     yard.hp = 0;
     const { bursts, nextId } = burstsFromDestroyed(
       [
-        { type: "destroyed", id: tank.id, kind: "tank" },
-        { type: "destroyed", id: yard.id, kind: "constructionYard" },
+        { type: "destroyed", id: tank.id, kind: "tank", x: tank.x, y: tank.y },
+        { type: "destroyed", id: yard.id, kind: "constructionYard", x: yard.x, y: yard.y },
       ],
       state,
       500,

@@ -8,6 +8,7 @@ import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { setMusicEnabled as applyMusicEnabled } from "@/lib/audio/music";
 import { setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
+import { setAudioLevels, type AudioVolumeKey } from "@/lib/audio/mixer";
 import { listSaves, listUnreadableSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
 import { defaultSettings, readSettings, writeSettings } from "@/lib/persist/settings";
@@ -61,22 +62,25 @@ export function MenuScreen() {
   }, []);
 
   const toggleSound = useCallback(function toggleSound() {
-    setSettings((current) => {
-      const next = { ...current, sfxEnabled: !current.sfxEnabled };
-      applySfxEnabled(next.sfxEnabled);
-      writeSettings(localStorageAdapter(), next);
-      return next;
-    });
-  }, []);
+    const next = { ...settings, sfxEnabled: !settings.sfxEnabled };
+    setSettings(next);
+    applySfxEnabled(next.sfxEnabled);
+    writeSettings(localStorageAdapter(), next);
+  }, [settings]);
 
   const toggleMusic = useCallback(function toggleMusic() {
-    setSettings((current) => {
-      const next = { ...current, musicEnabled: !current.musicEnabled };
-      applyMusicEnabled(next.musicEnabled);
-      writeSettings(localStorageAdapter(), next);
-      return next;
-    });
-  }, []);
+    const next = { ...settings, musicEnabled: !settings.musicEnabled };
+    setSettings(next);
+    applyMusicEnabled(next.musicEnabled);
+    writeSettings(localStorageAdapter(), next);
+  }, [settings]);
+
+  const updateVolume = useCallback((key: AudioVolumeKey, value: number) => {
+    const next = { ...settings, [key]: value };
+    setSettings(next);
+    setAudioLevels(next);
+    writeSettings(localStorageAdapter(), next);
+  }, [settings]);
 
   const randomize = useCallback(function randomize() {
     setCode(rollSeed());
@@ -200,10 +204,10 @@ export function MenuScreen() {
       ) : view === "options" ? (
         <div className={styles.overlay}>
           <MenuOptions
-            sfxEnabled={settings.sfxEnabled}
-            musicEnabled={settings.musicEnabled}
+            settings={settings}
             onToggleSound={toggleSound}
             onToggleMusic={toggleMusic}
+            onVolumeChange={updateVolume}
             onBack={() => setView("main")}
           />
         </div>

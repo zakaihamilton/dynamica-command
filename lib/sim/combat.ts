@@ -190,11 +190,24 @@ function strike(
       if (splash.class === "unit") splash.suppression = Math.min(100, (splash.suppression ?? 0) + Math.round(stats.suppression * 0.35));
     }
   }
-  if (target.hp > 0) return;
+  const destroyed = target.hp <= 0;
+  events.push({
+    type: "combat",
+    owner: e.owner,
+    weapon: stats.weapon,
+    x: e.x,
+    y: e.y,
+    targetX: target.x,
+    targetY: target.y,
+    targetOwner: target.owner,
+    targetKind: String(target.kind),
+    destroyed,
+  });
+  if (!destroyed) return;
   target.hp = 0;
   if (target.class === "unit") state.losses.units[target.owner] += 1;
   else state.losses.buildings[target.owner] += 1;
-  events.push({ type: "destroyed", id: target.id, kind: String(target.kind) });
+  events.push({ type: "destroyed", id: target.id, kind: String(target.kind), x: target.x, y: target.y });
   if (e.attackTarget === target.id) e.attackTarget = undefined;
 }
 

@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { createMission } from "../../lib/sim/api";
 import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_VERSION, saveKey } from "../../lib/persist/save";
+import { SETTINGS_KEY, SETTINGS_VERSION } from "../../lib/persist/settings";
 import type { SimState } from "../../lib/types";
 
 /** Fixture so briefing/play tests can skip the first-deploy /tutorial gate. */
@@ -68,6 +69,13 @@ test("toggles music and sound from welcome options", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Music: Off" })).toBeVisible();
   await page.getByRole("button", { name: "Sound effects: On" }).click();
   await expect(page.getByRole("button", { name: "Sound effects: Off" })).toBeVisible();
+  const musicVolume = page.getByRole("slider", { name: "Music volume" });
+  await musicVolume.fill("0.5");
+  await expect(musicVolume).toHaveValue("0.5");
+  await expect(page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "{}"), SETTINGS_KEY)).resolves.toMatchObject({
+    version: SETTINGS_VERSION,
+    settings: { musicVolume: 0.5 },
+  });
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByRole("heading", { name: "Game options" })).toHaveCount(0);
@@ -76,6 +84,7 @@ test("toggles music and sound from welcome options", async ({ page }) => {
   await page.getByRole("button", { name: "OPTIONS" }).click();
   await expect(page.getByRole("button", { name: "Music: Off" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sound effects: Off" })).toBeVisible();
+  await expect(page.getByRole("slider", { name: "Music volume" })).toHaveValue("0.5");
 });
 
 test("shows briefing portraits before launch", async ({ page }) => {

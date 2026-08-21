@@ -1,5 +1,7 @@
 import { AssetsBrowser } from "@/components/assets/AssetsBrowser";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import type { AudioVolumeKey } from "@/lib/audio/mixer";
+import type { GameSettings } from "@/lib/persist/settings";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { Palette } from "@/lib/types";
 import { PauseMainMenu } from "./PauseMainMenu";
@@ -9,8 +11,7 @@ import styles from "./PauseMenu.module.css";
 export function PauseMenu({
   view,
   notice,
-  sfxEnabled,
-  musicEnabled,
+  settings,
   palette,
   onResume,
   onSave,
@@ -22,13 +23,13 @@ export function PauseMenu({
   onMenu,
   onToggleSound,
   onToggleMusic,
+  onVolumeChange,
   onBack,
   onCloseAssets,
 }: {
   view: PauseView;
   notice: string;
-  sfxEnabled: boolean;
-  musicEnabled: boolean;
+  settings: GameSettings;
   palette: Palette;
   onResume: () => void;
   onSave: () => void;
@@ -40,6 +41,7 @@ export function PauseMenu({
   onMenu: () => void;
   onToggleSound: () => void;
   onToggleMusic: () => void;
+  onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
   onCloseAssets: () => void;
 }) {
@@ -62,10 +64,10 @@ export function PauseMenu({
             />
           ) : (
             <PauseOptions
-              sfxEnabled={sfxEnabled}
-              musicEnabled={musicEnabled}
+              settings={settings}
               onToggleSound={onToggleSound}
               onToggleMusic={onToggleMusic}
+              onVolumeChange={onVolumeChange}
               onBack={onBack}
             />
           )}

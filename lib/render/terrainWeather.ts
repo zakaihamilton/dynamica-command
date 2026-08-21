@@ -257,39 +257,6 @@ function rgbCss(color: { r: number; g: number; b: number }): string {
   return `rgb(${color.r | 0},${color.g | 0},${color.b | 0})`;
 }
 
-function strokeCausticFamily(
-  ctx: CanvasRenderingContext2D,
-  sx: number,
-  sy: number,
-  tw: number,
-  th: number,
-  slope: number,
-  spacing: number,
-  scroll: number,
-  alpha: number,
-  width: number,
-): void {
-  const coord = (px: number, py: number) => py - slope * px;
-  const x0 = sx - tw;
-  const x1 = sx + tw;
-  const c0 = coord(x0, sy - th);
-  const c1 = coord(x1, sy + th * 2);
-  const lo = Math.min(c0, c1);
-  const hiC = Math.max(c0, c1);
-  const k0 = Math.floor((lo + scroll) / spacing);
-  const k1 = Math.ceil((hiC + scroll) / spacing);
-  ctx.globalAlpha = alpha;
-  ctx.lineWidth = width;
-  ctx.lineCap = "round";
-  for (let k = k0; k <= k1; k++) {
-    const c = k * spacing - scroll;
-    ctx.beginPath();
-    ctx.moveTo(x0, c + slope * x0);
-    ctx.lineTo(x1, c + slope * x1);
-    ctx.stroke();
-  }
-}
-
 export function paintWaterFx(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -309,10 +276,6 @@ export function paintWaterFx(
   const foamFill = state.biome === "volcanic shelf"
     ? "rgba(138,128,112,0.9)"
     : `rgba(${Math.min(255, hi.r + 40)},${Math.min(255, hi.g + 28)},${Math.min(255, hi.b + 20)},0.9)`;
-  const scrollA = clockMs * 0.016;
-  const scrollB = clockMs * 0.01;
-  const spacingA = 20 * z;
-  const spacingB = 33 * z;
   forVisibleIndexedTiles(index.water, state.width, range, (x, y) => {
     const fog = fogAt(state, x, y);
     if (fog === 0) return;
@@ -332,9 +295,6 @@ export function paintWaterFx(
     ctx.globalAlpha = (0.045 + (Math.sin(clockMs * 0.0009 + (s.x + s.y) * 0.012) + 1) * 0.035) * gain;
     isoDiamond(ctx, cover.x, cover.y, cover.w, cover.h);
     ctx.fill();
-    ctx.strokeStyle = highlight;
-    strokeCausticFamily(ctx, s.x, s.y, tw, th, -0.5, spacingA, scrollA, caustic.alpha * 0.85 * gain, Math.max(1.15, z * 1.7));
-    strokeCausticFamily(ctx, s.x, s.y, tw, th, 0.42, spacingB, scrollB, caustic.alpha * 0.55 * gain, Math.max(0.9, z * 1.2));
     if (needsClip) ctx.restore();
     else ctx.globalAlpha = 1;
     if (!bank) return;

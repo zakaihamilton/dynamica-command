@@ -6,9 +6,12 @@ import {
   type MusicPattern,
   type MusicVoiceType,
 } from "./compose";
-import { getAudioContext, resumeAudio } from "./context";
+import { getAudioContext, peekAudioContext, unlockAudioContext } from "./context";
+import { getAudioBus, setAudioBusEnabled } from "./mixer";
 
 export { TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue };
+
+export type MusicIntensity = "calm" | "engaged" | "critical";
 
 const MASTER_GAIN = 0.07;
 const PAD_GAIN = 0.12;
@@ -17,10 +20,16 @@ const CROSSFADE_S = 0.4;
 const SCHEDULE_AHEAD_S = 0.18;
 const SCHEDULER_MS = 25;
 const ATTACK_S = 0.012;
+const INTENSITY_MULTIPLIER: Record<MusicIntensity, number> = {
+  calm: 0.82,
+  engaged: 1,
+  critical: 1.08,
+};
 
 let enabled = true;
 let ducked = false;
 let paused = false;
+let intensity: MusicIntensity = "calm";
 let cue: MusicCue = "menu";
 let seed = TITLE_MUSIC_SEED;
 let missionIndex = 0;
@@ -57,15 +66,31 @@ export function isMusicEnabled(): boolean {
   return enabled;
 }
 
+export { isAudioUnlocked } from "./context";
+
 function masterGain(): number {
-  return MASTER_GAIN * (ducked ? DUCK_RATIO : 1);
+  return MASTER_GAIN * INTENSITY_MULTIPLIER[intensity] * (ducked ? DUCK_RATIO : 1);
+}
+
+function layerMultiplier(layer: "bass" | "arp" | "counter" | "melody" | "drums"): number {
+  if (intensity === "critical") return 1;
+  if (intensity === "engaged") return layer === "drums" ? 1.05 : 1;
+  if (layer === "counter") return 0.35;
+  if (layer === "melody") return 0.72;
+  if (layer === "drums") return 0.76;
+  return 0.86;
 }
 
 function getNoiseBuffer(audio: AudioContext): AudioBuffer {
   if (noiseBuf && noiseBuf.sampleRate === audio.sampleRate) return noiseBuf;
   const buf = audio.createBuffer(1, Math.max(1, Math.floor(audio.sampleRate * 0.12)), audio.sampleRate);
   const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  let state = 0x4d595df4;
+  for (let i = 0; i < data.length; i++) {
+    state = Math.imul(state ^ (state >>> 15), 1 | state);
+    state ^= state + Math.imul(state ^ (state >>> 7), 61 | state);
+    data[i] = ((state ^ (state >>> 14)) >>> 0) / 4294967295 * 2 - 1;
+  }
   noiseBuf = buf;
   return buf;
 }
@@ -134,25 +159,25 @@ function playNoise(
   src.stop(time + dur + 0.02);
 }
 
-function playKick(audio: AudioContext, dest: AudioNode, time: number): void {
+function playKick(audio: AudioContext, dest: AudioNode, time: number, gainScale = 1): void {
   const o = audio.createOscillator();
   const g = audio.createGain();
   o.type = "sine";
   o.frequency.setValueAtTime(140, time);
   o.frequency.exponentialRampToValueAtTime(38, time + 0.16);
   g.gain.setValueAtTime(0.001, time);
-  g.gain.exponentialRampToValueAtTime(0.55, time + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.55 * gainScale, time + 0.006);
   g.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
   o.connect(g);
   g.connect(dest);
   o.start(time);
   o.stop(time + 0.22);
-  playNoise(audio, dest, time, 0.08, 2500, 0.018);
+  playNoise(audio, dest, time, 0.08 * gainScale, 2500, 0.018);
 }
 
-function playSnare(audio: AudioContext, dest: AudioNode, time: number, accent: boolean): void {
-  playNoise(audio, dest, time, accent ? 0.14 : 0.055, 1900, accent ? 0.09 : 0.045, "bandpass");
-  playTone(audio, dest, 190, time, accent ? 0.06 : 0.035, "triangle", accent ? 0.08 : 0.03, 1600);
+function playSnare(audio: AudioContext, dest: AudioNode, time: number, accent: boolean, gainScale = 1): void {
+  playNoise(audio, dest, time, (accent ? 0.14 : 0.055) * gainScale, 1900, accent ? 0.09 : 0.045, "bandpass");
+  playTone(audio, dest, 190, time, accent ? 0.06 : 0.035, "triangle", (accent ? 0.08 : 0.03) * gainScale, 1600);
 }
 
 function duckPad(audio: AudioContext, time: number): void {
@@ -195,22 +220,22 @@ function scheduleStep(audio: AudioContext, dest: AudioNode, when: number, index:
   const counter = p.counter[index];
   if (bass !== null) {
     const dur = holdSteps(p.bass, index, 16) * stepDur;
-    playTone(audio, dest, bass, t, dur, p.bassType, 0.36, Math.min(p.cutoff, 520));
+    playTone(audio, dest, bass, t, dur, p.bassType, 0.36 * layerMultiplier("bass"), Math.min(p.cutoff, 520));
   }
-  if (arp !== null) playTone(audio, arpPan ?? dest, arp, t, stepDur * 0.7, p.arpType, 0.08, Math.min(p.cutoff, 900));
-  if (counter !== null) playTone(audio, dest, counter, t, stepDur * 0.95, "triangle", 0.07, p.cutoff);
+  if (arp !== null) playTone(audio, arpPan ?? dest, arp, t, stepDur * 0.7, p.arpType, 0.08 * layerMultiplier("arp"), Math.min(p.cutoff, 900));
+  if (counter !== null) playTone(audio, dest, counter, t, stepDur * 0.95, "triangle", 0.07 * layerMultiplier("counter"), p.cutoff);
   if (melody !== null) {
     const dur = holdSteps(p.melody, index, 16) * stepDur;
-    playTone(audio, leadGain ?? dest, melody, t, dur, p.melodyType, 0.14, p.cutoff + 180);
+    playTone(audio, leadGain ?? dest, melody, t, dur, p.melodyType, 0.14 * layerMultiplier("melody"), p.cutoff + 180);
   }
   if (p.kick[index]) {
-    playKick(audio, dest, t);
+    playKick(audio, dest, t, layerMultiplier("drums"));
     duckPad(audio, t);
   }
   const backbeat = index % 16 === 4 || index % 16 === 12;
-  if (p.snare[index]) playSnare(audio, dest, t, backbeat);
-  if (p.openHats[index]) playNoise(audio, dest, t, 0.045, 3800, 0.12);
-  else if (p.hats[index]) playNoise(audio, dest, t, 0.035, 7500, 0.018);
+  if (p.snare[index]) playSnare(audio, dest, t, backbeat, layerMultiplier("drums"));
+  if (p.openHats[index]) playNoise(audio, dest, t, 0.045 * layerMultiplier("drums"), 3800, 0.12);
+  else if (p.hats[index]) playNoise(audio, dest, t, 0.035 * layerMultiplier("drums"), 7500, 0.018);
 }
 
 function stopOsc(node: OscillatorNode | null): void {
@@ -281,6 +306,8 @@ function tickScheduler(): void {
 }
 
 function startGraph(audio: AudioContext): void {
+  const musicBus = getAudioBus("music");
+  if (!musicBus) return;
   musicGain = audio.createGain();
   hipass = audio.createBiquadFilter();
   compressor = audio.createDynamicsCompressor();
@@ -294,7 +321,7 @@ function startGraph(audio: AudioContext): void {
   musicGain.gain.setValueAtTime(Math.max(masterGain(), 0.001), audio.currentTime);
   musicGain.connect(hipass);
   hipass.connect(compressor);
-  compressor.connect(audio.destination);
+  compressor.connect(musicBus);
 
   arpPan = audio.createStereoPanner();
   arpPan.pan.setValueAtTime(-0.28, audio.currentTime);
@@ -361,7 +388,7 @@ function stopMusic(): void {
 
 function ensureMusicPlaying(): void {
   if (!enabled || paused) return;
-  const audio = resumeAudio();
+  const audio = peekAudioContext();
   if (!audio) return;
   if (!pattern) pattern = composeMusic(seed, cue, missionIndex);
   if (timer) return;
@@ -399,12 +426,14 @@ function applyPattern(next: MusicPattern): void {
 export function setMusicCue(nextCue: MusicCue, nextSeed: number, nextMissionIndex = 0): void {
   paused = false;
   if (cue === nextCue && seed === nextSeed && missionIndex === nextMissionIndex && pattern) {
+    setMusicIntensity("calm");
     ensureMusicPlaying();
     return;
   }
   cue = nextCue;
   seed = nextSeed;
   missionIndex = nextMissionIndex;
+  intensity = "calm";
   const next = composeMusic(nextSeed, nextCue, nextMissionIndex);
   if (timer) applyPattern(next);
   else pattern = next;
@@ -413,6 +442,7 @@ export function setMusicCue(nextCue: MusicCue, nextSeed: number, nextMissionInde
 
 export function setMusicEnabled(value: boolean): void {
   enabled = value;
+  setAudioBusEnabled("music", value);
   if (!value) stopMusic();
   else ensureMusicPlaying();
 }
@@ -425,7 +455,7 @@ export function pauseMusic(): void {
 
 export function setMusicDucked(value: boolean): void {
   ducked = value;
-  const audio = getAudioContext();
+  const audio = peekAudioContext();
   if (!audio || !musicGain) return;
   const now = audio.currentTime;
   musicGain.gain.cancelScheduledValues(now);
@@ -433,7 +463,23 @@ export function setMusicDucked(value: boolean): void {
   musicGain.gain.linearRampToValueAtTime(Math.max(masterGain(), 0.001), now + 0.08);
 }
 
+export function setMusicIntensity(value: MusicIntensity): void {
+  if (intensity === value) return;
+  intensity = value;
+  const audio = peekAudioContext();
+  if (!audio || !musicGain) return;
+  const now = audio.currentTime;
+  musicGain.gain.cancelScheduledValues(now);
+  musicGain.gain.setValueAtTime(Math.max(musicGain.gain.value, 0.001), now);
+  musicGain.gain.linearRampToValueAtTime(Math.max(masterGain(), 0.001), now + 0.18);
+  if (padGain) {
+    padGain.gain.cancelScheduledValues(now);
+    padGain.gain.setValueAtTime(Math.max(padGain.gain.value, 0.001), now);
+    padGain.gain.linearRampToValueAtTime(PAD_GAIN * (value === "calm" ? 0.9 : 1), now + 0.18);
+  }
+}
+
 export function unlockAudio(): void {
-  resumeAudio();
+  unlockAudioContext();
   ensureMusicPlaying();
 }

@@ -15,7 +15,7 @@ describe("structure selling", () => {
     expect(power.hp).toBe(0);
     expect(s.credits[0]).toBe(startCredits + sellRefundFor("power", BUILDING_STATS.power.hp));
     expect(s.losses.buildings).toEqual([1, 0]);
-    expect(events).toEqual([{ type: "destroyed", id: power.id, kind: "power" }]);
+    expect(events).toEqual([{ type: "sold", id: power.id, kind: "power", x: power.x, y: power.y }]);
   });
 
   it("pays less for a damaged building", () => {

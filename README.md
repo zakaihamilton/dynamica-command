@@ -13,7 +13,7 @@ yarn
 yarn dev
 ```
 
-Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) toggle **music and sound effects**. Pause also opens save/load, briefing, and an **assets browser** for generated sprites.
+Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load, briefing, and an **assets browser** for generated sprites.
 
 | Script | What it does |
 | --- | --- |
@@ -27,7 +27,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Pr
 
 ## How a seed works
 
-The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Campaign content is **never stored** — it is regenerated. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `genesis-protocol:save:0421`. Audio preferences (`music` / `sound effects`) persist separately as `genesis-protocol:settings`.
+The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Campaign content is **never stored** — it is regenerated. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `genesis-protocol:save:0421`. Audio preferences (`music` / `sound effects` toggles and volumes) persist separately as `genesis-protocol:settings`.
 
 ```text
 seed 0421
@@ -111,7 +111,7 @@ scripts/       inspect + headless sim
 tests/         Vitest
 ```
 
-Units, buildings, portraits, biomes, and terrain plates are **seed-tinted rasters** under `public/art`, composited with procedural specs (cliffs, wrecks, damage overlays). SFX and **background music** are generated in Web Audio from the seed. Welcome and pause **Options** toggle music and sound effects independently.
+Units, buildings, portraits, biomes, and terrain plates are **seed-tinted rasters** under `public/art`, composited with procedural specs (cliffs, wrecks, damage overlays). SFX and **background music** are generated in Web Audio from the seed. Music adapts to mission pressure, while battlefield effects are rate-limited and subtly stereo-positioned. Welcome and pause **Options** expose independent toggles and volume controls.
 
 ### Headless API
 

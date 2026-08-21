@@ -7,7 +7,7 @@ export type MusicGroove = "march" | "pulse" | "break" | "stalk";
 export const TITLE_MUSIC_SEED = 0;
 export const TUTORIAL_MUSIC_MISSION = -1;
 export const STEPS_PER_BAR = 16;
-export const MUSIC_BARS = 8;
+export const MUSIC_BARS = 16;
 export const MUSIC_STEPS = STEPS_PER_BAR * MUSIC_BARS;
 
 const MINOR_PENT = [0, 3, 5, 7, 10];
@@ -156,9 +156,9 @@ function scaleToneMidi(rootMidi: number, scale: readonly number[], chord: number
 }
 
 function sectionOf(bar: number): "intro" | "arp" | "lead" | "break" | "fill" {
-  if (bar >= 7) return "fill";
-  if (bar === 6) return "break";
-  if (bar >= 4) return "lead";
+  if (bar === 15) return "fill";
+  if (bar === 10 || bar === 11) return "break";
+  if (bar >= 5) return "lead";
   if (bar >= 2) return "arp";
   return "intro";
 }
@@ -191,14 +191,14 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   const openHats = emptyHits();
 
   for (let bar = 0; bar < MUSIC_BARS; bar++) {
-    const chord = progression[bar] ?? 0;
+    const chord = progression[bar % progression.length] ?? 0;
     const section = sectionOf(bar);
     const origin = bar * STEPS_PER_BAR;
     const fill = section === "fill";
     const drums = section !== "break" || cue === "victory";
     const useArp = (!sparseCue(cue) && (section === "arp" || section === "lead"))
       || (cue === "menu" && section === "arp");
-    const useMelody = section === "lead" || section === "fill" || (sparseCue(cue) && (bar === 4 || bar === 5 || fill));
+    const useMelody = section === "lead" || section === "fill" || (sparseCue(cue) && (bar === 4 || bar === 5 || bar === 12 || bar === 13 || fill));
     const useCounter = section === "lead" && !sparseCue(cue);
 
     padRoot.push(midiToHz(chordToneMidi(rootMidi, scale, chord, 0, 1)));
@@ -242,7 +242,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     }
 
     if (useMelody) {
-      const sequence = section === "lead" ? 2 : 0;
+      const sequence = section === "lead" ? (bar >= 8 ? 3 : 2) : 0;
       for (let i = 0; i < 8; i++) {
         const degree = contour[i];
         if (degree === null) continue;

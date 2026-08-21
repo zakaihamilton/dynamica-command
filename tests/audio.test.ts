@@ -6,8 +6,10 @@ import {
   MUSIC_STEPS,
   TUTORIAL_MUSIC_MISSION,
 } from "../lib/audio/compose";
-import { isMusicEnabled, musicCueFromPath, setMusicEnabled } from "../lib/audio/music";
-import { beep, isSfxEnabled, setSfxEnabled } from "../lib/audio/synth";
+import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../lib/audio/music";
+import { beep, isSfxEnabled, playSfx, setSfxEnabled } from "../lib/audio/synth";
+import { spatialAudioForWorld } from "../lib/audio/spatial";
+import { createCamera } from "../lib/render/iso";
 
 describe("generated audio", () => {
   afterEach(() => {
@@ -27,7 +29,7 @@ describe("generated audio", () => {
     expect(composeMusic(421, "mission", 0)).not.toEqual(composeMusic(421, "mission", TUTORIAL_MUSIC_MISSION));
   });
 
-  it("keeps cue tempos in their industrial ranges and fills 8-bar lanes", () => {
+  it("keeps cue tempos in their industrial ranges and fills 16-bar lanes", () => {
     const ranges = {
       menu: [72, 88],
       briefing: [64, 80],
@@ -77,6 +79,25 @@ describe("generated audio", () => {
     expect(() => beep("select")).not.toThrow();
     setSfxEnabled(true);
     expect(isSfxEnabled()).toBe(true);
+  });
+
+  it("exposes semantic layered cues without requiring an audio device", () => {
+    expect(() => {
+      playSfx("uiConfirm");
+      playSfx("smallArms", { pan: -0.8 });
+      playSfx("cannon", { pan: 0.8 });
+      playSfx("destruction");
+      setMusicIntensity("critical");
+    }).not.toThrow();
+  });
+
+  it("maps world positions to bounded stereo placement and audible range", () => {
+    const camera = createCamera();
+    camera.x = 400;
+    camera.y = 80;
+    expect(spatialAudioForWorld(0, 0, camera, 800, 500).pan).toBeLessThanOrEqual(0.85);
+    expect(spatialAudioForWorld(0, 0, camera, 800, 500).pan).toBeGreaterThanOrEqual(-0.85);
+    expect(spatialAudioForWorld(6, 6, camera, 800, 500).audible).toBe(true);
   });
 
   it("tracks the music enable flag without requiring an audio device", () => {
