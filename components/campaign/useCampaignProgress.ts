@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { campaignKey, freshCampaignProgress, readCampaignProgress } from "@/lib/persist/campaign";
-import { localStorageAdapter } from "@/lib/persist/save";
+import { localStorageAdapter, safeGetItem } from "@/lib/persist/save";
 import type { CampaignProgress } from "@/lib/types";
 
 const snapshots = new Map<number, { raw: string | null; progress: CampaignProgress }>();
@@ -16,7 +16,7 @@ function subscribe(onStoreChange: () => void): () => void {
 
 function clientSnapshot(seed: number): CampaignProgress {
   const storage = localStorageAdapter();
-  const raw = storage.getItem(campaignKey(seed));
+  const raw = safeGetItem(storage, campaignKey(seed));
   const cached = snapshots.get(seed);
   if (cached?.raw === raw) return cached.progress;
   const progress = readCampaignProgress(storage, seed);

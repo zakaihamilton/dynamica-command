@@ -181,6 +181,7 @@ export function GameClient({
     extrasRef.current.subTickAlpha = subTickAlpha;
     fxRef.current = cullFx(fxRef.current, now);
     extrasRef.current.fx = fxRef.current;
+    const perfStarted = isPerfHudEnabled() ? performance.now() : 0;
     const worldTimings = renderWorld(ctx, s, camRef.current, selected.current, hoverRef.current, extrasRef.current);
     const mini = miniRef.current;
     let minimapMs = 0;
@@ -198,6 +199,9 @@ export function GameClient({
     }
     if (worldTimings && isPerfHudEnabled()) {
       drawPerfHud(ctx, now, worldTimings, minimapMs);
+    }
+    if (perfStarted > 0) {
+      canvas.dataset.perfFrameMs = (performance.now() - perfStarted).toFixed(2);
     }
   }, [boxRef, camRef, cursorRef, hoverRef, place, repair, sell]);
 

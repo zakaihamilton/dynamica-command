@@ -11,6 +11,8 @@ import type { Camera } from "@/lib/render/iso";
 import { missionMedals, missionScore } from "@/lib/sim/debrief";
 import type { Command, SimState } from "@/lib/types";
 
+const CAMPAIGN_SAVE_RETRY_MS = 1_000;
+
 export function useGameLoop({
   stateRef,
   setState,
@@ -53,6 +55,7 @@ export function useGameLoop({
   useEffect(() => {
     let appliedIntensity: MusicIntensity = "calm";
     let lastCombatTick = Number.NEGATIVE_INFINITY;
+    let nextCampaignSaveAttemptMs = 0;
     let idleHandle: number | null = null;
     let idleViaTimeout = false;
     const cancelIdle = () => {
@@ -161,9 +164,15 @@ export function useGameLoop({
           setState({ ...s, entities: [...s.entities] });
         }
         if (s.result === "won" && !campaignRecordedRef.current) {
-          campaignRecordedRef.current = true;
-          const progress = readCampaignProgress(localStorageAdapter(), s.seed);
-          writeCampaignProgress(localStorageAdapter(), completeMission(progress, s.missionIndex, missionMedals(s), missionScore(s)));
+          if (now >= nextCampaignSaveAttemptMs) {
+            const progress = readCampaignProgress(localStorageAdapter(), s.seed);
+            const recorded = writeCampaignProgress(
+              localStorageAdapter(),
+              completeMission(progress, s.missionIndex, missionMedals(s), missionScore(s)),
+            );
+            if (recorded) campaignRecordedRef.current = true;
+            else nextCampaignSaveAttemptMs = now + CAMPAIGN_SAVE_RETRY_MS;
+          }
         }
         redraw(now, subTickAlpha);
       },

@@ -19,6 +19,8 @@ import {
 } from "../lib/render/camera";
 import { visibleTileRange } from "../lib/render/terrainPaint";
 
+const EXHAUSTIVE_TEST_TIMEOUT = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 60_000 : 30_000;
+
 describe("terrain height", () => {
   it("interpolates unit elevation between neighboring tiles", () => {
     const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
@@ -76,7 +78,7 @@ describe("terrain height", () => {
         }
       }
     }
-  }, 30_000);
+  }, EXHAUSTIVE_TEST_TIMEOUT);
 });
 
 function nearestResource(map: ReturnType<typeof generateMap>, start: { x: number; y: number }): number {

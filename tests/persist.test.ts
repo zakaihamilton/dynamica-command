@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { deserializeState, listSaves, listUnreadableSaves, memoryStorage, readSave, removeSave, saveKey, SAVE_VERSION, serializeState, writeSave } from "../lib/persist/save";
+import { deserializeState, listSaves, listUnreadableSaves, memoryStorage, readSave, removeSave, saveKey, SAVE_CONTENT_VERSION, SAVE_VERSION, serializeState, writeSave } from "../lib/persist/save";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { tick } from "../lib/sim/api";
 
@@ -32,13 +32,20 @@ describe("persist", () => {
 
     const envelope = JSON.parse(storage.getItem(saveKey(421))!);
     expect(envelope.version).toBe(SAVE_VERSION);
+    expect(envelope.contentVersion).toBe(SAVE_CONTENT_VERSION);
     expect(envelope.state.seed).toBe(421);
     expect(readSave(storage, 421)?.seed).toBe(421);
 
     storage.setItem(saveKey(421), JSON.stringify({ version: SAVE_VERSION + 1, savedAt: 1, state }));
     expect(readSave(storage, 421)).toBeNull();
 
+    storage.setItem(saveKey(421), JSON.stringify({ version: SAVE_VERSION, contentVersion: SAVE_CONTENT_VERSION + 1, savedAt: 1, state }));
+    expect(readSave(storage, 421)).toBeNull();
+
     storage.setItem(saveKey(421), JSON.stringify({ version: 1, savedAt: 1, state }));
+    expect(readSave(storage, 421)?.seed).toBe(421);
+
+    storage.setItem(saveKey(421), JSON.stringify({ ...state, savedAt: 1 }));
     expect(readSave(storage, 421)?.seed).toBe(421);
 
     storage.setItem(saveKey(421), JSON.stringify({ version: SAVE_VERSION, savedAt: 1, state: { ...state, seed: 9 } }));
@@ -69,6 +76,34 @@ describe("persist", () => {
 
     expect(readSave(storage, 9)).toBeNull();
     expect(readSave(storage, 10)).not.toBeNull();
+  });
+
+  it("returns false instead of throwing when storage rejects a write", () => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const storage = memoryStorage();
+    storage.setItem = () => {
+      throw new Error("quota exceeded");
+    };
+
+    expect(writeSave(storage, state)).toBe(false);
+  });
+
+  it("treats unavailable storage reads, listing, and deletes as safe no-ops", () => {
+    const storage = memoryStorage();
+    storage.getItem = () => {
+      throw new Error("storage unavailable");
+    };
+    storage.keys = () => {
+      throw new Error("storage unavailable");
+    };
+    storage.removeItem = () => {
+      throw new Error("storage unavailable");
+    };
+
+    expect(readSave(storage, 421)).toBeNull();
+    expect(listSaves(storage)).toEqual([]);
+    expect(listUnreadableSaves(storage)).toEqual([]);
+    expect(() => removeSave(storage, 421)).not.toThrow();
   });
 
   it("reports unreadable saves so the menu can offer a safe reset", () => {

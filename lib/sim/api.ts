@@ -1,7 +1,7 @@
 import { STARTING_CREDITS, UNIT_STATS } from "../catalog";
 import { createRng, mixSeed } from "../seed/rng";
 import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
-import type { BuildingKind, Entity, Facing, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
+import type { Entity, Facing, SimEvent, SimState, UnitKind } from "../types";
 import { createCampaign } from "../gen/campaign";
 import { generateMap } from "../gen/map";
 import { tickAi } from "./ai";
@@ -15,13 +15,13 @@ import { PATH_DIRS, diagonalCornerBlocked, stepAlongPath } from "./pathfinding";
 import { tickProduction } from "./production";
 import { tickRepair } from "./repair";
 import { ensureMissionDirector, tickMissionDirector } from "./director";
+import { configureMissionScenario } from "./scenarios";
 import { canClimb, emptyRoleCounts, inBounds, isStaticWalkable, makeUnitOccupancy, spawnBuildingAt, spawnUnit } from "./world";
 import type { Command } from "../types";
 import { missionDifficulty } from "./difficulty";
 
 export { issue, inspect };
-
-export const CONVOY_STAGING_TICKS = 180 * 12;
+export { CONVOY_STAGING_TICKS } from "./scenarios";
 
 function cellOf(state: SimState, x: number, y: number): number {
   return Math.round(y) * state.width + Math.round(x);
@@ -291,86 +291,7 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     }
   }
 
-  if (mission.win.kind === "destroyMarked") {
-    const ids: number[] = [];
-    const spots = map.markedSpots.length
-      ? map.markedSpots
-      : [
-          { x: e.x - 4, y: e.y - 6 },
-          { x: e.x + 2, y: e.y - 6 },
-        ];
-    const count = mission.win.targetCount ?? 1;
-    for (let i = 0; i < count; i++) {
-      const spot = spots[i] ?? { x: e.x - 4 - i * 3, y: e.y - 6 };
-      const kind = rng.pick(["refinery", "factory", "objective"]) as BuildingKind;
-      const placed = spawnBuildingAt(
-        state,
-        1,
-        kind === "refinery" ? "objective" : kind,
-        spot.x,
-        spot.y,
-        0,
-        true,
-      );
-      if (placed) ids.push(placed.id);
-    }
-    state.win.targetIds = ids;
-  }
-
-  if (["escort", "sabotage", "rescue", "extraction"].includes(mission.win.kind)) {
-    const kind = mission.win.kind;
-    const targetIds: number[] = [];
-    const count = mission.win.targetCount ?? 2;
-    if (kind === "sabotage") {
-      for (let i = 0; i < count; i++) {
-        const spot = map.markedSpots[i] ?? { x: e.x - 4 - i * 3, y: e.y - 5 + (i % 2) * 2 };
-        const objective = spawnBuildingAt(state, 1, "objective", spot.x, spot.y, 0, true);
-        if (objective) targetIds.push(objective.id);
-      }
-    } else {
-      for (let i = 0; i < count; i++) {
-        const point = kind === "escort" ? convoyStartPoint(map, i) : centerPoint(map, i, count);
-        const target = spawnUnit(state, 0, kind === "escort" ? "tank" : "infantry", point.x, point.y);
-        target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
-        target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
-        if (kind === "extraction") target.marked = true;
-        targetIds.push(target.id);
-      }
-    }
-    const runtime: MissionRuntime = {
-      kind,
-      phase: "active",
-      targetIds,
-      convoyStartTick: kind === "escort" ? CONVOY_STAGING_TICKS : undefined,
-      zone: kind === "escort" ? map.enemyStart : map.playerStart,
-      deadline: state.tick + (mission.win.ticks ?? 3600) + (kind === "escort" ? CONVOY_STAGING_TICKS : 0),
-      rescued: 0,
-      required: count,
-      secondary: [
-        { id: "yard", kind: "preserveYard", label: "Keep the construction yard standing" },
-        { id: "time", kind: "completeBefore", label: "Complete the operation before the deadline", target: mission.win.ticks ?? 3600 },
-      ],
-    };
-    state.runtime = runtime;
-    state.win.targetIds = targetIds;
-  }
-
-  if (!state.runtime) {
-    const secondary = rng.chance(0.5)
-      ? { id: "survivors", kind: "keepUnits" as const, label: "Keep at least one combat unit alive", target: 1 }
-      : { id: "tempo", kind: "completeBefore" as const, label: "Complete the operation before the final push", target: (mission.win.ticks ?? 3600) + 1 };
-    state.runtime = {
-      kind: mission.win.kind,
-      phase: "active",
-      targetIds: state.win.targetIds ?? mission.win.targetIds ?? [],
-      rescued: 0,
-      required: mission.win.targetCount ?? 1,
-      secondary: [
-        { id: "yard", kind: "preserveYard", label: "Keep the construction yard standing" },
-        secondary,
-      ],
-    };
-  }
+  configureMissionScenario(state, map, mission, rng);
 
   ensureMissionDirector(state);
   tickFog(state);
@@ -394,36 +315,6 @@ export function tick(state: SimState, commands?: Command[]): { state: SimState; 
   events.push(...tickScenario(state));
   events.push(...evaluateObjectives(state));
   return { state, events };
-}
-
-function centerPoint(map: { playerStart: { x: number; y: number }; enemyStart: { x: number; y: number } }, index: number, count: number) {
-  const t = (index + 1) / (count + 1);
-  return {
-    x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * t),
-    y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * t),
-  };
-}
-
-function convoyStartPoint(map: {
-  playerStart: { x: number; y: number };
-  enemyStart: { x: number; y: number };
-  width: number;
-  height: number;
-}, index: number) {
-  const offsets = [
-    { x: 0, y: 0 },
-    { x: 1, y: 1 },
-    { x: -1, y: 1 },
-    { x: 1, y: -1 },
-  ];
-  const offset = offsets[index % offsets.length]!;
-  const routeT = 0.4;
-  const anchorX = Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * routeT);
-  const anchorY = Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * routeT);
-  return {
-    x: Math.max(2, Math.min(map.width - 3, anchorX + offset.x)),
-    y: Math.max(2, Math.min(map.height - 3, anchorY + offset.y)),
-  };
 }
 
 function stepRoute(state: SimState, from: { x: number; y: number }, to: { x: number; y: number }) {

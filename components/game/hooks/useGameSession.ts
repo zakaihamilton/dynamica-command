@@ -76,8 +76,8 @@ export function useGameSession({
   }, [pausedRef, setPaused, setPauseNotice, setPauseView]);
 
   const saveMission = useCallback(() => {
-    writeSave(localStorageAdapter(), stateRef.current);
-    setPauseNotice("Mission saved.");
+    const saved = writeSave(localStorageAdapter(), stateRef.current);
+    setPauseNotice(saved ? "Mission saved." : "Unable to save: browser storage is unavailable.");
   }, [setPauseNotice, stateRef]);
 
   const loadMission = useCallback(() => {

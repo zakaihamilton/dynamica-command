@@ -1,5 +1,5 @@
 import type { CampaignProgress } from "../types";
-import type { StorageAdapter } from "./save";
+import { safeGetItem, safeSetItem, type StorageAdapter } from "./save";
 import { formatSeed } from "../seed/rng";
 
 export const CAMPAIGN_PROGRESS_VERSION = 1 as const;
@@ -39,7 +39,7 @@ function normalize(value: unknown, seed: number): CampaignProgress {
 }
 
 export function readCampaignProgress(storage: StorageAdapter, seed: number): CampaignProgress {
-  const raw = storage.getItem(campaignKey(seed));
+  const raw = safeGetItem(storage, campaignKey(seed));
   if (!raw) return freshCampaignProgress(seed);
   try {
     const parsed = JSON.parse(raw) as { version?: number; progress?: unknown };
@@ -50,8 +50,8 @@ export function readCampaignProgress(storage: StorageAdapter, seed: number): Cam
   }
 }
 
-export function writeCampaignProgress(storage: StorageAdapter, progress: CampaignProgress): void {
-  storage.setItem(campaignKey(progress.seed), JSON.stringify({
+export function writeCampaignProgress(storage: StorageAdapter, progress: CampaignProgress): boolean {
+  return safeSetItem(storage, campaignKey(progress.seed), JSON.stringify({
     version: CAMPAIGN_PROGRESS_VERSION,
     savedAt: Date.now(),
     progress,

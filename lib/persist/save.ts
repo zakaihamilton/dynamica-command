@@ -11,12 +11,51 @@ export type StorageAdapter = {
   keys: () => string[];
 };
 
+/** Storage can fail in browsers with disabled privacy storage or an exhausted quota. */
+export function safeGetItem(storage: StorageAdapter, key: string): string | null {
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function safeSetItem(storage: StorageAdapter, key: string, value: string): boolean {
+  try {
+    storage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function safeRemoveItem(storage: StorageAdapter, key: string): boolean {
+  try {
+    storage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function safeKeys(storage: StorageAdapter): string[] {
+  try {
+    return storage.keys();
+  } catch {
+    return [];
+  }
+}
+
 export const SAVE_PREFIX = "genesis-protocol:save:";
 export const SAVE_VERSION = 2;
+/** Bump when deterministic generation or simulation semantics change incompatibly. */
+export const SAVE_CONTENT_VERSION = 1;
 const LEGACY_SAVE_VERSION = 1;
+const LEGACY_SAVE_CONTENT_VERSION = 1;
 
 type SaveEnvelope = {
   version: typeof SAVE_VERSION;
+  contentVersion: typeof SAVE_CONTENT_VERSION;
   savedAt: number;
   state: unknown;
 };
@@ -64,10 +103,13 @@ function decodeSave(raw: string): { state: SimState; savedAt: number } {
     if ((parsed.version !== SAVE_VERSION && parsed.version !== LEGACY_SAVE_VERSION) || !isNumber(parsed.savedAt)) {
       throw new Error("Unsupported save version");
     }
+    const contentVersion = parsed.contentVersion ?? LEGACY_SAVE_CONTENT_VERSION;
+    assertSupportedContentVersion(contentVersion);
     value = parsed.state;
     savedAt = parsed.savedAt;
   } else if (isRecord(parsed) && isNumber(parsed.savedAt)) {
     // Legacy saves stored SimState and savedAt at the same level.
+    assertSupportedContentVersion(LEGACY_SAVE_CONTENT_VERSION);
     savedAt = parsed.savedAt;
   }
   const state = normalizeState(value);
@@ -77,6 +119,10 @@ function decodeSave(raw: string): { state: SimState; savedAt: number } {
 
 function isNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function assertSupportedContentVersion(contentVersion: unknown): void {
+  if (contentVersion !== SAVE_CONTENT_VERSION) throw new Error("Unsupported save content version");
 }
 
 export function saveKey(seed: number): string {
@@ -154,17 +200,18 @@ function normalizeState(value: unknown): SimState {
   return s;
 }
 
-export function writeSave(storage: StorageAdapter, state: SimState): void {
+export function writeSave(storage: StorageAdapter, state: SimState): boolean {
   const payload: SaveEnvelope = {
     version: SAVE_VERSION,
+    contentVersion: SAVE_CONTENT_VERSION,
     savedAt: Date.now(),
     state,
   };
-  storage.setItem(saveKey(state.seed), JSON.stringify(payload));
+  return safeSetItem(storage, saveKey(state.seed), JSON.stringify(payload));
 }
 
 export function readSave(storage: StorageAdapter, seed: number): SimState | null {
-  const raw = storage.getItem(saveKey(seed));
+  const raw = safeGetItem(storage, saveKey(seed));
   if (!raw) return null;
   try {
     const { state } = decodeSave(raw);
@@ -175,18 +222,18 @@ export function readSave(storage: StorageAdapter, seed: number): SimState | null
 }
 
 export function removeSave(storage: StorageAdapter, seed: number): void {
-  storage.removeItem(saveKey(seed));
+  safeRemoveItem(storage, saveKey(seed));
 }
 
 /** Save keys whose payload cannot be migrated into a playable state. */
 export function listUnreadableSaves(storage: StorageAdapter): string[] {
   const unreadable: string[] = [];
-  for (const key of storage.keys()) {
+  for (const key of safeKeys(storage)) {
     if (!key.startsWith(SAVE_PREFIX)) continue;
     const seed = key.slice(SAVE_PREFIX.length);
     if (!/^\d{4}$/.test(seed)) continue;
     try {
-      const { state } = decodeSave(storage.getItem(key) ?? "");
+      const { state } = decodeSave(safeGetItem(storage, key) ?? "");
       if (state.seed !== Number(seed)) unreadable.push(seed);
     } catch {
       unreadable.push(seed);
@@ -197,9 +244,9 @@ export function listUnreadableSaves(storage: StorageAdapter): string[] {
 
 export function listSaves(storage: StorageAdapter): SaveMeta[] {
   const out: SaveMeta[] = [];
-  for (const key of storage.keys()) {
+  for (const key of safeKeys(storage)) {
     if (!key.startsWith(SAVE_PREFIX)) continue;
-    const raw = storage.getItem(key);
+    const raw = safeGetItem(storage, key);
     if (!raw) continue;
     try {
       const { state: s, savedAt } = decodeSave(raw);

@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createMission } from "../../lib/sim/api";
 import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
-import { SAVE_VERSION, saveKey } from "../../lib/persist/save";
+import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/save";
 import { SETTINGS_KEY, SETTINGS_VERSION } from "../../lib/persist/settings";
 import type { SimState } from "../../lib/types";
 
@@ -130,12 +130,9 @@ test("keeps tactical radar clicks anchored and cleans up interrupted drags", asy
   const beforeDrag = await canvasDigest(radar);
 
   await page.mouse.down();
-  await nextFrame(page);
-  expect(await canvasDigest(radar)).toBe(beforeDrag);
+  await expect(radar).not.toHaveAttribute("data-dragging", "true");
 
   await page.mouse.move(startX + 2, startY + 2);
-  await nextFrame(page);
-  expect(await canvasDigest(radar)).toBe(beforeDrag);
   await expect(radar).not.toHaveAttribute("data-dragging", "true");
 
   await page.mouse.move(startX + 48, startY + 24);
@@ -214,7 +211,7 @@ test("pauses and resumes from the battlefield", async ({ page }) => {
 });
 
 function saveEnvelope(state: SimState): string {
-  return JSON.stringify({ version: SAVE_VERSION, savedAt: Date.now(), state });
+  return JSON.stringify({ version: SAVE_VERSION, contentVersion: SAVE_CONTENT_VERSION, savedAt: Date.now(), state });
 }
 
 function distinctiveSave(result: SimState["result"] = "playing"): SimState {

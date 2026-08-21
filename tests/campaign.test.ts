@@ -22,4 +22,13 @@ describe("campaign progress", () => {
     expect(replay.medals["0"]).toBe(3);
     expect(replay.bestScores["0"]).toBe(700);
   });
+
+  it("returns false when campaign progress cannot be written", () => {
+    const storage = memoryStorage();
+    storage.setItem = () => {
+      throw new Error("quota exceeded");
+    };
+
+    expect(writeCampaignProgress(storage, freshCampaignProgress(42))).toBe(false);
+  });
 });

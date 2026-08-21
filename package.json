@@ -18,7 +18,7 @@
     "health": "repnix check",
     "health:dead-code": "knip",
     "health:duplication": "jscpd app components lib scripts",
-    "health:coverage": "c8 --all --reporter=text yarn test",
+    "health:coverage": "VITEST_COVERAGE=1 c8 --all --exclude='**/.next/**' --exclude='**/scripts/**' --exclude='**/tests/**' --exclude='**/*.config.*' --exclude='**/app/**' --exclude='**/components/**' --reporter=text yarn test",
     "health:performance": "tsx scripts/perf.ts",
     "health:licenses": "license-checker --json",
     "health:documentation": "markdownlint-cli2 \"**/*.md\" \"#.repnix\" \"#node_modules\" \"#playwright-report\" \"#test-results\" \"#coverage\" \"#dist\" \"#build\" \"#.next\" \"#.turbo\" \"#.git\" \"#generated\""

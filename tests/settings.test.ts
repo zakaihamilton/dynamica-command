@@ -65,4 +65,13 @@ describe("audio settings", () => {
     expect(envelope.settings).toEqual({ ...defaultSettings(), sfxEnabled: false, musicEnabled: false });
     expect(typeof envelope.savedAt).toBe("number");
   });
+
+  it("returns false when settings cannot be written", () => {
+    const storage = memoryStorage();
+    storage.setItem = () => {
+      throw new Error("quota exceeded");
+    };
+
+    expect(writeSettings(storage, defaultSettings())).toBe(false);
+  });
 });

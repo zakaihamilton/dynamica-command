@@ -57,6 +57,7 @@ export function Battlefield({
     >
       <canvas
         ref={canvasRef}
+        data-testid="battlefield-canvas"
         width={width}
         height={height}
         className={styles.canvas}

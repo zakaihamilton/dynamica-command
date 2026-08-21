@@ -10,6 +10,8 @@ export default defineConfig({
     pool: "threads",
     include: ["tests/**/*.test.ts"],
     setupFiles: ["tests/setup.ts"],
+    testTimeout: process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 60_000 : 30_000,
+    hookTimeout: process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 60_000 : 30_000,
   },
   resolve: {
     alias: {

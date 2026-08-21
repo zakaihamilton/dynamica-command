@@ -1,4 +1,4 @@
-import type { StorageAdapter } from "./save";
+import { safeGetItem, safeSetItem, type StorageAdapter } from "./save";
 
 export const SETTINGS_KEY = "genesis-protocol:settings";
 export const SETTINGS_VERSION = 2 as const;
@@ -41,7 +41,7 @@ function normalize(value: unknown): GameSettings {
 }
 
 export function readSettings(storage: StorageAdapter): GameSettings {
-  const raw = storage.getItem(SETTINGS_KEY);
+  const raw = safeGetItem(storage, SETTINGS_KEY);
   if (!raw) return defaultSettings();
   try {
     const parsed = JSON.parse(raw) as { version?: number; settings?: unknown };
@@ -52,8 +52,8 @@ export function readSettings(storage: StorageAdapter): GameSettings {
   }
 }
 
-export function writeSettings(storage: StorageAdapter, settings: GameSettings): void {
-  storage.setItem(SETTINGS_KEY, JSON.stringify({
+export function writeSettings(storage: StorageAdapter, settings: GameSettings): boolean {
+  return safeSetItem(storage, SETTINGS_KEY, JSON.stringify({
     version: SETTINGS_VERSION,
     savedAt: Date.now(),
     settings: {
