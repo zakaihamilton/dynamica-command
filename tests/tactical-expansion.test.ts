@@ -74,7 +74,9 @@ describe("tactical expansion", () => {
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
       expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS);
-      for (let i = 0; i <= CONVOY_STAGING_TICKS; i++) tick(state);
+      for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) tick(state);
+      expect(state.entities.filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined)).toEqual([]);
+      tick(state);
       expect(neutral?.path.at(-1)).toEqual(expect.objectContaining({ x: state.runtime?.zone?.x, y: state.runtime?.zone?.y }));
     } else {
       expect(neutral?.path).toEqual([]);

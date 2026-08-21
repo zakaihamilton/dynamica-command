@@ -305,6 +305,7 @@ export function tickAi(state: SimState): void {
   }
 
   const difficulty = missionDifficulty(state.missionIndex);
+  const escortStaging = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined;
   const phase = directorPhase(state);
   const productionWindow =
     state.tick >= difficulty.enemyProductionStart &&
@@ -345,6 +346,19 @@ export function tickAi(state: SimState): void {
     } else if (power < 20) {
       tryBuildPower(state, yard.x, yard.y);
     }
+  }
+
+  if (escortStaging) {
+    for (const unit of enemyCombat(state)) {
+      unit.attackTarget = undefined;
+      unit.path = [];
+      unit.orderMode = undefined;
+      unit.orderDestination = undefined;
+      unit.idle = true;
+    }
+    state.aiState = "economy";
+    state.rngState = rng.state;
+    return;
   }
 
   if (state.win.kind === "holdTheLine" && state.tick > 0 && state.tick % difficulty.enemyAssaultEvery === 0) {
