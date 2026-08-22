@@ -103,6 +103,8 @@ export function GameOverlays({
           notice={pauseNotice}
           settings={audioSettings}
           palette={palette}
+          seed={state.seed}
+          missionIndex={state.missionIndex}
           onResume={session.resumeMission}
           onSave={session.saveMission}
           onLoad={session.loadMission}
@@ -110,6 +112,10 @@ export function GameOverlays({
           onRestart={session.restartMission}
           onAssets={() => {
             setPauseView("assets");
+            setPauseNotice("");
+          }}
+          onSoundtrack={() => {
+            setPauseView("soundtrack");
             setPauseNotice("");
           }}
           onOptions={() => {

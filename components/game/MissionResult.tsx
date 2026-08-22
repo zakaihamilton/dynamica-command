@@ -1,9 +1,12 @@
+"use client";
+
+import { useState, type CSSProperties } from "react";
+import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { missionDebrief } from "@/lib/sim/debrief";
 import type { SimState } from "@/lib/types";
-import type { CSSProperties } from "react";
 import { MissionBattleRecord, MissionForceDisposition, MissionOutcome } from "./MissionResultSections";
 import { MissionResultActions } from "./MissionResultActions";
 import styles from "./MissionResult.module.css";
@@ -21,6 +24,7 @@ export function MissionResult({
   onRetry: () => void;
   onMenu: () => void;
 }) {
+  const [soundtrackOpen, setSoundtrackOpen] = useState(false);
   if (state.result === "playing") return null;
   const debrief = missionDebrief(state);
   return (
@@ -45,8 +49,10 @@ export function MissionResult({
           onCampaignVictory={onCampaignVictory}
           onRetry={onRetry}
           onMenu={onMenu}
+          onSoundtrack={() => setSoundtrackOpen(true)}
         />
       </MetalPanel>
+      {soundtrackOpen ? <SoundtrackPanel seed={state.seed} missionIndex={state.missionIndex} onClose={() => setSoundtrackOpen(false)} /> : null}
     </div>
   );
 }

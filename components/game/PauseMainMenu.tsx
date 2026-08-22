@@ -10,6 +10,7 @@ export function PauseMainMenu({
   onBriefing,
   onRestart,
   onAssets,
+  onSoundtrack,
   onOptions,
   onMenu,
 }: {
@@ -19,6 +20,7 @@ export function PauseMainMenu({
   onBriefing: () => void;
   onRestart: () => void;
   onAssets: () => void;
+  onSoundtrack: () => void;
   onOptions: () => void;
   onMenu: () => void;
 }) {
@@ -33,6 +35,7 @@ export function PauseMainMenu({
         <ConsoleButton className={styles.action} tooltip="Open the mission briefing" shortcut={SHORTCUT.briefing} onClick={onBriefing}>Mission Briefing</ConsoleButton>
         <ConsoleButton className={styles.action} tooltip="Start this mission over from the beginning" shortcut={SHORTCUT.restart} onClick={onRestart}>Restart Mission</ConsoleButton>
         <ConsoleButton className={styles.action} tooltip="Inspect generated sprites and animations" shortcut={SHORTCUT.assets} onClick={onAssets}>Assets</ConsoleButton>
+        <ConsoleButton className={styles.action} tooltip="Render and download the mission soundtrack as an M4A" onClick={onSoundtrack}>Soundtrack</ConsoleButton>
         <ConsoleButton className={styles.action} tooltip="Audio and game options" shortcut={SHORTCUT.options} onClick={onOptions}>Options</ConsoleButton>
         <ConsoleButton muted className={styles.action} tooltip="Leave the theater" shortcut={SHORTCUT.menu} onClick={onMenu}>Escape to Menu</ConsoleButton>
       </div>

@@ -1,4 +1,5 @@
 import { AssetsBrowser } from "@/components/assets/AssetsBrowser";
+import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import type { AudioVolumeKey } from "@/lib/audio/mixer";
 import type { GameSettings } from "@/lib/persist/settings";
@@ -13,12 +14,15 @@ export function PauseMenu({
   notice,
   settings,
   palette,
+  seed,
+  missionIndex,
   onResume,
   onSave,
   onLoad,
   onBriefing,
   onRestart,
   onAssets,
+  onSoundtrack,
   onOptions,
   onMenu,
   onToggleSound,
@@ -31,12 +35,15 @@ export function PauseMenu({
   notice: string;
   settings: GameSettings;
   palette: Palette;
+  seed: number;
+  missionIndex: number;
   onResume: () => void;
   onSave: () => void;
   onLoad: () => void;
   onBriefing: () => void;
   onRestart: () => void;
   onAssets: () => void;
+  onSoundtrack: () => void;
   onOptions: () => void;
   onMenu: () => void;
   onToggleSound: () => void;
@@ -49,6 +56,8 @@ export function PauseMenu({
     <div className={styles.overlay} data-testid="pause-menu">
       {view === "assets" ? (
         <AssetsBrowser palette={palette} onClose={onCloseAssets} />
+      ) : view === "soundtrack" ? (
+        <SoundtrackPanel seed={seed} missionIndex={missionIndex} onClose={onBack} />
       ) : (
         <MetalPanel className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="pause-title">
           {view === "main" ? (
@@ -59,6 +68,7 @@ export function PauseMenu({
               onBriefing={onBriefing}
               onRestart={onRestart}
               onAssets={onAssets}
+              onSoundtrack={onSoundtrack}
               onOptions={onOptions}
               onMenu={onMenu}
             />
