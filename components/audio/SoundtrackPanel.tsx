@@ -43,15 +43,15 @@ export function SoundtrackPanel({
   }, []);
 
   useEffect(() => {
-    if (!busy) return;
-    const blockEscapeWhileBusy = (event: KeyboardEvent) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      if (!busy) onClose();
     };
-    window.addEventListener("keydown", blockEscapeWhileBusy, true);
-    return () => window.removeEventListener("keydown", blockEscapeWhileBusy, true);
-  }, [busy]);
+    window.addEventListener("keydown", handleEscape, true);
+    return () => window.removeEventListener("keydown", handleEscape, true);
+  }, [busy, onClose]);
 
   const exportTrack = async () => {
     if (availability !== "available" || exportState === "rendering" || exportState === "encoding") return;

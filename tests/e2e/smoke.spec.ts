@@ -236,7 +236,11 @@ test("exposes the soundtrack panel from pause and mission result screens", async
   await page.goto("/play?seed=0421&resume=1");
   await expect(page.getByTestId("mission-result")).toBeVisible();
   await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Mission soundtrack" })).toContainText("Mission 1");
+  const resultDialog = page.getByRole("dialog", { name: "Mission soundtrack" });
+  await expect(resultDialog).toContainText("Mission 1");
+  await page.keyboard.press("Escape");
+  await expect(resultDialog).not.toBeVisible();
+  await expect(page.getByTestId("mission-result")).toBeVisible();
 });
 
 test("downloads a valid deterministic M4A when native AAC is supported", async ({ page }) => {

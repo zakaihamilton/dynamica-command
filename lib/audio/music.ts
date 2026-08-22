@@ -548,13 +548,13 @@ function syncDelay(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern): vo
   g.delay.delayTime.setTargetAtTime(seconds, audio.currentTime, 0.04);
 }
 
-function applyIntensityAt(audio: AudioGraphContext, g: MusicGraph, value: MusicIntensity, time: number): void {
+function applyIntensityAt(audio: AudioGraphContext, g: MusicGraph, value: MusicIntensity, time: number, isDucked = ducked): void {
   const t = Math.max(time, audio.currentTime);
   const ramp = value === "critical" ? 0.11 : 0.22;
   const set = (node: GainNode, target: number) => {
     node.gain.setTargetAtTime(target, t, ramp);
   };
-  set(g.master, masterGain(value, ducked));
+  set(g.master, masterGain(value, isDucked));
   set(g.bassBus, value === "calm" ? 0.82 : value === "critical" ? 1.06 : 0.94);
   set(g.rhythmBus, value === "calm" ? 0.48 : value === "critical" ? 1.02 : 0.8);
   set(g.harmonyBus, value === "calm" ? 0.92 : value === "critical" ? 0.9 : 0.84);
@@ -774,7 +774,7 @@ export async function renderMissionMusic(seedValue: number, mission: number, sam
   const arc: MusicIntensity[] = ["calm", "engaged", "calm", "engaged", "critical", "engaged", "engaged", "engaged"];
   for (let bar = 0; bar < MUSIC_BARS; bar++) {
     const value = arc[Math.floor(bar / 8)] ?? "engaged";
-    applyIntensityAt(offline, offlineGraph, value, bar * STEPS_PER_BAR * stepDuration);
+    applyIntensityAt(offline, offlineGraph, value, bar * STEPS_PER_BAR * stepDuration, false);
   }
   syncDelay(offline, offlineGraph, renderedPattern);
   for (let index = 0; index < MUSIC_STEPS; index++) {
