@@ -85,11 +85,11 @@ describe("generated audio", () => {
 
   it("keeps cue tempos in their industrial ranges and fills long-form lanes", () => {
     const ranges = {
-      menu: [72, 88],
-      briefing: [64, 80],
-      mission: [96, 118],
-      victory: [100, 120],
-      defeat: [56, 70],
+      menu: [92, 106],
+      briefing: [82, 96],
+      mission: [112, 124],
+      victory: [118, 128],
+      defeat: [72, 84],
     } as const;
     for (const seed of [0, 1, 421, 9999]) {
       for (const [cue, [lo, hi]] of Object.entries(ranges)) {
@@ -107,7 +107,9 @@ describe("generated audio", () => {
         expect(pattern.hats).toHaveLength(MUSIC_STEPS);
         expect(pattern.openHats).toHaveLength(MUSIC_STEPS);
         expect(pattern.padRoot).toHaveLength(MUSIC_BARS);
+        expect(pattern.padThird).toHaveLength(MUSIC_BARS);
         expect(pattern.padFifth).toHaveLength(MUSIC_BARS);
+        expect(pattern.padSeventh).toHaveLength(MUSIC_BARS);
         expect(pattern.bass.some((note) => note !== null)).toBe(true);
         expect(pattern.kick.some(Boolean)).toBe(true);
         expect(pattern.snare.some(Boolean)).toBe(true);
@@ -117,6 +119,26 @@ describe("generated audio", () => {
         expect(pattern.rootHz).toBeGreaterThan(midiToHz(30));
       }
     }
+  });
+
+  it("builds a recurring neon-arcade hook with hybrid cinematic drums", () => {
+    const pattern = composeMusic(421, "mission", 3);
+    const sectionNotes = (name: string, lane: "melody" | "pulse") => {
+      const section = pattern.sections.find((entry) => entry.name === name);
+      if (!section) return [];
+      return pattern.notes[lane].filter((note) => note.step >= section.startBar * STEPS_PER_BAR && note.step < section.endBar * STEPS_PER_BAR);
+    };
+
+    expect(pattern.theme.hook).toEqual(pattern.motif);
+    expect(pattern.motif.rhythm.some((step) => step % 2 === 1)).toBe(true);
+    expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
+    expect(sectionNotes("climax", "melody").length).toBeGreaterThan(sectionNotes("hook", "melody").length);
+    expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
+    expect(pattern.drums.some((event) => event.kind === "clap")).toBe(true);
+    expect(pattern.drums.some((event) => event.kind === "impact")).toBe(true);
+    expect(pattern.arpType).toBe("square");
+    expect(new Set(pattern.padThird).size).toBeGreaterThan(2);
+    expect(new Set(pattern.padSeventh).size).toBeGreaterThan(2);
   });
 
   it("maps routes onto music cues", () => {

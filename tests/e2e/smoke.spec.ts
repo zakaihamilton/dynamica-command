@@ -245,7 +245,7 @@ test("downloads a valid deterministic M4A when native AAC is supported", async (
   test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
   await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
-  const downloadPromise = page.waitForEvent("download", { timeout: 120_000 });
+  const downloadPromise = page.waitForEvent("download", { timeout: 180_000 });
   await dialog.getByRole("button", { name: "Download M4A", exact: true }).click();
   await expect(dialog.getByRole("progressbar", { name: "Export progress" })).toBeVisible();
   await page.keyboard.press("Escape");

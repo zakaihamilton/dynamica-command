@@ -11,6 +11,7 @@ import {
   type MusicIntensity,
   type MusicNoteEvent,
   type MusicPattern,
+  type MusicSectionName,
   type MusicStem,
   type MusicVoiceType,
 } from "./compose";
@@ -66,8 +67,12 @@ type MusicGraph = {
   padOscA: OscillatorNode;
   padOscB: OscillatorNode;
   padOscC: OscillatorNode;
+  padOscD: OscillatorNode;
   padLfo: OscillatorNode;
   padLfoGain: GainNode;
+  padGate: GainNode;
+  leadVibrato: OscillatorNode;
+  leadVibratoGain: GainNode;
   padBase: number;
   index: PatternIndex;
 };
@@ -236,33 +241,50 @@ function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicP
   const padOscA = audio.createOscillator();
   const padOscB = audio.createOscillator();
   const padOscC = audio.createOscillator();
+  const padOscD = audio.createOscillator();
   const padLfo = audio.createOscillator();
   const padLfoGain = audio.createGain();
+  const padGate = audio.createGain();
+  const leadVibrato = audio.createOscillator();
+  const leadVibratoGain = audio.createGain();
   padFilter.type = "lowpass";
-  padFilter.frequency.setValueAtTime(Math.min(p.cutoff, 720), now);
-  padFilter.Q.setValueAtTime(0.9, now);
-  padGain.gain.setValueAtTime(PAD_GAIN, now);
-  padOscA.type = "triangle";
-  padOscB.type = "sine";
-  padOscC.type = "sawtooth";
+  padFilter.frequency.setValueAtTime(Math.min(p.cutoff, 980), now);
+  padFilter.Q.setValueAtTime(1.1, now);
+  padGain.gain.setValueAtTime(PAD_GAIN * 1.08, now);
+  padGate.gain.setValueAtTime(1, now);
+  padOscA.type = "sawtooth";
+  padOscB.type = "sawtooth";
+  padOscC.type = "triangle";
+  padOscD.type = "square";
   padOscA.frequency.setValueAtTime(p.padRoot[0] ?? p.rootHz, now);
   padOscB.frequency.setValueAtTime((p.padFifth[0] ?? p.rootHz * 1.5) * 1.003, now);
-  padOscC.frequency.setValueAtTime((p.padRoot[0] ?? p.rootHz) * 0.5, now);
-  padOscC.detune.setValueAtTime(-7, now);
+  padOscC.frequency.setValueAtTime((p.padThird[0] ?? p.rootHz * 1.25) * 0.999, now);
+  padOscD.frequency.setValueAtTime((p.padSeventh[0] ?? p.rootHz * 1.78) * 1.001, now);
+  padOscB.detune.setValueAtTime(-7, now);
+  padOscC.detune.setValueAtTime(5, now);
+  padOscD.detune.setValueAtTime(9, now);
   padLfo.type = "sine";
-  padLfo.frequency.setValueAtTime(0.11, now);
-  padLfoGain.gain.setValueAtTime(175, now);
+  padLfo.frequency.setValueAtTime(0.13, now);
+  padLfoGain.gain.setValueAtTime(240, now);
+  leadVibrato.type = "sine";
+  leadVibrato.frequency.setValueAtTime(5.4, now);
+  leadVibratoGain.gain.setValueAtTime(10, now);
   padOscA.connect(padFilter);
   padOscB.connect(padFilter);
   padOscC.connect(padFilter);
+  padOscD.connect(padFilter);
   padFilter.connect(padGain);
-  padGain.connect(harmonyBus);
+  padGain.connect(padGate);
+  padGate.connect(harmonyBus);
   padLfo.connect(padLfoGain);
   padLfoGain.connect(padFilter.frequency);
+  leadVibrato.connect(leadVibratoGain);
   padOscA.start(now);
   padOscB.start(now);
   padOscC.start(now);
+  padOscD.start(now);
   padLfo.start(now);
+  leadVibrato.start(now);
 
   return {
     master,
@@ -287,15 +309,19 @@ function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicP
     padOscA,
     padOscB,
     padOscC,
+    padOscD,
     padLfo,
     padLfoGain,
-    padBase: PAD_GAIN,
+    padGate,
+    leadVibrato,
+    leadVibratoGain,
+    padBase: PAD_GAIN * 1.08,
     index: indexPattern(p),
   };
 }
 
 function disconnectGraph(g: MusicGraph): void {
-  for (const oscillator of [g.padOscA, g.padOscB, g.padOscC, g.padLfo]) {
+  for (const oscillator of [g.padOscA, g.padOscB, g.padOscC, g.padOscD, g.padLfo, g.leadVibrato]) {
     try {
       oscillator.stop();
     } catch {
@@ -304,7 +330,7 @@ function disconnectGraph(g: MusicGraph): void {
     oscillator.disconnect();
   }
   for (const node of [
-    g.padFilter, g.padGain, g.padLfoGain, g.delay, g.delayFeedback, g.delayWet,
+    g.padFilter, g.padGain, g.padGate, g.padLfoGain, g.leadVibratoGain, g.delay, g.delayFeedback, g.delayWet,
     g.reverb, g.reverbSend, g.reverbWet, g.bassBus, g.rhythmBus, g.harmonyBus,
     g.pulseBus, g.leadBus, g.counterBus, g.fxBus, g.highpass, g.saturation,
     g.compressor, g.master,
@@ -319,9 +345,9 @@ function stemBus(g: MusicGraph, stem: MusicStem): GainNode {
 }
 
 function notePan(stem: MusicStem): number {
-  if (stem === "pulse") return -0.22;
-  if (stem === "melody") return 0.24;
-  if (stem === "counter") return -0.08;
+  if (stem === "pulse") return -0.34;
+  if (stem === "melody") return 0.3;
+  if (stem === "counter") return -0.12;
   return 0;
 }
 
@@ -347,21 +373,23 @@ function playSynthTone(
   const attack = Math.min(voice === "melody" ? 0.026 : ATTACK_S, duration * 0.28);
   const release = Math.min(voice === "bass" ? 0.16 : 0.24, duration * 0.45);
   const end = time + Math.max(duration, attack + release + 0.02);
-  const peak = Math.max(0.006, velocity * (accent ? 0.16 : 0.12));
+  const peak = Math.max(0.006, velocity * (accent ? 0.19 : 0.145));
 
   filter.type = voice === "bass" ? "lowpass" : "lowpass";
-  filter.Q.setValueAtTime(voice === "melody" ? 1.2 : 0.7, time);
-  filter.frequency.setValueAtTime(Math.max(220, cutoff * (accent ? 1.8 : 1.35)), time);
+  filter.Q.setValueAtTime(voice === "melody" || voice === "pulse" ? 1.55 : 1.05, time);
+  filter.frequency.setValueAtTime(Math.max(220, cutoff * (accent ? 2.1 : 1.5)), time);
   filter.frequency.exponentialRampToValueAtTime(Math.max(120, cutoff * (voice === "bass" ? 0.68 : 0.86)), end);
   pan.pan.setValueAtTime(notePan(voice), time);
 
   oscA.type = type;
-  oscB.type = voice === "pulse" ? "square" : type;
-  oscSub.type = "triangle";
-  oscA.frequency.setValueAtTime(freq, time);
+  oscB.type = voice === "bass" || voice === "pulse" ? "square" : "sawtooth";
+  oscSub.type = voice === "melody" ? "square" : "triangle";
+  const glide = voice === "melody" || voice === "pulse" ? Math.min(0.032, duration * 0.3) : 0;
+  oscA.frequency.setValueAtTime(freq * (glide > 0 ? 0.94 : 1), time);
+  if (glide > 0) oscA.frequency.exponentialRampToValueAtTime(freq, time + glide);
   oscB.frequency.setValueAtTime(freq * (voice === "bass" ? 1.006 : 1.012), time);
-  oscB.detune.setValueAtTime(voice === "melody" ? 8 : -6, time);
-  oscSub.frequency.setValueAtTime(freq * (voice === "bass" ? 0.5 : 0.25), time);
+  oscB.detune.setValueAtTime(voice === "melody" ? 12 : voice === "pulse" ? -9 : -6, time);
+  oscSub.frequency.setValueAtTime(freq * (voice === "bass" || voice === "melody" ? 0.5 : 0.25), time);
   oscSub.detune.setValueAtTime(-4, time);
 
   envelope.gain.setValueAtTime(0.0001, time);
@@ -376,6 +404,10 @@ function playSynthTone(
   pan.connect(dest);
   if (voice === "melody" || voice === "counter") envelope.connect(g.reverbSend);
   if (voice === "melody") envelope.connect(g.delay);
+  if (voice === "melody") {
+    g.leadVibratoGain.connect(oscA.detune);
+    g.leadVibratoGain.connect(oscB.detune);
+  }
   oscA.start(time);
   oscB.start(time);
   oscSub.start(time);
@@ -435,12 +467,36 @@ function playSnare(audio: AudioGraphContext, g: MusicGraph, time: number, veloci
   playSynthTone(audio, g, g.rhythmBus, 185, time, accent ? 0.09 : 0.058, "triangle", 0.42 * velocity, 1700, "counter", accent);
 }
 
+function playClap(audio: AudioGraphContext, g: MusicGraph, time: number, velocity: number, accent: boolean): void {
+  const gain = (accent ? 0.11 : 0.07) * velocity;
+  playNoise(audio, g.rhythmBus, time, gain, 1450, accent ? 0.085 : 0.06, "bandpass", 0.08);
+  playNoise(audio, g.rhythmBus, time + 0.014, gain * 0.72, 1950, accent ? 0.07 : 0.045, "bandpass", -0.08);
+  playNoise(audio, g.reverbSend, time, gain * 0.42, 1250, accent ? 0.12 : 0.08, "bandpass");
+}
+
 function playHat(audio: AudioGraphContext, g: MusicGraph, time: number, velocity: number, open: boolean): void {
   playNoise(audio, g.rhythmBus, time, (open ? 0.06 : 0.036) * velocity, open ? 3300 : 7200, open ? 0.17 : 0.027, open ? "bandpass" : "highpass", open ? 0.12 : -0.08);
 }
 
 function playTom(audio: AudioGraphContext, g: MusicGraph, time: number, velocity: number): void {
   playSynthTone(audio, g, g.rhythmBus, 180, time, 0.22, "triangle", 0.68 * velocity, 900, "counter", true);
+}
+
+function playImpact(audio: AudioGraphContext, g: MusicGraph, time: number, velocity: number): void {
+  const oscillator = audio.createOscillator();
+  const envelope = audio.createGain();
+  oscillator.type = "sawtooth";
+  oscillator.frequency.setValueAtTime(108, time);
+  oscillator.frequency.exponentialRampToValueAtTime(31, time + 0.34);
+  envelope.gain.setValueAtTime(0.0001, time);
+  envelope.gain.exponentialRampToValueAtTime(0.42 * velocity, time + 0.008);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, time + 0.42);
+  oscillator.connect(envelope);
+  envelope.connect(g.fxBus);
+  oscillator.start(time);
+  oscillator.stop(time + 0.46);
+  playNoise(audio, g.fxBus, time, 0.14 * velocity, 900, 0.18, "bandpass");
+  playNoise(audio, g.reverbSend, time, 0.08 * velocity, 700, 0.32, "bandpass");
 }
 
 function playTransition(audio: AudioGraphContext, g: MusicGraph, time: number, duration: number, rising: boolean): void {
@@ -466,11 +522,25 @@ function playTransition(audio: AudioGraphContext, g: MusicGraph, time: number, d
 function retunePad(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern, bar: number, time: number): void {
   const index = ((bar % p.bars) + p.bars) % p.bars;
   const root = p.padRoot[index] ?? p.rootHz;
+  const third = p.padThird[index] ?? root * 1.25;
   const fifth = p.padFifth[index] ?? root * 1.5;
+  const seventh = p.padSeventh[index] ?? root * 1.78;
   const t = Math.max(time, audio.currentTime);
   g.padOscA.frequency.setTargetAtTime(root, t, 0.055);
   g.padOscB.frequency.setTargetAtTime(fifth * 1.003, t, 0.055);
-  g.padOscC.frequency.setTargetAtTime(root * 0.5, t, 0.055);
+  g.padOscC.frequency.setTargetAtTime(third * 0.999, t, 0.055);
+  g.padOscD.frequency.setTargetAtTime(seventh * 1.001, t, 0.055);
+}
+
+function schedulePadGate(audio: AudioGraphContext, g: MusicGraph, time: number, stepDuration: number, section: MusicSectionName | undefined, value: MusicIntensity): void {
+  const t = Math.max(time, audio.currentTime);
+  const level = value === "critical" ? 1 : value === "engaged" ? 0.86 : section === "breakdown" ? 0.96 : 0.66;
+  const attack = Math.max(0.004, stepDuration * 0.08);
+  const hold = t + stepDuration * (section === "breakdown" ? 0.94 : 0.68);
+  g.padGate.gain.setValueAtTime(Math.max(0.38, level * 0.56), t);
+  g.padGate.gain.linearRampToValueAtTime(level, t + attack);
+  g.padGate.gain.setValueAtTime(level * 0.72, hold);
+  g.padGate.gain.linearRampToValueAtTime(Math.max(0.34, level * 0.5), t + stepDuration * 0.94);
 }
 
 function syncDelay(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern): void {
@@ -487,13 +557,13 @@ function applyIntensityAt(audio: AudioGraphContext, g: MusicGraph, value: MusicI
   set(g.master, masterGain(value, ducked));
   set(g.bassBus, value === "calm" ? 0.82 : value === "critical" ? 1.06 : 0.94);
   set(g.rhythmBus, value === "calm" ? 0.48 : value === "critical" ? 1.02 : 0.8);
-  set(g.harmonyBus, value === "calm" ? 0.9 : 0.78);
+  set(g.harmonyBus, value === "calm" ? 0.92 : value === "critical" ? 0.9 : 0.84);
   set(g.pulseBus, value === "calm" ? 0.38 : value === "critical" ? 0.98 : 0.82);
-  set(g.leadBus, value === "calm" ? 0.5 : value === "critical" ? 1.04 : 0.86);
-  set(g.counterBus, value === "calm" ? 0.15 : value === "critical" ? 0.8 : 0.5);
-  set(g.fxBus, value === "critical" ? 0.75 : value === "engaged" ? 0.48 : 0.25);
+  set(g.leadBus, value === "calm" ? 0.52 : value === "critical" ? 1.12 : 0.92);
+  set(g.counterBus, value === "calm" ? 0.15 : value === "critical" ? 0.86 : 0.56);
+  set(g.fxBus, value === "critical" ? 0.84 : value === "engaged" ? 0.56 : 0.28);
   g.highpass.frequency.setTargetAtTime(value === "critical" ? 54 : 38, t, ramp);
-  g.padFilter.frequency.setTargetAtTime(value === "critical" ? 900 : value === "engaged" ? 720 : 520, t, ramp);
+  g.padFilter.frequency.setTargetAtTime(value === "critical" ? 1_650 : value === "engaged" ? 1_200 : 720, t, ramp);
 }
 
 function duckPad(audio: AudioGraphContext, g: MusicGraph, time: number): void {
@@ -516,6 +586,7 @@ function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern, 
   }
 
   const isBreakdown = section === "breakdown";
+  schedulePadGate(audio, g, t, stepDuration, section, value);
   const shouldPlay = (stem: MusicStem): boolean => {
     if (value !== "calm") return true;
     if (stem === "counter") return false;
@@ -547,9 +618,11 @@ function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern, 
       playKick(audio, g, t, velocity);
       duckPad(audio, g, t);
     } else if (event.kind === "snare") playSnare(audio, g, t, velocity, !!event.accent);
+    else if (event.kind === "clap") playClap(audio, g, t, velocity, !!event.accent);
     else if (event.kind === "hat") playHat(audio, g, t, velocity, false);
     else if (event.kind === "openHat") playHat(audio, g, t, velocity, true);
-    else playTom(audio, g, t, velocity);
+    else if (event.kind === "tom") playTom(audio, g, t, velocity);
+    else playImpact(audio, g, t, velocity);
   }
 }
 
