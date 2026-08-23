@@ -1,7 +1,7 @@
 import { BUILDING_STATS, UNIT_STATS } from "../catalog";
 import type { ArmorType, BuildingKind, Entity, SimEvent, SimState, UnitKind, WeaponType } from "../types";
 import { tryFindPath } from "./pathBudget";
-import { byId, closestApproach, distToEntity, living } from "./world";
+import { byId, closestApproach, distToEntity, isStaticWalkable, living } from "./world";
 import { rngFromState, type Rng } from "../seed/rng";
 
 const CELL = 8;
@@ -111,7 +111,7 @@ function armorFor(e: Entity): ArmorType {
   return e.armor ?? (e.class === "building" ? BUILDING_STATS[e.kind as BuildingKind].armor : UNIT_STATS[e.kind as UnitKind].armor);
 }
 
-function lineOfSight(state: SimState, from: Entity, to: Entity): boolean {
+function lineOfSight(state: SimState, from: { x: number; y: number }, to: Entity): boolean {
   const steps = Math.max(1, Math.ceil(Math.hypot(from.x - to.x, from.y - to.y) * 2));
   const source = state.heights[Math.round(from.y) * state.width + Math.round(from.x)] ?? 1;
   const target = state.heights[Math.round(to.y) * state.width + Math.round(to.x)] ?? 1;
@@ -122,6 +122,24 @@ function lineOfSight(state: SimState, from: Entity, to: Entity): boolean {
     if ((state.heights[y * state.width + x] ?? 1) > horizon) return false;
   }
   return true;
+}
+
+function firingPosition(state: SimState, from: Entity, target: Entity, range: number): { x: number; y: number } | undefined {
+  const origin = { x: Math.round(from.x), y: Math.round(from.y) };
+  const candidates: { x: number; y: number; distance: number }[] = [];
+  const targetWidth = target.class === "building" ? BUILDING_STATS[target.kind as BuildingKind].footprint.w : 1;
+  const targetHeight = target.class === "building" ? BUILDING_STATS[target.kind as BuildingKind].footprint.h : 1;
+  for (let y = Math.max(0, Math.floor(target.y) - 6); y <= Math.min(state.height - 1, Math.ceil(target.y + targetHeight) + 6); y++) {
+    for (let x = Math.max(0, Math.floor(target.x) - 6); x <= Math.min(state.width - 1, Math.ceil(target.x + targetWidth) + 6); x++) {
+      if (x === origin.x && y === origin.y) continue;
+      if (!isStaticWalkable(state, x, y)) continue;
+      const point = { x, y };
+      if (distToEntity(point, target) > range || !lineOfSight(state, point, target)) continue;
+      candidates.push({ x, y, distance: Math.hypot(from.x - x, from.y - y) });
+    }
+  }
+  candidates.sort((a, b) => a.distance - b.distance || a.y - b.y || a.x - b.x);
+  return candidates[0];
 }
 
 function damageMultiplier(weapon: WeaponType, armor: ArmorType): number {
@@ -264,7 +282,15 @@ export function tickCombat(state: SimState): SimEvent[] {
         const d = distToEntity(e, assigned);
         if (d <= st.range) {
           e.path = [];
-          if (lineOfSight(state, e, assigned)) strike(state, e, assigned, st, rng, events, pending);
+          if (lineOfSight(state, e, assigned)) {
+            strike(state, e, assigned, st, rng, events, pending);
+          } else {
+            const flank = firingPosition(state, e, assigned, st.range);
+            if (flank) {
+              const path = tryFindPath(state, e, flank);
+              if (path !== undefined) e.path = path;
+            }
+          }
           if (e.attackTarget === undefined) resumeAttackMove(state, e);
         } else {
           const intercept = e.owner === 1 && !isCombatThreat(state, assigned)

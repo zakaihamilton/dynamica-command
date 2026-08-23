@@ -80,3 +80,34 @@ test("keeps full battlefield frames within budget with a dense late-game state",
   const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]!;
   expect(p95, `full-frame samples: ${samples.join(", ")}`).toBeLessThan(100);
 });
+
+test("keeps mobile battlefield frames within budget with a dense late-game state", async ({ page }) => {
+  const state = denseLateGameState();
+  await page.addInitScript(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, { key: saveKey(state.seed), raw: saveEnvelope(state) });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/play?seed=0421&mission=7&resume=1&perf=1");
+  await expect(page.getByTestId("battlefield-canvas")).toBeVisible();
+  await expect(page.getByTestId("mobile-command-dock")).toBeVisible();
+
+  const canvas = page.getByTestId("battlefield-canvas");
+  await expect.poll(() => canvas.getAttribute("data-perf-frame-ms")).not.toBeNull();
+  const samples = await page.evaluate(async () => {
+    const element = document.querySelector<HTMLCanvasElement>("[data-testid='battlefield-canvas']");
+    if (!element) throw new Error("Battlefield canvas unavailable");
+    const values: number[] = [];
+    for (let i = 0; i < 45; i++) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const value = Number(element.dataset.perfFrameMs);
+      if (Number.isFinite(value)) values.push(value);
+    }
+    return values;
+  });
+
+  expect(samples.length).toBeGreaterThan(20);
+  const sorted = [...samples].sort((a, b) => a - b);
+  const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]!;
+  expect(p95, `mobile full-frame samples: ${samples.join(", ")}`).toBeLessThan(100);
+});

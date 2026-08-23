@@ -25,6 +25,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Pr
 | `yarn test:e2e` | Playwright browser smoke test (run `yarn playwright install chromium` once) |
 | `yarn inspect 0421` | Dump generated campaign JSON |
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
+| `yarn balance --from 0 --to 9 --check true` | Run the competent commander through the full mission horizon and enforce balance thresholds |
 | `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
 
 ## How a seed works
@@ -134,6 +135,8 @@ Optional `--orders orders.json`:
 ```json
 [{ "tick": 12, "command": { "type": "move", "unitIds": [4], "x": 10, "y": 8 } }]
 ```
+
+The balance harness uses the same public command API as a player. It builds missing infrastructure, maintains power, produces counters and support units, and assigns objective-aware orders. It runs through the full 20-minute mission horizon by default; `--ticks` is an intentional shorter cap and `--check true` rejects any truncated scenarios. Use `--strategy baseline` to run the older harvest-and-attack baseline, `--details true` to include per-seed records, or `--check true` to enforce aggregate and per-kind thresholds (override them with `--min-win-rate`, `--max-timeout-rate`, `--min-kind-samples`, `--min-kind-win-rate`, `--max-kind-timeout-rate`, `--max-truncated-rate`, `--max-average-casualties`, and the reliability flags). `yarn health:performance` measures late-game 96×96 commander-plus-simulation p95, terrain atlas cost, and blocked-LOS combat p95.
 
 HUD `data-testid`s for browser smoke tests: `seed`, `credits`, `objective`, `mission-result`.
 

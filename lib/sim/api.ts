@@ -63,12 +63,24 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
 
   const p = map.playerStart;
   const e = map.enemyStart;
+  const offensiveMission = ["sabotage", "destroyMarked", "razeAll", "decapitate", "annihilate"].includes(mission.win.kind);
   spawnBuildingAt(state, 0, "constructionYard", p.x, p.y);
   spawnBuildingAt(state, 0, "power", p.x + 3, p.y);
   spawnBuildingAt(state, 0, "refinery", p.x, p.y + 3);
   spawnUnit(state, 0, "harvester", p.x + 3, p.y + 3);
   spawnUnit(state, 0, "infantry", p.x + 5, p.y + 2);
-  if (mission.index === 0) {
+  if (mission.index >= 1 || offensiveMission) {
+    spawnBuildingAt(state, 0, "turret", p.x + 5, p.y);
+    spawnBuildingAt(state, 0, "barracks", p.x + 3, p.y - 3);
+    spawnUnit(state, 0, "antiArmor", p.x + 5, p.y + 4);
+  }
+  if (mission.index >= 4 || offensiveMission) {
+    spawnUnit(state, 0, "tank", p.x + 6, p.y + 4);
+  }
+  if (mission.index >= 3 || offensiveMission) {
+    spawnBuildingAt(state, 0, "factory", p.x, p.y - 5);
+  }
+  if (mission.index === 0 && !offensiveMission) {
     spawnBuildingAt(state, 0, "barracks", p.x + 3, p.y - 3);
   }
 

@@ -340,6 +340,22 @@ describe("combat damage model", () => {
     expect(highHp - highFoe.hp).toBeGreaterThan(lowHp - lowFoe.hp);
   });
 
+  it("flanks an ordered target when a height ridge blocks the firing line", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const attacker = addUnit(s, 0, "tank", 4, 4);
+    const target = addUnit(s, 1, "infantry", 6, 4);
+    setHeight(s, 5, 4, 4);
+    attacker.attackTarget = target.id;
+    attacker.orderMode = "attack";
+    attacker.idle = false;
+
+    const hp = target.hp;
+    tickCombat(s);
+
+    expect(target.hp).toBe(hp);
+    expect(attacker.path.length).toBeGreaterThan(0);
+  });
+
   it("applies suppression on a combat hit", () => {
     const s = makeFixture({ seed: 7, width: 16, height: 12, win: { kind: "annihilate" } });
     addUnit(s, 0, "infantry", 4, 4);
