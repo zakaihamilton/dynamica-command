@@ -84,6 +84,11 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
     spawnBuildingAt(state, 0, "barracks", p.x + 3, p.y - 3);
   }
 
+  for (const building of state.entities.filter((entity) => entity.owner === 0 && entity.class === "building" && entity.hp > 0 && entity.constructing === 0)) {
+    state.buildingsCompleted[0] += 1;
+    state.buildingsCompletedByKind[building.kind] = (state.buildingsCompletedByKind[building.kind] ?? 0) + 1;
+  }
+
   spawnBuildingAt(state, 1, "constructionYard", e.x, e.y);
   spawnBuildingAt(state, 1, "power", e.x - 3, e.y);
   spawnBuildingAt(state, 1, "refinery", e.x - 2, e.y - 3);

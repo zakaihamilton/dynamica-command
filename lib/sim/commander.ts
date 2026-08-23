@@ -21,6 +21,7 @@ const COMMANDER_CADENCE = 24;
 const COMBAT_ORDER_REFRESH = 96;
 const BUILDING_RESERVE = 180;
 const YARD_THREAT_RADIUS = 18;
+const STRUCTURE_QUOTA_KINDS: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
 const OFFENSIVE_KINDS = new Set<MissionKind>([
   "sabotage",
   "destroyMarked",
@@ -142,9 +143,28 @@ function missingStructureQuota(state: SimState): BuildingKind | undefined {
   return built + constructing < (state.win.target ?? Infinity) ? state.win.building : undefined;
 }
 
+function structureQuotaProgress(state: SimState, kind?: BuildingKind): number {
+  if (kind) {
+    return (state.buildingsCompletedByKind[kind] ?? 0) + playerBuildings(state, kind).filter((entity) => entity.constructing > 0).length;
+  }
+  return state.buildingsCompleted[0] + playerBuildings(state).filter((entity) => entity.constructing > 0).length;
+}
+
+function structureQuotaBuilding(state: SimState): BuildingKind | undefined {
+  if (objectiveKind(state) !== "structureQuota") return undefined;
+  const target = state.win.target ?? Infinity;
+  if (structureQuotaProgress(state, state.win.building) >= target) return undefined;
+  if (state.win.building) return state.win.building;
+
+  return [...STRUCTURE_QUOTA_KINDS]
+    .sort((a, b) => structureQuotaProgress(state, a) - structureQuotaProgress(state, b) || BUILDING_STATS[a].cost - BUILDING_STATS[b].cost)
+    .find((kind) => structureQuotaProgress(state, kind) < target);
+}
+
 function buildCommand(state: SimState, kind: BuildingKind, near: Entity): Command | undefined {
   const cost = BUILDING_STATS[kind].cost;
-  if (state.credits[0] < cost + BUILDING_RESERVE) return undefined;
+  const reserve = objectiveKind(state) === "structureQuota" ? 0 : BUILDING_RESERVE;
+  if (state.credits[0] < cost + reserve) return undefined;
   const site = findBuildSite(state, kind, near.x + 3, near.y, 14, 0);
   if (!site || !canPlaceBuilding(state, kind, site.x, site.y, 0)) return undefined;
   return { type: "build", building: kind, x: site.x, y: site.y };
@@ -158,7 +178,16 @@ function planBuilding(state: SimState, yard: Entity): Command | undefined {
     if (powerBuild) return powerBuild;
   }
 
-  const objectiveBuilding = missingStructureQuota(state);
+  const threat = enemyEntities(state).find(
+    (entity) => entity.class === "unit" && entity.kind !== "harvester" && distToEntity(yard, entity) <= YARD_THREAT_RADIUS,
+  );
+  const turretCount = completedOrBuilding(state, "turret");
+  if (threat && turretCount < 1 && !pending) {
+    const turret = buildCommand(state, "turret", yard);
+    if (turret) return turret;
+  }
+
+  const objectiveBuilding = missingStructureQuota(state) ?? structureQuotaBuilding(state);
   if (objectiveBuilding && !playerBuildings(state, objectiveBuilding).some((entity) => entity.constructing > 0)) {
     const objectiveBuild = buildCommand(state, objectiveBuilding, yard);
     if (objectiveBuild) return objectiveBuild;
@@ -177,10 +206,6 @@ function planBuilding(state: SimState, yard: Entity): Command | undefined {
     if (factory) return factory;
   }
 
-  const threat = enemyEntities(state).find(
-    (entity) => entity.class === "unit" && entity.kind !== "harvester" && distToEntity(yard, entity) <= YARD_THREAT_RADIUS,
-  );
-  const turretCount = completedOrBuilding(state, "turret");
   const defensiveTurretNeeded = threat !== undefined || OFFENSIVE_KINDS.has(objectiveKind(state));
   if (defensiveTurretNeeded && turretCount < 1 + Math.floor(state.missionIndex / 3) && !pending) {
     const turret = buildCommand(state, "turret", yard);
@@ -197,6 +222,7 @@ function planBuilding(state: SimState, yard: Entity): Command | undefined {
 
 function planProduction(state: SimState): Command[] {
   const commands: Command[] = [];
+  if (objectiveKind(state) === "structureQuota" && structureQuotaBuilding(state)) return commands;
   const support = supportNeed(state);
   const offensive = OFFENSIVE_KINDS.has(objectiveKind(state));
   const role = state.win.role && isUnitAvailable(state.win.role, state.missionIndex)
@@ -260,6 +286,14 @@ function objectiveEntity(state: SimState): Entity | undefined {
   return undefined;
 }
 
+function parallelOffensiveTargets(state: SimState): Entity[] {
+  if (objectiveKind(state) !== "sabotage" && objectiveKind(state) !== "destroyMarked") return [];
+  const targetIds = state.win.targetIds ?? state.runtime?.targetIds ?? [];
+  return targetIds
+    .map((id) => state.entities.find((entity) => entity.id === id && entity.hp > 0 && entity.owner === 1))
+    .filter((entity): entity is Entity => !!entity);
+}
+
 function defensiveThreat(state: SimState, yard: Entity): Entity | undefined {
   return enemyEntities(state)
     .filter((entity) => isCombatEntity(entity))
@@ -287,8 +321,8 @@ function scenarioThreat(state: SimState): Entity | undefined {
 function assaultReady(state: SimState, target: Entity, combat: Entity[]): boolean {
   if (!OFFENSIVE_KINDS.has(objectiveKind(state)) || target.owner !== 1) return true;
   const minimumUnits = objectiveKind(state) === "annihilate" || objectiveKind(state) === "razeAll"
-    ? 8 + state.missionIndex
-    : 5 + Math.floor(state.missionIndex / 2);
+    ? 10 + Math.floor(state.missionIndex / 2)
+    : 8 + Math.floor(state.missionIndex / 3);
   if (combat.length < minimumUnits) return false;
 
   const playerStrength = combat.reduce((sum, entity) => sum + combatValue(entity), 0);
@@ -315,6 +349,8 @@ function orderKey(command: Command): string {
 export class CompetentCommander {
   private lastCombatOrder = "";
   private lastCombatOrderTick = Number.NEGATIVE_INFINITY;
+  private assaultKind?: MissionKind;
+  private assaultTargetId?: number;
   private metrics: CommanderMetrics = { plans: 0, commands: 0, commandsByType: {} };
 
   plan(state: SimState): Command[] {
@@ -351,8 +387,28 @@ export class CompetentCommander {
     if (combat.length) {
       const combatCommands: Command[] = [];
       const offensiveObjective = objective && objective.owner === 1 && OFFENSIVE_KINDS.has(objectiveKind(state));
+      const assaultTargets = offensiveObjective
+        ? parallelOffensiveTargets(state).length > 1
+          ? parallelOffensiveTargets(state)
+          : objective ? [objective] : []
+        : [];
+      if (!offensiveObjective || this.assaultKind !== objectiveKind(state)) {
+        this.assaultKind = offensiveObjective ? objectiveKind(state) : undefined;
+        this.assaultTargetId = undefined;
+      }
+      if (offensiveObjective && objective && (this.assaultTargetId === undefined || this.assaultTargetId !== objective.id)) {
+        if (this.assaultTargetId !== undefined || assaultReady(state, objective, combat)) {
+          this.assaultTargetId = objective.id;
+        }
+      }
+      const assaultCommitted = offensiveObjective && this.assaultTargetId !== undefined;
       const defenderLimit = Math.min(4, Math.max(2, Math.floor(combat.length / 3)));
-      const reservedDefenders = scenarioObjective ? Math.min(defenderLimit, Math.max(0, objectiveCombat.length - 1)) : defenderLimit;
+      const scenarioDefenderLimit = objectiveKind(state) === "rescue" ? 2 : 1;
+      const reservedDefenders = scenarioObjective
+        ? Math.min(scenarioDefenderLimit, Math.max(0, objectiveCombat.length - 1))
+        : offensiveObjective
+          ? Math.min(defenderLimit, Math.max(0, objectiveCombat.length - 1))
+        : defenderLimit;
       const defenders = (threat || offensiveObjective || scenarioObjective)
         ? [...objectiveCombat]
           .sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id)
@@ -364,21 +420,35 @@ export class CompetentCommander {
         : combat;
 
       if (offensiveObjective && objective) {
-        if (assaultReady(state, objective, combat) && assaultForce.length) {
+        if (assaultCommitted && assaultForce.length) {
           if (defenders.length) {
             combatCommands.push(threat
               ? { type: "attack", unitIds: defenders.map((entity) => entity.id), targetId: threat.id }
               : { type: "move", unitIds: defenders.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
           }
-          combatCommands.push({ type: "attack", unitIds: assaultForce.map((entity) => entity.id), targetId: objective.id });
+          for (let index = 0; index < assaultTargets.length; index++) {
+            const target = assaultTargets[index]!;
+            const unitIds = assaultForce.filter((_, unitIndex) => unitIndex % assaultTargets.length === index).map((entity) => entity.id);
+            if (unitIds.length) {
+              combatCommands.push({ type: "attackMove", unitIds, x: target.x, y: target.y, formation: "wedge" });
+            }
+          }
         } else if (threat) {
-          combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: threat.id });
+          if (defenders.length) {
+            combatCommands.push({ type: "attack", unitIds: defenders.map((entity) => entity.id), targetId: threat.id });
+          }
+          if (assaultForce.length) {
+            combatCommands.push({ type: "move", unitIds: assaultForce.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
+          }
         } else {
           combatCommands.push({ type: "move", unitIds: combat.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
         }
       } else if (threat) {
-        if (objectiveKind(state) === "extraction" && extractionEscortTarget && objectiveCombat.length) {
-          combatCommands.push({ type: "attackMove", unitIds: objectiveCombat.map((entity) => entity.id), x: extractionEscortTarget.x, y: extractionEscortTarget.y, formation: "wedge" });
+        if (objectiveKind(state) === "escort" && objectiveCombat.length) {
+          combatCommands.push({ type: "attack", unitIds: objectiveCombat.map((entity) => entity.id), targetId: threat.id });
+        } else if (objectiveKind(state) === "extraction" && objective && objectiveCombat.length) {
+          const escortTarget = objectiveKind(state) === "extraction" ? extractionEscortTarget ?? objective : objective;
+          combatCommands.push({ type: "attackMove", unitIds: objectiveCombat.map((entity) => entity.id), x: escortTarget.x, y: escortTarget.y, formation: "wedge" });
         } else {
           combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: threat.id });
         }
@@ -393,13 +463,11 @@ export class CompetentCommander {
           const recoveryDestination = needsCargoEscort ? extractionEscortTarget : yard;
           combatCommands.push({ type: "attackMove", unitIds: force.map((entity) => entity.id), x: recoveryDestination.x, y: recoveryDestination.y, formation: "line" });
         } else if (force.length && objective && (objective.neutral || objective.class === "unit" && objective.owner === 0)) {
-          const escortDestination = objectiveKind(state) === "escort" && state.runtime?.zone
-            ? state.runtime.zone
-            : { x: objective.x, y: objective.y };
+          const escortDestination = { x: objective.x, y: objective.y };
           if (objectiveKind(state) === "escort") {
             combatCommands.push({ type: "attackMove", unitIds: force.map((entity) => entity.id), x: escortDestination.x, y: escortDestination.y, formation: "wedge" });
           } else {
-            combatCommands.push({ type: "move", unitIds: force.map((entity) => entity.id), x: objective.x, y: objective.y, formation: "wedge" });
+            combatCommands.push({ type: "move", unitIds: force.map((entity) => entity.id), x: objective.x, y: objective.y, formation: "line" });
           }
         } else if (force.length && ["harvestQuota", "forceQuota", "structureQuota", "holdTheLine"].includes(objectiveKind(state))) {
           combatCommands.push({ type: "move", unitIds: force.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });

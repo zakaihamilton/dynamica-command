@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { createCampaign } from "../lib/gen/campaign";
+import { MAX_MISSION_TICKS } from "../lib/gen/pacing";
 import { BUILDING_STATS } from "../lib/catalog";
 import { createMission, inspect, tick } from "../lib/sim/api";
 import { CompetentCommander } from "../lib/sim/commander";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
+
+function runGeneratedMission(seed: number, missionIndex: number) {
+  const state = createMission({ seed, missionIndex });
+  const commander = new CompetentCommander();
+  const horizon = state.runtime?.deadline ?? state.win.ticks ?? MAX_MISSION_TICKS;
+  for (let i = 0; i < horizon && state.result === "playing"; i++) {
+    tick(state, commander.plan(state));
+  }
+  return state;
+}
 
 describe("competent commander", () => {
   it("queues a force-quota role and wins through the public command API", () => {
@@ -64,6 +75,36 @@ describe("competent commander", () => {
       expect(commander.getMetrics().commands).toBeGreaterThan(0);
       expect(rejections).toBe(0);
     }
+  });
+
+  it.each([
+    [2, 7, "structureQuota"],
+    [1, 7, "escort"],
+    [3, 1, "extraction"],
+  ] as const)("completes generated %s/%s (%s) objectives with deterministic command execution", (seed, missionIndex, kind) => {
+    const state = runGeneratedMission(seed, missionIndex);
+
+    expect(state.missionKind).toBe(kind);
+    expect(state.result).toBe("won");
+  });
+
+  it("keeps a committed assault focused on its objective until it wins", () => {
+    const state = makeFixture({ width: 24, height: 24, win: { kind: "sabotage", targetCount: 1, ticks: 5000 } });
+    addBuilding(state, 0, "constructionYard", 2, 2);
+    addBuilding(state, 0, "power", 5, 2);
+    addBuilding(state, 0, "barracks", 2, 5);
+    const attackers = Array.from({ length: 8 }, (_, index) => addUnit(state, 0, index % 2 ? "antiArmor" : "infantry", 5 + (index % 4), 6 + Math.floor(index / 4)));
+    addBuilding(state, 1, "constructionYard", 18, 18);
+    const marked = addBuilding(state, 1, "objective", 12, 12, 0, true);
+    marked.hp = 30;
+    state.win.targetIds = [marked.id];
+    state.runtime = { kind: "sabotage", phase: "active", targetIds: [marked.id], rescued: 0, required: 1, secondary: [] };
+    const commander = new CompetentCommander();
+
+    for (let i = 0; i < 1200 && state.result === "playing"; i++) tick(state, commander.plan(state));
+
+    expect(attackers.some((attacker) => attacker.hp > 0)).toBe(true);
+    expect(state.result).toBe("won");
   });
 
   it("moves a rescue force toward neutral scenario targets", () => {
@@ -146,7 +187,7 @@ describe("competent commander", () => {
     state.win.targetIds = [marked.id];
 
     const orders = new CompetentCommander().plan(state);
-    const attack = orders.find((order) => order.type === "attack" && order.targetId === marked.id);
+    const attack = orders.find((order) => order.type === "attackMove" && order.x === marked.x && order.y === marked.y);
     const guarded = orders.find((order) => order.type === "move" && order.x === yard.x && order.y === yard.y);
 
     expect(attack).toBeDefined();

@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
 import { PATH_DIRS, diagonalCornerBlocked } from "./pathfinding";
+import { tryFindPath } from "./pathBudget";
 import { canClimb, inBounds, isStaticWalkable, isWalkable, spawnBuildingAt, spawnUnit } from "./world";
 
 export const CONVOY_STAGING_TICKS = 180 * 12;
@@ -68,6 +69,10 @@ export function configureMissionScenario(
         target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
         target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
         if (kind === "extraction") target.marked = true;
+        if (kind === "escort" || kind === "extraction") {
+          target.maxHp *= kind === "escort" ? 6 : 9;
+          target.hp = target.maxHp;
+        }
         targetIds.push(target.id);
       }
     }
@@ -173,11 +178,15 @@ function convoyStartPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart" |
   };
 }
 
-function stepRoute(from: Vec2, to: Vec2): Vec2[] {
-  return [...Array.from({ length: 3 }, (_, i) => ({
-    x: Math.round(from.x + (to.x - from.x) * (i + 1) / 4),
-    y: Math.round(from.y + (to.y - from.y) * (i + 1) / 4),
-  })), { x: to.x, y: to.y }];
+function convoyDestination(zone: Vec2, index: number): Vec2 {
+  const offsets = [
+    { x: 0, y: 0 },
+    { x: 2, y: 1 },
+    { x: -2, y: 1 },
+    { x: 1, y: -2 },
+  ];
+  const offset = offsets[index % offsets.length]!;
+  return { x: zone.x + offset.x, y: zone.y + offset.y };
 }
 
 export function tickScenario(state: SimState): SimEvent[] {
@@ -205,9 +214,12 @@ export function tickScenario(state: SimState): SimEvent[] {
     }
   }
   if (runtime.kind === "escort" && runtime.convoyStartTick !== undefined && state.tick >= runtime.convoyStartTick) {
-    for (const id of runtime.targetIds) {
+    for (const [index, id] of runtime.targetIds.entries()) {
       const convoy = state.entities.find((entity) => entity.id === id && entity.hp > 0);
-      if (convoy?.scenarioRole === "convoy" && convoy.neutral) convoy.path = stepRoute(convoy, state.runtime!.zone!);
+      if (convoy?.scenarioRole === "convoy" && convoy.neutral) {
+        const route = tryFindPath(state, convoy, convoyDestination(state.runtime!.zone!, index));
+        if (route !== undefined) convoy.path = route;
+      }
     }
     delete runtime.convoyStartTick;
   }

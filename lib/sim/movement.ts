@@ -20,6 +20,7 @@ function tileFree(
   const current = cellOf(state, e.x, e.y);
   const target = y * state.width + x;
   if (target === current) return true;
+  if (e.neutral) return true;
   if (occupancy[target]) return false;
   const claim = reserved.get(target);
   return claim === undefined || claim === e.id;
@@ -61,7 +62,7 @@ function nudgeIdle(
   reserved: Map<number, number>,
   blocker: Entity,
 ): boolean {
-  if (blocker.path.length) return false;
+  if (blocker.path.length || blocker.neutral) return false;
   const cx = Math.round(blocker.x);
   const cy = Math.round(blocker.y);
   for (const d of PATH_DIRS) {

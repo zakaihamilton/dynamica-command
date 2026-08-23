@@ -199,7 +199,8 @@ function scenarioAssaultTarget(state: SimState, from: Entity): Entity | undefine
       if (runtime.kind === "rescue") return entity.scenarioRole === "stranded" && !entity.neutral;
       return false;
     });
-  return candidates.sort((a, b) => distToEntity(from, a) - distToEntity(from, b) || a.id - b.id)[0];
+  const sorted = candidates.sort((a, b) => distToEntity(from, a) - distToEntity(from, b) || a.id - b.id);
+  return sorted.length ? sorted[from.id % sorted.length] : undefined;
 }
 
 function guardScenarioObjectives(state: SimState, units: Entity[]): void {
@@ -230,6 +231,13 @@ function guardResourceLane(state: SimState, units: Entity[], yard: Entity): void
 
 function homeGuardCount(missionIndex: number): number {
   return 1 + (missionIndex >= 4 ? 1 : 0);
+}
+
+function shouldAutoRepair(state: SimState, building: Entity): boolean {
+  if (building.marked || building.kind === "objective") return false;
+  if (state.win.kind === "razeAll" || state.win.kind === "annihilate") return false;
+  if (state.win.kind === "decapitate" && building.kind === "constructionYard") return false;
+  return true;
 }
 
 function shouldRetreat(state: SimState, averageHealth: number): boolean {
@@ -396,13 +404,16 @@ export function tickAi(state: SimState): void {
   const waveEvery = difficulty.enemyAssaultEvery;
   for (const b of enemyBuildings) {
     if (b.constructing > 0 || b.hp <= 0) continue;
-    if (b.hp < b.maxHp) b.repairing = true;
+    if (b.hp < b.maxHp && shouldAutoRepair(state, b)) b.repairing = true;
+    else if (!shouldAutoRepair(state, b)) b.repairing = false;
   }
 
   const threat = nearest(
     state,
     yard,
-    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester" && !isSupportUnit(e.kind as UnitKind) && !(
+    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester" && !isSupportUnit(e.kind as UnitKind) && (
+      !e.neutral || e.scenarioRole === "convoy"
+    ) && !(
       e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined
     ),
   );
