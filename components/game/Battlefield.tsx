@@ -27,6 +27,7 @@ export function Battlefield({
   onPointerMove,
   onPointerLeave,
   onPointerUp,
+  onPointerCancel,
 }: {
   hostRef: Ref<HTMLDivElement>;
   canvasRef: Ref<HTMLCanvasElement>;
@@ -48,6 +49,7 @@ export function Battlefield({
   onPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
   onPointerUp: PointerEventHandler<HTMLCanvasElement>;
+  onPointerCancel: PointerEventHandler<HTMLCanvasElement>;
 }) {
   return (
     <div
@@ -65,6 +67,7 @@ export function Battlefield({
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
       />
       <ScrollArrow dir="left" available={panAvail.left} hot={hotPan === "left"} />
       <ScrollArrow dir="right" available={panAvail.right} hot={hotPan === "right"} />

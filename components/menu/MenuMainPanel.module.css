@@ -28,3 +28,14 @@
   color: #ffb08a;
   font-size: 0.68rem;
 }
+
+@media (max-width: 420px) {
+  .panel {
+    margin-top: 1.25rem;
+    padding: 0.85rem;
+  }
+
+  .recovery {
+    font-size: 0.6rem;
+  }
+}

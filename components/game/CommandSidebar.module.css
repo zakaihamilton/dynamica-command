@@ -85,45 +85,65 @@
   background: transparent;
 }
 
-@media (max-width: 799px) {
+@media (max-width: 799px) and (orientation: portrait) {
   .sidebar {
-    width: 100%;
-    height: 42dvh;
+    display: none;
+  }
+}
+
+@media (max-width: 799px) and (orientation: landscape) {
+  .sidebar {
+    width: min(18rem, 38vw);
+    height: 100%;
     min-height: 0;
-    flex: 0 0 42dvh;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: flex-start;
-    gap: 0.45rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-top: 2px solid var(--chrome-steel-hi);
-    border-left: 0;
-    padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
+    flex: 0 0 min(18rem, 38vw);
+    gap: 0.35rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-top: 0;
+    border-left: 3px solid color-mix(in srgb, var(--p, var(--chrome-steel-hi)) 40%, var(--chrome-inset));
+    padding: max(0.35rem, env(safe-area-inset-top)) 0.35rem max(0.35rem, env(safe-area-inset-bottom)) 0.65rem;
     box-shadow: 0 -8px 22px rgba(0,0,0,0.55);
   }
 
   .sidebar > *:not(.rail) {
-    flex: 0 0 220px;
+    flex: 0 0 auto;
     margin-top: 0;
   }
 
-  .rail {
-    display: none;
+  .header {
+    padding: 0.5rem 0.35rem;
+  }
+
+  .title {
+    font-size: 0.72rem;
+  }
+
+  .faction {
+    margin-top: 0.15rem;
+    font-size: 0.5rem;
   }
 
   .radarSlot {
-    flex-basis: 150px;
+    margin-top: 0.35rem;
+  }
+
+  .radarSlot :global(canvas) {
+    height: clamp(5rem, 24vh, 7.25rem);
   }
 
   .resourceSlot {
-    flex-basis: 168px;
+    margin-top: 0.35rem;
   }
 
   .build {
-    align-self: stretch;
     min-height: 0;
-    overflow-y: auto;
+    margin-top: 0.35rem;
+    overflow: visible;
+  }
+
+  .rail {
+    display: block;
   }
 
   .header,
@@ -132,25 +152,13 @@
   }
 }
 
-@media (min-width: 700px) and (max-width: 799px) and (orientation: landscape) {
+@media (max-width: 620px) and (orientation: landscape) {
   .sidebar {
-    width: 17.5rem;
-    height: 100%;
-    min-height: 0;
-    flex: 0 0 17.5rem;
-    flex-direction: column;
-    overflow-x: hidden;
-    overflow-y: auto;
-    padding: 0.5rem 0.5rem 0.5rem 0.875rem;
-    border-top: 0;
-    border-left: 3px solid color-mix(in srgb, var(--p, var(--chrome-steel-hi)) 40%, var(--chrome-inset));
+    width: min(15rem, 39vw);
+    flex-basis: min(15rem, 39vw);
   }
 
-  .sidebar > *:not(.rail) {
-    flex: 0 0 auto;
-  }
-
-  .rail {
-    display: block;
+  .radarSlot :global(canvas) {
+    height: 5rem;
   }
 }

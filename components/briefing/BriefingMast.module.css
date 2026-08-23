@@ -55,3 +55,25 @@
   }
 }
 
+@media (max-width: 639px) {
+  .mast {
+    align-items: flex-start;
+    padding: 0.7rem 0.75rem;
+  }
+
+  .title {
+    font-size: clamp(1.35rem, 7vw, 1.875rem);
+  }
+
+  .world {
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+  }
+
+  .aside {
+    max-width: none;
+    font-size: 0.55rem;
+    text-align: left;
+    line-height: 1.05rem;
+  }
+}

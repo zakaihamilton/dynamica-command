@@ -184,7 +184,7 @@
 @media (max-width: 600px) {
   .overlay {
     align-items: flex-start;
-    padding: 0.65rem;
+    padding: max(0.65rem, env(safe-area-inset-top)) max(0.65rem, env(safe-area-inset-right)) max(0.65rem, env(safe-area-inset-bottom)) max(0.65rem, env(safe-area-inset-left));
   }
 
   .panel {
@@ -197,5 +197,14 @@
 
   .forceGrid {
     grid-template-columns: 1fr;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .actions > * {
+    width: 100%;
   }
 }

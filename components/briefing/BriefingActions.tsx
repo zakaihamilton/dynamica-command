@@ -17,7 +17,7 @@ export function BriefingActions({
   onSoundtrack: () => void;
 }) {
   return (
-    <div className={styles.actions}>
+    <div className={styles.actions} data-testid="briefing-actions">
       <ConsoleButton
         tooltip="Replay the incoming transmission"
         shortcut={SHORTCUT.replay}

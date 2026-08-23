@@ -174,7 +174,7 @@
   .content {
     align-items: flex-start;
     justify-content: flex-start;
-    padding: 0.5rem;
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
   }
 
   .panel {
@@ -188,5 +188,14 @@
 
   .actions > * {
     flex: 1 1 12rem;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .actions > * {
+    width: 100%;
   }
 }

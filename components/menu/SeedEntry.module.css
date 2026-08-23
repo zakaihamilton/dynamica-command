@@ -73,3 +73,28 @@
 .hidden {
   visibility: hidden;
 }
+
+@media (max-width: 420px) {
+  .row {
+    gap: 0.45rem;
+  }
+
+  .digits {
+    gap: 0.3rem;
+  }
+
+  .cell {
+    width: 3rem;
+    height: 3.25rem;
+    font-size: 1.55rem;
+  }
+
+  .roll {
+    height: 3.25rem;
+    padding-inline: 0.7rem;
+  }
+
+  .status {
+    min-height: 2.25rem;
+  }
+}

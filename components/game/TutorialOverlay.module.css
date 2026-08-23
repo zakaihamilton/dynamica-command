@@ -1,6 +1,6 @@
 .card {
   position: absolute;
-  z-index: 25;
+  z-index: 70;
   left: 50%;
   bottom: 1rem;
   width: min(30rem, calc(100% - 2rem));
@@ -19,6 +19,24 @@
 .actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
 
 @media (max-width: 799px) {
-  .card { bottom: 0.5rem; }
-  .actions > * { min-height: 44px; }
+  .card {
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: min(30rem, calc(100% - 1rem));
+    padding: 0.75rem;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .actions > * {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  .actions {
+    grid-template-columns: 1fr;
+  }
 }

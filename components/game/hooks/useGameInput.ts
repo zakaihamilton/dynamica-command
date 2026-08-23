@@ -2,7 +2,7 @@ import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "r
 import { beep } from "@/lib/audio/synth";
 import { finalizeMultiSelect, pickEntity } from "@/lib/render/pick";
 import { pickTile, visibleBuildingAt } from "@/lib/render/renderer";
-import { panCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
+import { cameraPanBounds, panCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { screenToTile, tileToScreen, type Camera } from "@/lib/render/iso";
 import { groundOrders } from "@/lib/sim/orders";
 import { heightAt } from "@/lib/sim/world";
@@ -55,6 +55,8 @@ export function useGameInput({
   pausedRef,
   panAvailRef,
   applyEdgePan,
+  selectionModeRef,
+  setSelectionMode,
 }: {
   stateRef: MutableRefObject<SimState>;
   camRef: MutableRefObject<Camera>;
@@ -73,6 +75,8 @@ export function useGameInput({
   pausedRef: MutableRefObject<boolean>;
   panAvailRef: MutableRefObject<PanAvailability>;
   applyEdgePan: (dir: PanDir | null) => void;
+  selectionModeRef: MutableRefObject<boolean>;
+  setSelectionMode: (active: boolean) => void;
 }) {
   const hoverRef = useRef<{ x: number; y: number } | null>(null);
   const cursorRef = useRef<{ x: number; y: number } | null>(null);
@@ -80,6 +84,7 @@ export function useGameInput({
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ center: { x: number; y: number }; distance: number } | null>(null);
   const touchMultiTouch = useRef(false);
+  const touchPan = useRef<{ pointerId: number; start: { x: number; y: number }; last: { x: number; y: number }; moved: boolean } | null>(null);
   const longPress = useRef<{ pointerId: number; timer: number; x: number; y: number; fired: boolean } | null>(null);
 
   function canvasPos(e: PointerEvent<HTMLCanvasElement>) {
@@ -104,38 +109,55 @@ export function useGameInput({
     const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
     if (target && target.owner === 1) cmdQRef.current.push({ type: "attack", unitIds: ids, targetId: target.id });
     else cmdQRef.current.push(...groundOrders(s, ids, tx, ty, attackMove));
+    mobileCommandRef.current = null;
+    setMobileCommandState(null);
     beep("ack");
-  }, [camRef, clearTools, cmdQRef, repairRef, selectedRef, sellRef]);
+  }, [camRef, clearTools, cmdQRef, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState]);
 
   const onDown = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     if (e.pointerType === "touch") {
-      e.currentTarget.setPointerCapture(e.pointerId);
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Synthetic pointer events used by accessibility and browser tests do not have capture targets.
+      }
       const p = canvasPos(e);
       touchPoints.current.set(e.pointerId, p);
       if (touchPoints.current.size >= 2) {
         touchMultiTouch.current = true;
         touchGesture.current = null;
+        touchPan.current = null;
+        boxRef.current = null;
         if (longPress.current) window.clearTimeout(longPress.current.timer);
         longPress.current = null;
       } else {
-        const timer = window.setTimeout(() => {
-          const held = longPress.current;
-          if (held && held.pointerId === e.pointerId && !held.fired && !touchGesture.current) {
-            held.fired = true;
-            issueContextOrder(stateRef.current, { x: held.x, y: held.y });
-          }
-        }, 480);
-        longPress.current = { pointerId: e.pointerId, timer, x: p.x, y: p.y, fired: false };
+        touchPan.current = { pointerId: e.pointerId, start: p, last: p, moved: false };
+        if (selectionModeRef.current) {
+          boxRef.current = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+        } else {
+          const timer = window.setTimeout(() => {
+            const held = longPress.current;
+            if (held && held.pointerId === e.pointerId && !held.fired && !touchGesture.current && !selectionModeRef.current) {
+              held.fired = true;
+              issueContextOrder(stateRef.current, { x: held.x, y: held.y });
+            }
+          }, 480);
+          longPress.current = { pointerId: e.pointerId, timer, x: p.x, y: p.y, fired: false };
+        }
       }
       return;
     }
     if (e.button !== 0) return;
     const p = canvasPos(e);
     boxRef.current = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
-  }, [issueContextOrder, stateRef]);
+  }, [issueContextOrder, selectionModeRef, stateRef]);
 
   const onMove = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     const p = canvasPos(e);
+    const s = stateRef.current;
+    const bounds = s
+      ? cameraPanBounds(camRef.current, s.width, s.height, e.currentTarget.width, e.currentTarget.height)
+      : undefined;
     if (e.pointerType === "touch") {
       touchPoints.current.set(e.pointerId, p);
       if (touchPoints.current.size >= 2) {
@@ -144,7 +166,7 @@ export function useGameInput({
         const distance = Math.hypot(points[0]!.x - points[1]!.x, points[0]!.y - points[1]!.y);
         const previous = touchGesture.current;
         if (previous) {
-          panCamera(camRef.current, center.x - previous.center.x, center.y - previous.center.y, undefined);
+          panCamera(camRef.current, center.x - previous.center.x, center.y - previous.center.y, bounds);
           camRef.current.zoom = Math.max(0.55, Math.min(1.8, camRef.current.zoom * (distance / Math.max(1, previous.distance))));
         }
         touchGesture.current = { center, distance };
@@ -155,23 +177,38 @@ export function useGameInput({
         held.fired = true;
         window.clearTimeout(held.timer);
       }
+      if (selectionModeRef.current) {
+        if (boxRef.current) {
+          boxRef.current.x1 = p.x;
+          boxRef.current.y1 = p.y;
+        }
+      } else {
+        const pan = touchPan.current;
+        if (pan && pan.pointerId === e.pointerId) {
+          const distance = Math.hypot(p.x - pan.start.x, p.y - pan.start.y);
+          if (distance > 10) pan.moved = true;
+          if (pan.moved) {
+            panCamera(camRef.current, p.x - pan.last.x, p.y - pan.last.y, bounds);
+            pan.last = p;
+          }
+        }
+      }
     }
     cursorRef.current = p;
-    const s = stateRef.current;
     if (s) {
       hoverRef.current = pickTile(s, p.x, p.y, camRef.current);
     }
-    if (boxRef.current && e.buttons === 1) {
+    if (e.pointerType !== "touch" && boxRef.current && e.buttons === 1) {
       boxRef.current.x1 = p.x;
       boxRef.current.y1 = p.y;
     }
     const r = e.currentTarget.getBoundingClientRect();
     applyEdgePan(
-      pausedRef.current
+      e.pointerType === "touch" || pausedRef.current
         ? null
         : panDirFromPointer(e.clientX - r.left, e.clientY - r.top, r.width, r.height, EDGE_PAN_BAND, panAvailRef.current),
     );
-  }, [applyEdgePan, camRef, panAvailRef, pausedRef, stateRef]);
+  }, [applyEdgePan, camRef, panAvailRef, pausedRef, selectionModeRef, stateRef]);
 
   const onLeave = useCallback(() => {
     cursorRef.current = null;
@@ -192,9 +229,10 @@ export function useGameInput({
       if (touchPoints.current.size > 0) {
         return;
       }
-      const wasGesture = !!touchGesture.current || touchMultiTouch.current;
+      const wasGesture = !!touchGesture.current || touchMultiTouch.current || !!touchPan.current?.moved;
       touchGesture.current = null;
       touchMultiTouch.current = false;
+      touchPan.current = null;
       if (held?.fired || wasGesture) return;
     }
     const p = canvasPos(e);
@@ -202,6 +240,33 @@ export function useGameInput({
     const t = picked ?? screenToTile(p.x, p.y, camRef.current);
     const tx = Math.round(t.x);
     const ty = Math.round(t.y);
+    if (e.pointerType === "touch" && selectionModeRef.current) {
+      const b = boxRef.current;
+      boxRef.current = null;
+      const drag = b && Math.hypot(b.x1 - b.x0, b.y1 - b.y0) > 8;
+      if (drag && b) {
+        const ids: number[] = [];
+        const x0 = Math.min(b.x0, b.x1);
+        const y0 = Math.min(b.y0, b.y1);
+        const x1 = Math.max(b.x0, b.x1);
+        const y1 = Math.max(b.y0, b.y1);
+        for (const en of s.entities) {
+          if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit" || (en.neutral && !isContactTarget(s, en))) continue;
+          const elev = heightAt(s, Math.round(en.x), Math.round(en.y));
+          const sp = tileToScreen(en.x, en.y, camRef.current, elev);
+          if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) ids.push(en.id);
+        }
+        // Explicit mobile marquee selection includes every friendly unit in the box,
+        // including harvesters; desktop drag-selection keeps its existing filtering.
+        commitSelection(ids);
+      } else {
+        const hit = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
+        commitSelection(hit && hit.owner === 0 && (!hit.neutral || isContactTarget(s, hit)) ? [hit.id] : []);
+      }
+      setSelectionMode(false);
+      beep("select");
+      return;
+    }
     if (e.pointerType === "touch" && mobileCommandRef.current) {
       const command = mobileCommandRef.current;
       const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
@@ -285,7 +350,21 @@ export function useGameInput({
         beep("select");
       }
     }
-  }, [camRef, cmdQRef, commitSelection, issueContextOrder, mobileCommandRef, placeRef, repairRef, selectedRef, sellRef, setMobileCommandState, setPlaceKind, setRepairMode, setSellMode, stateRef]);
+  }, [camRef, cmdQRef, commitSelection, issueContextOrder, mobileCommandRef, placeRef, repairRef, selectedRef, sellRef, selectionModeRef, setMobileCommandState, setPlaceKind, setRepairMode, setSelectionMode, setSellMode, stateRef]);
+
+  const onCancel = useCallback(() => {
+    if (longPress.current) window.clearTimeout(longPress.current.timer);
+    longPress.current = null;
+    touchPoints.current.clear();
+    touchGesture.current = null;
+    touchMultiTouch.current = false;
+    touchPan.current = null;
+    boxRef.current = null;
+    mobileCommandRef.current = null;
+    setMobileCommandState(null);
+    setSelectionMode(false);
+    applyEdgePan(null);
+  }, [applyEdgePan, mobileCommandRef, setMobileCommandState, setSelectionMode]);
 
   const resetInput = useCallback(() => {
     hoverRef.current = null;
@@ -302,5 +381,6 @@ export function useGameInput({
     onMove,
     onLeave,
     onUp,
+    onCancel,
   };
 }

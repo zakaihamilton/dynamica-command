@@ -102,7 +102,7 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
 
 test("keeps the tactical radar readable and usable across breakpoints", async ({ page }) => {
   await deployToBattlefield(page);
-  const radar = page.getByTestId("tactical-radar");
+  const radar = page.getByTestId("command-sidebar").getByTestId("tactical-radar");
   await expect(radar).toBeVisible();
   await expect(radar).toHaveAttribute("aria-label", /click to focus.*drag to pan/i);
   await expect(page.getByText("ALLY", { exact: true })).toBeVisible();
@@ -129,8 +129,16 @@ test("keeps the tactical radar readable and usable across breakpoints", async ({
   })).toBe("none");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(radar).toBeVisible();
-  expect(await radar.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(0);
+  await page.getByTestId("mobile-command-more").click();
+  const mobileRadar = page.getByTestId("mobile-base-controls").getByTestId("tactical-radar");
+  await expect(mobileRadar).toBeVisible();
+  expect(await mobileRadar.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(0);
+  await expect.poll(() => mobileRadar.evaluate((element) => {
+    const canvas = element as HTMLCanvasElement;
+    const context = canvas.getContext("2d");
+    if (!context) return 0;
+    return [...context.getImageData(0, 0, canvas.width, canvas.height).data].reduce((sum, channel) => sum + channel, 0);
+  })).toBeGreaterThan(0);
 });
 
 test("keeps tactical radar clicks anchored and cleans up interrupted drags", async ({ page }) => {
@@ -348,8 +356,11 @@ test("shows a mission result overlay from a finished save", async ({ page }) => 
     localStorage.setItem(key, raw);
   }, { key: saveKey(421), raw: saveEnvelope(state) });
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/play?seed=0421&resume=1");
   await expect(page.getByTestId("mission-result")).toBeVisible();
+  await expect(page.getByTestId("mobile-command-dock")).toHaveCount(0);
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   await expect(page.getByRole("heading", { name: "Mission complete" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next briefing" })).toBeVisible();
 });
