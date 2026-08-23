@@ -32,6 +32,9 @@ export function dispatchBattlefieldAudio(
       playSfx("sell", { force: true });
     } else if (event.type === "repairStarted") {
       playSfx("repair", { force: true });
+    } else if (event.type === "support") {
+      const support = spatialAudioForWorld(event.targetX, event.targetY, camera, screenWidth, screenHeight);
+      if (support.audible) playSfx("repair", { pan: support.pan, gain: support.gain * 0.6, minInterval: 0.18 });
     } else if (event.type === "built" && event.owner === 0) {
       built = true;
     } else if (event.type === "produced" && event.owner === 0) {

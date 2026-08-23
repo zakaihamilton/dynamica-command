@@ -60,7 +60,7 @@ export function useAssetBayPreview({
       const dx = Math.round((canvas.width - bounds.width * scale) / 2 - bounds.minX * scale);
       const dy = Math.round((canvas.height - bounds.height * scale) / 2 - bounds.minY * scale);
 
-      const isWalker = selected.kind === "infantry" || selected.kind === "antiArmor";
+      const isWalker = selected.kind === "infantry" || selected.kind === "antiArmor" || selected.kind === "medic";
       const isHeavy = selected.kind === "antiArmor";
       const period = isHeavy ? 105 : isWalker ? 80 : 90;
       const strideCycleMs = period * 4;

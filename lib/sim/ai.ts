@@ -1,4 +1,4 @@
-import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
+import { BUILDING_STATS, UNIT_STATS, footprintOf, isSupportUnit, isUnitAvailable } from "../catalog";
 import { TILE_RESOURCE } from "../types";
 import type { Entity, MissionDirectorPhase, SimState, UnitKind, Vec2 } from "../types";
 import { tryFindPath } from "./pathBudget";
@@ -157,7 +157,7 @@ function queueUnit(state: SimState, producer: Entity, kind: UnitKind): boolean {
 }
 
 function enemyCombat(state: SimState): Entity[] {
-  return living(state).filter((e) => e.owner === 1 && e.class === "unit" && e.kind !== "harvester");
+  return living(state).filter((e) => e.owner === 1 && e.class === "unit" && e.kind !== "harvester" && !isSupportUnit(e.kind as UnitKind));
 }
 
 function sendHome(state: SimState, unit: Entity, yard: Entity): void {
@@ -320,6 +320,22 @@ export function tickAi(state: SimState): void {
     const playerInfantry = living(state).filter((entity) => entity.owner === 0 && entity.kind === "infantry").length;
     const want: UnitKind = playerTanks > playerInfantry ? "antiArmor" : rng.chance(0.4) ? "tank" : "infantry";
     const producer = want === "infantry" || want === "antiArmor" ? barracks : factory;
+    const woundedHumans = living(state).some(
+      (entity) => entity.owner === 1 && entity.class === "unit" && !isSupportUnit(entity.kind as UnitKind) &&
+        UNIT_STATS[entity.kind as UnitKind].domain === "human" && entity.hp < entity.maxHp,
+    );
+    const woundedVehicles = living(state).some(
+      (entity) => entity.owner === 1 && entity.class === "unit" && !isSupportUnit(entity.kind as UnitKind) &&
+        UNIT_STATS[entity.kind as UnitKind].domain === "vehicle" && entity.hp < entity.maxHp,
+    );
+    const medicCount = living(state).filter((entity) => entity.owner === 1 && entity.kind === "medic").length;
+    const repairTruckCount = living(state).filter((entity) => entity.owner === 1 && entity.kind === "repairTruck").length;
+    const supportWant = state.missionIndex >= 2 && (
+      woundedHumans && medicCount === 0 ? "medic" :
+      woundedVehicles && repairTruckCount === 0 ? "repairTruck" :
+      undefined
+    );
+    const supportProducer = supportWant === "medic" ? barracks : supportWant === "repairTruck" ? factory : undefined;
     const power = powerFor(state, 1);
     if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
       // Restore the grid before expanding.
@@ -329,6 +345,8 @@ export function tickAi(state: SimState): void {
       // Keep ore income before spending on combat.
     } else if (!hasHarvester && factory && queueUnit(state, factory, "harvester")) {
       // Replace a lost harvester before more combat units.
+    } else if (supportWant && supportProducer && isUnitAvailable(supportWant, state.missionIndex) && queueUnit(state, supportProducer, supportWant)) {
+      // Add one support unit when the army has a matching damaged domain.
     } else if (producer && queueUnit(state, producer, want)) {
       // Counter-produce against the player mix.
     } else if (state.credits[1] >= BUILDING_STATS.barracks.cost && !barracks) {
@@ -384,7 +402,7 @@ export function tickAi(state: SimState): void {
   const threat = nearest(
     state,
     yard,
-    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester" && !(
+    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester" && !isSupportUnit(e.kind as UnitKind) && !(
       e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined
     ),
   );

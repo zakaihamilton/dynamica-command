@@ -5,6 +5,7 @@ import { pickTile, visibleBuildingAt } from "@/lib/render/renderer";
 import { cameraPanBounds, panCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { screenToTile, tileToScreen, type Camera } from "@/lib/render/iso";
 import { groundOrders } from "@/lib/sim/orders";
+import { canSupportEntity } from "@/lib/sim/support";
 import { heightAt } from "@/lib/sim/world";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../MobileCommandTray";
@@ -35,6 +36,19 @@ function pickSelectableEntity(s: SimState, x: number, y: number, tx: number, ty:
     pickEntity(s, x, y, cam, s.runtime?.kind === "escort" || s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction") ??
     entityAt(s, tx, ty)
   );
+}
+
+function friendlySupportOrders(s: SimState, ids: number[], target: SimState["entities"][number], x: number, y: number): Command[] {
+  if (target.owner !== 0 || target.class !== "unit" || target.neutral) return [];
+  const supportIds = ids.filter((id) => {
+    const provider = s.entities.find((entity) => entity.id === id && entity.hp > 0);
+    return provider ? canSupportEntity(provider, target) : false;
+  });
+  if (!supportIds.length) return [];
+  const commands: Command[] = [{ type: "support", unitIds: supportIds, targetId: target.id }];
+  const otherIds = ids.filter((id) => !supportIds.includes(id));
+  if (otherIds.length) commands.push(...groundOrders(s, otherIds, x, y));
+  return commands;
 }
 
 export function useGameInput({
@@ -107,7 +121,9 @@ export function useGameInput({
     }
     const ids = [...selectedRef.current];
     const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
-    if (target && target.owner === 1) cmdQRef.current.push({ type: "attack", unitIds: ids, targetId: target.id });
+    const supportOrders = target ? friendlySupportOrders(s, ids, target, tx, ty) : [];
+    if (supportOrders.length) cmdQRef.current.push(...supportOrders);
+    else if (target && target.owner === 1) cmdQRef.current.push({ type: "attack", unitIds: ids, targetId: target.id });
     else cmdQRef.current.push(...groundOrders(s, ids, tx, ty, attackMove));
     mobileCommandRef.current = null;
     setMobileCommandState(null);
@@ -272,7 +288,9 @@ export function useGameInput({
       const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
       const ids = [...selectedRef.current];
       if (ids.length > 0) {
-        if (command === "move") cmdQRef.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
+        const supportOrders = target ? friendlySupportOrders(s, ids, target, tx, ty) : [];
+        if (supportOrders.length) cmdQRef.current.push(...supportOrders);
+        else if (command === "move") cmdQRef.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
         else if (command === "attackMove") cmdQRef.current.push({ type: "attackMove", unitIds: ids, x: tx, y: ty });
         else if (command === "attack" && target?.owner === 1) cmdQRef.current.push({ type: "attack", unitIds: ids, targetId: target.id });
         else if (command === "harvest" && s.tiles[ty * s.width + tx] === 2) cmdQRef.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
@@ -342,6 +360,15 @@ export function useGameInput({
       if (e.pointerType === "touch" && selectedRef.current.size > 0 && !hit) {
         cmdQRef.current.push(...groundOrders(s, [...selectedRef.current], tx, ty));
         beep("ack");
+      } else if (e.pointerType === "touch" && selectedRef.current.size > 0 && hit?.owner === 0) {
+        const supportOrders = friendlySupportOrders(s, [...selectedRef.current], hit, tx, ty);
+        if (supportOrders.length) {
+          cmdQRef.current.push(...supportOrders);
+          beep("ack");
+        } else {
+          commitSelection([hit.id]);
+          beep("select");
+        }
       } else if (e.pointerType === "touch" && selectedRef.current.size > 0 && hit?.owner === 1 && !hit.neutral) {
         cmdQRef.current.push({ type: "attack", unitIds: [...selectedRef.current], targetId: hit.id });
         beep("ack");

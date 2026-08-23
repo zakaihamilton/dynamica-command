@@ -19,7 +19,7 @@ function getTurretModel(): UnitModel {
   return cachedTurretModel;
 }
 
-const UNITS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank"];
+const UNITS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank", "medic", "repairTruck"];
 
 export function SpritePreview({
   kind,

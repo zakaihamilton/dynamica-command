@@ -1,4 +1,4 @@
-import { UNIT_STATS, unitCameoStatus } from "@/lib/catalog";
+import { UNIT_STATS, isUnitAvailable, unitCameoStatus } from "@/lib/catalog";
 import type { Entity, FactionVisualProfile, Palette, SimState, UnitKind } from "@/lib/types";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import { CameoGrid } from "./CameoGrid";
@@ -25,6 +25,7 @@ export function ProductionCameos({
   return (
     <CameoGrid>
       {PRODUCIBLE.map((unit, index) => {
+        if (!isUnitAvailable(unit, state.missionIndex)) return null;
         const cameo = unitCameoStatus(state.entities, 0, unit);
         const producer = availableProducer(unit);
         const canBuy = state.credits[0] >= UNIT_STATS[unit].cost && !!producer && power >= 0;

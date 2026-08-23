@@ -29,7 +29,7 @@ export type UnitView =
   | "back"
   | "back-right";
 
-export const UNIT_DIRECTION_ART: Record<UnitKind, Record<UnitView, string>> = {
+export const UNIT_DIRECTION_ART: Partial<Record<UnitKind, Record<UnitView, string>>> = {
   harvester: {
     "front-right": "/art/sprites/sleek-modular/harvester-front-right-v1.webp",
     front: "/art/sprites/sleek-modular/harvester-front.webp",

@@ -67,7 +67,7 @@ Lose if your construction yard falls (or the timer expires on a hold). Briefings
 
 ### Loop
 
-Harvest resource fields → spend credits and power → place buildings → produce units → fight. Damaged structures can be repaired from the sidebar wrench for a fraction of their build cost, or **sold** with the scrap tool (`F`) for a partial refund. Enemy AI expands, guards its yard, raids harvesters, and falls back when battered. Maps grow from ~48×48 early to ~96×96 late, with **valleys, plains, hills, and mountains**. Units can climb one elevation step; a two-level drop is a cliff. Buildings need a flat footprint (no water, no overlap, one height).
+Harvest resource fields → spend credits and power → place buildings → produce units → fight. From mission 2 onward, barracks can produce Field Medics and factories can produce Repair Trucks. These unarmed support units automatically seek damaged friendly humans or vehicles respectively, restore health in deterministic pulses, and can be assigned with a right-click/tap or placed in hold mode with Stop. Damaged structures can be repaired from the sidebar wrench for a fraction of their build cost, or **sold** with the scrap tool (`F`) for a partial refund. Enemy AI expands, guards its yard, raids harvesters, uses support units, and falls back when battered. Maps grow from ~48×48 early to ~96×96 late, with **valleys, plains, hills, and mountains**. Units can climb one elevation step; a two-level drop is a cliff. Buildings need a flat footprint (no water, no overlap, one height).
 
 Yards, power plants, and barracks are **2×2**; refineries and factories **3×2**; turrets are **1×1**. Hover a unit or building for a tooltip (kind, faction, HP, and extras such as harvester cargo or a marked target).
 
@@ -77,6 +77,7 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 | --- | --- |
 | Left click / drag | Select |
 | Right click | Move, attack, or harvest |
+| Right click / touch friendly target | Assign a selected support unit to heal that compatible human or vehicle |
 | Ctrl / Cmd + right click | Attack-move (harvesters still gather on ore) |
 | Repair wrench / R | Click a damaged friendly building to start or stop repairs |
 | Sell / F | Click a finished friendly building to scrap it for credits |
@@ -105,7 +106,7 @@ app/           menu, briefing, play, tutorial, campaign-complete
 components/    HUD, canvas, talking heads
 lib/seed       4-digit seed → mulberry32 forks
 lib/gen        world, factions, maps, story, sprite specs
-lib/sim        tick, pathfinding, economy, combat, repair, AI, objectives
+lib/sim        tick, pathfinding, economy, combat, support, repair, AI, objectives
 lib/render     isometric camera, sprites, minimap, CPU 3D turret/preview
 lib/audio      generated SFX + seeded background music (Web Audio)
 lib/persist    save/load + audio settings (localStorage or in-memory)
@@ -121,7 +122,7 @@ Units, buildings, portraits, biomes, and terrain plates are **seed-tinted raster
 createCampaign(seed)
 createMission({ seed, missionIndex })
 tick(state, commands?)
-issue(state, command)   // move | attackMove | attack | harvest | build | produce
+issue(state, command)   // move | attackMove | attack | support | harvest | build | produce
                         // cancelBuild | cancelProduce | repair | sell | stop | stance | formation
 inspect(state)          // compact JSON: credits, counts, objective, result
 ```

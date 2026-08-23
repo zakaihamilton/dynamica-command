@@ -1,7 +1,8 @@
 import { formatSeed } from "../seed/rng";
 import { generateWorld } from "../gen/world";
 import { expandFog } from "../sim/fog";
-import type { SimState } from "../types";
+import { UNIT_KINDS, isSupportUnit } from "../catalog";
+import type { SimState, UnitKind } from "../types";
 import { SURFACE_NONE } from "../types";
 
 export type StorageAdapter = {
@@ -169,7 +170,11 @@ function normalizeState(value: unknown): SimState {
     s.losses = { units: [0, 0], buildings: [0, 0] };
   }
   if (!s.unitsProducedByRole || typeof s.unitsProducedByRole !== "object") {
-    s.unitsProducedByRole = { harvester: 0, infantry: 0, antiArmor: 0, tank: 0 };
+    s.unitsProducedByRole = Object.fromEntries(UNIT_KINDS.map((kind) => [kind, 0])) as SimState["unitsProducedByRole"];
+  } else {
+    for (const kind of UNIT_KINDS) {
+      if (typeof s.unitsProducedByRole[kind] !== "number") s.unitsProducedByRole[kind] = 0;
+    }
   }
   if (!s.buildingsCompletedByKind || typeof s.buildingsCompletedByKind !== "object") {
     s.buildingsCompletedByKind = {};
@@ -187,6 +192,12 @@ function normalizeState(value: unknown): SimState {
     if (e.repairing === undefined) e.repairing = false;
     if (e.stance === undefined) e.stance = "aggressive";
     if (e.suppression === undefined) e.suppression = 0;
+    if (e.class === "unit" && isSupportUnit(e.kind as UnitKind)) {
+      if (e.supportMode !== "auto" && e.supportMode !== "assigned" && e.supportMode !== "hold") e.supportMode = "auto";
+    } else {
+      delete e.supportTargetId;
+      delete e.supportMode;
+    }
     if (e.scenarioRole === undefined && e.class === "unit" && scenarioRole && scenarioTargetIds.has(e.id)) {
       e.scenarioRole = scenarioRole;
     }

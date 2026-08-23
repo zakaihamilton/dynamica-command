@@ -58,7 +58,7 @@ export const SHORTCUT = {
   construction: "Q",
   production: "E",
   selected: "T",
-  cameo: ["1", "2", "3", "4", "5"] as const,
+  cameo: ["1", "2", "3", "4", "5", "6"] as const,
   pan: { up: "W", down: "S", left: "A", right: "D" },
   home: "H",
   center: "Space",
@@ -94,8 +94,8 @@ export function isEditableTarget(target: unknown): boolean {
 }
 
 export function cameoIndexFromEvent(e: KeyEventLike): number | null {
-  if (e.code && /^Digit[1-5]$/.test(e.code)) return Number(e.code.slice(5)) - 1;
-  if (e.key >= "1" && e.key <= "5") return Number(e.key) - 1;
+  if (e.code && /^Digit[1-6]$/.test(e.code)) return Number(e.code.slice(5)) - 1;
+  if (e.key >= "1" && e.key <= "6") return Number(e.key) - 1;
   return null;
 }
 

@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
-import { MAX_PRODUCTION_QUEUE, buildingCameoStatus, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
+import { MAX_PRODUCTION_QUEUE, buildingCameoStatus, isUnitAvailable, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
 import { beep } from "@/lib/audio/synth";
 import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
 import type { MobileCommand } from "../MobileCommandTray";
 
 export const PLACEABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
-export const PRODUCIBLE: UnitKind[] = ["infantry", "antiArmor", "harvester", "tank"];
+export const PRODUCIBLE: UnitKind[] = ["infantry", "antiArmor", "harvester", "tank", "medic", "repairTruck"];
 
 export function useGameActions({
   stateRef,
@@ -109,6 +109,7 @@ export function useGameActions({
 
   const availableProducer = useCallback((unit: UnitKind) => {
     const world = stateRef.current;
+    if (!isUnitAvailable(unit, world.missionIndex)) return undefined;
     const kind = producerFor(unit);
     let best: typeof world.entities[number] | undefined;
     let bestN = Infinity;

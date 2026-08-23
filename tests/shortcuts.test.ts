@@ -27,6 +27,9 @@ describe("shortcut matching", () => {
   it("maps number keys and Digit codes onto cameo slots", () => {
     expect(cameoIndexFromEvent({ key: "3" })).toBe(2);
     expect(cameoIndexFromEvent({ key: "!", code: "Digit1" })).toBe(0);
+    expect(cameoIndexFromEvent({ key: "6" })).toBe(5);
+    expect(cameoIndexFromEvent({ key: "!", code: "Digit6" })).toBe(5);
+    expect(cameoIndexFromEvent({ key: "7" })).toBeNull();
     expect(cameoIndexFromEvent({ key: "9" })).toBeNull();
   });
 

@@ -13,7 +13,7 @@ export type UnitMotionOptions = {
 };
 
 export function unitShadowRadii(kind: UnitKind, scale: number): { radX: number; radY: number } {
-  if (kind === "infantry") return { radX: 10 * scale, radY: 5 * scale };
+  if (kind === "infantry" || kind === "medic") return { radX: 10 * scale, radY: 5 * scale };
   if (kind === "antiArmor") return { radX: 12 * scale, radY: 6 * scale };
   if (kind === "tank") return { radX: 18 * scale, radY: 9 * scale };
   return { radX: 16 * scale, radY: 8 * scale };
@@ -67,7 +67,7 @@ export function paintUnitMovementFx(
   alpha: number,
   options: UnitMotionOptions = {},
 ): void {
-  const isWalker = kind === "infantry" || kind === "antiArmor";
+  const isWalker = kind === "infantry" || kind === "antiArmor" || kind === "medic";
   const ratio = strideRatioFromOptions(frame, options);
   const cx = dx + dw * 0.5;
 

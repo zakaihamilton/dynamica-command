@@ -23,7 +23,7 @@ export function pickEntity(state: SimState, sx: number, sy: number, cam: Camera,
     const s = tileToScreen(e.x, e.y, cam, elev);
     const bodyX = s.x;
     const bodyY = s.y + (TILE_H / 2) * z - 12 * z;
-    const radius = e.kind === "harvester" || e.kind === "tank" ? 42 * z : 30 * z;
+    const radius = e.kind === "harvester" || e.kind === "tank" || e.kind === "repairTruck" ? 42 * z : 30 * z;
     const d = Math.hypot(sx - bodyX, sy - bodyY);
     if (d <= radius && d < bestD) {
       bestD = d;

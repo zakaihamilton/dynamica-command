@@ -72,7 +72,7 @@ describe("tactical procedural assets", () => {
   it("gives each unit and building kind a distinct silhouette", () => {
     const unitFingerprints = UNIT_KINDS.map((kind) => {
       const spec = unitSprite(kind, palette, { facing: 0, variant: 11 });
-      return spec.imageSrc ?? spec.svg;
+      return spec.imageSrc ?? JSON.stringify(spec.shapes);
     });
     expect(new Set(unitFingerprints).size).toBe(UNIT_KINDS.length);
     const buildingFingerprints = BUILDING_KINDS.map((kind) => {
@@ -86,10 +86,14 @@ describe("tactical procedural assets", () => {
     for (const kind of UNIT_KINDS) {
       const a = unitSprite(kind, palette, { facing: 2, animationFrame: 0, variant: 11 });
       const b = unitSprite(kind, palette, { facing: 2, animationFrame: 1, variant: 11 });
-      expect(a.imageSrc).toBeDefined();
-      expect(b.imageSrc).toBe(a.imageSrc);
-      expect(a.svg).toBeUndefined();
-      expect(b.svg).toBeUndefined();
+      if (a.imageSrc) {
+        expect(b.imageSrc).toBe(a.imageSrc);
+        expect(a.svg).toBeUndefined();
+        expect(b.svg).toBeUndefined();
+      } else {
+        expect(a.shapes.length).toBeGreaterThan(2);
+        expect(b.shapes).toEqual(a.shapes);
+      }
       expect(a.id).not.toEqual(b.id);
     }
   });
@@ -125,7 +129,7 @@ describe("tactical procedural assets", () => {
       expect(sources).toContain(src);
     }
     for (const kind of UNIT_KINDS) {
-      for (const src of Object.values(UNIT_DIRECTION_ART[kind])) {
+      for (const src of Object.values(UNIT_DIRECTION_ART[kind] ?? {})) {
         expect(sources).toContain(src);
       }
     }
@@ -133,7 +137,7 @@ describe("tactical procedural assets", () => {
 
   it("ships every mapped directional raster with the application", () => {
     for (const kind of UNIT_KINDS) {
-      for (const source of Object.values(UNIT_DIRECTION_ART[kind])) {
+      for (const source of Object.values(UNIT_DIRECTION_ART[kind] ?? {})) {
         expect(existsSync(resolve(process.cwd(), "public", source.slice(1)))).toBe(true);
       }
     }
@@ -199,6 +203,7 @@ describe("tactical procedural assets", () => {
       expect(a.imageSrc).toBe(live.imageSrc);
       expect(a.imageCrop).toEqual(live.imageCrop);
       expect(a.svg).toBeUndefined();
+      if (!live.imageSrc) expect(a.shapes.length).toBeGreaterThan(2);
       expect(a.imageTint).not.toBe(live.imageTint);
       expect(a.imageTextureSrc).toMatch(/worn-panel/);
       expect(a.id).not.toBe(live.id);
@@ -231,8 +236,6 @@ describe("tactical procedural assets", () => {
         expect(spec.anchorY).toBe(spec.h);
         continue;
       }
-      const shadowY = Number(spec.svg?.match(/<ellipse cx="[\d.]+" cy="([\d.]+)"/)?.[1]);
-      expect(shadowY).toBeCloseTo(spec.anchorY ?? spec.h, 0);
       expect(spec.anchorY ?? spec.h).toBeGreaterThan(spec.h * 0.8);
     }
   });
@@ -306,10 +309,6 @@ describe("tactical procedural assets", () => {
   });
 });
 
-function svgMarks(svg: string | undefined): number {
-  return (svg?.match(/<(path|ellipse|line|polygon)\b/g) ?? []).length;
-}
-
 function cliffBottomNearSouth(face: { points: number[] }): [number, number] {
   const i = CLIFF_EDGE_SAMPLES * 2;
   return [face.points[i]!, face.points[i + 1]!];
@@ -329,8 +328,7 @@ function validateSpec(spec: { w: number; h: number; pixelScale?: number; anchorX
   if (spec.kind === "unit" || spec.kind === "building") {
     if (spec.imageSrc) expect(spec.imageSrc).toMatch(/^\/art\/sprites\/.+\.webp$/);
     else {
-      expect(spec.svg).toMatch(/<svg /);
-      expect(svgMarks(spec.svg)).toBeGreaterThan(2);
+      expect(spec.shapes.length).toBeGreaterThan(2);
     }
   }
   for (const shape of spec.shapes) {

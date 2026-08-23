@@ -1,9 +1,10 @@
-import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, producerFor, productionQueueSize, sellRefundFor } from "../catalog";
+import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS, isSupportUnit, isUnitAvailable, producerFor, productionQueueSize, sellRefundFor } from "../catalog";
 import { TILE_RESOURCE, type BuildingKind, type Command, type Entity, type Formation, type SimEvent, type SimState, type TutorialStage, type UnitKind } from "../types";
 import { findPath } from "./pathfinding";
 import { canRepair } from "./repair";
 import { canSell } from "./sell";
 import { byId, canPlaceBuilding, closestApproach, inBounds, isStaticWalkable, powerFor, spawnBuilding, tileAt } from "./world";
+import { assignSupportTarget, canSupportEntity, holdSupport, clearSupportOrder } from "./support";
 
 export function issue(state: SimState, command: Command): SimEvent[] {
   if (state.result !== "playing") return [];
@@ -12,9 +13,9 @@ export function issue(state: SimState, command: Command): SimEvent[] {
     const required = command.type === "move" || command.type === "stop" || command.type === "formation" || command.type === "stance" ? "move"
       : command.type === "harvest" ? "harvest"
         : command.type === "build" || command.type === "cancelBuild" ? "build"
-          : command.type === "produce" || command.type === "cancelProduce" ? "produce"
-            : command.type === "attack" || command.type === "attackMove" ? "attack"
-              : command.type === "repair" ? "repair" : undefined;
+            : command.type === "produce" || command.type === "cancelProduce" ? "produce"
+              : command.type === "attack" || command.type === "attackMove" ? "attack"
+                : command.type === "repair" ? "repair" : undefined;
     if (required && stages.indexOf(state.tutorialStage) < stages.indexOf(required)) {
       return [{ type: "commandRejected", reason: `training step: ${required}` }];
     }
@@ -29,6 +30,9 @@ export function issue(state: SimState, command: Command): SimEvent[] {
       break;
     case "attack":
       events = attackUnits(state, command.unitIds, command.targetId);
+      break;
+    case "support":
+      events = supportUnits(state, command.unitIds, command.targetId);
       break;
     case "harvest":
       events = harvestUnits(state, command.unitIds, command.x, command.y);
@@ -96,6 +100,7 @@ function moveUnits(state: SimState, ids: number[], x: number, y: number, formati
   const movers = collectMovers(state, ids, false);
   const dests = destinationsForGroup(state, movers, tx, ty, formation);
   movers.forEach((e, index) => {
+    clearSupportOrder(e);
     e.attackTarget = undefined;
     e.orderMode = "move";
     e.orderDestination = dests[index] ?? { x: tx, y: ty };
@@ -114,6 +119,7 @@ function attackMoveUnits(state: SimState, ids: number[], x: number, y: number, f
   const movers = collectMovers(state, ids, true);
   const dests = destinationsForGroup(state, movers, tx, ty, formation);
   movers.forEach((e, index) => {
+    clearSupportOrder(e);
     e.attackTarget = undefined;
     e.orderMode = "attackMove";
     e.orderDestination = dests[index] ?? { x: tx, y: ty };
@@ -243,6 +249,7 @@ function stopUnits(state: SimState, ids: number[]): SimEvent[] {
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = true;
+    if (isSupportUnit(e.kind as UnitKind)) holdSupport(e);
   }
   return [];
 }
@@ -269,7 +276,7 @@ function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent
   for (const id of ids) {
     const e = byId(state, id);
     if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral) continue;
-    if (e.kind === "harvester") continue;
+    if (e.kind === "harvester" || isSupportUnit(e.kind as UnitKind)) continue;
     e.attackTarget = targetId;
     e.orderMode = "attack";
     e.orderDestination = { x: target.x, y: target.y };
@@ -283,6 +290,22 @@ function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent
     }
   }
   return [];
+}
+
+function supportUnits(state: SimState, ids: number[], targetId: number): SimEvent[] {
+  const target = byId(state, targetId);
+  if (!target || target.owner !== 0 || target.class !== "unit" || target.neutral) {
+    return [{ type: "commandRejected", reason: "invalid support target" }];
+  }
+  let assigned = 0;
+  for (const id of ids) {
+    const provider = byId(state, id);
+    if (!provider || provider.owner !== 0 || provider.class !== "unit" || provider.neutral) continue;
+    if (!isSupportUnit(provider.kind as UnitKind) || !canSupportEntity(provider, target)) continue;
+    assignSupportTarget(state, provider, target);
+    assigned += 1;
+  }
+  return assigned ? [] : [{ type: "commandRejected", reason: "no eligible support unit" }];
 }
 
 function travelOrder(ids: number[], x: number, y: number, attackMove: boolean): Command {
@@ -344,6 +367,7 @@ function startBuild(state: SimState, kind: BuildingKind, x: number, y: number): 
 }
 
 function startProduce(state: SimState, fromId: number, unit: UnitKind): SimEvent[] {
+  if (!isUnitAvailable(unit, state.missionIndex)) return [{ type: "commandRejected", reason: "unit unavailable" }];
   const b = byId(state, fromId);
   if (!b || b.class !== "building" || b.owner !== 0 || b.constructing > 0) return [{ type: "commandRejected", reason: "producer unavailable" }];
   if (b.kind !== producerFor(unit)) return [{ type: "commandRejected", reason: "wrong producer" }];

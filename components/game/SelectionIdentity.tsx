@@ -35,6 +35,11 @@ export function SelectionIdentity({
         ) : selected.marked && selected.class === "unit" ? (
           <span className={styles.warning} data-testid="selected-status">Cargo — return to extraction zone</span>
         ) : selected.class === "unit" ? <span className={styles.stat}>Stance {stance}</span> : null}
+        {selected.class === "unit" && selected.supportMode ? (
+          <span className={styles.stat} data-testid="selected-support-status">
+            Support {selected.supportMode}{selected.supportTargetId !== undefined ? ` · Target #${selected.supportTargetId}` : ""}
+          </span>
+        ) : null}
         {(selected.suppression ?? 0) > 0 ? <span className={styles.stat}>Suppressed {Math.ceil(selected.suppression ?? 0)}%</span> : null}
         {selected.kind === "harvester" ? (
           <span className={styles.carry}>

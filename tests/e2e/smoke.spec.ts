@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createMission } from "../../lib/sim/api";
+import { spawnBuilding } from "../../lib/sim/world";
 import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/save";
 import { SETTINGS_KEY, SETTINGS_VERSION } from "../../lib/persist/settings";
@@ -98,6 +99,26 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
   await expect(page.getByTestId("seed")).toHaveText("Seed 0421");
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await expect(page.getByTestId("credits")).toBeVisible();
+});
+
+test("exposes Field Medic production after the support unlock mission", async ({ page }) => {
+  const state = createMission({ seed: 421, missionIndex: 2 });
+  const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
+  expect(yard).toBeDefined();
+  spawnBuilding(state, 0, "barracks", (yard?.x ?? 8) + 4, yard?.y ?? 8);
+  await page.addInitScript(({ key, raw }) => localStorage.setItem(key, raw), {
+    key: saveKey(421),
+    raw: saveEnvelope(state),
+  });
+
+  await page.goto("/play?seed=0421&resume=1");
+  await expect(page.getByTestId("command-sidebar")).toBeVisible();
+  await page.getByRole("tab", { name: "Production" }).click();
+  const medic = page.getByRole("button", { name: /Field Medic, 180 credits/ });
+  await expect(medic).toBeVisible();
+  await expect(medic).toBeEnabled();
+  await medic.click();
+  await expect(page.getByTestId("cameo-progress-medic")).toBeVisible();
 });
 
 test("keeps the tactical radar readable and usable across breakpoints", async ({ page }) => {

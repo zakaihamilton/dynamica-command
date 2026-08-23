@@ -780,6 +780,8 @@ export function buildUnitModel(kind: ModelKind): UnitModel {
     case "harvester": return buildHarvesterModel();
     case "infantry": return buildInfantryModel();
     case "antiArmor": return buildAntiArmorModel();
+    case "medic": return { ...buildInfantryModel(), kind: "medic" };
+    case "repairTruck": return { ...buildHarvesterModel(), kind: "repairTruck" };
     case "turret":
     case "turretHead": return buildTurretHeadModel();
   }

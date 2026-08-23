@@ -52,7 +52,7 @@ export function unitMovementOffset(
   frame: AnimFrame,
   stridePhase?: number,
 ): { bobY: number; strideRatio: number } {
-  const infantry = kind === "infantry" || kind === "antiArmor";
+  const infantry = kind === "infantry" || kind === "antiArmor" || kind === "medic";
   if (!infantry) {
     return { bobY: 0, strideRatio: 0 };
   }
@@ -78,7 +78,7 @@ export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
   const t = animClock(tick, clockMs);
   const pose = unitPose(e);
   const kind = e.kind as UnitKind;
-  const isInfantry = kind === "infantry";
+  const isInfantry = kind === "infantry" || kind === "medic";
   const isHeavy = kind === "antiArmor";
 
   if (pose === "move") {

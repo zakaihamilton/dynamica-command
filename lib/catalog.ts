@@ -1,8 +1,9 @@
-import type { ArmorType, BuildingKind, UnitKind, WeaponType } from "./types";
+import type { ArmorType, BuildingKind, SupportRole, UnitDomain, UnitKind, WeaponType } from "./types";
 
 export const TICKS_PER_SECOND = 12;
 export const MAX_PRODUCTION_QUEUE = 10;
 export const STARTING_CREDITS = { player: 2000, enemy: 2000 } as const;
+export const SUPPORT_UNLOCK_MISSION = 2;
 
 export function productionQueueSize(entity: {
   producing?: { kind: UnitKind; remaining: number };
@@ -11,7 +12,7 @@ export function productionQueueSize(entity: {
   return (entity.producing ? 1 : 0) + (entity.queue?.length ?? 0);
 }
 
-export const UNIT_KINDS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank"];
+export const UNIT_KINDS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank", "medic", "repairTruck"];
 export const BUILDING_KINDS: BuildingKind[] = [
   "constructionYard",
   "power",
@@ -36,6 +37,11 @@ export type UnitStats = {
   weapon: WeaponType;
   splashRadius: number;
   suppression: number;
+  domain: UnitDomain;
+  supportRole?: SupportRole;
+  supportRange?: number;
+  supportAmount?: number;
+  supportInterval?: number;
 };
 
 export type Footprint = { w: number; h: number };
@@ -66,6 +72,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     weapon: "smallArms",
     splashRadius: 0,
     suppression: 0,
+    domain: "vehicle",
   },
   infantry: {
     hp: 70,
@@ -81,6 +88,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     weapon: "smallArms",
     splashRadius: 0,
     suppression: 8,
+    domain: "human",
   },
   antiArmor: {
     hp: 95,
@@ -96,6 +104,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     weapon: "antiArmor",
     splashRadius: 0,
     suppression: 14,
+    domain: "human",
   },
   tank: {
     hp: 320,
@@ -111,6 +120,47 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     weapon: "cannon",
     splashRadius: 1,
     suppression: 12,
+    domain: "vehicle",
+  },
+  medic: {
+    hp: 80,
+    speed: 0.085,
+    damage: 0,
+    range: 0,
+    cooldown: 0,
+    cost: 180,
+    buildTicks: 72,
+    sight: 6,
+    carryMax: 0,
+    armor: "light",
+    weapon: "smallArms",
+    splashRadius: 0,
+    suppression: 0,
+    domain: "human",
+    supportRole: "medic",
+    supportRange: 3.5,
+    supportAmount: 12,
+    supportInterval: 24,
+  },
+  repairTruck: {
+    hp: 220,
+    speed: 0.07,
+    damage: 0,
+    range: 0,
+    cooldown: 0,
+    cost: 350,
+    buildTicks: 108,
+    sight: 6,
+    carryMax: 0,
+    armor: "light",
+    weapon: "smallArms",
+    splashRadius: 0,
+    suppression: 0,
+    domain: "vehicle",
+    supportRole: "repairTruck",
+    supportRange: 3.5,
+    supportAmount: 20,
+    supportInterval: 24,
   },
 };
 
@@ -129,6 +179,8 @@ export const UNIT_LABELS: Record<UnitKind, string> = {
   infantry: "Infantry",
   antiArmor: "Anti-armor",
   tank: "Tank",
+  medic: "Field Medic",
+  repairTruck: "Repair Truck",
 };
 
 export const BUILDING_LABELS: Record<BuildingKind, string> = {
@@ -176,8 +228,28 @@ export function sellRefundFor(kind: BuildingKind, hp: number): number {
 }
 
 export function producerFor(unit: UnitKind): BuildingKind {
-  if (unit === "infantry" || unit === "antiArmor") return "barracks";
+  if (unit === "infantry" || unit === "antiArmor" || unit === "medic") return "barracks";
   return "factory";
+}
+
+export function isSupportUnit(kind: UnitKind): boolean {
+  return UNIT_STATS[kind].supportRole !== undefined;
+}
+
+export function isUnitAvailable(kind: UnitKind, missionIndex: number): boolean {
+  return !isSupportUnit(kind) || missionIndex >= SUPPORT_UNLOCK_MISSION;
+}
+
+export function supportTargetDomain(kind: UnitKind): UnitDomain | undefined {
+  const role = UNIT_STATS[kind].supportRole;
+  if (role === "medic") return "human";
+  if (role === "repairTruck") return "vehicle";
+  return undefined;
+}
+
+export function canSupportTarget(provider: UnitKind, target: UnitKind): boolean {
+  const domain = supportTargetDomain(provider);
+  return domain !== undefined && domain === UNIT_STATS[target].domain && !isSupportUnit(target);
 }
 
 export function powerOf(kind: BuildingKind): number {

@@ -364,6 +364,7 @@ export function makeUnit(
     suppression: 0,
     armor: stats.armor,
     weapon: stats.weapon,
+    supportMode: stats.supportRole ? "auto" : undefined,
   };
 }
 
@@ -496,5 +497,5 @@ export function spawnBuildingAt(
 }
 
 export function emptyRoleCounts(): Record<UnitKind, number> {
-  return { harvester: 0, infantry: 0, antiArmor: 0, tank: 0 };
+  return { harvester: 0, infantry: 0, antiArmor: 0, tank: 0, medic: 0, repairTruck: 0 };
 }

@@ -1,6 +1,8 @@
 export type Owner = 0 | 1;
 
-export type UnitKind = "harvester" | "infantry" | "antiArmor" | "tank";
+export type UnitKind = "harvester" | "infantry" | "antiArmor" | "tank" | "medic" | "repairTruck";
+export type UnitDomain = "human" | "vehicle";
+export type SupportRole = "medic" | "repairTruck";
 export type BuildingKind =
   | "constructionYard"
   | "power"
@@ -158,6 +160,8 @@ export type Entity = {
   weapon?: WeaponType;
   formation?: Formation;
   blockedTicks?: number;
+  supportTargetId?: number;
+  supportMode?: "auto" | "assigned" | "hold";
 };
 
 export type Palette = {
@@ -368,6 +372,7 @@ export type Command =
   | { type: "move"; unitIds: number[]; x: number; y: number; formation?: Formation }
   | { type: "attackMove"; unitIds: number[]; x: number; y: number; formation?: Formation }
   | { type: "attack"; unitIds: number[]; targetId: number }
+  | { type: "support"; unitIds: number[]; targetId: number }
   | { type: "harvest"; unitIds: number[]; x: number; y: number }
   | { type: "build"; building: BuildingKind; x: number; y: number }
   | { type: "produce"; fromId: number; unit: UnitKind }
@@ -396,6 +401,19 @@ export type SimEvent =
       targetOwner: Owner;
       targetKind: string;
       destroyed: boolean;
+    }
+  | {
+      type: "support";
+      owner: Owner;
+      providerId: number;
+      providerKind: UnitKind;
+      targetId: number;
+      targetKind: UnitKind;
+      amount: number;
+      x: number;
+      y: number;
+      targetX: number;
+      targetY: number;
     }
   | { type: "credits"; owner: Owner; amount: number }
   | { type: "won" }
