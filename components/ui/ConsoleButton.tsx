@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from "react";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cx } from "@/lib/ui/cx";
 import styles from "./ConsoleButton.module.css";
 
@@ -9,7 +9,7 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   tooltipPos?: string;
 };
 
-export function ConsoleButton({
+export const ConsoleButton = forwardRef<HTMLButtonElement, Props>(function ConsoleButton({
   muted,
   tooltip,
   shortcut,
@@ -17,9 +17,10 @@ export function ConsoleButton({
   className,
   type = "button",
   ...props
-}: Props) {
+}, ref) {
   return (
     <button
+      ref={ref}
       type={type}
       className={cx(styles.button, muted && styles.muted, className)}
       data-tooltip={tooltip}
@@ -28,4 +29,4 @@ export function ConsoleButton({
       {...props}
     />
   );
-}
+});
