@@ -4,9 +4,9 @@ import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { Campaign, Entity, FactionVisualProfile, Palette, SimState } from "@/lib/types";
 import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
-import { CommandSidebar } from "./CommandSidebar";
-import { MobileCommandDock, MobileCommandSheet, type MobileSurfaceState } from "./MobileCommandTray";
-import { PauseMenu } from "./PauseMenu";
+import { GameMobileSurface } from "./GameMobileSurface";
+import { GamePauseSurface } from "./GamePauseSurface";
+import { GameSidebarSurface } from "./GameSidebarSurface";
 import type { GameActions } from "./hooks/useGameActions";
 import type { GameCamera } from "./hooks/useGameCamera";
 import type { GameSession } from "./hooks/useGameSession";
@@ -63,67 +63,41 @@ export function GameOverlays({
   const palette: Palette = state.factions[0].palette;
   const selected = state.entities.find((entity: Entity) => selectedIds.includes(entity.id) && entity.hp > 0);
   const grid = powerBreakdown(state, 0);
-  const selectedCount = selectedIds.length;
   const mobilePlaying = !tutorial && !paused && state.result === "playing";
-  const mobileSurface: MobileSurfaceState = {
-    dockVisible: mobilePlaying,
-    sheetOpen: mobilePlaying && mobileSheetOpen,
-    sheetContext: selected?.owner === 0 && selected.class === "unit" && !selected.neutral ? "unit" : "base",
-    activeCommand: actions.mobileCommandState,
-    selectionMode,
-    selectedCount,
-  };
 
   return (
     <>
       {!tutorial ? (
-        <>
-          <MobileCommandDock
-            surface={mobileSurface}
-            onCommand={actions.chooseMobileCommand}
-            onSelectionMode={onSelectionMode}
-            onOpenSheet={onOpenMobileSheet}
-            onPause={session.openPauseMenu}
-          />
-          <MobileCommandSheet
-            open={mobileSurface.sheetOpen}
-            state={state}
-            palette={palette}
-            profile={playerVisualProfile}
-            selected={selected}
-            selectedCount={mobileSurface.selectedCount}
-            activeTab={activeTab}
-            command={mobileSurface.activeCommand}
-            placeKind={actions.placeKind}
-            repairMode={actions.repairMode}
-            sellMode={actions.sellMode}
-            power={grid.surplus}
-            produced={grid.produced}
-            used={grid.used}
-            miniRef={mobileMiniRef}
-            onClose={onCloseMobileSheet}
-            onTab={onTab}
-            onCommand={actions.chooseMobileCommand}
-            onStop={() => actions.issueSelectedCommand("stop")}
-            onRepair={actions.toggleRepair}
-            onSell={actions.toggleSell}
-            onStance={(stance) => actions.issueSelectedCommand("stance", stance)}
-            onFormation={(formation) => actions.issueSelectedCommand("formation", formation)}
-            onPlace={actions.togglePlace}
-            onCancelBuilding={actions.cancelBuilding}
-            onQueueUnit={actions.queueUnit}
-            onCancelUnit={actions.cancelUnit}
-            availableProducer={actions.availableProducer}
-            onMinimapPointerDown={camera.onMinimapPointerDown}
-            onMinimapPointerMove={camera.onMinimapPointerMove}
-            onMinimapPointerUp={camera.onMinimapPointerUp}
-            isMinimapDragging={camera.isMinimapDragging}
-          />
-        </>
+        <GameMobileSurface
+          surface={{
+            dockVisible: mobilePlaying,
+            sheetOpen: mobilePlaying && mobileSheetOpen,
+            sheetContext: selected?.owner === 0 && selected.class === "unit" && !selected.neutral ? "unit" : "base",
+            activeCommand: actions.mobileCommandState,
+            selectionMode,
+            selectedCount: selectedIds.length,
+          }}
+          state={state}
+          palette={palette}
+          profile={playerVisualProfile}
+          selected={selected}
+          mobileMiniRef={mobileMiniRef}
+          activeTab={activeTab}
+          power={grid.surplus}
+          produced={grid.produced}
+          used={grid.used}
+          onTab={onTab}
+          onSelectionMode={onSelectionMode}
+          onOpenSheet={onOpenMobileSheet}
+          onCloseSheet={onCloseMobileSheet}
+          actions={actions}
+          camera={camera}
+          session={session}
+        />
       ) : null}
 
       {shouldShowCommandSidebar(state.result) ? (
-        <CommandSidebar
+        <GameSidebarSurface
           factionName={campaign.factions[0].name}
           state={state}
           palette={palette}
@@ -138,55 +112,23 @@ export function GameOverlays({
           used={grid.used}
           miniRef={miniRef}
           onPause={session.openPauseMenu}
-          onMinimapPointerDown={camera.onMinimapPointerDown}
-          onMinimapPointerMove={camera.onMinimapPointerMove}
-          onMinimapPointerUp={camera.onMinimapPointerUp}
-          isMinimapDragging={camera.isMinimapDragging}
+          camera={camera}
           onTab={onTab}
-          onRepair={actions.toggleRepair}
-          onSell={actions.toggleSell}
-          onPlace={actions.togglePlace}
-          onCancelBuilding={actions.cancelBuilding}
-          onQueueUnit={actions.queueUnit}
-          onCancelUnit={actions.cancelUnit}
-          availableProducer={actions.availableProducer}
-          onStop={() => actions.issueSelectedCommand("stop")}
-          onStance={(stance) => actions.issueSelectedCommand("stance", stance)}
-          onFormation={(formation) => actions.issueSelectedCommand("formation", formation)}
+          actions={actions}
         />
       ) : null}
 
       {paused ? (
-        <PauseMenu
+        <GamePauseSurface
           view={pauseView}
           notice={pauseNotice}
           settings={audioSettings}
           palette={palette}
           seed={state.seed}
           missionIndex={state.missionIndex}
-          onResume={session.resumeMission}
-          onSave={session.saveMission}
-          onLoad={session.loadMission}
-          onBriefing={session.viewMissionBriefing}
-          onRestart={session.restartMission}
-          onAssets={() => {
-            setPauseView("assets");
-            setPauseNotice("");
-          }}
-          onSoundtrack={() => {
-            setPauseView("soundtrack");
-            setPauseNotice("");
-          }}
-          onOptions={() => {
-            setPauseView("options");
-            setPauseNotice("");
-          }}
-          onMenu={session.goMenu}
-          onToggleSound={session.toggleSound}
-          onToggleMusic={session.toggleMusic}
-          onVolumeChange={session.updateVolume}
-          onBack={() => setPauseView("main")}
-          onCloseAssets={() => setPauseView("main")}
+          setView={setPauseView}
+          setNotice={setPauseNotice}
+          session={session}
         />
       ) : null}
     </>

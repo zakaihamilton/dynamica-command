@@ -3,11 +3,9 @@ import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, Si
 import type { CommandTab } from "@/lib/ui/shortcuts";
 import { CommandHeader } from "./CommandHeader";
 import { CommandTabs } from "./CommandTabs";
-import { ConstructionCameos } from "./ConstructionCameos";
+import { CommandCatalogContent } from "./CommandCatalogContent";
 import { MinimapFrame } from "./MinimapFrame";
-import { ProductionCameos } from "./ProductionCameos";
 import { ResourceDock } from "./ResourceDock";
-import { SelectionPanel } from "./SelectionPanel";
 import styles from "./CommandSidebar.module.css";
 
 export function CommandSidebar({
@@ -100,40 +98,48 @@ export function CommandSidebar({
           onConstruction={() => onTab("construction")}
           onProduction={() => onTab("production")}
           onSelected={() => onTab("selected")}
-          onRepair={onRepair}
-          onSell={onSell}
-        />
-        {activeTab === "construction" ? (
-          <ConstructionCameos
-            state={state}
-            palette={palette}
-            profile={profile}
-            placeKind={placeKind}
-            onPlace={onPlace}
-            onCancelBuilding={onCancelBuilding}
-          />
-        ) : activeTab === "production" ? (
-          <ProductionCameos
-            state={state}
-            palette={palette}
-            profile={profile}
-            power={power}
-            availableProducer={availableProducer}
-            onQueueUnit={onQueueUnit}
-            onCancelUnit={onCancelUnit}
-          />
-        ) : (
+        onRepair={onRepair}
+        onSell={onSell}
+      />
+        {activeTab === "selected" ? (
           <div className={styles.selected} data-testid="selected-panel">
-            <SelectionPanel
-              selected={selected}
+            <CommandCatalogContent
+              state={state}
               palette={palette}
               profile={profile}
-              className={styles.selectedBody}
+              activeTab={activeTab}
+              placeKind={placeKind}
+              selected={selected}
+              power={power}
+              availableProducer={availableProducer}
+              onPlace={onPlace}
+              onCancelBuilding={onCancelBuilding}
+              onQueueUnit={onQueueUnit}
+              onCancelUnit={onCancelUnit}
               onStop={onStop}
               onStance={onStance}
               onFormation={onFormation}
+              selectedClassName={styles.selectedBody}
             />
           </div>
+        ) : (
+          <CommandCatalogContent
+            state={state}
+            palette={palette}
+            profile={profile}
+            activeTab={activeTab}
+            placeKind={placeKind}
+            selected={selected}
+            power={power}
+            availableProducer={availableProducer}
+            onPlace={onPlace}
+            onCancelBuilding={onCancelBuilding}
+            onQueueUnit={onQueueUnit}
+            onCancelUnit={onCancelUnit}
+            onStop={onStop}
+            onStance={onStance}
+            onFormation={onFormation}
+          />
         )}
       </section>
     </aside>
