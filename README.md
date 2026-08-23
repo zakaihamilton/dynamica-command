@@ -4,6 +4,8 @@ A browser **Command & Conquer–like** isometric RTS. One **4-digit seed** (`000
 
 **[Play from source](#run)** · [github.com/zakaihamilton/genesis-protocol](https://github.com/zakaihamilton/genesis-protocol)
 
+![Desktop mission gameplay](docs/mission-desktop.png)
+
 ## Run
 
 Requires Node.js and [Yarn 1](https://classic.yarnpkg.com/) (`packageManager`: `yarn@1.22.22`).

@@ -22,6 +22,7 @@ export function GamePlayField({
   onPointerMove,
   onPointerLeave,
   onPointerUp,
+  onPointerCancel,
   onAdvanceTutorial,
   onExitTutorial,
   onNextBriefing,
@@ -41,6 +42,7 @@ export function GamePlayField({
   onPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
   onPointerUp: PointerEventHandler<HTMLCanvasElement>;
+  onPointerCancel: PointerEventHandler<HTMLCanvasElement>;
   onAdvanceTutorial: () => void;
   onExitTutorial: () => void;
   onNextBriefing: () => void;
@@ -78,6 +80,7 @@ export function GamePlayField({
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
     >
       {combatAlert ? <CombatAlert text={combatAlert} /> : null}
       <MissionResult

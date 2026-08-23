@@ -41,8 +41,12 @@ export function GameClient({
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const miniRef = useRef<HTMLCanvasElement>(null);
+  const mobileMiniRef = useRef<HTMLCanvasElement>(null);
   const selected = useRef(new Set<number>());
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const selectionModeRef = useRef(false);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<CommandTab>("construction");
   const activeTabRef = useRef(activeTab);
   const [paused, setPaused] = useState(false);
@@ -67,6 +71,7 @@ export function GameClient({
   });
   const worldCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const miniCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const mobileMiniCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const commitSelection = useCallback((ids: number[]) => {
     selected.current = new Set(ids);
@@ -130,9 +135,11 @@ export function GameClient({
     pausedRef,
     panAvailRef,
     applyEdgePan,
+    selectionModeRef,
+    setSelectionMode,
   });
 
-  const { hoverRef, cursorRef, boxRef, resetInput, onDown, onMove, onLeave, onUp } = input;
+  const { hoverRef, cursorRef, boxRef, resetInput, onDown, onMove, onLeave, onUp, onCancel } = input;
 
   const redraw = useCallback((nowMs?: number, subTickAlpha = 0) => {
     const s = stateRef.current;
@@ -146,6 +153,8 @@ export function GameClient({
       worldCtx: worldCtxRef.current,
       miniCanvas: miniRef.current,
       miniCtx: miniCtxRef.current,
+      secondaryMiniCanvas: mobileMiniRef.current,
+      secondaryMiniCtx: mobileMiniCtxRef.current,
       cam: camRef.current,
       selected: selected.current,
       hover: hoverRef.current,
@@ -161,6 +170,7 @@ export function GameClient({
     });
     worldCtxRef.current = frame.worldCtx;
     miniCtxRef.current = frame.miniCtx;
+    mobileMiniCtxRef.current = frame.secondaryMiniCtx;
     fxRef.current = frame.fx;
   }, [boxRef, camRef, cursorRef, hoverRef, place, repair, sell]);
 
@@ -253,6 +263,10 @@ export function GameClient({
   }, [activeTab]);
 
   useEffect(() => {
+    selectionModeRef.current = selectionMode;
+  }, [selectionMode]);
+
+  useEffect(() => {
     pauseViewRef.current = pauseView;
   }, [pauseView]);
 
@@ -298,6 +312,7 @@ export function GameClient({
         onPointerMove={onMove}
         onPointerLeave={onLeave}
         onPointerUp={onUp}
+        onPointerCancel={onCancel}
         onAdvanceTutorial={session.advanceTutorial}
         onExitTutorial={session.exitTutorial}
         onNextBriefing={session.goNextBriefing}
@@ -312,7 +327,11 @@ export function GameClient({
         state={s}
         playerVisualProfile={playerVisualProfile}
         selectedIds={selectedIds}
+        tutorial={tutorial}
+        selectionMode={selectionMode}
+        mobileSheetOpen={mobileSheetOpen}
         miniRef={miniRef}
+        mobileMiniRef={mobileMiniRef}
         activeTab={activeTab}
         onTab={setActiveTab}
         paused={paused}
@@ -322,6 +341,16 @@ export function GameClient({
         camera={camera}
         setPauseView={setPauseView}
         setPauseNotice={setPauseNotice}
+        onSelectionMode={(active) => {
+          actions.cancelMobileCommand();
+          setSelectionMode(active);
+          if (active) setMobileSheetOpen(false);
+        }}
+        onOpenMobileSheet={() => {
+          setSelectionMode(false);
+          setMobileSheetOpen(true);
+        }}
+        onCloseMobileSheet={() => setMobileSheetOpen(false)}
         actions={actions}
         session={session}
       />

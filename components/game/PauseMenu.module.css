@@ -85,3 +85,26 @@
   letter-spacing: 0.025em;
   color: var(--chrome-muted);
 }
+
+@media (max-width: 600px) {
+  .overlay {
+    align-items: flex-start;
+    padding: max(0.65rem, env(safe-area-inset-top)) max(0.65rem, env(safe-area-inset-right)) max(0.65rem, env(safe-area-inset-bottom)) max(0.65rem, env(safe-area-inset-left));
+  }
+
+  .dialog {
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: 1.2rem;
+  }
+
+  .actions {
+    margin-top: 1rem;
+  }
+
+  .volumeControls {
+    margin-top: 1rem;
+  }
+}

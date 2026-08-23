@@ -9,12 +9,14 @@ export function MissionResultActions({
   onCampaignVictory,
   onRetry,
   onMenu,
+  onSoundtrack,
 }: {
   state: SimState;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
   onRetry: () => void;
   onMenu: () => void;
+  onSoundtrack: () => void;
 }) {
   return (
     <div className={styles.actions}>
@@ -33,6 +35,9 @@ export function MissionResultActions({
           Retry
         </ConsoleButton>
       ) : null}
+      <ConsoleButton tooltip="Render and download the mission soundtrack as an M4A" onClick={onSoundtrack}>
+        Soundtrack
+      </ConsoleButton>
       <ConsoleButton muted tooltip="Return to the main menu" shortcut={SHORTCUT.resultMenu} onClick={onMenu}>
         Menu
       </ConsoleButton>

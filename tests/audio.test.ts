@@ -7,6 +7,7 @@ import {
   STEPS_PER_BAR,
   TUTORIAL_MUSIC_MISSION,
 } from "../lib/audio/compose";
+import { missionSoundtrackFilename, supportsM4aExport } from "../lib/audio/export";
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../lib/audio/music";
 import { beep, isSfxEnabled, playSfx, setSfxEnabled } from "../lib/audio/synth";
 import { spatialAudioForWorld } from "../lib/audio/spatial";
@@ -31,9 +32,9 @@ describe("generated audio", () => {
   });
 
   it("builds a long-form arrangement with contrasting phrases and fills", () => {
-    expect(MUSIC_BARS).toBe(32);
+    expect(MUSIC_BARS).toBe(64);
     const half = STEPS_PER_BAR * (MUSIC_BARS / 2);
-    const fillBars = [7, 15, 23, 31];
+    const fillBars = [7, 15, 23, 31, 39, 47, 55, 63];
 
     for (const seed of [0, 421, 9999]) {
       const pattern = composeMusic(seed, "mission", 3);
@@ -60,16 +61,22 @@ describe("generated audio", () => {
         const start = bar * STEPS_PER_BAR;
         expect(pattern.snare.slice(start, start + STEPS_PER_BAR).filter(Boolean).length).toBeGreaterThan(0);
       }
-      const penultimateFill = pattern.snare.slice(23 * STEPS_PER_BAR, 24 * STEPS_PER_BAR).filter(Boolean).length;
-      const finalFill = pattern.snare.slice(31 * STEPS_PER_BAR, 32 * STEPS_PER_BAR).filter(Boolean).length;
+      const penultimateFill = pattern.snare.slice(55 * STEPS_PER_BAR, 56 * STEPS_PER_BAR).filter(Boolean).length;
+      const finalFill = pattern.snare.slice(63 * STEPS_PER_BAR, 64 * STEPS_PER_BAR).filter(Boolean).length;
       expect(finalFill).toBeGreaterThan(penultimateFill);
+      expect(pattern.sections.map((section) => section.name)).toEqual([
+        "intro", "groove", "hook", "development", "breakdown", "escalation", "climax", "turnaround",
+      ]);
+      expect(pattern.motif.degrees.length).toBeGreaterThan(4);
+      expect(pattern.notes.melody.length).toBeGreaterThan(0);
+      expect(pattern.notes.melody.every((note) => note.duration > 0 && note.velocity > 0)).toBe(true);
     }
   });
 
   it("keeps victory drums active through the breakdown", () => {
     const pattern = composeMusic(421, "victory");
-    const breakdownStart = 16 * STEPS_PER_BAR;
-    const breakdownEnd = 23 * STEPS_PER_BAR;
+    const breakdownStart = 32 * STEPS_PER_BAR;
+    const breakdownEnd = 39 * STEPS_PER_BAR;
 
     expect(pattern.kick.slice(breakdownStart, breakdownEnd).some(Boolean)).toBe(true);
     expect(pattern.snare.slice(breakdownStart, breakdownEnd).some(Boolean)).toBe(true);
@@ -78,11 +85,11 @@ describe("generated audio", () => {
 
   it("keeps cue tempos in their industrial ranges and fills long-form lanes", () => {
     const ranges = {
-      menu: [72, 88],
-      briefing: [64, 80],
-      mission: [96, 118],
-      victory: [100, 120],
-      defeat: [56, 70],
+      menu: [92, 106],
+      briefing: [82, 96],
+      mission: [112, 124],
+      victory: [118, 128],
+      defeat: [72, 84],
     } as const;
     for (const seed of [0, 1, 421, 9999]) {
       for (const [cue, [lo, hi]] of Object.entries(ranges)) {
@@ -100,7 +107,9 @@ describe("generated audio", () => {
         expect(pattern.hats).toHaveLength(MUSIC_STEPS);
         expect(pattern.openHats).toHaveLength(MUSIC_STEPS);
         expect(pattern.padRoot).toHaveLength(MUSIC_BARS);
+        expect(pattern.padThird).toHaveLength(MUSIC_BARS);
         expect(pattern.padFifth).toHaveLength(MUSIC_BARS);
+        expect(pattern.padSeventh).toHaveLength(MUSIC_BARS);
         expect(pattern.bass.some((note) => note !== null)).toBe(true);
         expect(pattern.kick.some(Boolean)).toBe(true);
         expect(pattern.snare.some(Boolean)).toBe(true);
@@ -110,6 +119,26 @@ describe("generated audio", () => {
         expect(pattern.rootHz).toBeGreaterThan(midiToHz(30));
       }
     }
+  });
+
+  it("builds a recurring neon-arcade hook with hybrid cinematic drums", () => {
+    const pattern = composeMusic(421, "mission", 3);
+    const sectionNotes = (name: string, lane: "melody" | "pulse") => {
+      const section = pattern.sections.find((entry) => entry.name === name);
+      if (!section) return [];
+      return pattern.notes[lane].filter((note) => note.step >= section.startBar * STEPS_PER_BAR && note.step < section.endBar * STEPS_PER_BAR);
+    };
+
+    expect(pattern.theme.hook).toEqual(pattern.motif);
+    expect(pattern.motif.rhythm.some((step) => step % 2 === 1)).toBe(true);
+    expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
+    expect(sectionNotes("climax", "melody").length).toBeGreaterThan(sectionNotes("hook", "melody").length);
+    expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
+    expect(pattern.drums.some((event) => event.kind === "clap")).toBe(true);
+    expect(pattern.drums.some((event) => event.kind === "impact")).toBe(true);
+    expect(pattern.arpType).toBe("square");
+    expect(new Set(pattern.padThird).size).toBeGreaterThan(2);
+    expect(new Set(pattern.padSeventh).size).toBeGreaterThan(2);
   });
 
   it("maps routes onto music cues", () => {
@@ -152,5 +181,10 @@ describe("generated audio", () => {
     expect(isMusicEnabled()).toBe(false);
     setMusicEnabled(true);
     expect(isMusicEnabled()).toBe(true);
+  });
+
+  it("creates deterministic mission filenames and reports unsupported headless export", async () => {
+    expect(missionSoundtrackFilename(421, 3)).toBe("genesis-protocol-0421-mission-04.m4a");
+    expect(await supportsM4aExport()).toBe(false);
   });
 });

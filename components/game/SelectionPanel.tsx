@@ -9,6 +9,7 @@ import styles from "./SelectionPanel.module.css";
 
 export function SelectionPanel({
   selected,
+  selectionCount = selected ? 1 : 0,
   palette,
   profile,
   className,
@@ -17,6 +18,7 @@ export function SelectionPanel({
   onFormation,
 }: {
   selected: Entity | undefined;
+  selectionCount?: number;
   palette: Palette;
   profile: FactionVisualProfile;
   className?: string;
@@ -29,7 +31,7 @@ export function SelectionPanel({
   const formation = selected?.formation;
   return (
     <section className={cx(styles.section, className)}>
-      <ConsoleLabel className={styles.label}>Selected</ConsoleLabel>
+      <ConsoleLabel className={styles.label}>{selectionCount > 1 ? `${selectionCount} units selected` : "Selected"}</ConsoleLabel>
       {selected ? (
         <div className={styles.body}>
           <SelectionIdentity selected={selected} palette={palette} profile={profile} stance={stance} />

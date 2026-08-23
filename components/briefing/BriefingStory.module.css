@@ -77,3 +77,25 @@
   color: var(--chrome-body);
   white-space: nowrap;
 }
+
+@media (max-width: 639px) {
+  .story {
+    height: min(34vh, 14rem);
+    padding: 0.6rem;
+  }
+
+  .lines {
+    gap: 0.65rem;
+  }
+
+  .line {
+    padding: 0.55rem 0.6rem;
+  }
+
+  .body {
+    font-size: 0.85rem;
+    line-height: 1.45rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

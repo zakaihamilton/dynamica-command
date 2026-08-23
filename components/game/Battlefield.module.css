@@ -120,3 +120,27 @@
     max-width: 56%;
   }
 }
+
+@media (max-width: 799px) and (orientation: portrait) {
+  .status {
+    padding: max(0.55rem, env(safe-area-inset-top)) 0.6rem 0.45rem;
+    font-size: 0.56rem;
+  }
+
+  .missionMeta {
+    gap: 0.45rem;
+  }
+
+  .seed,
+  .level {
+    letter-spacing: 0.14em;
+  }
+
+  .objectiveStack {
+    max-width: 58%;
+  }
+
+  .secondary {
+    font-size: 0.5rem;
+  }
+}

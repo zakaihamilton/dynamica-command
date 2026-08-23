@@ -48,12 +48,12 @@ function entityColor(e: Entity, state: SimState): string {
 }
 
 let lastTerrainKey = "";
-let lastOverlayKey = "";
+let lastOverlayKeys = new WeakMap<HTMLCanvasElement, string>();
 let terrainCanvas: HTMLCanvasElement | null = null;
 
 export function invalidateMinimap(): void {
   lastTerrainKey = "";
-  lastOverlayKey = "";
+  lastOverlayKeys = new WeakMap<HTMLCanvasElement, string>();
 }
 
 function paintMinimapTerrain(ctx: CanvasRenderingContext2D, state: SimState, w: number, h: number): void {
@@ -218,7 +218,7 @@ export function renderMinimap(
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
   const { terrainKey, overlayKey } = minimapCacheKeys(state, view, w, h, selectedIds);
-  if (overlayKey === lastOverlayKey) return;
+  if (lastOverlayKeys.get(ctx.canvas) === overlayKey) return;
 
   let terrainReady = false;
   if (typeof document !== "undefined") {
@@ -242,5 +242,5 @@ export function renderMinimap(
   }
   if (!terrainReady) paintMinimapTerrain(ctx, state, w, h);
   paintMinimapOverlay(ctx, state, view, w, h, selectedIds);
-  lastOverlayKey = overlayKey;
+  lastOverlayKeys.set(ctx.canvas, overlayKey);
 }

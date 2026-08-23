@@ -16,6 +16,8 @@ export type RenderFrameOptions = {
   worldCtx: CanvasRenderingContext2D | null;
   miniCanvas: HTMLCanvasElement | null;
   miniCtx: CanvasRenderingContext2D | null;
+  secondaryMiniCanvas: HTMLCanvasElement | null;
+  secondaryMiniCtx: CanvasRenderingContext2D | null;
   cam: Camera;
   selected: Set<number>;
   hover: Point | null;
@@ -33,6 +35,7 @@ export type RenderFrameOptions = {
 export type RenderFrameResult = {
   worldCtx: CanvasRenderingContext2D | null;
   miniCtx: CanvasRenderingContext2D | null;
+  secondaryMiniCtx: CanvasRenderingContext2D | null;
   fx: FxBurst[];
 };
 
@@ -65,7 +68,14 @@ export function renderGameFrame(options: RenderFrameOptions): RenderFrameResult 
   if (!worldCtx || worldCtx.canvas !== canvas) {
     worldCtx = canvas.getContext("2d", { alpha: false });
   }
-  if (!worldCtx) return { worldCtx: null, miniCtx: options.miniCtx, fx: options.fx };
+  if (!worldCtx) {
+    return {
+      worldCtx: null,
+      miniCtx: options.miniCtx,
+      secondaryMiniCtx: options.secondaryMiniCtx,
+      fx: options.fx,
+    };
+  }
 
   extras.cursor = cursor;
   extras.placeKind = placeKind;
@@ -81,6 +91,7 @@ export function renderGameFrame(options: RenderFrameOptions): RenderFrameResult 
   const perfStarted = isPerfHudEnabled() ? performance.now() : 0;
   const worldTimings = renderWorld(worldCtx, state, cam, selected, hover, extras);
   let miniCtx = options.miniCtx;
+  let secondaryMiniCtx = options.secondaryMiniCtx;
   let minimapMs = 0;
   if (options.miniCanvas) {
     if (!miniCtx || miniCtx.canvas !== options.miniCanvas) {
@@ -92,6 +103,16 @@ export function renderGameFrame(options: RenderFrameOptions): RenderFrameResult 
       if (worldTimings) minimapMs = performance.now() - miniStarted;
     }
   }
+  if (options.secondaryMiniCanvas) {
+    if (!secondaryMiniCtx || secondaryMiniCtx.canvas !== options.secondaryMiniCanvas) {
+      secondaryMiniCtx = options.secondaryMiniCanvas.getContext("2d", { alpha: false });
+    }
+    if (secondaryMiniCtx) {
+      const miniStarted = worldTimings ? performance.now() : 0;
+      renderMinimap(secondaryMiniCtx, state, cameraViewQuad(cam, canvas.width, canvas.height), selected);
+      if (worldTimings) minimapMs += performance.now() - miniStarted;
+    }
+  }
   if (worldTimings && isPerfHudEnabled()) {
     drawPerfHud(worldCtx, now, worldTimings, minimapMs);
   }
@@ -99,5 +120,5 @@ export function renderGameFrame(options: RenderFrameOptions): RenderFrameResult 
     canvas.dataset.perfFrameMs = (performance.now() - perfStarted).toFixed(2);
   }
 
-  return { worldCtx, miniCtx, fx };
+  return { worldCtx, miniCtx, secondaryMiniCtx, fx };
 }

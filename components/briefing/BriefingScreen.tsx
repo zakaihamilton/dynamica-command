@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
@@ -23,6 +24,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   const router = useRouter();
   const campaign = useMemo(() => createCampaign(seed), [seed]);
   const progress = useCampaignProgress(seed);
+  const [soundtrackOpen, setSoundtrackOpen] = useState(false);
   const def = campaign.missions[mission];
   const lines: BriefingLine[] = useMemo(() => def?.briefing ?? [], [def]);
 
@@ -107,11 +109,13 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
             returnToGame={returnToGame}
             onReplay={replayTransmission}
             onLaunch={launch}
+            onSoundtrack={() => setSoundtrackOpen(true)}
           />
         </MetalPanel>
 
         <BriefingEnemyPortrait campaign={campaign} liveRole={liveRole} />
       </div>
+      {soundtrackOpen ? <SoundtrackPanel seed={seed} missionIndex={mission} onClose={() => setSoundtrackOpen(false)} /> : null}
     </div>
   );
 }

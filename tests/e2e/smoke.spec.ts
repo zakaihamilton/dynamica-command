@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { createMission } from "../../lib/sim/api";
 import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/save";
@@ -58,6 +59,23 @@ async function nextFrame(page: Page) {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 }
 
+async function browserSupportsNativeAac(page: Page): Promise<boolean> {
+  return page.evaluate(async () => {
+    if (typeof window.AudioEncoder === "undefined" || typeof window.AudioData === "undefined") return false;
+    try {
+      const support = await window.AudioEncoder.isConfigSupported({
+        codec: "mp4a.40.2",
+        sampleRate: 44_100,
+        numberOfChannels: 2,
+        bitrate: 160_000,
+      });
+      return support.supported === true;
+    } catch {
+      return false;
+    }
+  });
+}
+
 test("first deploy routes through tutorial to briefing", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
@@ -84,7 +102,7 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
 
 test("keeps the tactical radar readable and usable across breakpoints", async ({ page }) => {
   await deployToBattlefield(page);
-  const radar = page.getByTestId("tactical-radar");
+  const radar = page.getByTestId("command-sidebar").getByTestId("tactical-radar");
   await expect(radar).toBeVisible();
   await expect(radar).toHaveAttribute("aria-label", /click to focus.*drag to pan/i);
   await expect(page.getByText("ALLY", { exact: true })).toBeVisible();
@@ -111,8 +129,16 @@ test("keeps the tactical radar readable and usable across breakpoints", async ({
   })).toBe("none");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(radar).toBeVisible();
-  expect(await radar.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(0);
+  await page.getByTestId("mobile-command-more").click();
+  const mobileRadar = page.getByTestId("mobile-base-controls").getByTestId("tactical-radar");
+  await expect(mobileRadar).toBeVisible();
+  expect(await mobileRadar.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(0);
+  await expect.poll(() => mobileRadar.evaluate((element) => {
+    const canvas = element as HTMLCanvasElement;
+    const context = canvas.getContext("2d");
+    if (!context) return 0;
+    return [...context.getImageData(0, 0, canvas.width, canvas.height).data].reduce((sum, channel) => sum + channel, 0);
+  })).toBeGreaterThan(0);
 });
 
 test("keeps tactical radar clicks anchored and cleans up interrupted drags", async ({ page }) => {
@@ -183,6 +209,66 @@ test("shows briefing portraits before launch", async ({ page }) => {
   await openBriefingSkippingTutorial(page);
   await expect(page.getByTestId("briefing-portrait").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Replay" })).toBeVisible();
+});
+
+test("opens the deterministic soundtrack panel from the briefing", async ({ page }) => {
+  await openBriefingSkippingTutorial(page);
+  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Seed 0421 // Mission 1");
+  const download = dialog.getByRole("button", { name: "Download M4A", exact: true });
+  if (await browserSupportsNativeAac(page)) {
+    await expect(download).toBeEnabled();
+  } else {
+    await expect(download).toBeDisabled();
+    await expect(dialog).toContainText(/cannot encode native AAC|unavailable/i);
+  }
+});
+
+test("exposes the soundtrack panel from pause and mission result screens", async ({ page }) => {
+  await deployToBattlefield(page);
+  await expect(page.getByTestId("command-sidebar")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("pause-menu")).toBeVisible();
+  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Mission soundtrack" })).toContainText("Mission 1");
+  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Resume Mission" }).click();
+
+  const state = distinctiveSave("won");
+  await page.evaluate(({ key, raw }) => localStorage.setItem(key, raw), {
+    key: saveKey(421),
+    raw: saveEnvelope(state),
+  });
+  await page.goto("/play?seed=0421&resume=1");
+  await expect(page.getByTestId("mission-result")).toBeVisible();
+  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
+  const resultDialog = page.getByRole("dialog", { name: "Mission soundtrack" });
+  await expect(resultDialog).toContainText("Mission 1");
+  await page.keyboard.press("Escape");
+  await expect(resultDialog).not.toBeVisible();
+  await expect(page.getByTestId("mission-result")).toBeVisible();
+});
+
+test("downloads a valid deterministic M4A when native AAC is supported", async ({ page }) => {
+  test.setTimeout(180_000);
+  await openBriefingSkippingTutorial(page);
+  test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
+  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
+  const downloadPromise = page.waitForEvent("download", { timeout: 180_000 });
+  await dialog.getByRole("button", { name: "Download M4A", exact: true }).click();
+  await expect(dialog.getByRole("progressbar", { name: "Export progress" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("genesis-protocol-0421-mission-01.m4a");
+  const path = await download.path();
+  expect(path).not.toBeNull();
+  const file = await readFile(path!);
+  expect(file.subarray(4, 8).toString("ascii")).toBe("ftyp");
+  expect(file.toString("latin1")).toContain("mp4a");
 });
 
 test("replays the incoming transmission from the start", async ({ page }) => {
@@ -270,8 +356,11 @@ test("shows a mission result overlay from a finished save", async ({ page }) => 
     localStorage.setItem(key, raw);
   }, { key: saveKey(421), raw: saveEnvelope(state) });
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/play?seed=0421&resume=1");
   await expect(page.getByTestId("mission-result")).toBeVisible();
+  await expect(page.getByTestId("mobile-command-dock")).toHaveCount(0);
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   await expect(page.getByRole("heading", { name: "Mission complete" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next briefing" })).toBeVisible();
 });
