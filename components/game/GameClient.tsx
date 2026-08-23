@@ -1,12 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { setMusicCue, setMusicDucked, TUTORIAL_MUSIC_MISSION } from "@/lib/audio/music";
 import { createCampaign } from "@/lib/gen/campaign";
-import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import type { RenderExtras } from "@/lib/render/renderer";
-import { preloadRasterSources } from "@/lib/render/sprites";
 import type { FxBurst } from "@/lib/render/fx";
 import { localStorageAdapter } from "@/lib/persist/save";
 import { readSettings } from "@/lib/persist/settings";
@@ -20,6 +17,9 @@ import { useGameInput } from "./hooks/useGameInput";
 import { useGameKeyboard } from "./hooks/useGameKeyboard";
 import { useGameLoop } from "./hooks/useGameLoop";
 import { initialMission, useGameSession } from "./hooks/useGameSession";
+import { useCombatAlert } from "./hooks/useCombatAlert";
+import { useGameAudioLifecycle } from "./hooks/useGameAudioLifecycle";
+import { useGameSelection } from "./hooks/useGameSelection";
 import { renderGameFrame } from "./renderFrame";
 import styles from "./GameClient.module.css";
 
@@ -42,10 +42,6 @@ export function GameClient({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const miniRef = useRef<HTMLCanvasElement>(null);
   const mobileMiniRef = useRef<HTMLCanvasElement>(null);
-  const selected = useRef(new Set<number>());
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [selectionMode, setSelectionMode] = useState(false);
-  const selectionModeRef = useRef(false);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<CommandTab>("construction");
   const activeTabRef = useRef(activeTab);
@@ -57,8 +53,6 @@ export function GameClient({
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
   const [audioSettings, setAudioSettings] = useState(() => readSettings(localStorageAdapter()));
-  const [combatAlert, setCombatAlert] = useState<string | null>(null);
-  const combatAlertClearRef = useRef<number | null>(null);
   const cmdQ = useRef<Command[]>([]);
   const fxRef = useRef<FxBurst[]>([]);
   const fxSeq = useRef(1);
@@ -73,18 +67,9 @@ export function GameClient({
   const miniCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const mobileMiniCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  const commitSelection = useCallback((ids: number[]) => {
-    selected.current = new Set(ids);
-    setSelectedIds(ids);
-    const current = stateRef.current;
-    if (current.tutorialStage === "select" && ids.some((id) => {
-      const entity = current.entities.find((item) => item.id === id);
-      return entity?.owner === 0 && entity.class === "unit" && entity.kind === "infantry" && !entity.neutral;
-    })) {
-      current.tutorialStage = "move";
-      setState({ ...current, entities: [...current.entities] });
-    }
-  }, [setState, stateRef]);
+  const selection = useGameSelection({ stateRef, setState });
+  const { selected, selectedIds, selectionMode, selectionModeRef, commitSelection, setSelectionMode } = selection;
+  const { combatAlert, onAlert } = useCombatAlert();
 
   const camera = useGameCamera({ stateRef, canvasRef, hostRef });
   const {
@@ -172,7 +157,7 @@ export function GameClient({
     miniCtxRef.current = frame.miniCtx;
     mobileMiniCtxRef.current = frame.secondaryMiniCtx;
     fxRef.current = frame.fx;
-  }, [boxRef, camRef, cursorRef, hoverRef, place, repair, sell]);
+  }, [boxRef, camRef, cursorRef, hoverRef, place, repair, selected, sell]);
 
   const session = useGameSession({
     seed,
@@ -224,15 +209,6 @@ export function GameClient({
     onNavigateHome: session.goHome,
   });
 
-  const onAlert = useCallback((text: string) => {
-    setCombatAlert(text);
-    if (combatAlertClearRef.current) window.clearTimeout(combatAlertClearRef.current);
-    combatAlertClearRef.current = window.setTimeout(() => {
-      setCombatAlert(null);
-      combatAlertClearRef.current = null;
-    }, 3000);
-  }, []);
-
   useGameLoop({
     stateRef,
     setState,
@@ -254,37 +230,16 @@ export function GameClient({
     onAlert,
   });
 
-  useEffect(() => {
-    preloadRasterSources(listTacticalRasterSources());
-  }, []);
+  useGameAudioLifecycle({ seed, missionIndex: state.missionIndex, tutorial, paused });
 
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 
   useEffect(() => {
-    selectionModeRef.current = selectionMode;
-  }, [selectionMode]);
-
-  useEffect(() => {
     pauseViewRef.current = pauseView;
   }, [pauseView]);
 
-  useEffect(() => {
-    setMusicCue("mission", seed, tutorial ? TUTORIAL_MUSIC_MISSION : stateRef.current.missionIndex);
-  }, [seed, tutorial]);
-
-  useEffect(() => {
-    setMusicDucked(paused);
-  }, [paused]);
-
-  useEffect(() => () => {
-    setMusicDucked(false);
-  }, []);
-
-  useEffect(() => () => {
-    if (combatAlertClearRef.current) window.clearTimeout(combatAlertClearRef.current);
-  }, []);
 
   const s = state;
   const pal = s.factions[0].palette;

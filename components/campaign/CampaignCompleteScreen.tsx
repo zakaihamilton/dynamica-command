@@ -9,16 +9,14 @@ import { createCampaign } from "@/lib/gen/campaign";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
 import styles from "./CampaignCompleteScreen.module.css";
+import { campaignSummary, missionMedalDisplay } from "./campaignSummary";
 import { useCampaignProgress } from "./useCampaignProgress";
 
 export function CampaignCompleteScreen({ seed }: { seed: number }) {
   const router = useRouter();
   const campaign = useMemo(() => createCampaign(seed), [seed]);
   const progress = useCampaignProgress(seed);
-  const completed = progress.completedMissions.length;
-  const totalMedals = campaign.missions.reduce((sum, mission) => sum + (progress.medals[String(mission.index)] ?? 0), 0);
-  const possibleMedals = campaign.missions.length * 3;
-  const isComplete = completed >= campaign.missions.length;
+  const summary = campaignSummary(campaign, progress);
 
   return (
     <main
@@ -30,14 +28,14 @@ export function CampaignCompleteScreen({ seed }: { seed: number }) {
         <MetalPanel className={styles.panel}>
           <header className={styles.header}>
             <ConsoleLabel>Strategic command record</ConsoleLabel>
-            <h1 className={styles.title}>{isComplete ? "Campaign complete" : "Campaign record"}</h1>
-            <p className={styles.subtitle}>{isComplete ? "THEATER SECURED" : "PROGRESS ARCHIVED"}</p>
+            <h1 className={styles.title}>{summary.isComplete ? "Campaign complete" : "Campaign record"}</h1>
+            <p className={styles.subtitle}>{summary.isComplete ? "THEATER SECURED" : "PROGRESS ARCHIVED"}</p>
             <p className={styles.meta}>Seed {formatSeed(seed)} · {campaign.world.name} · {campaign.factions[0].name}</p>
           </header>
 
           <section className={styles.summary} aria-label="Campaign summary">
-            <div><span>Missions</span><strong>{completed} / {campaign.missions.length}</strong></div>
-            <div><span>Medals</span><strong>{totalMedals} / {possibleMedals}</strong></div>
+            <div><span>Missions</span><strong>{summary.completed} / {campaign.missions.length}</strong></div>
+            <div><span>Medals</span><strong>{summary.totalMedals} / {summary.possibleMedals}</strong></div>
           </section>
 
           <section className={styles.section} aria-labelledby="mission-record-title">
@@ -51,7 +49,7 @@ export function CampaignCompleteScreen({ seed }: { seed: number }) {
                   <article key={mission.index} className={`${styles.mission} ${missionComplete ? styles.complete : styles.locked}`}>
                     <div className={styles.missionTopline}>
                       <span>Mission {index + 1}</span>
-                      <span className={styles.medals} aria-label={`${medals} of 3 medals`}>{"★".repeat(medals)}{"☆".repeat(3 - medals)}</span>
+                      <span className={styles.medals} aria-label={`${medals} of 3 medals`}>{missionMedalDisplay(medals)}</span>
                     </div>
                     <h3>{mission.name}</h3>
                     <p>{missionComplete ? `Best score ${progress.bestScores[String(mission.index)] ?? 0}` : "Not completed"}</p>

@@ -1,55 +1,19 @@
 import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "react";
 import { beep } from "@/lib/audio/synth";
-import { finalizeMultiSelect, pickEntity } from "@/lib/render/pick";
-import { pickTile, visibleBuildingAt } from "@/lib/render/renderer";
+import { pickTile } from "@/lib/render/renderer";
 import { cameraPanBounds, panCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
-import { screenToTile, tileToScreen, type Camera } from "@/lib/render/iso";
-import { groundOrders } from "@/lib/sim/orders";
-import { canSupportEntity } from "@/lib/sim/support";
-import { heightAt } from "@/lib/sim/world";
+import { type Camera } from "@/lib/render/iso";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
-import type { MobileCommand } from "../MobileCommandTray";
-
-function isContactTarget(s: SimState, entity: SimState["entities"][number]): boolean {
-  return (
-    entity.neutral === true &&
-    (s.runtime?.kind === "escort" || s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction") &&
-    Boolean(s.runtime.targetIds?.includes(entity.id))
-  );
-}
-
-function entityAt(s: SimState, tx: number, ty: number) {
-  const unit = s.entities.find(
-    (en) =>
-      en.hp > 0 &&
-      en.class === "unit" &&
-      (isContactTarget(s, en) || !en.neutral) &&
-      Math.round(en.x) === tx &&
-      Math.round(en.y) === ty,
-  );
-  if (unit) return unit;
-  return visibleBuildingAt(s, tx, ty);
-}
-
-function pickSelectableEntity(s: SimState, x: number, y: number, tx: number, ty: number, cam: Camera) {
-  return (
-    pickEntity(s, x, y, cam, s.runtime?.kind === "escort" || s.runtime?.kind === "rescue" || s.runtime?.kind === "extraction") ??
-    entityAt(s, tx, ty)
-  );
-}
-
-function friendlySupportOrders(s: SimState, ids: number[], target: SimState["entities"][number], x: number, y: number): Command[] {
-  if (target.owner !== 0 || target.class !== "unit" || target.neutral) return [];
-  const supportIds = ids.filter((id) => {
-    const provider = s.entities.find((entity) => entity.id === id && entity.hp > 0);
-    return provider ? canSupportEntity(provider, target) : false;
-  });
-  if (!supportIds.length) return [];
-  const commands: Command[] = [{ type: "support", unitIds: supportIds, targetId: target.id }];
-  const otherIds = ids.filter((id) => !supportIds.includes(id));
-  if (otherIds.length) commands.push(...groundOrders(s, otherIds, x, y));
-  return commands;
-}
+import type { MobileCommand } from "../mobileCommandTypes";
+import {
+  contextOrders,
+  friendlySupportOrders,
+  mobileCommandOrders,
+  pickSelectableEntity,
+  pointerTile,
+  selectionIdsInBox,
+  isContactTarget,
+} from "./gameInputOrders";
 
 export function useGameInput({
   stateRef,
@@ -110,10 +74,7 @@ export function useGameInput({
   }
 
   const issueContextOrder = useCallback((s: SimState, p: { x: number; y: number }, attackMove = false) => {
-    const picked = pickTile(s, p.x, p.y, camRef.current);
-    const t = picked ?? screenToTile(p.x, p.y, camRef.current);
-    const tx = Math.round(t.x);
-    const ty = Math.round(t.y);
+    const { x: tx, y: ty } = pointerTile(s, p, camRef.current);
     if (repairRef.current || sellRef.current) {
       clearTools();
       beep("select");
@@ -121,10 +82,7 @@ export function useGameInput({
     }
     const ids = [...selectedRef.current];
     const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
-    const supportOrders = target ? friendlySupportOrders(s, ids, target, tx, ty) : [];
-    if (supportOrders.length) cmdQRef.current.push(...supportOrders);
-    else if (target && target.owner === 1) cmdQRef.current.push({ type: "attack", unitIds: ids, targetId: target.id });
-    else cmdQRef.current.push(...groundOrders(s, ids, tx, ty, attackMove));
+    cmdQRef.current.push(...contextOrders(s, ids, target, tx, ty, attackMove));
     mobileCommandRef.current = null;
     setMobileCommandState(null);
     beep("ack");
@@ -252,29 +210,15 @@ export function useGameInput({
       if (held?.fired || wasGesture) return;
     }
     const p = canvasPos(e);
-    const picked = pickTile(s, p.x, p.y, camRef.current);
-    const t = picked ?? screenToTile(p.x, p.y, camRef.current);
-    const tx = Math.round(t.x);
-    const ty = Math.round(t.y);
+    const { x: tx, y: ty } = pointerTile(s, p, camRef.current);
     if (e.pointerType === "touch" && selectionModeRef.current) {
       const b = boxRef.current;
       boxRef.current = null;
       const drag = b && Math.hypot(b.x1 - b.x0, b.y1 - b.y0) > 8;
       if (drag && b) {
-        const ids: number[] = [];
-        const x0 = Math.min(b.x0, b.x1);
-        const y0 = Math.min(b.y0, b.y1);
-        const x1 = Math.max(b.x0, b.x1);
-        const y1 = Math.max(b.y0, b.y1);
-        for (const en of s.entities) {
-          if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit" || (en.neutral && !isContactTarget(s, en))) continue;
-          const elev = heightAt(s, Math.round(en.x), Math.round(en.y));
-          const sp = tileToScreen(en.x, en.y, camRef.current, elev);
-          if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) ids.push(en.id);
-        }
         // Explicit mobile marquee selection includes every friendly unit in the box,
         // including harvesters; desktop drag-selection keeps its existing filtering.
-        commitSelection(ids);
+        commitSelection(selectionIdsInBox(s, camRef.current, b, false));
       } else {
         const hit = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
         commitSelection(hit && hit.owner === 0 && (!hit.neutral || isContactTarget(s, hit)) ? [hit.id] : []);
@@ -287,14 +231,7 @@ export function useGameInput({
       const command = mobileCommandRef.current;
       const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
       const ids = [...selectedRef.current];
-      if (ids.length > 0) {
-        const supportOrders = target ? friendlySupportOrders(s, ids, target, tx, ty) : [];
-        if (supportOrders.length) cmdQRef.current.push(...supportOrders);
-        else if (command === "move") cmdQRef.current.push({ type: "move", unitIds: ids, x: tx, y: ty });
-        else if (command === "attackMove") cmdQRef.current.push({ type: "attackMove", unitIds: ids, x: tx, y: ty });
-        else if (command === "attack" && target?.owner === 1) cmdQRef.current.push({ type: "attack", unitIds: ids, targetId: target.id });
-        else if (command === "harvest" && s.tiles[ty * s.width + tx] === 2) cmdQRef.current.push({ type: "harvest", unitIds: ids, x: tx, y: ty });
-      }
+      if (ids.length > 0) cmdQRef.current.push(...mobileCommandOrders(s, command, ids, target, tx, ty));
       mobileCommandRef.current = null;
       setMobileCommandState(null);
       beep("ack");
@@ -343,22 +280,11 @@ export function useGameInput({
     boxRef.current = null;
     const drag = b && Math.hypot(b.x1 - b.x0, b.y1 - b.y0) > 8;
     if (drag && b) {
-      const ids: number[] = [];
-      const x0 = Math.min(b.x0, b.x1);
-      const y0 = Math.min(b.y0, b.y1);
-      const x1 = Math.max(b.x0, b.x1);
-      const y1 = Math.max(b.y0, b.y1);
-      for (const en of s.entities) {
-        if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit" || (en.neutral && !isContactTarget(s, en))) continue;
-        const elev = heightAt(s, Math.round(en.x), Math.round(en.y));
-        const sp = tileToScreen(en.x, en.y, camRef.current, elev);
-        if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) ids.push(en.id);
-      }
-      commitSelection(finalizeMultiSelect(s.entities, ids));
+      commitSelection(selectionIdsInBox(s, camRef.current, b, true));
     } else {
       const hit = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
       if (e.pointerType === "touch" && selectedRef.current.size > 0 && !hit) {
-        cmdQRef.current.push(...groundOrders(s, [...selectedRef.current], tx, ty));
+        cmdQRef.current.push(...contextOrders(s, [...selectedRef.current], undefined, tx, ty));
         beep("ack");
       } else if (e.pointerType === "touch" && selectedRef.current.size > 0 && hit?.owner === 0) {
         const supportOrders = friendlySupportOrders(s, [...selectedRef.current], hit, tx, ty);
