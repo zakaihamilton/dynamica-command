@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import { createCampaign } from "../lib/gen/campaign";
 import { generateMap } from "../lib/gen/map";
 import { MAX_MISSION_TICKS } from "../lib/gen/pacing";
@@ -20,7 +21,13 @@ const maxTicks = Number(arg("ticks", String(MAX_MISSION_TICKS)));
 const strategy = arg("strategy", "competent");
 const details = arg("details", "false") === "true";
 const shouldCheck = arg("check", "false") === "true";
+const progressEnabled = arg("progress", "true") !== "false";
+const progressEvery = Math.max(1, Number(arg("progress-every", "1")) || 1);
 const missionIndexes = missionArg === "all" ? [...Array(8).keys()] : [Number(missionArg)];
+const seedStart = Math.max(0, from);
+const seedEnd = Math.min(9999, to);
+const runnableMissions = missionIndexes.filter((mission) => Number.isInteger(mission) && mission >= 0 && mission < 8);
+const totalScenarios = seedEnd >= seedStart ? (seedEnd - seedStart + 1) * runnableMissions.length : 0;
 
 if (strategy !== "competent" && strategy !== "baseline") {
   throw new Error(`Unknown strategy ${strategy}; use competent or baseline`);
@@ -29,7 +36,20 @@ if (strategy !== "competent" && strategy !== "baseline") {
 type RecordResult = BalanceRecord & {
   seed: string;
   mission: number;
+  scenarioMs: number;
 };
+
+type ScenarioTiming = {
+  seed: string;
+  mission: number;
+  kind: string;
+  ms: number;
+};
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
 
 function validMap(map: ReturnType<typeof generateMap>): boolean {
   const start = (point: { x: number; y: number }) => {
@@ -79,17 +99,24 @@ function runScenario(
 }
 
 const records: RecordResult[] = [];
-for (let seed = Math.max(0, from); seed <= Math.min(9999, to); seed++) {
+const timings: ScenarioTiming[] = [];
+let totalScenarioMs = 0;
+const startedAt = performance.now();
+for (let seed = seedStart; seed <= seedEnd; seed++) {
   const parsed = parseSeed(String(seed).padStart(4, "0"));
   if (parsed === null) continue;
   const campaign = createCampaign(parsed);
-  for (const mission of missionIndexes) {
+  for (const mission of runnableMissions) {
     const definition = campaign.missions[mission];
     if (!definition) continue;
     const map = generateMap(parsed, definition);
     const valid = validMap(map);
     const state = createMission({ seed: parsed, missionIndex: mission });
+    const scenarioStartedAt = performance.now();
     const run = runScenario(state, map, strategy);
+    const scenarioMs = performance.now() - scenarioStartedAt;
+    totalScenarioMs += scenarioMs;
+    timings.push({ seed: campaign.seed, mission, kind: definition.win.kind, ms: scenarioMs });
     records.push({
       seed: campaign.seed,
       mission,
@@ -107,7 +134,18 @@ for (let seed = Math.max(0, from); seed <= Math.min(9999, to); seed++) {
       commandsIssued: run.commandsIssued,
       commandRejections: run.commandRejections,
       lossReason: state.lossReason,
+      scenarioMs,
     });
+    if (progressEnabled && records.length % progressEvery === 0) {
+      const elapsedMs = performance.now() - startedAt;
+      const averageMs = totalScenarioMs / records.length;
+      const remainingMs = Math.max(0, totalScenarios - records.length) * averageMs;
+      console.error(
+        `[balance] ${records.length}/${totalScenarios} ${campaign.seed} mission ${mission} ` +
+        `${definition.win.kind} → ${state.result} in ${formatDuration(scenarioMs)} ` +
+        `(${formatDuration(elapsedMs)} elapsed, ~${formatDuration(remainingMs)} remaining)`,
+      );
+    }
   }
 }
 
@@ -126,13 +164,24 @@ const thresholds: BalanceThresholds = {
   maxAverageCasualties: Number(arg("max-average-casualties", String(DEFAULT_BALANCE_THRESHOLDS.maxAverageCasualties))),
 };
 const acceptance = shouldCheck ? checkBalance(summary, thresholds) : undefined;
+const elapsedMs = performance.now() - startedAt;
+const slowest = timings.reduce<ScenarioTiming | undefined>(
+  (current, timing) => !current || timing.ms > current.ms ? timing : current,
+  undefined,
+);
 
 console.log(JSON.stringify({
   strategy,
   range: { from, to },
-  missions: missionIndexes,
+  missions: runnableMissions,
   ticks: maxTicks,
   samples: records.length,
+  timing: {
+    elapsedMs: Number(elapsedMs.toFixed(2)),
+    averageScenarioMs: records.length ? Number((totalScenarioMs / records.length).toFixed(2)) : 0,
+    slowestScenarioMs: slowest ? Number(slowest.ms.toFixed(2)) : 0,
+    slowestScenario: slowest ? { seed: slowest.seed, mission: slowest.mission, kind: slowest.kind } : null,
+  },
   winRate: summary.winRate,
   wins: summary.wins,
   losses: summary.losses,

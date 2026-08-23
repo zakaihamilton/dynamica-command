@@ -3,6 +3,15 @@ import { cameraPanBounds, clampCamera } from "../../lib/render/camera";
 import { tileToScreen } from "../../lib/render/iso";
 import { createMission } from "../../lib/sim/api";
 import { heightAt } from "../../lib/sim/world";
+import type { Entity, SimState } from "../../lib/types";
+
+const TEST_SEED = 421;
+
+function playerUnits(state: SimState): Entity[] {
+  return state.entities.filter(
+    (entity) => entity.owner === 0 && entity.class === "unit" && entity.hp > 0 && !entity.neutral,
+  );
+}
 
 async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
   const dimensions = await page.evaluate(() => ({
@@ -16,8 +25,7 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   return dimensions;
 }
 
-async function pointForTile(page: import("@playwright/test").Page, x: number, y: number) {
-  const state = createMission({ seed: 421, missionIndex: 0 });
+async function pageCamera(page: import("@playwright/test").Page, state: SimState) {
   const canvas = page.getByTestId("battlefield-canvas");
   const dimensions = await canvas.evaluate((element) => ({
     width: (element as HTMLCanvasElement).width,
@@ -35,11 +43,40 @@ async function pointForTile(page: import("@playwright/test").Page, x: number, y:
     zoom: 1,
   };
   clampCamera(camera, cameraPanBounds(camera, state.width, state.height, dimensions.width, dimensions.height));
+  return { dimensions, bounds, camera };
+}
+
+async function pointForTile(page: import("@playwright/test").Page, x: number, y: number) {
+  const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
+  const { dimensions, bounds, camera } = await pageCamera(page, state);
   const point = tileToScreen(x, y, camera, heightAt(state, x, y));
   return {
     x: bounds.x + point.x * (bounds.width / dimensions.width),
     y: bounds.y + point.y * (bounds.height / dimensions.height),
   };
+}
+
+async function pointForEntity(page: import("@playwright/test").Page, entity: Entity) {
+  const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
+  const { dimensions, bounds, camera } = await pageCamera(page, state);
+  const point = tileToScreen(entity.x, entity.y, camera, heightAt(state, Math.round(entity.x), Math.round(entity.y)));
+  return {
+    x: bounds.x + point.x * (bounds.width / dimensions.width),
+    y: bounds.y + point.y * (bounds.height / dimensions.height),
+  };
+}
+
+async function marqueeForEntities(page: import("@playwright/test").Page, entities: Entity[]) {
+  const points = await Promise.all(entities.map((entity) => pointForEntity(page, entity)));
+  const canvas = page.getByTestId("battlefield-canvas");
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error("Battlefield canvas has no layout bounds");
+  const inset = 12;
+  const x0 = Math.max(bounds.x + inset, Math.min(...points.map((point) => point.x)) - inset);
+  const y0 = Math.max(bounds.y + inset, Math.min(...points.map((point) => point.y)) - inset);
+  const x1 = Math.min(bounds.x + bounds.width - inset, Math.max(...points.map((point) => point.x)) + inset);
+  const y1 = Math.min(bounds.y + bounds.height - inset, Math.max(...points.map((point) => point.y)) + inset);
+  return { start: { x: x0, y: y0 }, end: { x: x1, y: y1 } };
 }
 
 async function dispatchTouch(
@@ -210,26 +247,31 @@ test.describe("mobile-first layouts", () => {
 
   test("supports touch selection, marquee selection, panning, commands, and long press", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/play?seed=0421&mission=0");
+    await page.goto(`/play?seed=${String(TEST_SEED).padStart(4, "0")}&mission=0`);
 
-    const infantry = await pointForTile(page, 13, 9);
+    const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
+    const units = playerUnits(state);
+    const infantryEntity = units.find((entity) => entity.kind === "infantry");
+    if (!infantryEntity) throw new Error("Mission has no player infantry");
+    const infantry = await pointForEntity(page, infantryEntity);
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
     await expect(page.getByTestId("mobile-command-dock")).toContainText("1 unit");
 
     await page.getByTestId("mobile-select-mode").click();
     await expect(page.getByTestId("mobile-marquee")).toBeVisible();
-    await dispatchTouch(page, "pointerdown", { x: 40, y: 180 });
-    await dispatchTouch(page, "pointermove", { x: 350, y: 680 });
-    await dispatchTouch(page, "pointerup", { x: 350, y: 680 });
+    const marquee = await marqueeForEntities(page, units);
+    await dispatchTouch(page, "pointerdown", marquee.start);
+    await dispatchTouch(page, "pointermove", marquee.end);
+    await dispatchTouch(page, "pointerup", marquee.end);
     await expect(page.getByTestId("mobile-marquee")).toHaveCount(0);
-    await expect(page.getByTestId("mobile-command-dock")).toContainText("2 units");
+    await expect(page.getByTestId("mobile-command-dock")).toContainText(`${units.length} units`);
 
     const dragStart = { x: 90, y: 650 };
     await dispatchTouch(page, "pointerdown", dragStart);
     await dispatchTouch(page, "pointermove", { x: 155, y: 650 });
     await dispatchTouch(page, "pointerup", { x: 155, y: 650 });
-    await expect(page.getByTestId("mobile-command-dock")).toContainText("2 units");
+    await expect(page.getByTestId("mobile-command-dock")).toContainText(`${units.length} units`);
 
     await page.getByTestId("mobile-command-move").click();
     await expect(page.getByTestId("mobile-command-dock")).toContainText("Move active");

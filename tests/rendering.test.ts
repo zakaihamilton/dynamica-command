@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeFixture, setTile } from "../lib/sim/fixtures";
+import { addUnit, makeFixture, setTile } from "../lib/sim/fixtures";
 import { minimapRegionForCell, terrainColors } from "../lib/render/minimap";
 import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../lib/types";
 import { generateMap } from "../lib/gen/map";
@@ -34,7 +34,7 @@ import {
   visibleFxTileCoords,
   waterFxNeedsClip,
 } from "../lib/render/terrainWeather";
-import { terrainContentKey } from "../lib/render/renderer";
+import { spriteCacheKey, terrainContentKey } from "../lib/render/renderer";
 import { minimapCacheKeys, MINIMAP_OVERLAY_TICK_SHIFT } from "../lib/render/minimap";
 
 function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
@@ -53,6 +53,18 @@ function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: numb
 }
 
 describe("seeded terrain atlas", () => {
+  it("scopes raster fallback cache keys to the active mission session", () => {
+    const state = makeFixture({ win: { kind: "annihilate" }, seed: 832 });
+    const unit = addUnit(state, 0, "infantry", 3, 3);
+    const sameSession = spriteCacheKey(state, unit);
+    const otherMission = spriteCacheKey({ ...state, missionIndex: 1 }, unit);
+    const tutorial = spriteCacheKey({ ...state, tutorialStage: "select" }, unit);
+    const otherSeed = spriteCacheKey({ ...state, seed: 3209 }, unit);
+
+    expect(spriteCacheKey(state, unit)).toBe(sameSession);
+    expect(new Set([sameSession, otherMission, tutorial, otherSeed]).size).toBe(4);
+  });
+
   it("bakes deterministic atlases that differ by seed", () => {
     const first = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
     const second = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });

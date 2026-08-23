@@ -90,7 +90,15 @@ const terrainScroll: ScrollLayer = emptyScrollLayer();
 let terrainCanvas: HTMLCanvasElement | null = null;
 const entityById = new Map<number, Entity>();
 const drawList: Entity[] = [];
-const lastReadySprite = new Map<number, { spec: SpriteSpec; img: HTMLCanvasElement }>();
+const lastReadySprite = new Map<string, { spec: SpriteSpec; img: HTMLCanvasElement }>();
+
+function spriteSessionKey(state: SimState): string {
+  return `${state.seed}:${state.missionIndex}:${state.tutorialStage !== undefined ? "tutorial" : "mission"}`;
+}
+
+export function spriteCacheKey(state: SimState, entity: Entity): string {
+  return `${spriteSessionKey(state)}:${entity.id}`;
+}
 
 function ensureTerrainCanvas(bw: number, bh: number): HTMLCanvasElement | null {
   if (typeof document === "undefined") return null;
@@ -246,14 +254,15 @@ export function renderWorld(
         });
     if (isScenarioTarget(state, e)) drawRescueHalo(ctx, s.x, s.y, z, timeMs);
     let img = rasterize(spec);
+    const cacheKey = spriteCacheKey(state, e);
     if (spec.imageSrc && !isRasterReady(spec)) {
-      const previous = lastReadySprite.get(e.id);
+      const previous = lastReadySprite.get(cacheKey);
       if (previous) {
         spec = previous.spec;
         img = previous.img;
       }
     } else {
-      lastReadySprite.set(e.id, { spec, img });
+      lastReadySprite.set(cacheKey, { spec, img });
     }
     const ax = (spec.anchorX ?? spec.w / 2) * z;
     const ay = (spec.anchorY ?? spec.h) * z;
@@ -372,8 +381,14 @@ export function renderWorld(
     }
   }
 
-  for (const id of lastReadySprite.keys()) {
-    if (!entityById.has(id) || (entityById.get(id)?.hp ?? 0) <= 0) lastReadySprite.delete(id);
+  const currentSessionPrefix = `${spriteSessionKey(state)}:`;
+  for (const key of lastReadySprite.keys()) {
+    if (!key.startsWith(currentSessionPrefix)) {
+      lastReadySprite.delete(key);
+      continue;
+    }
+    const id = Number(key.slice(currentSessionPrefix.length));
+    if (!entityById.has(id) || (entityById.get(id)?.hp ?? 0) <= 0) lastReadySprite.delete(key);
   }
 
   lap("entities");
