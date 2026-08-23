@@ -178,15 +178,18 @@ function convoyStartPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart" |
   };
 }
 
-function convoyDestination(zone: Vec2, index: number): Vec2 {
-  const offsets = [
-    { x: 0, y: 0 },
-    { x: 2, y: 1 },
-    { x: -2, y: 1 },
-    { x: 1, y: -2 },
-  ];
-  const offset = offsets[index % offsets.length]!;
-  return { x: zone.x + offset.x, y: zone.y + offset.y };
+function convoyDestination(state: SimState, zone: Vec2, index: number): Vec2 {
+  const candidates: Vec2[] = [];
+  for (let radius = 1; radius <= 5; radius++) {
+    for (let y = zone.y - radius; y <= zone.y + radius; y++) {
+      for (let x = zone.x - radius; x <= zone.x + radius; x++) {
+        if (Math.hypot(x - zone.x, y - zone.y) > 5 || !isStaticWalkable(state, x, y)) continue;
+        candidates.push({ x, y });
+      }
+    }
+    if (candidates.length >= 4) break;
+  }
+  return candidates[index % candidates.length] ?? zone;
 }
 
 export function tickScenario(state: SimState): SimEvent[] {
@@ -217,7 +220,7 @@ export function tickScenario(state: SimState): SimEvent[] {
     for (const [index, id] of runtime.targetIds.entries()) {
       const convoy = state.entities.find((entity) => entity.id === id && entity.hp > 0);
       if (convoy?.scenarioRole === "convoy" && convoy.neutral) {
-        const route = tryFindPath(state, convoy, convoyDestination(state.runtime!.zone!, index));
+        const route = tryFindPath(state, convoy, convoyDestination(state, state.runtime!.zone!, index));
         if (route !== undefined) convoy.path = route;
       }
     }

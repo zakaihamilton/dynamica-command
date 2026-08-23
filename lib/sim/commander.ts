@@ -206,16 +206,16 @@ function planBuilding(state: SimState, yard: Entity): Command | undefined {
     if (factory) return factory;
   }
 
-  const defensiveTurretNeeded = threat !== undefined || OFFENSIVE_KINDS.has(objectiveKind(state));
-  if (defensiveTurretNeeded && turretCount < 1 + Math.floor(state.missionIndex / 3) && !pending) {
-    const turret = buildCommand(state, "turret", yard);
-    if (turret) return turret;
-  }
-
   const factoryLimit = OFFENSIVE_KINDS.has(objectiveKind(state)) ? 2 : 1;
   if (playerBuildings(state, "factory").length < factoryLimit && state.tick < 1800 && !pending) {
     const factory = buildCommand(state, "factory", yard);
     if (factory) return factory;
+  }
+
+  const defensiveTurretNeeded = power.surplus >= 15 && (threat !== undefined || OFFENSIVE_KINDS.has(objectiveKind(state)));
+  if (defensiveTurretNeeded && turretCount < 1 + Math.floor(state.missionIndex / 3) && !pending) {
+    const turret = buildCommand(state, "turret", yard);
+    if (turret) return turret;
   }
   return undefined;
 }
@@ -229,10 +229,17 @@ function planProduction(state: SimState): Command[] {
     && (state.unitsProducedByRole[state.win.role] ?? 0) + queuedUnitCount(state, state.win.role) < (state.win.target ?? Infinity)
     ? state.win.role
     : undefined;
-  const producers = [...readyProducers(state, "barracks"), ...readyProducers(state, "factory")];
+  const producers = [...readyProducers(state, "barracks"), ...readyProducers(state, "factory")]
+    .sort((a, b) => {
+      const priority = role ?? support;
+      const aPriority = priority && producerFor(priority) === a.kind ? 0 : 1;
+      const bPriority = priority && producerFor(priority) === b.kind ? 0 : 1;
+      return aPriority - bPriority || a.id - b.id;
+    });
   let availableCredits = state.credits[0];
   for (const producer of producers) {
     if (productionQueueSize(producer) >= 3) continue;
+    if (role && producerFor(role) !== producer.kind && availableCredits < UNIT_STATS[role].cost) continue;
     let desired: UnitKind | undefined;
     if (support && producerFor(support) === producer.kind) {
       desired = support;
@@ -388,7 +395,7 @@ export class CompetentCommander {
       const combatCommands: Command[] = [];
       const offensiveObjective = objective && objective.owner === 1 && OFFENSIVE_KINDS.has(objectiveKind(state));
       const assaultTargets = offensiveObjective
-        ? parallelOffensiveTargets(state).length > 1
+        ? objectiveKind(state) !== "sabotage" && parallelOffensiveTargets(state).length > 1
           ? parallelOffensiveTargets(state)
           : objective ? [objective] : []
         : [];
@@ -407,7 +414,7 @@ export class CompetentCommander {
       const reservedDefenders = scenarioObjective
         ? Math.min(scenarioDefenderLimit, Math.max(0, objectiveCombat.length - 1))
         : offensiveObjective
-          ? Math.min(defenderLimit, Math.max(0, objectiveCombat.length - 1))
+          ? Math.min(state.missionIndex < 2 ? 0 : 1, Math.max(0, objectiveCombat.length - 1))
         : defenderLimit;
       const defenders = (threat || offensiveObjective || scenarioObjective)
         ? [...objectiveCombat]
@@ -420,11 +427,11 @@ export class CompetentCommander {
         : combat;
 
       if (offensiveObjective && objective) {
-        if (assaultCommitted && assaultForce.length) {
+        if (threat) {
+          combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: threat.id });
+        } else if (assaultCommitted && assaultForce.length) {
           if (defenders.length) {
-            combatCommands.push(threat
-              ? { type: "attack", unitIds: defenders.map((entity) => entity.id), targetId: threat.id }
-              : { type: "move", unitIds: defenders.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
+            combatCommands.push({ type: "move", unitIds: defenders.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
           }
           for (let index = 0; index < assaultTargets.length; index++) {
             const target = assaultTargets[index]!;
@@ -432,13 +439,6 @@ export class CompetentCommander {
             if (unitIds.length) {
               combatCommands.push({ type: "attackMove", unitIds, x: target.x, y: target.y, formation: "wedge" });
             }
-          }
-        } else if (threat) {
-          if (defenders.length) {
-            combatCommands.push({ type: "attack", unitIds: defenders.map((entity) => entity.id), targetId: threat.id });
-          }
-          if (assaultForce.length) {
-            combatCommands.push({ type: "move", unitIds: assaultForce.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
           }
         } else {
           combatCommands.push({ type: "move", unitIds: combat.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
