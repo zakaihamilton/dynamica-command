@@ -1,6 +1,5 @@
 import type { PointerEventHandler, Ref } from "react";
-import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
-import type { CommandTab } from "@/lib/ui/shortcuts";
+import type { CommandBuildControls } from "./commandCatalogTypes";
 import { CommandBuildSection } from "./CommandBuildSection";
 import { CommandHeader } from "./CommandHeader";
 import { MinimapFrame } from "./MinimapFrame";
@@ -37,17 +36,8 @@ export function CommandSidebar({
   onStop,
   onStance,
   onFormation,
-}: {
+}: CommandBuildControls & {
   factionName: string;
-  state: SimState;
-  palette: Palette;
-  profile: FactionVisualProfile;
-  selected: Entity | undefined;
-  placeKind: BuildingKind | null;
-  repairMode: boolean;
-  sellMode: boolean;
-  activeTab: CommandTab;
-  power: number;
   produced: number;
   used: number;
   miniRef: Ref<HTMLCanvasElement>;
@@ -56,17 +46,6 @@ export function CommandSidebar({
   onMinimapPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerUp: PointerEventHandler<HTMLCanvasElement>;
   isMinimapDragging: boolean;
-  onTab: (tab: CommandTab) => void;
-  onRepair: () => void;
-  onSell: () => void;
-  onPlace: (kind: BuildingKind) => void;
-  onCancelBuilding: (kind: BuildingKind) => void;
-  onQueueUnit: (unit: UnitKind) => void;
-  onCancelUnit: (unit: UnitKind) => void;
-  availableProducer: (unit: UnitKind) => Entity | undefined;
-  onStop: () => void;
-  onStance: (stance: Stance) => void;
-  onFormation: (formation: Formation) => void;
 }) {
   return (
     <aside className={styles.sidebar} data-testid="command-sidebar">

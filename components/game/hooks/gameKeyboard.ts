@@ -1,4 +1,6 @@
+import type { MutableRefObject } from "react";
 import { beep } from "@/lib/audio/synth";
+import type { BuildingKind, SimState } from "@/lib/types";
 import type { CommandTab, GameCommand, PauseView } from "@/lib/ui/shortcuts";
 
 export type GameCommandHandlers = {
@@ -23,6 +25,18 @@ export type GameCommandHandlers = {
   toggleMusic: () => void;
   resultPrimary: () => void;
   onNavigateHome: () => void;
+};
+
+export type GameKeyboardParams = Omit<GameCommandHandlers, "activeTab"> & {
+  stateRef: MutableRefObject<SimState>;
+  pausedRef: MutableRefObject<boolean>;
+  pauseViewRef: MutableRefObject<PauseView>;
+  activeTabRef: MutableRefObject<CommandTab>;
+  place: MutableRefObject<BuildingKind | null>;
+  repair: MutableRefObject<boolean>;
+  sell: MutableRefObject<boolean>;
+  confirmationOpen?: boolean;
+  cancelConfirmation?: () => void;
 };
 
 export function applyGameCommand(command: GameCommand, handlers: GameCommandHandlers): void {

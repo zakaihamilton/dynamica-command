@@ -126,11 +126,13 @@ describe("useGameRuntime", () => {
     });
     expect(result.current.overlays.mobileSheetOpen).toBe(true);
     expect(result.current.overlays.selectionMode).toBe(false);
+    expect(startLoop).toHaveBeenCalledOnce();
 
     act(() => {
       result.current.overlays.onSelectionMode(true);
     });
     expect(result.current.overlays.selectionMode).toBe(true);
     expect(result.current.overlays.mobileSheetOpen).toBe(false);
+    expect(startLoop).toHaveBeenCalledOnce();
   });
 });

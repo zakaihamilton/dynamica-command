@@ -7,6 +7,24 @@ import type { Command, SimState } from "@/lib/types";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { FxBurst } from "@/lib/render/fx";
 
+export type MissionPersistenceParams = {
+  seed: number;
+  stateRef: MutableRefObject<SimState>;
+  setState: Dispatch<SetStateAction<SimState>>;
+  commitSelection: (ids: number[]) => void;
+  cmdQRef: MutableRefObject<Command[]>;
+  fxRef: MutableRefObject<FxBurst[]>;
+  clearTools: () => void;
+  resetInput: () => void;
+  resetCamera: (state: SimState) => void;
+  pausedRef: MutableRefObject<boolean>;
+  setPaused: Dispatch<SetStateAction<boolean>>;
+  setPauseView: Dispatch<SetStateAction<PauseView>>;
+  setPauseNotice: Dispatch<SetStateAction<string>>;
+  campaignRecordedRef: MutableRefObject<boolean>;
+  terminalSaveRef: MutableRefObject<boolean>;
+};
+
 export function useMissionPersistence({
   seed,
   stateRef,
@@ -23,23 +41,7 @@ export function useMissionPersistence({
   setPauseNotice,
   campaignRecordedRef,
   terminalSaveRef,
-}: {
-  seed: number;
-  stateRef: MutableRefObject<SimState>;
-  setState: Dispatch<SetStateAction<SimState>>;
-  commitSelection: (ids: number[]) => void;
-  cmdQRef: MutableRefObject<Command[]>;
-  fxRef: MutableRefObject<FxBurst[]>;
-  clearTools: () => void;
-  resetInput: () => void;
-  resetCamera: (state: SimState) => void;
-  pausedRef: MutableRefObject<boolean>;
-  setPaused: Dispatch<SetStateAction<boolean>>;
-  setPauseView: Dispatch<SetStateAction<PauseView>>;
-  setPauseNotice: Dispatch<SetStateAction<string>>;
-  campaignRecordedRef: MutableRefObject<boolean>;
-  terminalSaveRef: MutableRefObject<boolean>;
-}) {
+}: MissionPersistenceParams) {
   const saveMissionNow = useCallback(() => {
     const saved = writeSave(localStorageAdapter(), stateRef.current);
     setPauseNotice(saved ? "Mission saved." : "Unable to save: browser storage is unavailable.");

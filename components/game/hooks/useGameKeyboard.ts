@@ -1,7 +1,6 @@
-import { useEffect, useRef, type MutableRefObject } from "react";
-import { gameCommandFromKey, isEditableTarget, type CommandTab, type PauseView } from "@/lib/ui/shortcuts";
-import type { BuildingKind, SimState } from "@/lib/types";
-import { applyGameCommand } from "./gameKeyboard";
+import { useEffect, useRef } from "react";
+import { gameCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
+import { applyGameCommand, type GameKeyboardParams } from "./gameKeyboard";
 
 export function useGameKeyboard({
   stateRef,
@@ -33,37 +32,7 @@ export function useGameKeyboard({
   onNavigateHome,
   confirmationOpen = false,
   cancelConfirmation = () => {},
-}: {
-  stateRef: MutableRefObject<SimState>;
-  pausedRef: MutableRefObject<boolean>;
-  pauseViewRef: MutableRefObject<PauseView>;
-  activeTabRef: MutableRefObject<CommandTab>;
-  place: MutableRefObject<BuildingKind | null>;
-  repair: MutableRefObject<boolean>;
-  sell: MutableRefObject<boolean>;
-  openPauseMenu: () => void;
-  resumeMission: () => void;
-  setPauseView: (view: PauseView) => void;
-  setPauseNotice: (notice: string) => void;
-  setActiveTab: (tab: CommandTab) => void;
-  activateCameo: (tab: "construction" | "production", index: number, cancel: boolean) => void;
-  jumpHome: () => void;
-  centerSelection: () => void;
-  toggleRepair: () => void;
-  toggleSell: () => void;
-  stopSelected: () => void;
-  clearTools: () => void;
-  saveMission: () => void;
-  loadMission: () => void;
-  viewMissionBriefing: () => void;
-  restartMission: () => void;
-  toggleSound: () => void;
-  toggleMusic: () => void;
-  resultPrimary: () => void;
-  onNavigateHome: () => void;
-  confirmationOpen?: boolean;
-  cancelConfirmation?: () => void;
-}) {
+}: GameKeyboardParams) {
   const keys = useRef<Record<string, boolean>>({});
 
   useEffect(() => {

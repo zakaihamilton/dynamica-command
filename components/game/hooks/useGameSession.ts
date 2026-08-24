@@ -1,14 +1,12 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission } from "@/lib/sim/tutorial";
 import { localStorageAdapter, readSave } from "@/lib/persist/save";
 import type { GameSettings } from "@/lib/persist/settings";
-import type { Command, SimState } from "@/lib/types";
-import type { PauseView } from "@/lib/ui/shortcuts";
-import type { FxBurst } from "@/lib/render/fx";
+import type { SimState } from "@/lib/types";
 import { useMissionConfirmation } from "./useMissionConfirmation";
-import { useMissionPersistence } from "./useMissionPersistence";
+import { useMissionPersistence, type MissionPersistenceParams } from "./useMissionPersistence";
 import { useMissionRoutes } from "./useMissionRoutes";
 
 export type { MissionConfirmation, MissionConfirmationAction } from "./missionConfirmation";
@@ -40,22 +38,7 @@ export function useGameSession({
   terminalSaveRef,
   settings,
   setSettings,
-}: {
-  seed: number;
-  stateRef: MutableRefObject<SimState>;
-  setState: Dispatch<SetStateAction<SimState>>;
-  commitSelection: (ids: number[]) => void;
-  cmdQRef: MutableRefObject<Command[]>;
-  fxRef: MutableRefObject<FxBurst[]>;
-  clearTools: () => void;
-  resetInput: () => void;
-  resetCamera: (state: SimState) => void;
-  pausedRef: MutableRefObject<boolean>;
-  setPaused: Dispatch<SetStateAction<boolean>>;
-  setPauseView: Dispatch<SetStateAction<PauseView>>;
-  setPauseNotice: Dispatch<SetStateAction<string>>;
-  campaignRecordedRef: MutableRefObject<boolean>;
-  terminalSaveRef: MutableRefObject<boolean>;
+}: MissionPersistenceParams & {
   settings: GameSettings;
   setSettings: Dispatch<SetStateAction<GameSettings>>;
 }) {

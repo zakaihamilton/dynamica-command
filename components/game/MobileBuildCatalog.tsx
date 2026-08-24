@@ -1,6 +1,5 @@
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
-import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
-import type { CommandTab } from "@/lib/ui/shortcuts";
+import type { CommandBuildControls } from "./commandCatalogTypes";
 import { CommandCatalogContent } from "./CommandCatalogContent";
 import styles from "./MobileCommandTray.module.css";
 
@@ -26,29 +25,7 @@ export function MobileBuildCatalog({
   onStop,
   onStance,
   onFormation,
-}: {
-  state: SimState;
-  palette: Palette;
-  profile: FactionVisualProfile;
-  selected: Entity | undefined;
-  selectedCount: number;
-  activeTab: CommandTab;
-  placeKind: BuildingKind | null;
-  repairMode: boolean;
-  sellMode: boolean;
-  power: number;
-  onTab: (tab: CommandTab) => void;
-  onRepair: () => void;
-  onSell: () => void;
-  onPlace: (kind: BuildingKind) => void;
-  onCancelBuilding: (kind: BuildingKind) => void;
-  onQueueUnit: (unit: UnitKind) => void;
-  onCancelUnit: (unit: UnitKind) => void;
-  availableProducer: (unit: UnitKind) => Entity | undefined;
-  onStop: () => void;
-  onStance: (stance: Stance) => void;
-  onFormation: (formation: Formation) => void;
-}) {
+}: CommandBuildControls & { selectedCount: number }) {
   return (
     <section className={styles.section} data-testid="mobile-build-controls">
       <div className={styles.sectionHeader}>

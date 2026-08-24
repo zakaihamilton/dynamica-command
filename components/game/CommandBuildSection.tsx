@@ -1,5 +1,4 @@
-import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
-import type { CommandTab } from "@/lib/ui/shortcuts";
+import type { CommandBuildControls } from "./commandCatalogTypes";
 import { CommandCatalogContent } from "./CommandCatalogContent";
 import { CommandTabs } from "./CommandTabs";
 import styles from "./CommandSidebar.module.css";
@@ -25,28 +24,7 @@ export function CommandBuildSection({
   onStop,
   onStance,
   onFormation,
-}: {
-  state: SimState;
-  palette: Palette;
-  profile: FactionVisualProfile;
-  selected: Entity | undefined;
-  placeKind: BuildingKind | null;
-  repairMode: boolean;
-  sellMode: boolean;
-  activeTab: CommandTab;
-  power: number;
-  onTab: (tab: CommandTab) => void;
-  onRepair: () => void;
-  onSell: () => void;
-  onPlace: (kind: BuildingKind) => void;
-  onCancelBuilding: (kind: BuildingKind) => void;
-  onQueueUnit: (unit: UnitKind) => void;
-  onCancelUnit: (unit: UnitKind) => void;
-  availableProducer: (unit: UnitKind) => Entity | undefined;
-  onStop: () => void;
-  onStance: (stance: Stance) => void;
-  onFormation: (formation: Formation) => void;
-}) {
+}: CommandBuildControls) {
   const catalog = (
     <CommandCatalogContent
       state={state}

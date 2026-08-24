@@ -109,6 +109,7 @@ export function useGameCamera({
     camRef,
     panAvail,
     panAvailRef,
+    setPanAvail,
     hotPan,
     panHold,
     edgePanHover,

@@ -1,6 +1,5 @@
 import type { PointerEventHandler, Ref } from "react";
-import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
-import type { CommandTab } from "@/lib/ui/shortcuts";
+import type { CommandBuildControls } from "./commandCatalogTypes";
 import { MobileBaseControls } from "./MobileBaseControls";
 import { MobileBuildCatalog } from "./MobileBuildCatalog";
 import { MobileSheetHeader } from "./MobileSheetHeader";
@@ -41,35 +40,15 @@ export function MobileCommandSheet({
   onMinimapPointerMove,
   onMinimapPointerUp,
   isMinimapDragging,
-}: {
+}: CommandBuildControls & {
   open: boolean;
-  state: SimState;
-  palette: Palette;
-  profile: FactionVisualProfile;
-  selected: Entity | undefined;
   selectedCount: number;
-  activeTab: CommandTab;
   command: MobileCommand | null;
-  placeKind: BuildingKind | null;
-  repairMode: boolean;
-  sellMode: boolean;
-  power: number;
   produced: number;
   used: number;
   miniRef: Ref<HTMLCanvasElement>;
   onClose: () => void;
-  onTab: (tab: CommandTab) => void;
   onCommand: (command: MobileCommand) => void;
-  onStop: () => void;
-  onRepair: () => void;
-  onSell: () => void;
-  onStance: (stance: Stance) => void;
-  onFormation: (formation: Formation) => void;
-  onPlace: (kind: BuildingKind) => void;
-  onCancelBuilding: (kind: BuildingKind) => void;
-  onQueueUnit: (unit: UnitKind) => void;
-  onCancelUnit: (unit: UnitKind) => void;
-  availableProducer: (unit: UnitKind) => Entity | undefined;
   onMinimapPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerUp: PointerEventHandler<HTMLCanvasElement>;

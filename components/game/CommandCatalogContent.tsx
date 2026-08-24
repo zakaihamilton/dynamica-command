@@ -1,5 +1,4 @@
-import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
-import type { CommandTab } from "@/lib/ui/shortcuts";
+import type { CommandCatalogContentProps } from "./commandCatalogTypes";
 import { ConstructionCameos } from "./ConstructionCameos";
 import { ProductionCameos } from "./ProductionCameos";
 import { SelectionPanel } from "./SelectionPanel";
@@ -22,25 +21,7 @@ export function CommandCatalogContent({
   onStance,
   onFormation,
   selectedClassName,
-}: {
-  state: SimState;
-  palette: Palette;
-  profile: FactionVisualProfile;
-  activeTab: CommandTab;
-  placeKind: BuildingKind | null;
-  selected: Entity | undefined;
-  selectionCount?: number;
-  power: number;
-  availableProducer: (unit: UnitKind) => Entity | undefined;
-  onPlace: (kind: BuildingKind) => void;
-  onCancelBuilding: (kind: BuildingKind) => void;
-  onQueueUnit: (unit: UnitKind) => void;
-  onCancelUnit: (unit: UnitKind) => void;
-  onStop: () => void;
-  onStance: (stance: Stance) => void;
-  onFormation: (formation: Formation) => void;
-  selectedClassName?: string;
-}) {
+}: CommandCatalogContentProps) {
   if (activeTab === "construction") {
     return (
       <ConstructionCameos
