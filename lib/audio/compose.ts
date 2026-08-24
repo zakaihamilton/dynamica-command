@@ -36,9 +36,9 @@ const MINOR_PROGRESSIONS: readonly number[][] = [
 
 const MAJOR_PROGRESSIONS: readonly number[][] = [
   [0, 4, 5, 3, 0, 4, 5, 4],
-  [0, 3, 5, 4, 0, 5, 3, 4],
-  [0, 5, 3, 4, 5, 3, 0, 4],
   [0, 4, 3, 5, 0, 4, 5, 3],
+  [0, 3, 4, 5, 0, 3, 5, 4],
+  [5, 3, 0, 4, 0, 4, 5, 3],
 ];
 
 const MIXOLYDIAN_PROGRESSIONS: readonly number[][] = [
@@ -445,7 +445,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const climax = section.name === "climax";
     const hookSection = section.name === "hook" || section.name === "turnaround" || climax;
     const fullDrums = !sparse && (cue === "victory" || (!breakdown && (!intro || phraseBar >= 4)));
-    const lightDrums = (sparse && !breakdown && (!intro || phraseBar >= 4)) || (breakdown && cue === "victory");
+    const lightDrums = sparse && !breakdown && (!intro || phraseBar >= 4);
     const usePulse =
       (intro && phraseBar >= 4) ||
       section.name === "groove" ||
@@ -530,7 +530,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
             : 0;
       const velocity = climax ? 0.96 : hookSection ? 0.86 : 0.74;
       const durationFor = (index: number, sounding: number) => {
-        if (useHookLead) return index === sounding - 1 ? 4 : 6;
+        if (useHookLead) return index === sounding - 1 ? 3 : 4;
         return 2;
       };
       placeMelody(

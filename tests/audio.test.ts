@@ -165,9 +165,18 @@ describe("generated audio", () => {
     expect(sectionHats("climax").length).toBeGreaterThan(sectionHats("hook").length);
     expect(sectionHats("hook").length).toBeLessThanOrEqual(8 * 8);
 
-    for (const seed of [0, 1, 421, 9999, 2048, 777]) {
-      const major = composeMusic(seed, "mission", 0);
-      if (major.scaleName !== "major") continue;
+    const majorOpeners = [
+      [0, 4, 5, 3],
+      [0, 4, 3, 5],
+      [0, 3, 4, 5],
+      [5, 3, 0, 4],
+    ];
+    const majors = Array.from({ length: 48 }, (_, seed) => composeMusic(seed, "mission", 0)).filter(
+      (entry) => entry.scaleName === "major",
+    );
+    expect(majors.length).toBeGreaterThan(0);
+    for (const major of majors) {
+      expect(majorOpeners).toContainEqual(major.theme.progressionA.slice(0, 4));
       expect(major.theme.progressionA.slice(0, 4)).not.toEqual([0, 5, 2, 6]);
     }
   });

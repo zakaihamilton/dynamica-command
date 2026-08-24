@@ -240,7 +240,6 @@ function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicP
   delay.connect(delayWet);
   delayWet.connect(master);
   leadBus.connect(delay);
-  pulseBus.connect(delay);
   pulseBus.connect(reverbSend);
   leadBus.connect(reverbSend);
   counterBus.connect(reverbSend);
@@ -370,8 +369,6 @@ function playSynthTone(
   const pan = audio.createStereoPanner();
   const oscA = audio.createOscillator();
   const oscB = audio.createOscillator();
-  const oscSub = audio.createOscillator();
-  const subGain = audio.createGain();
   const bass = voice === "bass";
   const pulse = voice === "pulse";
   const lead = voice === "melody";
@@ -390,14 +387,11 @@ function playSynthTone(
 
   oscA.type = bass ? "square" : pulse ? "square" : type;
   oscB.type = bass || lead ? "sawtooth" : "square";
-  oscSub.type = bass ? "sine" : lead ? "square" : "triangle";
   const glide = lead ? Math.min(0.03, duration * 0.22) : pulse ? Math.min(0.012, duration * 0.18) : 0;
   oscA.frequency.setValueAtTime(freq * (glide > 0 ? 0.93 : 1), time);
   if (glide > 0) oscA.frequency.exponentialRampToValueAtTime(freq, time + glide);
   oscB.frequency.setValueAtTime(freq * (bass ? 1.004 : 1.01), time);
   oscB.detune.setValueAtTime(lead ? 10 : pulse ? -8 : -5, time);
-  oscSub.frequency.setValueAtTime(freq * (bass || lead ? 0.5 : 0.25), time);
-  subGain.gain.setValueAtTime(pulse ? 0.0001 : bass ? 0.55 : 0.22, time);
 
   envelope.gain.setValueAtTime(0.0001, time);
   envelope.gain.exponentialRampToValueAtTime(peak, time + Math.max(0.003, attack));
@@ -409,8 +403,17 @@ function playSynthTone(
 
   oscA.connect(filter);
   oscB.connect(filter);
-  oscSub.connect(subGain);
-  subGain.connect(filter);
+  if (!pulse) {
+    const oscSub = audio.createOscillator();
+    const subGain = audio.createGain();
+    oscSub.type = bass ? "sine" : lead ? "square" : "triangle";
+    oscSub.frequency.setValueAtTime(freq * (bass || lead ? 0.5 : 0.25), time);
+    subGain.gain.setValueAtTime(bass ? 0.55 : 0.22, time);
+    oscSub.connect(subGain);
+    subGain.connect(filter);
+    oscSub.start(time);
+    oscSub.stop(end + 0.04);
+  }
   filter.connect(envelope);
   envelope.connect(pan);
   pan.connect(dest);
@@ -433,10 +436,8 @@ function playSynthTone(
 
   oscA.start(time);
   oscB.start(time);
-  oscSub.start(time);
   oscA.stop(end + 0.04);
   oscB.stop(end + 0.04);
-  oscSub.stop(end + 0.04);
 }
 
 function playNoise(
@@ -489,7 +490,19 @@ function playSnare(audio: AudioGraphContext, g: MusicGraph, time: number, veloci
   const dry = (accent ? 0.16 : 0.09) * velocity;
   playNoise(audio, g.rhythmBus, time, dry, 1900, accent ? 0.07 : 0.05, "bandpass");
   playNoise(audio, g.rhythmBus, time, dry * 0.55, 4200, 0.035, "highpass");
-  playSynthTone(audio, g, g.rhythmBus, 210, time, accent ? 0.08 : 0.055, "triangle", 0.48 * velocity, 1800, "counter", accent);
+  const body = audio.createOscillator();
+  const bodyGain = audio.createGain();
+  const bodyLen = accent ? 0.08 : 0.055;
+  body.type = "triangle";
+  body.frequency.setValueAtTime(210, time);
+  body.frequency.exponentialRampToValueAtTime(150, time + bodyLen);
+  bodyGain.gain.setValueAtTime(0.0001, time);
+  bodyGain.gain.exponentialRampToValueAtTime(0.12 * velocity, time + 0.004);
+  bodyGain.gain.exponentialRampToValueAtTime(0.0001, time + bodyLen);
+  body.connect(bodyGain);
+  bodyGain.connect(g.rhythmBus);
+  body.start(time);
+  body.stop(time + bodyLen + 0.03);
   playNoise(audio, g.reverbSend, time, dry * 0.7, 1600, accent ? 0.2 : 0.14, "bandpass");
 }
 
