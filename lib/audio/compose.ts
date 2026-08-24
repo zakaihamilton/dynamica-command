@@ -140,7 +140,6 @@ export type MusicMotif = {
   response: (number | null)[];
   rhythm: number[];
   accentSteps: number[];
-  variant: number;
 };
 
 export type MusicSection = {
@@ -359,7 +358,6 @@ function motifFrom(
     response: [...response],
     rhythm: [...rhythm],
     accentSteps: [...accents],
-    variant: rng.int(8),
   };
 }
 
@@ -472,6 +470,13 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         (intro && phraseBar >= 6) ||
         (breakdown && phraseBar >= 4));
     const useCounter = !sparse && (section.name === "development" || climax);
+    const variant = climax
+      ? 0
+      : section.name === "development"
+        ? 1
+        : section.name === "escalation" && !useHookLead
+          ? 1
+          : 0;
 
     padRoot.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 0, 1)));
     padThird.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 1, 1)));
@@ -521,13 +526,6 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
 
     if (useMelody) {
       const lead = useHookLead ? hook : motif;
-      const variant = climax
-        ? 0
-        : section.name === "development"
-          ? 1
-          : section.name === "escalation" && !useHookLead
-            ? 1
-            : 0;
       const velocity = climax ? 0.96 : hookSection ? 0.86 : 0.74;
       const durationFor = (index: number, sounding: number) => {
         if (useHookLead) return index === sounding - 1 ? 3 : 4;
@@ -560,7 +558,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         noteEvent(
           notes.counter,
           origin + motifStep,
-          scaleToneMidi(rootMidi, scalePick.notes, chord, degree, 2),
+          scaleToneMidi(rootMidi, scalePick.notes, chord, degree + variant, 2),
           climax ? 4 : 2,
           climax ? 0.5 : 0.36,
         );

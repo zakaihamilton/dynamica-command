@@ -129,7 +129,7 @@ describe("generated audio", () => {
 
   it("builds a recurring 80s synth-pop hook with gated drums", () => {
     const pattern = composeMusic(421, "mission", 3);
-    const sectionNotes = (name: string, lane: "melody" | "pulse") => {
+    const sectionNotes = (name: string, lane: "melody" | "pulse" | "counter") => {
       const section = pattern.sections.find((entry) => entry.name === name);
       if (!section) return [];
       return pattern.notes[lane].filter((note) => note.step >= section.startBar * STEPS_PER_BAR && note.step < section.endBar * STEPS_PER_BAR);
@@ -146,6 +146,12 @@ describe("generated audio", () => {
     expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
     expect(sectionNotes("climax", "melody").length).toBeGreaterThan(sectionNotes("hook", "melody").length);
     expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
+    const developmentMelody = sectionNotes("development", "melody");
+    const developmentCounter = sectionNotes("development", "counter");
+    expect(developmentCounter.length).toBeGreaterThan(0);
+    for (const note of developmentCounter) {
+      expect(developmentMelody.some((lead) => lead.step === note.step && lead.midi === note.midi)).toBe(true);
+    }
     expect(pattern.drums.some((event) => event.kind === "clap")).toBe(true);
     expect(pattern.drums.some((event) => event.kind === "impact")).toBe(true);
     expect(pattern.arpType).toBe("square");

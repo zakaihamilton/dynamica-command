@@ -518,7 +518,18 @@ function playHat(audio: AudioGraphContext, g: MusicGraph, time: number, velocity
 }
 
 function playTom(audio: AudioGraphContext, g: MusicGraph, time: number, velocity: number): void {
-  playSynthTone(audio, g, g.rhythmBus, 180, time, 0.22, "triangle", 0.68 * velocity, 900, "counter", true);
+  const oscillator = audio.createOscillator();
+  const envelope = audio.createGain();
+  oscillator.type = "triangle";
+  oscillator.frequency.setValueAtTime(180, time);
+  oscillator.frequency.exponentialRampToValueAtTime(110, time + 0.18);
+  envelope.gain.setValueAtTime(0.0001, time);
+  envelope.gain.exponentialRampToValueAtTime(0.2 * velocity, time + 0.006);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, time + 0.22);
+  oscillator.connect(envelope);
+  envelope.connect(g.rhythmBus);
+  oscillator.start(time);
+  oscillator.stop(time + 0.26);
 }
 
 function playImpact(audio: AudioGraphContext, g: MusicGraph, time: number, velocity: number): void {
