@@ -85,7 +85,7 @@ export function GameClient({
     resetCamera,
   } = camera;
 
-  const actions = useGameActions({ stateRef, cmdQ, selected });
+  const actions = useGameActions({ stateRef, cmdQ, selected, selectedIds });
   const {
     place,
     setPlaceKind,
@@ -207,6 +207,8 @@ export function GameClient({
     toggleMusic: session.toggleMusic,
     resultPrimary: session.resultPrimary,
     onNavigateHome: session.goHome,
+    confirmationOpen: session.confirmation !== null,
+    cancelConfirmation: session.cancelConfirmation,
   });
 
   useGameLoop({

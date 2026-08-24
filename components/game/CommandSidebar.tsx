@@ -81,8 +81,6 @@ export function CommandSidebar({
           onPointerMove={onMinimapPointerMove}
           onPointerUp={onMinimapPointerUp}
           isDragging={isMinimapDragging}
-          friendlyColor={state.factions[0]?.palette.light ?? palette.light}
-          hostileColor={state.factions[1]?.palette.light ?? "#ff8b83"}
         />
       </div>
 

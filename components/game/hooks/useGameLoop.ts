@@ -56,6 +56,7 @@ export function useGameLoop({
     let appliedIntensity: MusicIntensity = "calm";
     let lastCombatTick = Number.NEGATIVE_INFINITY;
     let nextCampaignSaveAttemptMs = 0;
+    let commandApplied = false;
     let idleHandle: number | null = null;
     let idleViaTimeout = false;
     const cancelIdle = () => {
@@ -83,11 +84,18 @@ export function useGameLoop({
       setState: (next) => {
         stateRef.current = next;
       },
-      drainCommands: () => cmdQ.current.splice(0, cmdQ.current.length),
+      drainCommands: () => {
+        const commands = cmdQ.current.splice(0, cmdQ.current.length);
+        commandApplied = commands.length > 0;
+        return commands;
+      },
       isPaused: () => pausedRef.current,
       onTick: (next, events, now) => {
         if (next.tick % 48 === 0) scheduleAutosave();
-        if (next.tick % 6 === 0) setState({ ...next, entities: [...next.entities] });
+        if (commandApplied || next.tick % 6 === 0) {
+          commandApplied = false;
+          setState({ ...next, entities: [...next.entities] });
+        }
         if (events.some((event) => event.type === "combat")) lastCombatTick = next.tick;
         const phase = next.runtime?.director?.phase;
         const alert = events.find((event) => event.type === "alert");

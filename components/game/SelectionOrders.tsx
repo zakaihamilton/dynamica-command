@@ -32,6 +32,7 @@ export function SelectionOrders({
     <div className={styles.orders} data-testid="unit-orders">
       <ConsoleButton
         className={styles.order}
+        data-testid="selected-action-stop"
         tooltip="Stop selected units"
         shortcut={SHORTCUT.stop}
         aria-keyshortcuts="x"
@@ -44,6 +45,7 @@ export function SelectionOrders({
           <ConsoleButton
             key={item.id}
             className={styles.order}
+            data-testid={`selected-action-stance-${item.id}`}
             aria-pressed={stance === item.id}
             muted={stance !== item.id}
             onClick={() => onStance(item.id)}
@@ -57,6 +59,7 @@ export function SelectionOrders({
           <ConsoleButton
             key={item.id}
             className={styles.order}
+            data-testid={`selected-action-formation-${item.id}`}
             aria-pressed={formation === item.id}
             muted={formation !== item.id}
             onClick={() => onFormation(item.id)}

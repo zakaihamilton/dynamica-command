@@ -9,10 +9,12 @@ import { useGameActions } from "../components/game/hooks/useGameActions";
 import { useCombatAlert } from "../components/game/hooks/useCombatAlert";
 import { useGameAudioLifecycle } from "../components/game/hooks/useGameAudioLifecycle";
 import { useGameKeyboard } from "../components/game/hooks/useGameKeyboard";
+import { useGameSession } from "../components/game/hooks/useGameSession";
 import { useGameSelection } from "../components/game/hooks/useGameSelection";
 import { useMenuController } from "../components/menu/useMenuController";
 import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
-import { localStorageAdapter } from "../lib/persist/save";
+import { localStorageAdapter, readSave } from "../lib/persist/save";
+import { defaultSettings } from "../lib/persist/settings";
 import { makeFixture, addBuilding, addUnit } from "../lib/sim/fixtures";
 import type { Command } from "../lib/types";
 import type { CommandTab, PauseView } from "../lib/ui/shortcuts";
@@ -102,7 +104,7 @@ describe("useGameActions", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
     const cmdQ = { current: [] as Command[] };
     const selected = { current: new Set<number>() };
-    const { result } = renderHook(() => useGameActions({ stateRef: { current: state }, cmdQ, selected }));
+    const { result } = renderHook(() => useGameActions({ stateRef: { current: state }, cmdQ, selected, selectedIds: [] }));
 
     act(() => result.current.togglePlace("power"));
     expect(result.current.placeKind).toBe("power");
@@ -122,14 +124,92 @@ describe("useGameActions", () => {
     addBuilding(state, 0, "barracks", 2, 2);
     const cmdQ = { current: [] as Command[] };
     const selected = { current: new Set<number>() };
-    const { result } = renderHook(() => useGameActions({ stateRef: { current: state }, cmdQ, selected }));
+    const { result } = renderHook(() => useGameActions({ stateRef: { current: state }, cmdQ, selected, selectedIds: [] }));
 
     act(() => result.current.queueUnit("infantry"));
     expect(cmdQ.current).toEqual([{ type: "produce", fromId: 1, unit: "infantry" }]);
   });
+
+  it("queues orders for the current unit selection", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const unit = addUnit(state, 0, "infantry", 2, 2);
+    const cmdQ = { current: [] as Command[] };
+    const selected = { current: new Set<number>() };
+    const { result } = renderHook(() => useGameActions({ stateRef: { current: state }, cmdQ, selected, selectedIds: [unit.id] }));
+
+    act(() => result.current.issueSelectedCommand("stop"));
+    act(() => result.current.issueSelectedCommand("stance", "hold"));
+    act(() => result.current.issueSelectedCommand("formation", "wedge"));
+
+    expect(cmdQ.current).toEqual([
+      { type: "stop", unitIds: [unit.id] },
+      { type: "stance", unitIds: [unit.id], stance: "hold" },
+      { type: "formation", unitIds: [unit.id], formation: "wedge" },
+    ]);
+  });
 });
 
 describe("game lifecycle hooks", () => {
+  it("requires confirmation before saving, loading, restarting, or leaving a mission", () => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const stateRef = { current: state };
+    const props: Parameters<typeof useGameSession>[0] = {
+      seed: 421,
+      stateRef,
+      setState: vi.fn(),
+      commitSelection: vi.fn(),
+      cmdQRef: { current: [] as Command[] },
+      fxRef: { current: [] },
+      clearTools: vi.fn(),
+      resetInput: vi.fn(),
+      resetCamera: vi.fn(),
+      pausedRef: { current: true },
+      setPaused: vi.fn(),
+      setPauseView: vi.fn(),
+      setPauseNotice: vi.fn(),
+      campaignRecordedRef: { current: false },
+      terminalSaveRef: { current: false },
+      settings: defaultSettings(),
+      setSettings: vi.fn(),
+    };
+    const { result } = renderHook(() => useGameSession(props));
+
+    act(() => result.current.saveMission());
+    expect(result.current.confirmation).toMatchObject({
+      action: "save",
+      message: "Save the current mission state for this seed?",
+    });
+    expect(readSave(localStorageAdapter(), 421)).toBeNull();
+    act(() => result.current.confirmAction());
+    expect(result.current.confirmation).toBeNull();
+    expect(readSave(localStorageAdapter(), 421)?.seed).toBe(421);
+
+    stateRef.current.tick = 77;
+    act(() => result.current.saveMission());
+    act(() => result.current.confirmAction());
+    stateRef.current.tick = 99;
+    act(() => result.current.loadMission());
+    expect(result.current.confirmation).toMatchObject({ action: "load" });
+    act(() => result.current.confirmAction());
+    expect(stateRef.current.tick).toBe(77);
+
+    const beforeRestart = stateRef.current;
+    act(() => result.current.restartMission());
+    expect(result.current.confirmation).toMatchObject({ action: "restart" });
+    act(() => result.current.cancelConfirmation());
+    expect(stateRef.current).toBe(beforeRestart);
+    act(() => result.current.restartMission());
+    act(() => result.current.confirmAction());
+    expect(stateRef.current).not.toBe(beforeRestart);
+    expect(stateRef.current.tick).toBe(0);
+
+    act(() => result.current.goMenu());
+    expect(result.current.confirmation).toMatchObject({ action: "menu" });
+    expect(router.push).not.toHaveBeenCalledWith("/");
+    act(() => result.current.confirmAction());
+    expect(router.push).toHaveBeenCalledWith("/");
+  });
+
   it("commits selections and advances the tutorial selection stage", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
     state.tutorialStage = "select";
@@ -215,5 +295,49 @@ describe("useGameKeyboard", () => {
     expect(toggleRepair).toHaveBeenCalledOnce();
     expect(saveMission).toHaveBeenCalledOnce();
     expect(onNavigateHome).not.toHaveBeenCalled();
+  });
+
+  it("uses Escape to cancel an open mission confirmation without dispatching another command", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const cancelConfirmation = vi.fn();
+    const resumeMission = vi.fn();
+    const saveMission = vi.fn();
+    renderHook(() => useGameKeyboard({
+      stateRef: { current: state },
+      pausedRef: { current: true },
+      pauseViewRef: { current: "main" },
+      activeTabRef: { current: "construction" },
+      place: { current: null },
+      repair: { current: false },
+      sell: { current: false },
+      openPauseMenu: vi.fn(),
+      resumeMission,
+      setPauseView: vi.fn(),
+      setPauseNotice: vi.fn(),
+      setActiveTab: vi.fn(),
+      activateCameo: vi.fn(),
+      jumpHome: vi.fn(),
+      centerSelection: vi.fn(),
+      toggleRepair: vi.fn(),
+      toggleSell: vi.fn(),
+      stopSelected: vi.fn(),
+      clearTools: vi.fn(),
+      saveMission,
+      loadMission: vi.fn(),
+      viewMissionBriefing: vi.fn(),
+      restartMission: vi.fn(),
+      toggleSound: vi.fn(),
+      toggleMusic: vi.fn(),
+      resultPrimary: vi.fn(),
+      onNavigateHome: vi.fn(),
+      confirmationOpen: true,
+      cancelConfirmation,
+    }));
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+
+    expect(cancelConfirmation).toHaveBeenCalledOnce();
+    expect(resumeMission).not.toHaveBeenCalled();
+    expect(saveMission).not.toHaveBeenCalled();
   });
 });

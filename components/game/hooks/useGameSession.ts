@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { setMusicEnabled as applyMusicEnabled } from "@/lib/audio/music";
 import { beep, setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
@@ -12,6 +12,15 @@ import { createTutorialMission } from "@/lib/sim/tutorial";
 import type { Command, SimState } from "@/lib/types";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { FxBurst } from "@/lib/render/fx";
+
+export type MissionConfirmationAction = "save" | "load" | "restart" | "menu";
+
+export type MissionConfirmation = {
+  action: MissionConfirmationAction;
+  title: string;
+  message: string;
+  confirmLabel: string;
+};
 
 export function initialMission(seed: number, mission: number, resume: boolean, tutorial: boolean): SimState {
   if (tutorial) return createTutorialMission(seed);
@@ -60,6 +69,7 @@ export function useGameSession({
   setSettings: Dispatch<SetStateAction<GameSettings>>;
 }) {
   const router = useRouter();
+  const [confirmation, setConfirmation] = useState<MissionConfirmation | null>(null);
 
   const openPauseMenu = useCallback(() => {
     pausedRef.current = true;
@@ -75,12 +85,12 @@ export function useGameSession({
     setPauseNotice("");
   }, [pausedRef, setPaused, setPauseNotice, setPauseView]);
 
-  const saveMission = useCallback(() => {
+  const saveMissionNow = useCallback(() => {
     const saved = writeSave(localStorageAdapter(), stateRef.current);
     setPauseNotice(saved ? "Mission saved." : "Unable to save: browser storage is unavailable.");
   }, [setPauseNotice, stateRef]);
 
-  const loadMission = useCallback(() => {
+  const loadMissionNow = useCallback(() => {
     const loaded = readSave(localStorageAdapter(), seed);
     if (!loaded) {
       setPauseNotice("No save found for this seed.");
@@ -99,7 +109,7 @@ export function useGameSession({
     router.push(`/briefing?seed=${formatSeed(stateRef.current.seed)}&mission=${stateRef.current.missionIndex}&return=game`);
   }, [router, stateRef]);
 
-  const restartMission = useCallback(() => {
+  const restartMissionNow = useCallback(() => {
     const world = stateRef.current;
     const fresh = createMission({ seed: world.seed, missionIndex: world.missionIndex });
     stateRef.current = fresh;
@@ -133,6 +143,48 @@ export function useGameSession({
     stateRef,
     terminalSaveRef,
   ]);
+
+  const requestConfirmation = useCallback((action: MissionConfirmationAction) => {
+    const copy: Record<MissionConfirmationAction, Omit<MissionConfirmation, "action">> = {
+      menu: {
+        title: "Leave mission?",
+        message: "Return to the main menu? Unsaved mission progress will be lost.",
+        confirmLabel: "Leave mission",
+      },
+      restart: {
+        title: "Restart mission?",
+        message: "Restart this mission from the beginning? Unsaved mission progress will be lost.",
+        confirmLabel: "Restart mission",
+      },
+      save: {
+        title: "Save mission?",
+        message: "Save the current mission state for this seed?",
+        confirmLabel: "Save mission",
+      },
+      load: {
+        title: "Load mission?",
+        message: "Load the last save for this seed? Current unsaved mission progress will be lost.",
+        confirmLabel: "Load mission",
+      },
+    };
+    setConfirmation({ action, ...copy[action] });
+  }, []);
+
+  const saveMission = useCallback(() => {
+    requestConfirmation("save");
+  }, [requestConfirmation]);
+
+  const loadMission = useCallback(() => {
+    if (!readSave(localStorageAdapter(), seed)) {
+      setPauseNotice("No save found for this seed.");
+      return;
+    }
+    requestConfirmation("load");
+  }, [requestConfirmation, seed, setPauseNotice]);
+
+  const restartMission = useCallback(() => {
+    requestConfirmation("restart");
+  }, [requestConfirmation]);
 
   const toggleSound = useCallback(() => {
     const next = { ...settings, sfxEnabled: !settings.sfxEnabled };
@@ -188,7 +240,21 @@ export function useGameSession({
     router.push("/");
   }, [router, stateRef]);
 
-  const goHome = useCallback(() => router.push("/"), [router]);
+  const goHomeNow = useCallback(() => router.push("/"), [router]);
+  const goHome = useCallback(() => {
+    requestConfirmation("menu");
+  }, [requestConfirmation]);
+  const confirmAction = useCallback(() => {
+    const action = confirmation?.action;
+    setConfirmation(null);
+    if (action === "save") saveMissionNow();
+    else if (action === "load") loadMissionNow();
+    else if (action === "restart") restartMissionNow();
+    else if (action === "menu") goHomeNow();
+  }, [confirmation, goHomeNow, loadMissionNow, restartMissionNow, saveMissionNow]);
+  const cancelConfirmation = useCallback(() => {
+    setConfirmation(null);
+  }, []);
   const goMenu = goHome;
   const goNextBriefing = useCallback(() => {
     const world = stateRef.current;
@@ -204,6 +270,9 @@ export function useGameSession({
 
   return {
     router,
+    confirmation,
+    confirmAction,
+    cancelConfirmation,
     openPauseMenu,
     resumeMission,
     saveMission,

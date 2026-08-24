@@ -126,7 +126,7 @@ test("keeps the tactical radar readable and usable across breakpoints", async ({
   const radar = page.getByTestId("command-sidebar").getByTestId("tactical-radar");
   await expect(radar).toBeVisible();
   await expect(radar).toHaveAttribute("aria-label", /click to focus.*drag to pan/i);
-  await expect(page.getByText("ALLY", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Tactical radar legend")).toHaveCount(0);
 
   const desktopStyles = await radar.evaluate((element) => {
     const frame = element.parentElement;
@@ -292,6 +292,19 @@ test("downloads a valid deterministic M4A when native AAC is supported", async (
   expect(file.toString("latin1")).toContain("mp4a");
 });
 
+test("cancels a soundtrack export without closing the panel", async ({ page }) => {
+  await openBriefingSkippingTutorial(page);
+  test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
+  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
+  await dialog.getByRole("button", { name: "Download M4A", exact: true }).click();
+  const cancel = dialog.getByRole("button", { name: "Cancel export", exact: true });
+  await expect(cancel).toBeVisible();
+  await cancel.click();
+  await expect(dialog).toContainText("Export cancelled");
+  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeVisible();
+});
+
 test("replays the incoming transmission from the start", async ({ page }) => {
   await openBriefingSkippingTutorial(page);
   await page.keyboard.press(" ");
@@ -366,6 +379,9 @@ test("loads the last save from the pause menu", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("pause-menu")).toBeVisible();
   await page.getByRole("button", { name: "Load Mission" }).click();
+  const confirmation = page.getByRole("dialog", { name: "Load mission?" });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole("button", { name: "Load mission" }).click();
   await expect(page.getByRole("status")).toContainText(/Loaded mission at tick 120/);
   await page.getByRole("button", { name: "Resume Mission" }).click();
   await expect(page.getByTestId("credits")).toHaveText("9,876");

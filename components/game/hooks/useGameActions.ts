@@ -11,10 +11,12 @@ export function useGameActions({
   stateRef,
   cmdQ,
   selected,
+  selectedIds,
 }: {
   stateRef: MutableRefObject<SimState>;
   cmdQ: MutableRefObject<Command[]>;
   selected: MutableRefObject<Set<number>>;
+  selectedIds: readonly number[];
 }) {
   const place = useRef<BuildingKind | null>(null);
   const [placeKind, setPlaceKind] = useState<BuildingKind | null>(null);
@@ -49,7 +51,7 @@ export function useGameActions({
   }, [clearTools]);
 
   const issueSelectedCommand = useCallback((command: "stop" | "stance" | "formation", value?: Stance | Formation) => {
-    const unitIds = [...selected.current];
+    const unitIds = [...(selectedIds.length > 0 ? selectedIds : selected.current)];
     if (unitIds.length === 0) return;
     if (command === "stop") cmdQ.current.push({ type: "stop", unitIds });
     else if (command === "stance" && value) cmdQ.current.push({ type: "stance", unitIds, stance: value as Stance });
@@ -57,7 +59,7 @@ export function useGameActions({
     mobileCommand.current = null;
     setMobileCommandState(null);
     beep("ack");
-  }, [cmdQ, selected]);
+  }, [cmdQ, selected, selectedIds]);
 
   const togglePlace = useCallback((kind: BuildingKind) => {
     const next = place.current === kind ? null : kind;

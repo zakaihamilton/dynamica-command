@@ -7,10 +7,12 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MobileCommandDock } from "../components/game/MobileCommandDock";
 import { MobileCommandSheet } from "../components/game/MobileCommandSheet";
+import { SelectionOrders } from "../components/game/SelectionOrders";
 import { CommandCatalogContent } from "../components/game/CommandCatalogContent";
 import { MenuOverlay } from "../components/menu/MenuOverlay";
 import { SeedEntry } from "../components/menu/SeedEntry";
 import { PauseMenu } from "../components/game/PauseMenu";
+import { MissionConfirmation } from "../components/game/MissionConfirmation";
 import { defaultSettings } from "../lib/persist/settings";
 import type { Palette } from "../lib/types";
 import { generateVisualProfile } from "../lib/gen/visualProfile";
@@ -145,6 +147,33 @@ describe("MobileCommandSheet", () => {
   });
 });
 
+describe("SelectionOrders", () => {
+  it("routes stop, stance, and formation actions to the selected units", async () => {
+    const user = userEvent.setup();
+    const onStop = vi.fn();
+    const onStance = vi.fn();
+    const onFormation = vi.fn();
+
+    render(
+      <SelectionOrders
+        stance="aggressive"
+        formation={undefined}
+        onStop={onStop}
+        onStance={onStance}
+        onFormation={onFormation}
+      />,
+    );
+
+    await user.click(screen.getByTestId("selected-action-stop"));
+    await user.click(screen.getByTestId("selected-action-stance-hold"));
+    await user.click(screen.getByTestId("selected-action-formation-wedge"));
+
+    expect(onStop).toHaveBeenCalledOnce();
+    expect(onStance).toHaveBeenCalledWith("hold");
+    expect(onFormation).toHaveBeenCalledWith("wedge");
+  });
+});
+
 describe("CommandCatalogContent", () => {
   it("routes each tab to one shared content surface", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
@@ -269,5 +298,30 @@ describe("PauseMenu", () => {
     rerender(<PauseMenu {...props} view="soundtrack" notice="" />);
     fireEvent.click(screen.getByRole("button", { name: "Close soundtrack" }));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+});
+
+describe("MissionConfirmation", () => {
+  it("shows the requested action and routes confirm/cancel", () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    render(
+      <MissionConfirmation
+        confirmation={{
+          action: "restart",
+          title: "Restart mission?",
+          message: "Restart this mission from the beginning?",
+          confirmLabel: "Restart mission",
+        }}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    );
+
+    expect(screen.getByRole("dialog", { name: "Restart mission?" })).toHaveTextContent("Restart this mission");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restart mission" }));
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onConfirm).toHaveBeenCalledOnce();
   });
 });

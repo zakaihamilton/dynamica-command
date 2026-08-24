@@ -8,16 +8,12 @@ export function MinimapFrame({
   onPointerMove,
   onPointerUp,
   isDragging,
-  friendlyColor,
-  hostileColor,
 }: {
   canvasRef: Ref<HTMLCanvasElement>;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onPointerUp: PointerEventHandler<HTMLCanvasElement>;
   isDragging: boolean;
-  friendlyColor: string;
-  hostileColor: string;
 }) {
   return (
     <div className={styles.host} data-tooltip="Tactical radar. Click or drag to pan. H jumps to the yard." data-shortcut={SHORTCUT.home}>
@@ -44,13 +40,6 @@ export function MinimapFrame({
       <p id="tactical-radar-help" className={styles.help}>
         Click to focus · drag to pan · H home
       </p>
-      <div className={styles.legend} aria-label="Tactical radar legend">
-        <span className={styles.legendItem}><span className={styles.swatch} style={{ backgroundColor: friendlyColor }} aria-hidden />ALLY</span>
-        <span className={styles.legendItem}><span className={styles.swatch} style={{ backgroundColor: hostileColor }} aria-hidden />HOSTILE</span>
-        <span className={styles.legendItem}><span className={`${styles.swatch} ${styles.selectedSwatch}`} aria-hidden />SELECTED</span>
-        <span className={styles.legendItem}><span className={`${styles.swatch} ${styles.objectiveSwatch}`} aria-hidden />OBJECTIVE</span>
-        <span className={styles.legendItem}><span className={`${styles.swatch} ${styles.viewSwatch}`} aria-hidden />VIEW</span>
-      </div>
     </div>
   );
 }
