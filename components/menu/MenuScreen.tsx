@@ -29,6 +29,7 @@ export function MenuScreen() {
           onNewGame={controller.openNewGame}
           onOptions={controller.openOptions}
           onResume={controller.resume}
+          onCampaignMap={controller.openCampaign}
           onDelete={controller.deleteSave}
           onResetUnreadable={controller.resetUnreadableSave}
         />
@@ -44,6 +45,7 @@ export function MenuScreen() {
         onChange={controller.setCode}
         onRandomize={controller.randomize}
         onLaunch={controller.launch}
+        onOperations={controller.openOperations}
         onToggleSound={controller.toggleSound}
         onToggleMusic={controller.toggleMusic}
         onVolumeChange={controller.updateVolume}

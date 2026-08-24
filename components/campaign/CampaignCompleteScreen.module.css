@@ -115,14 +115,40 @@
 }
 
 .mission {
+  display: grid;
+  gap: 0.25rem;
   padding: 0.55rem;
   border: 1px solid var(--chrome-inset);
   background: var(--chrome-steel-lo);
 }
 
+.missionButton {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.missionButton:hover {
+  border-color: color-mix(in srgb, var(--chrome-cyan) 72%, var(--chrome-inset));
+  background: color-mix(in srgb, var(--chrome-cyan) 10%, var(--chrome-steel-lo));
+}
+
+.missionButton:focus-visible {
+  outline: 2px solid var(--chrome-cyan);
+  outline-offset: 2px;
+}
+
 .mission.complete {
   border-color: color-mix(in srgb, var(--chrome-cyan) 60%, var(--chrome-inset));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 20%, transparent);
+}
+
+.mission.available {
+  border-color: color-mix(in srgb, var(--chrome-gold) 58%, var(--chrome-inset));
 }
 
 .mission.locked {
@@ -144,16 +170,38 @@
   letter-spacing: 0.05em;
 }
 
-.mission h3 {
-  margin: 0.3rem 0 0;
+.missionTitle {
+  margin-top: 0.15rem;
   color: var(--chrome-text);
   font-size: 0.85rem;
+  font-weight: 800;
 }
 
-.mission p {
-  margin: 0.35rem 0 0;
+.missionMeta,
+.missionObjective,
+.missionAction {
   color: var(--chrome-muted);
   font-size: 0.68rem;
+}
+
+.missionObjective {
+  min-height: 2.1em;
+  color: var(--chrome-body);
+  line-height: 1.35;
+}
+
+.missionRecord {
+  color: var(--chrome-muted);
+  font-size: 0.65rem;
+}
+
+.missionAction {
+  margin-top: 0.15rem;
+  color: var(--chrome-cyan);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .actions {

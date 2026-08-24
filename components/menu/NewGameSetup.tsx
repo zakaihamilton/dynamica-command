@@ -14,6 +14,7 @@ export function NewGameSetup({
   onChange,
   onRandomize,
   onLaunch,
+  onOperations,
   onBack,
 }: {
   code: string;
@@ -23,6 +24,7 @@ export function NewGameSetup({
   onChange: (value: string) => void;
   onRandomize: () => void;
   onLaunch: () => void;
+  onOperations?: () => void;
   onBack: () => void;
 }) {
   return (
@@ -50,6 +52,16 @@ export function NewGameSetup({
       >
         Launch
       </ConsoleButton>
+      {onOperations ? (
+        <ConsoleButton
+          muted
+          className={styles.operations}
+          tooltip="Open the operations map for this seed"
+          onClick={onOperations}
+        >
+          Operations map
+        </ConsoleButton>
+      ) : null}
       <ConsoleButton
         muted
         className={styles.back}

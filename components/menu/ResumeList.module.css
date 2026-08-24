@@ -54,7 +54,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 0.25rem;
   min-width: 0;
 }
@@ -72,6 +72,13 @@
   align-self: stretch;
   padding: 0.5rem;
   color: var(--chrome-alert);
+  font-size: 0.65rem;
+}
+
+.operations {
+  align-self: stretch;
+  padding: 0.5rem 0.65rem;
+  color: var(--chrome-cyan);
   font-size: 0.65rem;
 }
 
@@ -124,9 +131,10 @@
 
 @media (max-width: 420px) {
   .row {
-    grid-template-columns: minmax(0, 1fr) 5rem;
+    grid-template-columns: minmax(0, 1fr) 4rem 2.5rem;
   }
 
+  .operations,
   .delete {
     padding-inline: 0.35rem;
   }

@@ -10,6 +10,7 @@ import { MobileCommandSheet } from "../components/game/MobileCommandSheet";
 import { SelectionOrders } from "../components/game/SelectionOrders";
 import { CommandCatalogContent } from "../components/game/CommandCatalogContent";
 import { MenuOverlay } from "../components/menu/MenuOverlay";
+import { NewGameSetup } from "../components/menu/NewGameSetup";
 import { SeedEntry } from "../components/menu/SeedEntry";
 import { PauseMenu } from "../components/game/PauseMenu";
 import { MissionConfirmation } from "../components/game/MissionConfirmation";
@@ -252,6 +253,28 @@ describe("MenuOverlay", () => {
     expect(screen.getByRole("dialog", { name: "New campaign" })).toBeVisible();
     rerender(<MenuOverlay {...props} view="options" />);
     expect(screen.getByRole("dialog", { name: "Game options" })).toBeVisible();
+  });
+});
+
+describe("NewGameSetup", () => {
+  it("exposes the operations map action for the current seed", () => {
+    const onOperations = vi.fn();
+    render(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Theater"
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onLaunch={vi.fn()}
+        onOperations={onOperations}
+        onBack={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Operations map" }));
+    expect(onOperations).toHaveBeenCalledOnce();
   });
 });
 

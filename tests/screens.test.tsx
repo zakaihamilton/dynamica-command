@@ -86,4 +86,22 @@ describe("CampaignCompleteScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Return to menu" }));
     expect(router.push).toHaveBeenCalledWith("/");
   });
+
+  it("opens available operations and keeps later missions locked", () => {
+    const progress = freshCampaignProgress(421);
+    progress.tutorialComplete = true;
+    progress.unlockedMission = 1;
+    progress.completedMissions = [0];
+    writeCampaignProgress(localStorageAdapter(), progress);
+    render(<CampaignCompleteScreen seed={421} mode="operations" />);
+
+    expect(screen.getByRole("heading", { name: "Operations map" })).toBeVisible();
+    expect(screen.getByTestId("mission-card-0")).toHaveAccessibleName(/Replay mission 1/i);
+    expect(screen.getByTestId("mission-card-1")).toHaveAccessibleName(/Deploy mission 2/i);
+    expect(screen.queryByTestId("mission-card-2")).toBeNull();
+    expect(screen.getByLabelText("Mission 3 locked")).toBeVisible();
+
+    fireEvent.click(screen.getByTestId("mission-card-1"));
+    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=1");
+  });
 });

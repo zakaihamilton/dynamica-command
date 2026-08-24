@@ -13,6 +13,7 @@ export function MenuMainPanel({
   onNewGame,
   onOptions,
   onResume,
+  onCampaignMap,
   onDelete,
   onResetUnreadable,
 }: {
@@ -21,6 +22,7 @@ export function MenuMainPanel({
   onNewGame: () => void;
   onOptions: () => void;
   onResume: (seed: string) => void;
+  onCampaignMap: (seed: string) => void;
   onDelete: (seed: string) => void;
   onResetUnreadable: (seed: string) => void;
 }) {
@@ -35,7 +37,7 @@ export function MenuMainPanel({
         </ConsoleButton>
       </div>
 
-      <ResumeList saves={saves} onResume={onResume} onDelete={onDelete} />
+      <ResumeList saves={saves} onResume={onResume} onCampaignMap={onCampaignMap} onDelete={onDelete} />
       {unreadableSaves.length ? (
         <div className={styles.recovery} role="alert">
           <span>Unreadable save{unreadableSaves.length === 1 ? "" : "s"}: {unreadableSaves.join(", ")}</span>

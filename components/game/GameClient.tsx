@@ -274,6 +274,7 @@ export function GameClient({
         onExitTutorial={session.exitTutorial}
         onNextBriefing={session.goNextBriefing}
         onCampaignVictory={session.goCampaignVictory}
+        onCampaignMap={session.goCampaignMap}
         onRetry={session.goRetry}
         onMenu={session.goMenu}
         combatAlert={combatAlert}

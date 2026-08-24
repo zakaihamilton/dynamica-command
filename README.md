@@ -43,7 +43,7 @@ seed 0421
        └─ map (size, heightmap, resources, bases)
 ```
 
-Share a seed to share a universe. Resume from the menu lists every local save.
+Share a seed to share a universe. Resume from the menu lists every local save, and each saved campaign opens its **operations map**. From New Game, enter or roll a seed and choose Operations map to inspect the theater before deployment. Unlocked operations can be launched from their generated briefing; completed operations can be replayed for better medals and scores.
 
 ## Campaign
 
@@ -103,7 +103,7 @@ Next.js (App Router) + TypeScript + Canvas 2D. The browser is a renderer and inp
 The **battlefield draws sprites** (procedural specs and `public/art` rasters). CPU-projected 3D meshes (`draw3dModel`) are used for turret heads and the pause-menu assets/preview lab, not for units in play.
 
 ```text
-app/           menu, briefing, play, tutorial, campaign-complete
+app/           menu, briefing, play, tutorial, campaign, campaign-complete
 components/    HUD, canvas, talking heads
 lib/seed       4-digit seed → mulberry32 forks
 lib/gen        world, factions, maps, story, sprite specs

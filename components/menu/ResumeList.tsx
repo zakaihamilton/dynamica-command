@@ -13,10 +13,12 @@ type Save = ReturnType<typeof listSaves>[number];
 export function ResumeList({
   saves,
   onResume,
+  onCampaignMap,
   onDelete,
 }: {
   saves: Save[];
   onResume: (seed: string) => void;
+  onCampaignMap: (seed: string) => void;
   onDelete: (seed: string) => void;
 }) {
   const [pendingDelete, setPendingDelete] = useState<Save | null>(null);
@@ -39,6 +41,15 @@ export function ResumeList({
                   onClick={() => onResume(s.seed)}
                 >
                   {s.campaignName} · Mission {s.missionIndex + 1} · Duration {formatMissionDuration(s.tick)}
+                </ConsoleButton>
+                <ConsoleButton
+                  muted
+                  className={styles.operations}
+                  aria-label={`Open operations for ${s.campaignName} campaign`}
+                  tooltip={`Open operations for ${s.campaignName} campaign`}
+                  onClick={() => onCampaignMap(s.seed)}
+                >
+                  OPS
                 </ConsoleButton>
                 <ConsoleButton
                   muted

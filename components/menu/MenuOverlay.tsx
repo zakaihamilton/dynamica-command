@@ -17,6 +17,7 @@ export function MenuOverlay({
   onChange,
   onRandomize,
   onLaunch,
+  onOperations,
   onToggleSound,
   onToggleMusic,
   onVolumeChange,
@@ -31,6 +32,7 @@ export function MenuOverlay({
   onChange: (value: string) => void;
   onRandomize: () => void;
   onLaunch: () => void;
+  onOperations?: () => void;
   onToggleSound: () => void;
   onToggleMusic: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
@@ -49,6 +51,7 @@ export function MenuOverlay({
           onChange={onChange}
           onRandomize={onRandomize}
           onLaunch={onLaunch}
+          onOperations={onOperations}
           onBack={onBack}
         />
       ) : (

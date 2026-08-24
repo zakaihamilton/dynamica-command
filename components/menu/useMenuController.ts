@@ -55,6 +55,16 @@ export function useMenuController() {
 
   const openOptions = useCallback(() => setView("options"), []);
 
+  const openOperations = useCallback(() => {
+    const seed = parseSeed(code);
+    if (seed === null || code.length < 4) {
+      setError("Enter a 4-digit seed before opening the operations map.");
+      return;
+    }
+    setError("");
+    router.push(`/campaign?seed=${formatSeed(seed)}`);
+  }, [code, router]);
+
   const toggleSound = useCallback(() => {
     const next = { ...settings, sfxEnabled: !settings.sfxEnabled };
     setSettings(next);
@@ -140,6 +150,7 @@ export function useMenuController() {
       : "Four digits lock a theater — or roll a random war",
     openNewGame,
     openOptions,
+    openOperations,
     randomize,
     launch,
     toggleSound,
@@ -153,5 +164,6 @@ export function useMenuController() {
     },
     goBack: () => setView("main"),
     resume: (seed: string) => router.push(`/play?seed=${seed}&resume=1`),
+    openCampaign: (seed: string) => router.push(`/campaign?seed=${seed}`),
   };
 }

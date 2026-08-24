@@ -27,6 +27,7 @@ export function GamePlayField({
   onExitTutorial,
   onNextBriefing,
   onCampaignVictory,
+  onCampaignMap,
   onRetry,
   onMenu,
   combatAlert,
@@ -47,6 +48,7 @@ export function GamePlayField({
   onExitTutorial: () => void;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
+  onCampaignMap: () => void;
   onRetry: () => void;
   onMenu: () => void;
   combatAlert?: string | null;
@@ -87,6 +89,7 @@ export function GamePlayField({
         state={state}
         onNextBriefing={onNextBriefing}
         onCampaignVictory={onCampaignVictory}
+        onCampaignMap={onCampaignMap}
         onRetry={onRetry}
         onMenu={onMenu}
       />

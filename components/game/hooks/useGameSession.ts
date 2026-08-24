@@ -263,6 +263,9 @@ export function useGameSession({
   const goCampaignVictory = useCallback(() => {
     router.push(`/campaign-complete?seed=${formatSeed(stateRef.current.seed)}`);
   }, [router, stateRef]);
+  const goCampaignMap = useCallback(() => {
+    router.push(`/campaign?seed=${formatSeed(stateRef.current.seed)}`);
+  }, [router, stateRef]);
   const goRetry = useCallback(() => {
     const world = stateRef.current;
     router.push(`/briefing?seed=${formatSeed(world.seed)}&mission=${world.missionIndex}`);
@@ -289,6 +292,7 @@ export function useGameSession({
     goMenu,
     goNextBriefing,
     goCampaignVictory,
+    goCampaignMap,
     goRetry,
   };
 }

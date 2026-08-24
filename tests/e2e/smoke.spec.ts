@@ -101,6 +101,19 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
   await expect(page.getByTestId("credits")).toBeVisible();
 });
 
+test("opens the operations map and launches an available mission", async ({ page }) => {
+  await markTutorialComplete(page);
+  await page.goto("/campaign?seed=0421");
+
+  await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
+  await expect(page.getByTestId("mission-card-0")).toContainText("Available");
+  await expect(page.getByLabel("Mission 2 locked")).toBeVisible();
+  await expect(page.getByTestId("mission-card-1")).toHaveCount(0);
+
+  await page.getByTestId("mission-card-0").click();
+  await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
+});
+
 test("exposes Field Medic production after the support unlock mission", async ({ page }) => {
   const state = createMission({ seed: 421, missionIndex: 2 });
   const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
@@ -400,4 +413,5 @@ test("shows a mission result overlay from a finished save", async ({ page }) => 
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   await expect(page.getByRole("heading", { name: "Mission complete" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Next briefing" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Campaign map" })).toBeVisible();
 });

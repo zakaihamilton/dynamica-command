@@ -7,6 +7,7 @@ export function MissionResultActions({
   state,
   onNextBriefing,
   onCampaignVictory,
+  onCampaignMap,
   onRetry,
   onMenu,
   onSoundtrack,
@@ -14,6 +15,7 @@ export function MissionResultActions({
   state: SimState;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
+  onCampaignMap: () => void;
   onRetry: () => void;
   onMenu: () => void;
   onSoundtrack: () => void;
@@ -35,6 +37,9 @@ export function MissionResultActions({
           Retry
         </ConsoleButton>
       ) : null}
+      <ConsoleButton muted tooltip="Open the campaign operations map" onClick={onCampaignMap}>
+        Campaign map
+      </ConsoleButton>
       <ConsoleButton tooltip="Render and download the mission soundtrack as an M4A" onClick={onSoundtrack}>
         Soundtrack
       </ConsoleButton>

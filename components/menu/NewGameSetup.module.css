@@ -36,6 +36,13 @@
   color: var(--chrome-text);
 }
 
+.operations {
+  margin-top: 0.5rem;
+  width: 100%;
+  text-align: left;
+  color: var(--chrome-cyan);
+}
+
 .hint {
   margin: 1rem 0 0;
   font-size: 10px;

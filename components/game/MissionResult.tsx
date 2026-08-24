@@ -15,12 +15,14 @@ export function MissionResult({
   state,
   onNextBriefing,
   onCampaignVictory,
+  onCampaignMap,
   onRetry,
   onMenu,
 }: {
   state: SimState;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
+  onCampaignMap: () => void;
   onRetry: () => void;
   onMenu: () => void;
 }) {
@@ -47,6 +49,7 @@ export function MissionResult({
           state={state}
           onNextBriefing={onNextBriefing}
           onCampaignVictory={onCampaignVictory}
+          onCampaignMap={onCampaignMap}
           onRetry={onRetry}
           onMenu={onMenu}
           onSoundtrack={() => setSoundtrackOpen(true)}
