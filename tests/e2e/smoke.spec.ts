@@ -116,8 +116,8 @@ test("opens the operations map and launches an available mission", async ({ page
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
 });
 
-test("exposes Field Medic production after the support unlock mission", async ({ page }) => {
-  const state = createMission({ seed: 421, missionIndex: 2 });
+test("exposes Field Medic production on the first mission", async ({ page }) => {
+  const state = createMission({ seed: 421, missionIndex: 0 });
   const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
   expect(yard).toBeDefined();
   spawnBuilding(state, 0, "barracks", (yard?.x ?? 8) + 4, yard?.y ?? 8);

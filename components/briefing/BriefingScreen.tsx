@@ -16,6 +16,7 @@ import { BriefingStory } from "./BriefingStory";
 import styles from "./BriefingScreen.module.css";
 import { useCampaignProgress } from "../campaign/useCampaignProgress";
 import { useBriefingController } from "./useBriefingController";
+import { useBriefingSpeech } from "./useBriefingSpeech";
 import { useBriefingTypewriter } from "./useBriefingTypewriter";
 
 export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: number; mission: number; returnToGame?: boolean }) {
@@ -24,6 +25,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   const def = campaign.missions[mission];
   const lines: BriefingLine[] = useMemo(() => def?.briefing ?? [], [def]);
   const typewriter = useBriefingTypewriter(lines);
+  useBriefingSpeech(lines, typewriter.activeLineIndex, typewriter.playId);
   const controller = useBriefingController({
     seed,
     mission,

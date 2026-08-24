@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { BriefingLine } from "@/lib/types";
-import { briefingRevealedLines } from "./briefingWrap";
+import { briefingActiveLineIndex, briefingRevealedLines } from "./briefingWrap";
 
 const CHAR_MS = 40;
 const CHAR_BATCH = 2;
@@ -84,13 +84,16 @@ export function useBriefingTypewriter(lines: BriefingLine[], onComplete?: () => 
   const visibleLines = revealedLines.filter((line) => line.started);
   const isComplete = displayShown >= totalChars;
   const isTalking = displayShown > 0 && !isComplete;
+  const activeLineIndex = isTalking ? briefingActiveLineIndex(lines, displayShown) : -1;
 
   return {
     shown: displayShown,
+    playId,
     totalChars,
     storyRef,
     visibleLines,
     revealedLines,
+    activeLineIndex,
     isTalking,
     isComplete,
     replayTransmission,

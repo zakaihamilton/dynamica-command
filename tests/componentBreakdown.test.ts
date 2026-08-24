@@ -237,7 +237,7 @@ describe("production and overlay helpers", () => {
     const second = addBuilding(state, 0, "barracks", 5, 2);
     first.producing = { kind: "infantry", remaining: 8 };
     expect(leastLoadedProducer(state, 0, "infantry")?.id).toBe(second.id);
-    expect(leastLoadedProducer(state, 0, "medic")).toBeUndefined();
+    expect(leastLoadedProducer(state, 0, "medic")?.id).toBe(second.id);
   });
 
   it("derives play-field copy and overlay chrome from sim state", () => {

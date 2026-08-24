@@ -90,17 +90,13 @@ describe("support units", () => {
     expect(medic.supportTargetId).toBe(infantry.id);
   });
 
-  it("unlocks production on mission 2 while preserving the mission gate", () => {
+  it("allows support production from the first mission", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
     const barracks = addBuilding(state, 0, "barracks", 2, 2);
     addBuilding(state, 0, "power", 5, 2);
 
-    expect(isUnitAvailable("medic", 1)).toBe(false);
-    expect(issue(state, { type: "produce", fromId: barracks.id, unit: "medic" })).toEqual([
-      { type: "commandRejected", reason: "unit unavailable" },
-    ]);
-
-    state.missionIndex = 2;
+    expect(isUnitAvailable("medic", 0)).toBe(true);
+    expect(isUnitAvailable("repairTruck", 0)).toBe(true);
     expect(issue(state, { type: "produce", fromId: barracks.id, unit: "medic" })).toEqual([]);
     expect(barracks.producing).toEqual({ kind: "medic", remaining: UNIT_STATS.medic.buildTicks });
   });

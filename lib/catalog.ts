@@ -3,7 +3,6 @@ import type { ArmorType, BuildingKind, SupportRole, UnitDomain, UnitKind, Weapon
 export const TICKS_PER_SECOND = 12;
 export const MAX_PRODUCTION_QUEUE = 10;
 export const STARTING_CREDITS = { player: 2000, enemy: 2000 } as const;
-export const SUPPORT_UNLOCK_MISSION = 2;
 
 export function productionQueueSize(entity: {
   producing?: { kind: UnitKind; remaining: number };
@@ -237,7 +236,7 @@ export function isSupportUnit(kind: UnitKind): boolean {
 }
 
 export function isUnitAvailable(kind: UnitKind, missionIndex: number): boolean {
-  return !isSupportUnit(kind) || missionIndex >= SUPPORT_UNLOCK_MISSION;
+  return !isSupportUnit(kind) || missionIndex >= 0;
 }
 
 export function supportTargetDomain(kind: UnitKind): UnitDomain | undefined {

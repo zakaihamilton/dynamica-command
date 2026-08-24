@@ -4,6 +4,19 @@ export function briefingLineStarts(lines: readonly { text: string }[]): number[]
   return starts;
 }
 
+/** Index of the line currently being revealed, or -1 when the transmission is idle/complete. */
+export function briefingActiveLineIndex(lines: readonly { text: string }[], shown: number): number {
+  if (shown <= 0) return -1;
+
+  const starts = briefingLineStarts(lines);
+  for (let index = 0; index < lines.length; index += 1) {
+    const start = starts[index]!;
+    const end = starts[index + 1]!;
+    if (shown > start && shown <= end) return index;
+  }
+  return -1;
+}
+
 export function briefingRevealedLines<T extends { text: string }>(
   lines: readonly T[],
   shown: number,

@@ -1,5 +1,4 @@
 import type { Campaign, CampaignProgress } from "@/lib/types";
-import { SUPPORT_UNLOCK_MISSION } from "@/lib/catalog";
 
 export function campaignSummary(campaign: Campaign, progress: CampaignProgress) {
   const completed = progress.completedMissions.length;
@@ -20,7 +19,6 @@ export function missionMedalDisplay(medals: number) {
 export function missionUnlocks(missionIndex: number, missionCount: number): string[] {
   const unlocks: string[] = [];
   if (missionIndex < missionCount - 1) unlocks.push(`Mission ${missionIndex + 2} access`);
-  if (missionIndex === SUPPORT_UNLOCK_MISSION - 1) unlocks.push("Field Medic + Repair Truck production");
   if (unlocks.length === 0) unlocks.push("Campaign victory record");
   return unlocks;
 }
