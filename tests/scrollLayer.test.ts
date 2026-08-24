@@ -7,7 +7,7 @@ import {
   scrollLayerPaintCamera,
   terrainScrollPad,
 } from "../lib/render/scrollLayer";
-import { TILE_W } from "../lib/render/iso";
+import { TILE_W } from "../lib/iso";
 
 describe("scroll layer cache", () => {
   it("rebuilds when the content key changes", () => {

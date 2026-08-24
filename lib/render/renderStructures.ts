@@ -1,5 +1,5 @@
 import { footprintOf } from "../catalog";
-import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
+import { TILE_H, TILE_W, tileToScreen, type Camera } from "../iso";
 import { groundHeight, heightAt } from "../sim/world";
 import { lerpAngle } from "./gl/glMath";
 import type { BuildingAnim } from "./anim";

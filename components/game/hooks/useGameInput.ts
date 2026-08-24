@@ -2,7 +2,7 @@ import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "r
 import { beep } from "@/lib/audio/synth";
 import { pickTile } from "@/lib/render/renderer";
 import { cameraPanBounds, panCamera, panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
-import { type Camera } from "@/lib/render/iso";
+import { type Camera } from "@/lib/iso";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import {

@@ -3,7 +3,7 @@ import { addUnit, makeFixture, setTile } from "../lib/sim/fixtures";
 import { minimapRegionForCell, terrainColors } from "../lib/render/minimap";
 import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../lib/types";
 import { generateMap } from "../lib/gen/map";
-import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../lib/render/iso";
+import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../lib/iso";
 import {
   ATLAS_CELL,
   atlasPixelAtTile,

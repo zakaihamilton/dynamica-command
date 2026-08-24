@@ -1,7 +1,7 @@
 import type { Entity, SimState } from "../types";
 import { fogAt } from "../sim/fog";
 import { groundHeight } from "../sim/world";
-import { TILE_H, tileToScreen, type Camera } from "./iso";
+import { TILE_H, tileToScreen, type Camera } from "../iso";
 import { pickTile, visibleBuildingAt } from "./renderer";
 
 function fogVisible(state: SimState, e: Entity): boolean {

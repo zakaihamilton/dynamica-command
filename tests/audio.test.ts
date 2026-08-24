@@ -11,7 +11,7 @@ import { exportMissionSoundtrack, missionSoundtrackFilename, supportsM4aExport }
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../lib/audio/music";
 import { beep, isSfxEnabled, playSfx, setSfxEnabled } from "../lib/audio/synth";
 import { spatialAudioForWorld } from "../lib/audio/spatial";
-import { createCamera } from "../lib/render/iso";
+import { createCamera } from "../lib/iso";
 
 describe("generated audio", () => {
   afterEach(() => {

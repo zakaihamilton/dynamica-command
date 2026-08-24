@@ -1,6 +1,6 @@
 import { fogAt } from "../sim/fog";
 import type { BuildingKind, Entity, SimState } from "../types";
-import { TILE_H, TILE_W, type Camera, tileToScreen } from "./iso";
+import { TILE_H, TILE_W, type Camera, tileToScreen } from "../iso";
 import {
   CONCRETE_STEEL,
   CONCRETE_STEEL_DARK,

@@ -25,7 +25,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Pr
 | `yarn test:e2e` | Playwright browser smoke test (run `yarn playwright install chromium` once) |
 | `yarn inspect 0421` | Dump generated campaign JSON |
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
-| `yarn balance --from 0 --to 9 --check true` | Run the competent commander through the full mission horizon and enforce balance thresholds |
+| `yarn balance --from 0 --to 9 --check true` | Run the competent commander through the full mission horizon and enforce balance thresholds. Nightly CI samples seed `0000`. |
 | `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
 
 ## How a seed works
@@ -108,7 +108,8 @@ components/    HUD, canvas, talking heads
 lib/seed       4-digit seed → mulberry32 forks
 lib/gen        world, factions, maps, story, sprite specs
 lib/sim        tick, pathfinding, economy, combat, support, repair, AI, objectives
-lib/render     isometric camera, sprites, minimap, CPU 3D turret/preview
+lib/iso        tile ↔ screen projection (DOM-free; used by render and audio)
+lib/render     sprites, minimap, camera pan, CPU 3D turret/preview
 lib/audio      generated SFX + seeded background music (Web Audio)
 lib/persist    save/load + audio settings (localStorage or in-memory)
 scripts/       inspect + headless sim

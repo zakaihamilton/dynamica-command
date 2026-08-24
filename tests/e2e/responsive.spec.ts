@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { cameraPanBounds, clampCamera } from "../../lib/render/camera";
-import { tileToScreen } from "../../lib/render/iso";
+import { tileToScreen } from "../../lib/iso";
 import { createMission } from "../../lib/sim/api";
 import { heightAt } from "../../lib/sim/world";
 import type { Entity, SimState } from "../../lib/types";

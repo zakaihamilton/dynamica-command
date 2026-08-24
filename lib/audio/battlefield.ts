@@ -1,4 +1,4 @@
-import type { Camera } from "../render/iso";
+import type { Camera } from "../iso";
 import type { SimEvent } from "../types";
 import { spatialAudioForWorld } from "./spatial";
 import { playSfx } from "./synth";
