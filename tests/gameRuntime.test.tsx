@@ -99,13 +99,13 @@ describe("useGameRenderer", () => {
       result.current.renderer.redraw(1_000, 0.25);
     });
     expect(renderGameFrame).toHaveBeenCalledOnce();
-    expect(renderGameFrame.mock.calls[0]?.[0]).toMatchObject({
+    expect(renderGameFrame).toHaveBeenCalledWith(expect.objectContaining({
       state,
       canvas,
       host,
       nowMs: 1_000,
       subTickAlpha: 0.25,
-    });
+    }));
   });
 });
 
