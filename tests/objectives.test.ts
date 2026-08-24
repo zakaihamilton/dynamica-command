@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { TICKS_PER_SECOND } from "../lib/catalog";
-import { tick } from "../lib/sim/api";
+import { CONVOY_STAGING_TICKS, createMission, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { formatHoldClock, inspect, objectiveProgress } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
-import { generateWinCategory } from "../lib/gen/objectives";
+import { generateWinCategory, missionDurationMinutesFor, secondaryObjectivesForMissionSeed } from "../lib/gen/objectives";
+import { minutesToTicks } from "../lib/gen/pacing";
 import { missionObjectives } from "../lib/gen/story";
 
 describe("win categories", () => {
@@ -139,6 +140,19 @@ describe("mission briefing objectives", () => {
       }
       if (mission.win.kind === "forceQuota" && mission.win.role) {
         expect(objectives[0]!.text.toLowerCase()).toContain(mission.win.role === "antiArmor" ? "anti-armor" : mission.win.role);
+      }
+    }
+  });
+
+  it("keeps the operations preview aligned with runtime goals and deadlines", () => {
+    const campaign = createCampaign(421);
+    for (const mission of campaign.missions) {
+      const state = createMission({ seed: 421, missionIndex: mission.index });
+      expect(secondaryObjectivesForMissionSeed(421, mission).map(({ id, kind, label, target }) => ({ id, kind, label, target })))
+        .toEqual(state.runtime?.secondary.map(({ id, kind, label, target }) => ({ id, kind, label, target })));
+      if (mission.win.ticks !== undefined) {
+        const staging = mission.win.kind === "escort" ? CONVOY_STAGING_TICKS : 0;
+        expect(mission.win.ticks + staging).toBe(minutesToTicks(missionDurationMinutesFor(421, mission.index, mission.win.kind)));
       }
     }
   });

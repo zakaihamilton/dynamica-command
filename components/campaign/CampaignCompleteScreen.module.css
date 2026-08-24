@@ -142,6 +142,11 @@
   outline-offset: 2px;
 }
 
+.mission.selected {
+  border-color: var(--chrome-cyan);
+  box-shadow: inset 0 0 0 1px var(--chrome-cyan), 0 0 1rem color-mix(in srgb, var(--chrome-cyan) 16%, transparent);
+}
+
 .mission.complete {
   border-color: color-mix(in srgb, var(--chrome-cyan) 60%, var(--chrome-inset));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 20%, transparent);
@@ -204,6 +209,87 @@
   text-transform: uppercase;
 }
 
+.detail {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-inset));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--chrome-cyan) 8%, var(--chrome-steel)), color-mix(in srgb, var(--chrome-steel-lo) 92%, transparent));
+}
+
+.detailHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.detailTitle {
+  margin: 0.25rem 0 0;
+  color: var(--chrome-text);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detailStatus {
+  color: var(--chrome-cyan);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.detailBlock {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.6rem;
+  border: 1px solid var(--chrome-inset);
+  background: color-mix(in srgb, var(--chrome-steel-lo) 78%, transparent);
+}
+
+.detailBlock > span {
+  color: var(--chrome-muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.detailBlock strong,
+.detailBlock li {
+  color: var(--chrome-body);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.detailBlock ul {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.detailActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.lockedMessage {
+  color: var(--chrome-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -231,6 +317,10 @@
   }
 
   .missions {
+    grid-template-columns: 1fr;
+  }
+
+  .detailGrid {
     grid-template-columns: 1fr;
   }
 

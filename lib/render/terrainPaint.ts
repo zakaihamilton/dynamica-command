@@ -4,7 +4,7 @@ import { generateCampaignVisualProfile } from "../gen/visualProfile";
 import type { SimState } from "../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, SURFACE_CONCRETE } from "../types";
 import { fogAt } from "../sim/fog";
-import { HEIGHT_STEP, TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, screenToTile, tileToScreen, type Camera } from "./iso";
+import { HEIGHT_STEP, TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, screenToTile, tileToScreen, type Camera } from "../iso";
 import {
   atlasRectForTile,
   biomeMaterials,

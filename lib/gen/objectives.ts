@@ -1,10 +1,65 @@
 import { NEW_MISSION_KINDS, WIN_KIND_ORDER } from "../catalog";
-import { createRng } from "../seed/rng";
-import type { BuildingKind, MissionKind, UnitKind, WinCategory } from "../types";
-import { minutesToTicks, missionDurationMinutes } from "./pacing";
+import { createRng, type Rng } from "../seed/rng";
+import type { BuildingKind, MissionDef, MissionKind, SecondaryObjective, UnitKind, WinCategory } from "../types";
+import { CONVOY_STAGING_MINUTES, minutesToTicks, missionDurationMinutes } from "./pacing";
 
 const BUILDABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
 const COMBAT_ROLES: UnitKind[] = ["infantry", "antiArmor", "tank"];
+const SCENARIO_KINDS: MissionKind[] = ["escort", "sabotage", "rescue", "extraction"];
+
+function baseMissionDurationMinutes(seed: number, missionIndex: number, kind: MissionKind): number {
+  const rng = createRng(seed, `win:${missionIndex}:${kind}`);
+  return missionDurationMinutes(missionIndex, rng.fork("duration"));
+}
+
+/** Returns the expected operation window in minutes, including escort staging. */
+export function missionDurationMinutesFor(
+  seed: number,
+  missionIndex: number,
+  kind: MissionKind,
+): number {
+  const minutes = baseMissionDurationMinutes(seed, missionIndex, kind);
+  if (kind === "escort") return Math.max(6, minutes - 1) + CONVOY_STAGING_MINUTES;
+  if (kind === "rescue") return Math.max(6, minutes - 1);
+  if (kind === "sabotage" || kind === "extraction") return Math.max(5, minutes - 1);
+  return minutes;
+}
+
+export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, rng: Rng): SecondaryObjective[] {
+  const yard: SecondaryObjective = {
+    id: "yard",
+    kind: "preserveYard",
+    label: "Keep the construction yard standing",
+  };
+  if (SCENARIO_KINDS.includes(mission.win.kind)) {
+    return [
+      yard,
+      {
+        id: "time",
+        kind: "completeBefore",
+        label: "Complete the operation before the deadline",
+        target: mission.win.ticks ?? 3600,
+      },
+    ];
+  }
+
+  const secondary: SecondaryObjective = rng.chance(0.5)
+    ? { id: "survivors", kind: "keepUnits", label: "Keep at least one combat unit alive", target: 1 }
+    : { id: "tempo", kind: "completeBefore", label: "Complete the operation before the final push", target: (mission.win.ticks ?? 3600) + 1 };
+  return [yard, secondary];
+}
+
+/** Generates the same secondary objectives used when the mission runtime is created. */
+export function secondaryObjectivesForMissionSeed(
+  seed: number,
+  mission: Pick<MissionDef, "index" | "win">,
+): SecondaryObjective[] {
+  const rng = createRng(seed, `mission-spawn:${mission.index}`);
+  if (mission.win.kind === "destroyMarked") {
+    for (let i = 0; i < (mission.win.targetCount ?? 1); i++) rng.next();
+  }
+  return secondaryObjectivesForMission(mission, rng);
+}
 
 export function generateWinCategory(
   seed: number,
@@ -12,7 +67,7 @@ export function generateWinCategory(
   kind: MissionKind,
 ): WinCategory {
   const rng = createRng(seed, `win:${missionIndex}:${kind}`);
-  const minutes = missionDurationMinutes(missionIndex, rng.fork("duration"));
+  const minutes = baseMissionDurationMinutes(seed, missionIndex, kind);
   switch (kind) {
     case "harvestQuota":
       return {

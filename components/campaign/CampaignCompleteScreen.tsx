@@ -1,17 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
-import { objectiveHeadline } from "@/lib/gen/story";
+import { missionDurationMinutesFor, secondaryObjectivesForMissionSeed } from "@/lib/gen/objectives";
+import { missionObjectives, objectiveHeadline } from "@/lib/gen/story";
 import { biomeLabel } from "@/lib/gen/names";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
 import styles from "./CampaignCompleteScreen.module.css";
-import { campaignSummary, missionMedalDisplay } from "./campaignSummary";
+import { campaignSummary, missionMedalDisplay, missionUnlocks } from "./campaignSummary";
 import { useCampaignProgress } from "./useCampaignProgress";
 
 export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number; mode?: "record" | "operations" }) {
@@ -20,13 +21,29 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
   const progress = useCampaignProgress(seed);
   const summary = campaignSummary(campaign, progress);
   const operations = mode === "operations";
+  const [selectedMissionIndex, setSelectedMissionIndex] = useState(() => Math.min(progress.unlockedMission, campaign.missions.length - 1));
 
-  const openMission = (missionIndex: number) => {
+  const launchMission = (missionIndex: number) => {
     const path = missionIndex === 0 && !progress.tutorialComplete
       ? `/tutorial?seed=${formatSeed(seed)}`
       : `/briefing?seed=${formatSeed(seed)}&mission=${missionIndex}`;
     router.push(path);
   };
+  const selectedMission = campaign.missions[selectedMissionIndex];
+  const selectedMissionComplete = selectedMission
+    ? progress.completedMissions.includes(selectedMission.index)
+    : false;
+  const selectedMissionAvailable = selectedMission
+    ? selectedMission.index <= progress.unlockedMission
+    : false;
+  const selectedObjectives = selectedMission ? missionObjectives(selectedMission, campaign) : [];
+  const selectedSecondaryObjectives = selectedMission ? secondaryObjectivesForMissionSeed(seed, selectedMission) : [];
+  const selectedUnlocks = selectedMission ? missionUnlocks(selectedMission.index, campaign.missions.length) : [];
+  const selectedLaunchLabel = selectedMissionComplete
+    ? `Replay mission ${selectedMissionIndex + 1}`
+    : selectedMissionIndex === 0 && !progress.tutorialComplete
+      ? "Begin training"
+      : `Deploy mission ${selectedMissionIndex + 1}`;
 
   return (
     <main
@@ -77,30 +94,72 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
                   </>
                 );
 
-                if (available) {
-                  return (
-                    <button
-                      key={mission.index}
-                      type="button"
-                      className={`${styles.mission} ${styles.missionButton} ${missionComplete ? styles.complete : styles.available}`}
-                      aria-label={`${action} mission ${index + 1}: ${mission.name}`}
-                      data-testid={`mission-card-${mission.index}`}
-                      data-tooltip={`${action} mission ${index + 1}`}
-                      onClick={() => openMission(mission.index)}
-                    >
-                      {card}
-                    </button>
-                  );
-                }
-
                 return (
-                  <article key={mission.index} className={`${styles.mission} ${styles.locked}`} aria-label={`Mission ${index + 1} locked`}>
+                  <button
+                    key={mission.index}
+                    type="button"
+                    className={`${styles.mission} ${styles.missionButton} ${missionComplete ? styles.complete : available ? styles.available : styles.locked} ${selectedMissionIndex === mission.index ? styles.selected : ""}`}
+                    aria-label={`${action} mission ${index + 1}: ${mission.name}`}
+                    aria-pressed={selectedMissionIndex === mission.index}
+                    data-testid={`mission-card-${mission.index}`}
+                    data-tooltip={`${action} mission ${index + 1}`}
+                    onClick={() => setSelectedMissionIndex(mission.index)}
+                  >
                     {card}
-                  </article>
+                  </button>
                 );
               })}
             </div>
           </section>
+
+          {selectedMission ? (
+            <section className={styles.detail} aria-labelledby="mission-detail-title" data-testid="mission-detail">
+              <div className={styles.detailHeader}>
+                <div>
+                  <ConsoleLabel>Mission detail</ConsoleLabel>
+                  <h2 id="mission-detail-title" className={styles.detailTitle}>Mission {selectedMission.index + 1}{" // "}{selectedMission.name}</h2>
+                </div>
+                <span className={styles.detailStatus}>{selectedMissionComplete ? "Completed" : selectedMissionAvailable ? "Available" : "Locked"}</span>
+              </div>
+
+              <div className={styles.detailGrid}>
+                <div className={styles.detailBlock}>
+                  <span>Primary objective</span>
+                  <strong>{selectedObjectives[0]?.text}</strong>
+                </div>
+                <div className={styles.detailBlock}>
+                  <span>Secondary objectives</span>
+                  <ul>
+                    {selectedSecondaryObjectives.map((objective) => <li key={objective.id}>{objective.label}</li>)}
+                  </ul>
+                </div>
+                <div className={styles.detailBlock}>
+                  <span>Expected duration</span>
+                  <strong>~{Math.max(1, Math.round(missionDurationMinutesFor(seed, selectedMission.index, selectedMission.win.kind)))} min</strong>
+                </div>
+                <div className={styles.detailBlock}>
+                  <span>Theater</span>
+                  <strong>{biomeLabel(selectedMission.biome)} · {selectedMission.mapSize}×{selectedMission.mapSize}</strong>
+                </div>
+                <div className={styles.detailBlock}>
+                  <span>Unlocks after completion</span>
+                  <ul>
+                    {selectedUnlocks.map((unlock) => <li key={unlock}>{unlock}</li>)}
+                  </ul>
+                </div>
+              </div>
+
+              <div className={styles.detailActions}>
+                {selectedMissionAvailable ? (
+                  <ConsoleButton onClick={() => launchMission(selectedMission.index)} data-testid="launch-selected-mission" tooltip={`${selectedLaunchLabel} from the mission detail panel`}>
+                    {selectedLaunchLabel}
+                  </ConsoleButton>
+                ) : (
+                  <span className={styles.lockedMessage}>Complete mission {selectedMission.index} to unlock this operation.</span>
+                )}
+              </div>
+            </section>
+          ) : null}
 
           <div className={styles.actions}>
             {!operations ? (

@@ -8,12 +8,14 @@ import type {
   SimState,
   Vec2,
 } from "../types";
+import { secondaryObjectivesForMission } from "../gen/objectives";
 import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
+import { CONVOY_STAGING_MINUTES, minutesToTicks } from "../gen/pacing";
 import { PATH_DIRS, diagonalCornerBlocked } from "./pathfinding";
 import { tryFindPath } from "./pathBudget";
 import { canClimb, inBounds, isStaticWalkable, isWalkable, spawnBuildingAt, spawnUnit } from "./world";
 
-export const CONVOY_STAGING_TICKS = 180 * 12;
+export const CONVOY_STAGING_TICKS = minutesToTicks(CONVOY_STAGING_MINUTES);
 
 /** Adds scenario targets and common runtime metadata to a freshly spawned mission. */
 export function configureMissionScenario(
@@ -85,29 +87,20 @@ export function configureMissionScenario(
       deadline: state.tick + (mission.win.ticks ?? 3600) + (kind === "escort" ? CONVOY_STAGING_TICKS : 0),
       rescued: 0,
       required: count,
-      secondary: [
-        { id: "yard", kind: "preserveYard", label: "Keep the construction yard standing" },
-        { id: "time", kind: "completeBefore", label: "Complete the operation before the deadline", target: mission.win.ticks ?? 3600 },
-      ],
+      secondary: secondaryObjectivesForMission(mission, rng),
     };
     state.runtime = runtime;
     state.win.targetIds = targetIds;
   }
 
   if (!state.runtime) {
-    const secondary = rng.chance(0.5)
-      ? { id: "survivors", kind: "keepUnits" as const, label: "Keep at least one combat unit alive", target: 1 }
-      : { id: "tempo", kind: "completeBefore" as const, label: "Complete the operation before the final push", target: (mission.win.ticks ?? 3600) + 1 };
     state.runtime = {
       kind: mission.win.kind,
       phase: "active",
       targetIds: state.win.targetIds ?? mission.win.targetIds ?? [],
       rescued: 0,
       required: mission.win.targetCount ?? 1,
-      secondary: [
-        { id: "yard", kind: "preserveYard", label: "Keep the construction yard standing" },
-        secondary,
-      ],
+      secondary: secondaryObjectivesForMission(mission, rng),
     };
   }
 }

@@ -1,14 +1,13 @@
 import type { PointerEventHandler, Ref } from "react";
 import type { PanAvailability, PanDir } from "@/lib/render/camera";
-import { TICKS_PER_SECOND } from "@/lib/catalog";
 import { tutorialPrompt } from "@/lib/sim/tutorial";
-import { formatHoldClock, objectiveProgress, secondaryProgress } from "@/lib/sim/objectives";
 import type { Campaign, SimState } from "@/lib/types";
 import { Battlefield } from "./Battlefield";
 import { CombatAlert } from "./CombatAlert";
 import { MissionResult } from "./MissionResult";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "./hooks/useGameCamera";
+import { playFieldStatus } from "./playFieldStatus";
 
 export function GamePlayField({
   hostRef,
@@ -53,14 +52,7 @@ export function GamePlayField({
   onMenu: () => void;
   combatAlert?: string | null;
 }) {
-  const objective = objectiveProgress(state);
-  const secondary = secondaryProgress(state).map((item) => `${item.completed ? "✓" : "○"} ${item.label}`);
-  const deadline = objective.deadlineTicks === undefined
-    ? undefined
-    : `Window ${formatHoldClock(Math.ceil(objective.deadlineTicks / TICKS_PER_SECOND))}`;
-  const stagingWindow = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined
-    ? `Staging ${formatHoldClock(Math.ceil(Math.max(0, state.runtime.convoyStartTick - state.tick) / TICKS_PER_SECOND))}`
-    : undefined;
+  const status = playFieldStatus(state);
   return (
     <Battlefield
       hostRef={hostRef}
@@ -73,10 +65,10 @@ export function GamePlayField({
       levelNumber={state.missionIndex + 1}
       levelCount={campaign.missions.length}
       missionName={state.missionName}
-      objective={objective.label}
-      deadline={deadline}
-      stagingWindow={stagingWindow}
-      secondary={secondary}
+      objective={status.objective}
+      deadline={status.deadline}
+      stagingWindow={status.stagingWindow}
+      secondary={status.secondary}
       biome={state.biome}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

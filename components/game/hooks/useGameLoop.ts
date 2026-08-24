@@ -7,9 +7,10 @@ import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/
 import { localStorageAdapter, writeSave } from "@/lib/persist/save";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
-import type { Camera } from "@/lib/render/iso";
+import type { Camera } from "@/lib/iso";
 import { missionMedals, missionScore } from "@/lib/sim/debrief";
 import type { Command, SimState } from "@/lib/types";
+import { alertSfx, desiredMusicIntensity, firstAlert } from "./gameLoopEffects";
 
 const CAMPAIGN_SAVE_RETRY_MS = 1_000;
 
@@ -97,11 +98,13 @@ export function useGameLoop({
           setState({ ...next, entities: [...next.entities] });
         }
         if (events.some((event) => event.type === "combat")) lastCombatTick = next.tick;
-        const phase = next.runtime?.director?.phase;
-        const alert = events.find((event) => event.type === "alert");
-        let desiredIntensity: MusicIntensity = phase === "finale" ? "critical" : phase === "pressure" ? "engaged" : "calm";
-        if (next.tick - lastCombatTick <= 48) desiredIntensity = desiredIntensity === "critical" ? desiredIntensity : "engaged";
-        if (alert?.type === "alert" && alert.kind === "warning") desiredIntensity = "critical";
+        const alert = firstAlert(events);
+        const desiredIntensity = desiredMusicIntensity(
+          next.runtime?.director?.phase,
+          next.tick,
+          lastCombatTick,
+          alert?.kind === "warning",
+        );
         if (desiredIntensity !== appliedIntensity) {
           appliedIntensity = desiredIntensity;
           setMusicIntensity(desiredIntensity);
@@ -121,8 +124,8 @@ export function useGameLoop({
           setMusicCue("defeat", next.seed, next.missionIndex);
         }
         if (events.some((e) => e.type === "commandRejected")) playSfx("uiError");
-        if (alert && alert.type === "alert") {
-          playSfx(alert.kind === "warning" ? "warning" : alert.kind === "objective" ? "objective" : "contact", { force: true });
+        if (alert) {
+          playSfx(alertSfx(alert.kind), { force: true });
           onAlert(alert.text);
         }
         if (events.some((e) => e.type === "destroyed")) {

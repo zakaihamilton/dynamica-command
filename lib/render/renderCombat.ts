@@ -2,7 +2,7 @@ import { UNIT_STATS, footprintOf } from "../catalog";
 import { rubbleSprite, wreckSprite } from "../gen/assets";
 import { animClock, facingVector } from "./anim";
 import { fxProgress, isBuildingKind, isUnitKind, type FxBurst } from "./fx";
-import { TILE_H, tileToScreen, type Camera } from "./iso";
+import { TILE_H, tileToScreen, type Camera } from "../iso";
 import { drawSprite, rasterize } from "./sprites";
 import { entityElev } from "./renderPicking";
 import { turretAimMap } from "./renderStructures";

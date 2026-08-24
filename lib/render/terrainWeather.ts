@@ -2,7 +2,7 @@ import { featureEdgeMask, sceneryAt } from "../gen/map";
 import type { BiomeName, SimState } from "../types";
 import { TILE_RESOURCE, TILE_WATER } from "../types";
 import { fogAt } from "../sim/fog";
-import { TILE_H, TILE_W, expandIsoDiamond, tileToScreen, type Camera } from "./iso";
+import { TILE_H, TILE_W, expandIsoDiamond, tileToScreen, type Camera } from "../iso";
 import { fogTerrainGain, oreCrystalCluster, biomeMaterials } from "./terrainAtlas";
 import { visibleTileRange, WATER_COVER } from "./terrainPaint";
 

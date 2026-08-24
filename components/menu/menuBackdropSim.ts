@@ -11,7 +11,7 @@ import { generateFactions } from "@/lib/gen/factions";
 import { generateMap } from "@/lib/gen/map";
 import { generateWorld } from "@/lib/gen/world";
 import { generateCampaignVisualProfile, generateVisualProfile } from "@/lib/gen/visualProfile";
-import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/render/iso";
+import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/iso";
 import { rasterize } from "@/lib/render/sprites";
 import { CINEMA_SCROLL_PAD, scrollLayerBlitOffset, scrollLayerPaintCamera } from "@/lib/render/scrollLayer";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";

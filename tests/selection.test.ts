@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TILE_H, createCamera, tileToScreen } from "../lib/render/iso";
+import { TILE_H, createCamera, tileToScreen } from "../lib/iso";
 import { finalizeMultiSelect, pickEntity } from "../lib/render/pick";
 import { pickTile } from "../lib/render/renderer";
 import { issue, tick } from "../lib/sim/api";

@@ -107,10 +107,12 @@ test("opens the operations map and launches an available mission", async ({ page
 
   await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
   await expect(page.getByTestId("mission-card-0")).toContainText("Available");
-  await expect(page.getByLabel("Mission 2 locked")).toBeVisible();
-  await expect(page.getByTestId("mission-card-1")).toHaveCount(0);
+  await expect(page.getByTestId("mission-card-2")).toContainText("Locked");
 
   await page.getByTestId("mission-card-0").click();
+  await expect(page.getByTestId("mission-detail")).toContainText("Secondary objectives");
+  await expect(page.getByTestId("mission-detail")).toContainText("Expected duration");
+  await page.getByTestId("launch-selected-mission").click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
 });
 

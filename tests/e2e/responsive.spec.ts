@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "../../components/game/hooks/useGameCamera";
 import { cameraPanBounds, clampCamera } from "../../lib/render/camera";
-import { tileToScreen } from "../../lib/render/iso";
+import { TILE_H, tileToScreen } from "../../lib/iso";
 import { createMission } from "../../lib/sim/api";
 import { heightAt } from "../../lib/sim/world";
 import type { Entity, SimState } from "../../lib/types";
@@ -25,6 +26,19 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   return dimensions;
 }
 
+async function waitForBattlefield(page: import("@playwright/test").Page) {
+  const canvas = page.getByTestId("battlefield-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(async () => canvas.evaluate((element, mins) => {
+    const canvasEl = element as HTMLCanvasElement;
+    const host = canvasEl.parentElement;
+    if (!host) return false;
+    const width = Math.max(mins.width, Math.floor(host.clientWidth));
+    const height = Math.max(mins.height, Math.floor(host.clientHeight));
+    return canvasEl.width === width && canvasEl.height === height;
+  }, { width: MIN_RENDER_WIDTH, height: MIN_RENDER_HEIGHT })).toBe(true);
+}
+
 async function pageCamera(page: import("@playwright/test").Page, state: SimState) {
   const canvas = page.getByTestId("battlefield-canvas");
   const dimensions = await canvas.evaluate((element) => ({
@@ -46,24 +60,32 @@ async function pageCamera(page: import("@playwright/test").Page, state: SimState
   return { dimensions, bounds, camera };
 }
 
-async function pointForTile(page: import("@playwright/test").Page, x: number, y: number) {
-  const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
-  const { dimensions, bounds, camera } = await pageCamera(page, state);
-  const point = tileToScreen(x, y, camera, heightAt(state, x, y));
+function canvasCssPoint(
+  point: { x: number; y: number },
+  bounds: { x: number; y: number; width: number; height: number },
+  dimensions: { width: number; height: number },
+) {
   return {
     x: bounds.x + point.x * (bounds.width / dimensions.width),
     y: bounds.y + point.y * (bounds.height / dimensions.height),
   };
 }
 
+async function pointForTile(page: import("@playwright/test").Page, x: number, y: number) {
+  const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
+  const { dimensions, bounds, camera } = await pageCamera(page, state);
+  return canvasCssPoint(tileToScreen(x, y, camera, heightAt(state, x, y)), bounds, dimensions);
+}
+
 async function pointForEntity(page: import("@playwright/test").Page, entity: Entity) {
   const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
   const { dimensions, bounds, camera } = await pageCamera(page, state);
   const point = tileToScreen(entity.x, entity.y, camera, heightAt(state, Math.round(entity.x), Math.round(entity.y)));
-  return {
-    x: bounds.x + point.x * (bounds.width / dimensions.width),
-    y: bounds.y + point.y * (bounds.height / dimensions.height),
-  };
+  const zoom = camera.zoom;
+  return canvasCssPoint({
+    x: point.x,
+    y: point.y + (TILE_H / 2) * zoom - 12 * zoom,
+  }, bounds, dimensions);
 }
 
 async function marqueeForEntities(page: import("@playwright/test").Page, entities: Entity[]) {
@@ -238,6 +260,7 @@ test.describe("mobile-first layouts", () => {
   test("does not expose unit movement for a selected base", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/play?seed=0421&mission=0");
+    await waitForBattlefield(page);
 
     const yard = await pointForTile(page, 8, 7);
     await dispatchTouch(page, "pointerdown", yard);
@@ -248,6 +271,7 @@ test.describe("mobile-first layouts", () => {
   test("supports touch selection, marquee selection, panning, commands, and long press", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/play?seed=${String(TEST_SEED).padStart(4, "0")}&mission=0`);
+    await waitForBattlefield(page);
 
     const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
     const units = playerUnits(state);
