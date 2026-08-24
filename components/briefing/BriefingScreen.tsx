@@ -25,7 +25,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   const def = campaign.missions[mission];
   const lines: BriefingLine[] = useMemo(() => def?.briefing ?? [], [def]);
   const typewriter = useBriefingTypewriter(lines);
-  useBriefingSpeech(lines, typewriter.activeLineIndex, typewriter.playId);
+  const cancelSpeech = useBriefingSpeech(lines, typewriter.activeLineIndex, typewriter.playId);
   const controller = useBriefingController({
     seed,
     mission,
@@ -33,6 +33,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     isComplete: typewriter.isComplete,
     replayTransmission: typewriter.replayTransmission,
     skipToEnd: typewriter.skipToEnd,
+    cancelSpeech,
   });
   const objectives = useMemo(
     () => (def ? missionObjectives(def, campaign) : []),

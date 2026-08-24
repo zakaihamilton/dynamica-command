@@ -4,6 +4,7 @@ import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BriefingLine } from "../lib/types";
 import { useBriefingSpeech } from "../components/briefing/useBriefingSpeech";
+import { defaultSettings } from "../lib/persist/settings";
 
 class FakeUtterance {
   lang = "";
@@ -46,6 +47,7 @@ describe("briefing speech", () => {
     const first = speak.mock.calls[0]![0] as FakeUtterance;
     expect(first.text).toBe(lines[0]!.text);
     expect(first.pitch).toBeGreaterThan(1);
+    expect(first.volume).toBeCloseTo(0.86 * defaultSettings().sfxVolume);
 
     rerender({ activeLineIndex: 1, playId: 0 });
     expect(speak).toHaveBeenCalledTimes(2);
@@ -56,5 +58,25 @@ describe("briefing speech", () => {
 
     rerender({ activeLineIndex: -1, playId: 1 });
     expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it("does not speak when sound effects are disabled", () => {
+    const speak = vi.fn();
+    const speech = {
+      getVoices: vi.fn(() => []),
+      speak,
+      cancel: vi.fn(),
+    } as unknown as SpeechSynthesis;
+    vi.stubGlobal("speechSynthesis", speech);
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
+    vi.stubGlobal("localStorage", {
+      getItem: () => JSON.stringify({
+        version: 2,
+        settings: { ...defaultSettings(), sfxEnabled: false },
+      }),
+    });
+
+    renderHook(() => useBriefingSpeech([{ speaker: "commander", text: "Hold." }], 0, 0));
+    expect(speak).not.toHaveBeenCalled();
   });
 });
