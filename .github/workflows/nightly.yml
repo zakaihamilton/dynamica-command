@@ -8,7 +8,7 @@ on:
 jobs:
   health:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,3 +21,4 @@ jobs:
         continue-on-error: true
       - run: yarn health:performance
       - run: yarn health:duplication
+      - run: yarn balance --from 0 --to 0 --check true --progress false

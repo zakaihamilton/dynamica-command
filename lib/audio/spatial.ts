@@ -1,4 +1,4 @@
-import { tileToScreen, type Camera } from "../render/iso";
+import { tileToScreen, type Camera } from "../iso";
 
 export type SpatialAudio = {
   audible: boolean;

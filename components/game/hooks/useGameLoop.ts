@@ -7,7 +7,7 @@ import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/
 import { localStorageAdapter, writeSave } from "@/lib/persist/save";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
-import type { Camera } from "@/lib/render/iso";
+import type { Camera } from "@/lib/iso";
 import { missionMedals, missionScore } from "@/lib/sim/debrief";
 import type { Command, SimState } from "@/lib/types";
 

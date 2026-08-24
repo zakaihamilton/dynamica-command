@@ -9,7 +9,7 @@ import {
   selectionPulse,
   unitAnim,
 } from "./anim";
-import { TILE_H, TILE_W, tileToScreen, type Camera } from "./iso";
+import { TILE_H, TILE_W, tileToScreen, type Camera } from "../iso";
 import {
   emptyScrollLayer,
   scrollLayerBlitOffset,

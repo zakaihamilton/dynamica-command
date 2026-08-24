@@ -9,7 +9,7 @@ import {
   type PanAvailability,
   type PanDir,
 } from "@/lib/render/camera";
-import { createCamera, tileToScreen, TILE_H, type Camera } from "@/lib/render/iso";
+import { createCamera, tileToScreen, TILE_H, type Camera } from "@/lib/iso";
 import { heightAt } from "@/lib/sim/world";
 import type { SimState } from "@/lib/types";
 

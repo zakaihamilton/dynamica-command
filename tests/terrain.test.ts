@@ -7,7 +7,7 @@ import { makeFixture } from "../lib/sim/fixtures";
 import { BUILDING_STATS, footprintOf } from "../lib/catalog";
 import type { BuildingKind } from "../lib/types";
 import { TILE_BLOCKED, TILE_WATER } from "../lib/types";
-import { cameraViewQuad, createCamera, TILE_H, tileToScreen } from "../lib/render/iso";
+import { cameraViewQuad, createCamera, TILE_H, tileToScreen } from "../lib/iso";
 import {
   cameraPanBounds,
   canPan,

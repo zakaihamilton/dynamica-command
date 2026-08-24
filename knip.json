@@ -4,6 +4,7 @@
     "app/**/*.{ts,tsx}",
     "scripts/*.ts",
     "tests/**/*.test.ts",
+    "tests/**/*.test.tsx",
     "tests/e2e/**/*.spec.ts"
   ],
   "project": [

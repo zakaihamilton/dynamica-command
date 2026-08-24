@@ -16,10 +16,12 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       // Keep the gate global for deterministic domain/UI modules. Canvas painting,
-      // Web Audio, generated art tables, and Next route wrappers stay under E2E or
-      // browser smoke coverage rather than distorting the unit-test signal.
+      // Web Audio, and generated art tables stay under E2E or browser smoke
+      // coverage rather than distorting the unit-test signal.
       include: [
+        "app/api/assets/**/*.ts",
         "lib/catalog.ts",
+        "lib/iso.ts",
         "lib/gen/campaign.ts",
         "lib/gen/objectives.ts",
         "lib/gen/story.ts",
@@ -45,6 +47,7 @@ export default defineConfig({
         "components/game/hooks/gameInputOrders.ts",
         "components/game/hooks/useCombatAlert.ts",
         "components/game/hooks/useGameActions.ts",
+        "components/game/hooks/useGameRenderer.ts",
         "components/game/hooks/useGameAudioLifecycle.ts",
         "components/game/hooks/useGameKeyboard.ts",
         "components/game/hooks/useGameSelection.ts",

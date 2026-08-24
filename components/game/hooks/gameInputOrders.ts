@@ -1,6 +1,6 @@
 import { finalizeMultiSelect, pickEntity } from "@/lib/render/pick";
 import { pickTile, visibleBuildingAt } from "@/lib/render/renderer";
-import { screenToTile, tileToScreen, type Camera } from "@/lib/render/iso";
+import { screenToTile, tileToScreen, type Camera } from "@/lib/iso";
 import { groundOrders } from "@/lib/sim/orders";
 import { canSupportEntity } from "@/lib/sim/support";
 import { heightAt } from "@/lib/sim/world";

@@ -1,4 +1,4 @@
-import { cameraViewQuad, type Camera } from "@/lib/render/iso";
+import { cameraViewQuad, type Camera } from "@/lib/iso";
 import { renderMinimap } from "@/lib/render/minimap";
 import { renderWorld, type RenderExtras } from "@/lib/render/renderer";
 import { drawPerfHud, isPerfHudEnabled } from "@/lib/render/perfHud";

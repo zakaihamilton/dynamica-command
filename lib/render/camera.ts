@@ -1,6 +1,5 @@
 import { MAP_SKIRT } from "../gen/map";
-import { HEIGHT_STEP, TILE_H, TILE_W, type Camera } from "./iso";
-import { cameraViewQuad, screenToGroundTile } from "./iso";
+import { HEIGHT_STEP, TILE_H, TILE_W, cameraViewQuad, screenToGroundTile, type Camera } from "../iso";
 
 export const PAN_STEP = 10;
 export const MINIMAP_DRAG_THRESHOLD = 6;
