@@ -71,8 +71,6 @@ type MusicGraph = {
   padLfo: OscillatorNode;
   padLfoGain: GainNode;
   padGate: GainNode;
-  leadVibrato: OscillatorNode;
-  leadVibratoGain: GainNode;
   padBase: number;
   index: PatternIndex;
 };
@@ -256,8 +254,6 @@ function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicP
   const padLfo = audio.createOscillator();
   const padLfoGain = audio.createGain();
   const padGate = audio.createGain();
-  const leadVibrato = audio.createOscillator();
-  const leadVibratoGain = audio.createGain();
   padFilter.type = "lowpass";
   padFilter.frequency.setValueAtTime(Math.min(p.cutoff, 1100), now);
   padFilter.Q.setValueAtTime(0.85, now);
@@ -278,9 +274,6 @@ function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicP
   padLfo.type = "sine";
   padLfo.frequency.setValueAtTime(0.52, now);
   padLfoGain.gain.setValueAtTime(160, now);
-  leadVibrato.type = "sine";
-  leadVibrato.frequency.setValueAtTime(5.6, now);
-  leadVibratoGain.gain.setValueAtTime(0, now);
   padOscA.connect(padFilter);
   padOscB.connect(padFilter);
   padOscC.connect(padFilter);
@@ -290,13 +283,11 @@ function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicP
   padGate.connect(harmonyBus);
   padLfo.connect(padLfoGain);
   padLfoGain.connect(padFilter.frequency);
-  leadVibrato.connect(leadVibratoGain);
   padOscA.start(now);
   padOscB.start(now);
   padOscC.start(now);
   padOscD.start(now);
   padLfo.start(now);
-  leadVibrato.start(now);
 
   return {
     master,
@@ -325,15 +316,13 @@ function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicP
     padLfo,
     padLfoGain,
     padGate,
-    leadVibrato,
-    leadVibratoGain,
     padBase: PAD_GAIN,
     index: indexPattern(p),
   };
 }
 
 function disconnectGraph(g: MusicGraph): void {
-  for (const oscillator of [g.padOscA, g.padOscB, g.padOscC, g.padOscD, g.padLfo, g.leadVibrato]) {
+  for (const oscillator of [g.padOscA, g.padOscB, g.padOscC, g.padOscD, g.padLfo]) {
     try {
       oscillator.stop();
     } catch {
@@ -342,7 +331,7 @@ function disconnectGraph(g: MusicGraph): void {
     oscillator.disconnect();
   }
   for (const node of [
-    g.padFilter, g.padGain, g.padGate, g.padLfoGain, g.leadVibratoGain, g.delay, g.delayFeedback, g.delayWet,
+    g.padFilter, g.padGain, g.padGate, g.padLfoGain, g.delay, g.delayFeedback, g.delayWet,
     g.reverb, g.reverbSend, g.reverbWet, g.bassBus, g.rhythmBus, g.harmonyBus,
     g.pulseBus, g.leadBus, g.counterBus, g.fxBus, g.highpass, g.saturation,
     g.compressor, g.master,

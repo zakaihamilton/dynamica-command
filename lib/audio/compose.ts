@@ -3,7 +3,7 @@ import { createRng, type Rng } from "../seed/rng";
 export type MusicCue = "menu" | "briefing" | "mission" | "victory" | "defeat";
 export type MusicIntensity = "calm" | "engaged" | "critical";
 export type MusicVoiceType = "triangle" | "sawtooth" | "square" | "sine";
-export type MusicGroove = "march" | "pulse" | "break" | "stalk";
+export type MusicGroove = "march" | "pulse";
 export type MusicSectionName =
   | "intro"
   | "groove"
@@ -27,13 +27,25 @@ const DORIAN = [0, 2, 3, 5, 7, 9, 10];
 const MIXOLYDIAN = [0, 2, 4, 5, 7, 9, 10];
 const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 
-const PROGRESSIONS: readonly number[][] = [
+const MINOR_PROGRESSIONS: readonly number[][] = [
   [0, 5, 2, 6, 0, 5, 3, 4],
   [0, 6, 5, 6, 0, 5, 2, 6],
   [0, 3, 5, 4, 2, 6, 0, 4],
   [0, 5, 3, 4, 0, 6, 5, 4],
+];
+
+const MAJOR_PROGRESSIONS: readonly number[][] = [
   [0, 4, 5, 3, 0, 4, 5, 4],
-  [0, 3, 4, 5, 2, 4, 0, 6],
+  [0, 3, 5, 4, 0, 5, 3, 4],
+  [0, 5, 3, 4, 5, 3, 0, 4],
+  [0, 4, 3, 5, 0, 4, 5, 3],
+];
+
+const MIXOLYDIAN_PROGRESSIONS: readonly number[][] = [
+  [0, 6, 3, 0, 0, 6, 3, 4],
+  [0, 3, 6, 3, 0, 4, 6, 3],
+  [0, 4, 6, 3, 0, 3, 6, 4],
+  [0, 6, 5, 3, 0, 6, 3, 4],
 ];
 
 type BassHit = { tone: number; oct: number } | null;
@@ -238,21 +250,17 @@ function grooveFor(cue: MusicCue, rng: Rng): MusicGroove {
   return rng.pick(["pulse", "march"]);
 }
 
+function progressionsFor(scaleName: string): readonly number[][] {
+  if (scaleName === "major") return MAJOR_PROGRESSIONS;
+  if (scaleName === "mixolydian") return MIXOLYDIAN_PROGRESSIONS;
+  return MINOR_PROGRESSIONS;
+}
+
 function grooveHits(groove: MusicGroove, variation: 0 | 1): { kick: number[]; snare: number[] } {
   if (groove === "pulse") {
     return variation === 0
       ? { kick: [0, 4, 8, 12], snare: [4, 12] }
       : { kick: [0, 4, 8, 10, 12], snare: [4, 12] };
-  }
-  if (groove === "break") {
-    return variation === 0
-      ? { kick: [0, 6, 10], snare: [4, 12, 14] }
-      : { kick: [0, 3, 8, 10], snare: [4, 12, 15] };
-  }
-  if (groove === "stalk") {
-    return variation === 0
-      ? { kick: [0], snare: [12] }
-      : { kick: [0, 6], snare: [10, 14] };
   }
   return variation === 0
     ? { kick: [0, 8], snare: [4, 12] }
@@ -401,8 +409,9 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   const scalePick = scaleFor(cue, rng);
   const rootMidi = cue === "defeat" ? rng.intRange(33, 40) : rng.intRange(36, 46);
   const groove = grooveFor(cue, rng);
-  const progressionA = rng.pick(PROGRESSIONS);
-  const progressionB = pickDifferent(rng, PROGRESSIONS, progressionA);
+  const progressions = progressionsFor(scalePick.name);
+  const progressionA = rng.pick(progressions);
+  const progressionB = pickDifferent(rng, progressions, progressionA);
   const bassRiffA = rng.pick(BASS_RIFFS);
   const bassRiffB = pickDifferent(rng, BASS_RIFFS, bassRiffA);
   const motif = motifFrom(rng, VERSE_CONTOURS, VERSE_RHYTHMS);
@@ -447,7 +456,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       section.name === "turnaround" ||
       (breakdown && phraseBar >= 6);
     const phraseSlot = phraseBar % 4;
-    const restBar = !hookSection && !climax && phraseSlot === 3 && section.name !== "escalation";
+    const response = phraseSlot === 1 || phraseSlot === 2;
+    const restBar = !hookSection && phraseSlot === 3 && section.name !== "escalation";
     const useHookLead =
       hookSection ||
       (intro && phraseBar >= 6) ||
@@ -518,7 +528,6 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
           : section.name === "escalation" && !useHookLead
             ? 1
             : 0;
-      const response = phraseSlot === 1 || phraseSlot === 2;
       const velocity = climax ? 0.96 : hookSection ? 0.86 : 0.74;
       const durationFor = (index: number, sounding: number) => {
         if (useHookLead) return index === sounding - 1 ? 4 : 6;
@@ -542,7 +551,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
 
     if (useCounter && useMelody) {
       const lead = useHookLead ? hook : motif;
-      const degrees = phraseSlot === 1 ? lead.response : lead.degrees;
+      const degrees = response ? lead.response : lead.degrees;
       for (let i = 0; i < degrees.length; i++) {
         const degree = degrees[i];
         if (degree === null) continue;
@@ -567,9 +576,9 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         drumEvent(drums, origin + step, "snare", (accent ? 0.9 : 0.62) * drumGain, accent);
         if (!breakdown) drumEvent(drums, origin + step, "clap", (accent ? 0.76 : 0.48) * drumGain, accent);
       }
-      const hatStride = climax ? 1 : intro || breakdown ? 2 : 1;
+      const hatStride = climax ? 1 : 2;
       for (let step = 0; step < STEPS_PER_BAR; step += hatStride) {
-        const offbeat = step % 2 === 1;
+        const offbeat = climax ? step % 2 === 1 : step % 4 === 2;
         drumEvent(drums, origin + step, "hat", (offbeat ? 0.28 : 0.2) * drumGain);
       }
       if (!breakdown) {

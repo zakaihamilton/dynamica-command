@@ -151,6 +151,25 @@ describe("generated audio", () => {
     expect(pattern.arpType).toBe("square");
     expect(new Set(pattern.padThird).size).toBeGreaterThan(2);
     expect(new Set(pattern.padSeventh).size).toBeGreaterThan(2);
+
+    const sectionHats = (name: string) => {
+      const section = pattern.sections.find((entry) => entry.name === name);
+      if (!section) return [];
+      return pattern.drums.filter(
+        (event) =>
+          event.kind === "hat" &&
+          event.step >= section.startBar * STEPS_PER_BAR &&
+          event.step < section.endBar * STEPS_PER_BAR,
+      );
+    };
+    expect(sectionHats("climax").length).toBeGreaterThan(sectionHats("hook").length);
+    expect(sectionHats("hook").length).toBeLessThanOrEqual(8 * 8);
+
+    for (const seed of [0, 1, 421, 9999, 2048, 777]) {
+      const major = composeMusic(seed, "mission", 0);
+      if (major.scaleName !== "major") continue;
+      expect(major.theme.progressionA.slice(0, 4)).not.toEqual([0, 5, 2, 6]);
+    }
   });
 
   it("maps routes onto music cues", () => {
