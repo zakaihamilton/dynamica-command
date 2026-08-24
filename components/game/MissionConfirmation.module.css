@@ -1,0 +1,41 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(3px);
+}
+
+.dialog {
+  width: min(100%, 28rem);
+  padding: 1.5rem;
+}
+
+.copy {
+  margin: 0.75rem 0 0;
+  color: var(--chrome-body);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 420px) {
+  .dialog {
+    padding: 1rem;
+  }
+
+  .actions > * {
+    flex: 1 1 8rem;
+  }
+}

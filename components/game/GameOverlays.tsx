@@ -7,6 +7,7 @@ import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
 import { GameMobileSurface } from "./GameMobileSurface";
 import { GamePauseSurface } from "./GamePauseSurface";
 import { GameSidebarSurface } from "./GameSidebarSurface";
+import { MissionConfirmation } from "./MissionConfirmation";
 import type { GameActions } from "./hooks/useGameActions";
 import type { GameCamera } from "./hooks/useGameCamera";
 import type { GameSession } from "./hooks/useGameSession";
@@ -129,6 +130,14 @@ export function GameOverlays({
           setView={setPauseView}
           setNotice={setPauseNotice}
           session={session}
+        />
+      ) : null}
+
+      {session.confirmation ? (
+        <MissionConfirmation
+          confirmation={session.confirmation}
+          onConfirm={session.confirmAction}
+          onCancel={session.cancelConfirmation}
         />
       ) : null}
     </>

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   composeMusic,
   midiToHz,
@@ -7,7 +7,7 @@ import {
   STEPS_PER_BAR,
   TUTORIAL_MUSIC_MISSION,
 } from "../lib/audio/compose";
-import { missionSoundtrackFilename, supportsM4aExport } from "../lib/audio/export";
+import { exportMissionSoundtrack, missionSoundtrackFilename, supportsM4aExport } from "../lib/audio/export";
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../lib/audio/music";
 import { beep, isSfxEnabled, playSfx, setSfxEnabled } from "../lib/audio/synth";
 import { spatialAudioForWorld } from "../lib/audio/spatial";
@@ -17,6 +17,8 @@ describe("generated audio", () => {
   afterEach(() => {
     setSfxEnabled(true);
     setMusicEnabled(true);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("composes the same pattern for the same seed, cue, and mission", () => {
@@ -186,5 +188,26 @@ describe("generated audio", () => {
   it("creates deterministic mission filenames and reports unsupported headless export", async () => {
     expect(missionSoundtrackFilename(421, 3)).toBe("genesis-protocol-0421-mission-04.m4a");
     expect(await supportsM4aExport()).toBe(false);
+  });
+
+  it("does not require optional offline suspend controls for export availability", async () => {
+    const isConfigSupported = vi.fn().mockResolvedValue({ supported: true });
+    class OfflineAudioContextStub {}
+    vi.stubGlobal("window", {
+      AudioEncoder: { isConfigSupported },
+      AudioData: class AudioDataStub {},
+      OfflineAudioContext: OfflineAudioContextStub,
+    });
+
+    await expect(supportsM4aExport()).resolves.toBe(true);
+    expect(isConfigSupported).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a cancelled soundtrack export before starting browser work", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(exportMissionSoundtrack(421, 3, undefined, { signal: controller.signal }))
+      .rejects.toMatchObject({ name: "AbortError" });
   });
 });

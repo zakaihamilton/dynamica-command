@@ -31,6 +31,8 @@ export function useGameKeyboard({
   toggleMusic,
   resultPrimary,
   onNavigateHome,
+  confirmationOpen = false,
+  cancelConfirmation = () => {},
 }: {
   stateRef: MutableRefObject<SimState>;
   pausedRef: MutableRefObject<boolean>;
@@ -59,12 +61,21 @@ export function useGameKeyboard({
   toggleMusic: () => void;
   resultPrimary: () => void;
   onNavigateHome: () => void;
+  confirmationOpen?: boolean;
+  cancelConfirmation?: () => void;
 }) {
   const keys = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       keys.current[e.key] = true;
+      if (confirmationOpen) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          cancelConfirmation();
+        }
+        return;
+      }
       if (
         !isEditableTarget(e.target) &&
         !pausedRef.current &&
@@ -128,7 +139,9 @@ export function useGameKeyboard({
   }, [
     activateCameo,
     activeTabRef,
+    cancelConfirmation,
     centerSelection,
+    confirmationOpen,
     clearTools,
     jumpHome,
     loadMission,

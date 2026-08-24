@@ -45,6 +45,21 @@ export function startLoop({
   let raf = 0;
   let stopped = false;
 
+  // Browsers can pause or throttle animation frames while a window is not
+  // focused. Do not let the resulting timestamp gap turn into simulation
+  // catch-up when the player returns to the game.
+  const resetClock = () => {
+    acc = 0;
+    last = performance.now();
+  };
+  const addWindowListener = typeof window !== "undefined";
+  const addDocumentListener = typeof document !== "undefined";
+  if (addWindowListener) {
+    window.addEventListener("blur", resetClock);
+    window.addEventListener("focus", resetClock);
+  }
+  if (addDocumentListener) document.addEventListener("visibilitychange", resetClock);
+
   const frame = (now: number) => {
     if (stopped) return;
     const paused = isPaused?.() ?? false;
@@ -78,6 +93,11 @@ export function startLoop({
     stop() {
       stopped = true;
       cancelAnimationFrame(raf);
+      if (addWindowListener) {
+        window.removeEventListener("blur", resetClock);
+        window.removeEventListener("focus", resetClock);
+      }
+      if (addDocumentListener) document.removeEventListener("visibilitychange", resetClock);
     },
   };
 }

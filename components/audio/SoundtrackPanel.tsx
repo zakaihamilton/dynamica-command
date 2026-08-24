@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
@@ -9,7 +9,7 @@ import { formatSeed } from "@/lib/seed/rng";
 import styles from "./SoundtrackPanel.module.css";
 
 type Availability = "checking" | "available" | "unsupported";
-type ExportState = "idle" | "rendering" | "encoding" | "complete" | "error";
+type ExportState = "idle" | "rendering" | "encoding" | "cancelling" | "complete" | "error";
 
 export function SoundtrackPanel({
   seed,
@@ -24,7 +24,14 @@ export function SoundtrackPanel({
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("Checking browser audio support…");
-  const busy = exportState === "rendering" || exportState === "encoding";
+  const exportAbortController = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
+  const busy = exportState === "rendering" || exportState === "encoding" || exportState === "cancelling";
+
+  useEffect(() => () => {
+    mounted.current = false;
+    exportAbortController.current?.abort();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -53,28 +60,54 @@ export function SoundtrackPanel({
     return () => window.removeEventListener("keydown", handleEscape, true);
   }, [busy, onClose]);
 
+  const cancelExport = useCallback(() => {
+    const controller = exportAbortController.current;
+    if (!controller) return;
+    controller.abort();
+    setExportState("cancelling");
+    setStatus("Cancelling soundtrack export…");
+  }, []);
+
   const exportTrack = async () => {
     if (availability !== "available" || exportState === "rendering" || exportState === "encoding") return;
+    const controller = new AbortController();
+    exportAbortController.current = controller;
     setExportState("rendering");
     setProgress(0.08);
-    setStatus("Rendering the complete 64-bar mission score…");
+    setStatus("Rendering mission score…");
     try {
-      const result = await exportMissionSoundtrack(seed, missionIndex, ({ phase, progress: nextProgress }) => {
+      const result = await exportMissionSoundtrack(seed, missionIndex, ({ phase, progress: nextProgress, phaseProgress }) => {
+        if (exportAbortController.current !== controller || !mounted.current) return;
         setProgress(nextProgress);
-        if (phase === "rendering") setExportState("rendering");
+        if (phase === "rendering") {
+          setExportState("rendering");
+          setStatus(`Rendering mission score… ${Math.round(phaseProgress * 100)}%`);
+        }
         if (phase === "encoding") {
           setExportState("encoding");
-          setStatus("Encoding AAC and packaging the M4A file…");
+          setStatus(`Encoding AAC and packaging the M4A file… ${Math.round(phaseProgress * 100)}%`);
         }
-      });
+      }, { signal: controller.signal });
+      if (controller.signal.aborted || exportAbortController.current !== controller || !mounted.current) return;
       downloadMusicExport(result);
       setExportState("complete");
       setProgress(1);
       setStatus(`Downloaded ${result.filename}`);
     } catch (error) {
+      if (controller.signal.aborted) {
+        if (exportAbortController.current === controller && mounted.current) {
+          setExportState("idle");
+          setProgress(0);
+          setStatus("Export cancelled. You can start it again when ready.");
+        }
+        return;
+      }
+      if (exportAbortController.current !== controller || !mounted.current) return;
       setExportState("error");
       setProgress(0);
       setStatus(error instanceof Error ? error.message : "Unable to export the mission soundtrack.");
+    } finally {
+      if (exportAbortController.current === controller) exportAbortController.current = null;
     }
   };
 
@@ -97,9 +130,17 @@ export function SoundtrackPanel({
             disabled={availability !== "available" || busy}
             tooltip={availability === "unsupported" ? "Native AAC export is not supported here" : "Render and download the mission soundtrack as M4A"}
           >
-            {busy ? (exportState === "rendering" ? "Rendering…" : "Encoding…") : exportState === "complete" ? "Download again" : "Download M4A"}
+            {busy
+              ? exportState === "rendering" ? "Rendering…" : exportState === "encoding" ? "Encoding…" : "Cancelling…"
+              : exportState === "complete" ? "Download again" : "Download M4A"}
           </ConsoleButton>
-          <ConsoleButton muted onClick={onClose} disabled={busy} tooltip="Return to the previous screen">Close</ConsoleButton>
+          {busy ? (
+            <ConsoleButton muted onClick={cancelExport} disabled={exportState === "cancelling"} tooltip="Stop rendering or encoding this soundtrack">
+              {exportState === "cancelling" ? "Cancelling…" : "Cancel export"}
+            </ConsoleButton>
+          ) : (
+            <ConsoleButton muted onClick={onClose} tooltip="Return to the previous screen">Close</ConsoleButton>
+          )}
         </div>
         <p className={styles.format}>AAC-LC · 44.1 kHz · stereo · native browser encoder</p>
       </MetalPanel>

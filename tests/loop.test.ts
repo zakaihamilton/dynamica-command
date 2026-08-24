@@ -1,5 +1,25 @@
-import { describe, expect, it } from "vitest";
-import { MAX_CATCH_UP_TICKS_PER_FRAME, MAX_TICKS_PER_FRAME, TICK_MS, frameTickBudget } from "../lib/game/loop";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMission } from "../lib/sim/api";
+import { MAX_CATCH_UP_TICKS_PER_FRAME, MAX_TICKS_PER_FRAME, TICK_MS, frameTickBudget, startLoop } from "../lib/game/loop";
+
+type Listener = () => void;
+
+function eventTarget() {
+  const listeners = new Map<string, Set<Listener>>();
+  return {
+    addEventListener(type: string, listener: Listener) {
+      const typeListeners = listeners.get(type) ?? new Set<Listener>();
+      typeListeners.add(listener);
+      listeners.set(type, typeListeners);
+    },
+    removeEventListener(type: string, listener: Listener) {
+      listeners.get(type)?.delete(listener);
+    },
+    dispatch(type: string) {
+      listeners.get(type)?.forEach((listener) => listener());
+    },
+  };
+}
 
 describe("sim catch-up budget", () => {
   it("keeps the leftover accumulator under the cap", () => {
@@ -29,5 +49,54 @@ describe("sim catch-up budget", () => {
 
   it("runs no ticks when the accumulator is short", () => {
     expect(frameTickBudget(TICK_MS - 1)).toEqual({ ticks: 0, acc: TICK_MS - 1 });
+  });
+});
+
+describe("startLoop", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("discards the hidden-window backlog when the window is focused again", () => {
+    let now = 0;
+    let nextRafId = 1;
+    const rafs = new Map<number, FrameRequestCallback>();
+    const windowTarget = eventTarget();
+    const documentTarget = eventTarget();
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    vi.stubGlobal("window", windowTarget);
+    vi.stubGlobal("document", documentTarget);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      const id = nextRafId++;
+      rafs.set(id, callback);
+      return id;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      rafs.delete(id);
+    });
+
+    const state = createMission({ seed: 421, missionIndex: 0 });
+    const loop = startLoop({
+      getState: () => state,
+      setState: () => undefined,
+      drainCommands: () => [],
+      onTick: () => undefined,
+    });
+
+    const flushFrame = (time: number) => {
+      now = time;
+      const [id, callback] = rafs.entries().next().value as [number, FrameRequestCallback];
+      rafs.delete(id);
+      callback(time);
+    };
+
+    flushFrame(16);
+    now = 10_000;
+    windowTarget.dispatch("focus");
+    flushFrame(10_016);
+
+    expect(state.tick).toBe(0);
+    loop.stop();
   });
 });
