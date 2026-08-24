@@ -85,13 +85,13 @@ describe("generated audio", () => {
     expect(pattern.hats.slice(breakdownStart, breakdownEnd).some(Boolean)).toBe(true);
   });
 
-  it("keeps cue tempos in their industrial ranges and fills long-form lanes", () => {
+  it("keeps cue tempos in upbeat 80s ranges and fills long-form lanes", () => {
     const ranges = {
-      menu: [92, 106],
-      briefing: [82, 96],
-      mission: [112, 124],
-      victory: [118, 128],
-      defeat: [72, 84],
+      menu: [112, 124],
+      briefing: [104, 116],
+      mission: [118, 128],
+      victory: [124, 132],
+      defeat: [88, 98],
     } as const;
     for (const seed of [0, 1, 421, 9999]) {
       for (const [cue, [lo, hi]] of Object.entries(ranges)) {
@@ -119,28 +119,72 @@ describe("generated audio", () => {
         expect(melodyHits).toBeGreaterThan(0);
         expect(melodyHits).toBeLessThan(MUSIC_STEPS / 2);
         expect(pattern.rootHz).toBeGreaterThan(midiToHz(30));
+        if (cue === "mission") {
+          expect(["pulse", "march"]).toContain(pattern.theme.groove);
+          expect(["natural minor", "dorian", "mixolydian", "major"]).toContain(pattern.scaleName);
+        }
       }
     }
   });
 
-  it("builds a recurring neon-arcade hook with hybrid cinematic drums", () => {
+  it("builds a recurring 80s synth-pop hook with gated drums", () => {
     const pattern = composeMusic(421, "mission", 3);
-    const sectionNotes = (name: string, lane: "melody" | "pulse") => {
+    const sectionNotes = (name: string, lane: "melody" | "pulse" | "counter") => {
       const section = pattern.sections.find((entry) => entry.name === name);
       if (!section) return [];
       return pattern.notes[lane].filter((note) => note.step >= section.startBar * STEPS_PER_BAR && note.step < section.endBar * STEPS_PER_BAR);
     };
+    const averageDuration = (notes: { duration: number }[]) =>
+      notes.reduce((sum, note) => sum + note.duration, 0) / Math.max(1, notes.length);
 
-    expect(pattern.theme.hook).toEqual(pattern.motif);
+    expect(pattern.theme.hook).not.toEqual(pattern.motif);
     expect(pattern.motif.rhythm.some((step) => step % 2 === 1)).toBe(true);
+    expect(["pulse", "march"]).toContain(pattern.theme.groove);
+    expect(["natural minor", "dorian", "mixolydian", "major"]).toContain(pattern.scaleName);
     expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
+    expect(sectionNotes("groove", "melody").length).toBeGreaterThan(0);
+    expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
     expect(sectionNotes("climax", "melody").length).toBeGreaterThan(sectionNotes("hook", "melody").length);
     expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
+    const developmentMelody = sectionNotes("development", "melody");
+    const developmentCounter = sectionNotes("development", "counter");
+    expect(developmentCounter.length).toBeGreaterThan(0);
+    for (const note of developmentCounter) {
+      expect(developmentMelody.some((lead) => lead.step === note.step && lead.midi === note.midi)).toBe(true);
+    }
     expect(pattern.drums.some((event) => event.kind === "clap")).toBe(true);
     expect(pattern.drums.some((event) => event.kind === "impact")).toBe(true);
     expect(pattern.arpType).toBe("square");
     expect(new Set(pattern.padThird).size).toBeGreaterThan(2);
     expect(new Set(pattern.padSeventh).size).toBeGreaterThan(2);
+
+    const sectionHats = (name: string) => {
+      const section = pattern.sections.find((entry) => entry.name === name);
+      if (!section) return [];
+      return pattern.drums.filter(
+        (event) =>
+          event.kind === "hat" &&
+          event.step >= section.startBar * STEPS_PER_BAR &&
+          event.step < section.endBar * STEPS_PER_BAR,
+      );
+    };
+    expect(sectionHats("climax").length).toBeGreaterThan(sectionHats("hook").length);
+    expect(sectionHats("hook").length).toBeLessThanOrEqual(8 * 8);
+
+    const majorOpeners = [
+      [0, 4, 5, 3],
+      [0, 4, 3, 5],
+      [0, 3, 4, 5],
+      [5, 3, 0, 4],
+    ];
+    const majors = Array.from({ length: 48 }, (_, seed) => composeMusic(seed, "mission", 0)).filter(
+      (entry) => entry.scaleName === "major",
+    );
+    expect(majors.length).toBeGreaterThan(0);
+    for (const major of majors) {
+      expect(majorOpeners).toContainEqual(major.theme.progressionA.slice(0, 4));
+      expect(major.theme.progressionA.slice(0, 4)).not.toEqual([0, 5, 2, 6]);
+    }
   });
 
   it("maps routes onto music cues", () => {
