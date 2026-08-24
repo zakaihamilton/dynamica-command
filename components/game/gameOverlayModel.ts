@@ -13,7 +13,9 @@ export function gameOverlayModel({
   tutorial: boolean;
   paused: boolean;
 }) {
-  const selected = state.entities.find((entity: Entity) => selectedIds.includes(entity.id) && entity.hp > 0);
+  const selectedEntity = state.entities.find((entity: Entity) => selectedIds.includes(entity.id) && entity.hp > 0);
+  // The simulation mutates entities in place; give React a new identity for the selected snapshot.
+  const selected = selectedEntity ? { ...selectedEntity } : undefined;
   return {
     palette: state.factions[0].palette,
     selected,

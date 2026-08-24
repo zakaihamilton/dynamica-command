@@ -16,12 +16,13 @@ import {
   type MusicVoiceType,
 } from "./compose";
 import { getAudioContext, peekAudioContext, unlockAudioContext } from "./context";
+import { AUDIO_SAMPLE_RATE } from "./constants";
 import { getAudioBus, setAudioBusEnabled } from "./mixer";
 
 export { TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue };
 export type { MusicIntensity } from "./compose";
 
-const SAMPLE_RATE = 44_100;
+const SAMPLE_RATE = AUDIO_SAMPLE_RATE;
 const MASTER_GAIN = 0.075;
 const PAD_GAIN = 0.16;
 const DUCK_RATIO = 0.34;

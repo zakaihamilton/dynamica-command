@@ -1,10 +1,11 @@
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import { formatSeed } from "../seed/rng";
+import { AUDIO_SAMPLE_RATE } from "./constants";
 import { MusicExportCancelledError, renderMissionMusic } from "./music";
 
 export { MusicExportCancelledError } from "./music";
 
-export const MUSIC_EXPORT_SAMPLE_RATE = 44_100;
+export const MUSIC_EXPORT_SAMPLE_RATE = AUDIO_SAMPLE_RATE;
 export const MUSIC_EXPORT_BITRATE = 160_000;
 export const MUSIC_EXPORT_CODEC = "mp4a.40.2";
 

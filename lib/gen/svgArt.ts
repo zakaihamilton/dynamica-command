@@ -47,59 +47,12 @@ function visualKey(profile: FactionVisualProfile): string {
   return `${profile.designFamily}:${profile.material}:${profile.trimPattern}:${profile.insignia}:${profile.weathering}:${profile.lightRig}`;
 }
 
-function supportUnitSprite(
-  kind: "medic" | "repairTruck",
-  palette: Palette,
-  variant: number,
-  facing: number,
-  frame: number,
-  dmg: number,
-  profile: FactionVisualProfile,
-): SpriteSpec {
-  const medic = kind === "medic";
-  const w = medic ? 38 : 64;
-  const h = medic ? 44 : 60;
-  const shapes: ShapeSpec[] = medic
-    ? [
-        { type: "ellipse", x: 13, y: 4, w: 12, h: 12, fill: palette.light, stroke: palette.outline, strokeWidth: 2 },
-        { type: "rect", x: 10, y: 15, w: 18, h: 22, fill: palette.secondary, stroke: palette.outline, strokeWidth: 2 },
-        { type: "rect", x: 14, y: 20, w: 10, h: 3, fill: "#f3f6ee" },
-        { type: "rect", x: 17.5, y: 16.5, w: 3, h: 10, fill: "#f3f6ee" },
-        { type: "line", x: 10, y: 37, w: 5, h: 5, fill: palette.dark, stroke: palette.outline, strokeWidth: 2 },
-        { type: "line", x: 28, y: 37, w: -5, h: 5, fill: palette.dark, stroke: palette.outline, strokeWidth: 2 },
-        { type: "rect", x: 12, y: 17, w: 14, h: 2, fill: palette.accent, alpha: 0.9 },
-      ]
-    : [
-        { type: "rect", x: 7, y: 20, w: 37, h: 23, fill: palette.secondary, stroke: palette.outline, strokeWidth: 3 },
-        { type: "rect", x: 39, y: 15, w: 17, h: 28, fill: palette.primary, stroke: palette.outline, strokeWidth: 3 },
-        { type: "rect", x: 43, y: 18, w: 10, h: 8, fill: palette.accent, stroke: palette.outline, strokeWidth: 1, alpha: 0.9 },
-        { type: "ellipse", x: 12, y: 37, w: 11, h: 11, fill: palette.dark, stroke: palette.outline, strokeWidth: 2 },
-        { type: "ellipse", x: 42, y: 37, w: 11, h: 11, fill: palette.dark, stroke: palette.outline, strokeWidth: 2 },
-        { type: "line", x: 23, y: 20, w: 9, h: -10, fill: palette.light, stroke: palette.outline, strokeWidth: 2 },
-        { type: "line", x: 32, y: 10, w: 12, h: 0, fill: palette.light, stroke: palette.outline, strokeWidth: 2 },
-        { type: "rect", x: 16, y: 25, w: 13, h: 4, fill: palette.accent, alpha: 0.95 },
-      ];
-  if (dmg > 0) shapes.push({ type: "ellipse", x: medic ? 8 : 10, y: medic ? 13 : 18, w: medic ? 22 : 42, h: 14, fill: "rgba(18, 12, 10, 0.45)" });
-  return {
-    id: `unit:procedural-support-v1:${kind}:${facing}:${palette.primary}:${visualKey(profile)}:${variant}:${frame}:${dmg}`,
-    kind: "unit",
-    w,
-    h,
-    palette,
-    shapes,
-    anchorX: w / 2,
-    anchorY: h,
-    pixelScale: 1,
-  };
-}
-
 export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSpriteOptions = {}): SpriteSpec {
   const frame = options.animationFrame ?? 0;
   const variant = options.variant ?? 0;
   const dmg = options.damageStage ?? 0;
   const profile = options.profile ?? DEFAULT_PROFILE;
-  if (kind === "medic" || kind === "repairTruck") return supportUnitSprite(kind, palette, variant, options.facing ?? 0, frame, dmg, profile);
-  const infantry = kind === "infantry";
+  const infantry = kind === "infantry" || kind === "medic";
   const antiArmor = kind === "antiArmor";
   // Keep foot soldiers visually subordinate to the larger tracked units while
   // retaining the same bottom contact anchor on the battlefield.
@@ -117,7 +70,7 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
     h,
     palette,
     shapes: [],
-    imageSrc: UNIT_DIRECTION_ART[kind]?.[view],
+    imageSrc: UNIT_DIRECTION_ART[kind][view],
     imageTint: rasterTreatment(profile),
     imageCrop: UNIT_DIRECTION_CROPS[kind]?.[view],
     anchorX: w / 2,

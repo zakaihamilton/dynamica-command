@@ -29,7 +29,11 @@ export type UnitView =
   | "back"
   | "back-right";
 
-export const UNIT_DIRECTION_ART: Partial<Record<UnitKind, Record<UnitView, string>>> = {
+/**
+ * Every playable unit must ship a complete directional roster. Keep this map
+ * total so adding a UnitKind without matching art is a compile-time error.
+ */
+export const UNIT_DIRECTION_ART: Record<UnitKind, Record<UnitView, string>> = {
   harvester: {
     "front-right": "/art/sprites/sleek-modular/harvester-front-right-v1.webp",
     front: "/art/sprites/sleek-modular/harvester-front.webp",
@@ -70,6 +74,26 @@ export const UNIT_DIRECTION_ART: Partial<Record<UnitKind, Record<UnitView, strin
     left: "/art/sprites/sleek-modular/tank-left.webp",
     "back-right": "/art/sprites/sleek-modular/tank-back-right-v1.webp",
   },
+  medic: {
+    "front-right": "/art/sprites/sleek-modular/medic-front-right-v1.webp",
+    front: "/art/sprites/sleek-modular/medic-front-v1.webp",
+    right: "/art/sprites/sleek-modular/medic-right-v1.webp",
+    "front-left": "/art/sprites/sleek-modular/medic-front-left-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/medic-back-left-v1.webp",
+    back: "/art/sprites/sleek-modular/medic-back-v1.webp",
+    "back-right": "/art/sprites/sleek-modular/medic-back-right-v1.webp",
+    left: "/art/sprites/sleek-modular/medic-left-v1.webp",
+  },
+  repairTruck: {
+    "front-right": "/art/sprites/sleek-modular/repair-truck-front-right-v1.webp",
+    front: "/art/sprites/sleek-modular/repair-truck-front-v1.webp",
+    right: "/art/sprites/sleek-modular/repair-truck-right-v1.webp",
+    "front-left": "/art/sprites/sleek-modular/repair-truck-front-left-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/repair-truck-back-left-v1.webp",
+    back: "/art/sprites/sleek-modular/repair-truck-back-v1.webp",
+    "back-right": "/art/sprites/sleek-modular/repair-truck-back-right-v1.webp",
+    left: "/art/sprites/sleek-modular/repair-truck-left-v1.webp",
+  },
 };
 
 /** Generated direction sheets contain a few neighboring partial renders at the edge. */
@@ -81,6 +105,16 @@ export const UNIT_DIRECTION_CROPS: Partial<Record<UnitKind, Partial<Record<UnitV
   tank: {
     front: { x: 0, y: 0, w: 555, h: 502, sourceW: 683, sourceH: 502 },
     back: { x: 0, y: 0, w: 565, h: 511, sourceW: 687, sourceH: 511 },
+  },
+  repairTruck: {
+    "front-right": { x: 0, y: 0, w: 360, h: 512, sourceW: 384, sourceH: 512 },
+    front: { x: 52, y: 0, w: 280, h: 512, sourceW: 384, sourceH: 512 },
+    "front-left": { x: 24, y: 0, w: 336, h: 512, sourceW: 384, sourceH: 512 },
+    left: { x: 0, y: 0, w: 384, h: 512, sourceW: 384, sourceH: 512 },
+    "back-left": { x: 0, y: 0, w: 368, h: 512, sourceW: 384, sourceH: 512 },
+    back: { x: 52, y: 0, w: 280, h: 512, sourceW: 384, sourceH: 512 },
+    "back-right": { x: 20, y: 0, w: 344, h: 512, sourceW: 384, sourceH: 512 },
+    right: { x: 16, y: 0, w: 368, h: 512, sourceW: 384, sourceH: 512 },
   },
 };
 
