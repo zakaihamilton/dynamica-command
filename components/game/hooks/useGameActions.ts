@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
-import { MAX_PRODUCTION_QUEUE, buildingCameoStatus, isUnitAvailable, producerFor, productionQueueSize, unitCameoStatus } from "@/lib/catalog";
+import { buildingCameoStatus, unitCameoStatus } from "@/lib/catalog";
 import { beep } from "@/lib/audio/synth";
 import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
 import type { MobileCommand } from "../MobileCommandTray";
+import { PLACEABLE, PRODUCIBLE, leastLoadedProducer } from "./gameActions";
 
-export const PLACEABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
-export const PRODUCIBLE: UnitKind[] = ["infantry", "antiArmor", "harvester", "tank", "medic", "repairTruck"];
+export { PLACEABLE, PRODUCIBLE } from "./gameActions";
 
 export function useGameActions({
   stateRef,
@@ -109,23 +109,7 @@ export function useGameActions({
     beep("select");
   }, [cmdQ, stateRef]);
 
-  const availableProducer = useCallback((unit: UnitKind) => {
-    const world = stateRef.current;
-    if (!isUnitAvailable(unit, world.missionIndex)) return undefined;
-    const kind = producerFor(unit);
-    let best: typeof world.entities[number] | undefined;
-    let bestN = Infinity;
-    for (const e of world.entities) {
-      if (e.hp <= 0 || e.owner !== 0 || e.class !== "building" || e.kind !== kind || e.constructing > 0) continue;
-      const n = productionQueueSize(e);
-      if (n >= MAX_PRODUCTION_QUEUE) continue;
-      if (n < bestN) {
-        best = e;
-        bestN = n;
-      }
-    }
-    return best;
-  }, [stateRef]);
+  const availableProducer = useCallback((unit: UnitKind) => leastLoadedProducer(stateRef.current, 0, unit), [stateRef]);
 
   const queueUnit = useCallback((unit: UnitKind) => {
     const next = availableProducer(unit);

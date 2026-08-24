@@ -1,7 +1,7 @@
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
-import type { MissionConfirmation as MissionConfirmationState } from "./hooks/useGameSession";
+import type { MissionConfirmation as MissionConfirmationState } from "./hooks/missionConfirmation";
 import styles from "./MissionConfirmation.module.css";
 
 export function MissionConfirmation({

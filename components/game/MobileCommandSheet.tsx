@@ -1,13 +1,11 @@
 import type { PointerEventHandler, Ref } from "react";
-import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, SimState, Stance, UnitKind } from "@/lib/types";
 import type { CommandTab } from "@/lib/ui/shortcuts";
-import { CommandCatalogContent } from "./CommandCatalogContent";
-import { MinimapFrame } from "./MinimapFrame";
-import { ResourceDock } from "./ResourceDock";
-import { SelectionOrders } from "./SelectionOrders";
+import { MobileBaseControls } from "./MobileBaseControls";
+import { MobileBuildCatalog } from "./MobileBuildCatalog";
+import { MobileSheetHeader } from "./MobileSheetHeader";
+import { MobileUnitOrders } from "./MobileUnitOrders";
 import type { MobileCommand } from "./mobileCommandTypes";
-import { mobileCommandLabel } from "./MobileCommandDock";
 import styles from "./MobileCommandTray.module.css";
 
 export function MobileCommandSheet({
@@ -80,9 +78,6 @@ export function MobileCommandSheet({
   if (!open) return null;
 
   const friendlyUnit = selected?.owner === 0 && selected.class === "unit" && !selected.neutral;
-  const hasSelection = selectedCount > 0;
-  const stance = selected?.stance ?? "aggressive";
-  const formation = selected?.formation;
 
   return (
     <div className={styles.sheetBackdrop} data-testid="mobile-command-sheet-backdrop" onClick={onClose}>
@@ -94,96 +89,59 @@ export function MobileCommandSheet({
         data-testid="mobile-command-sheet"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className={styles.sheetHeader}>
-          <div>
-            <span className={styles.eyebrow}>Genesis command</span>
-            <strong>{hasSelection ? `${selectedCount} selected` : "Base systems"}</strong>
-          </div>
-          <ConsoleButton className={styles.close} muted onClick={onClose} aria-label="Close commands" data-testid="mobile-command-close">
-            Close
-          </ConsoleButton>
-        </div>
+        <MobileSheetHeader selectedCount={selectedCount} onClose={onClose} />
 
         <div className={styles.sheetScroll}>
           {friendlyUnit ? (
-            <section className={styles.section} data-testid="mobile-unit-commands">
-              <div className={styles.sectionHeader}>
-                <span className={styles.eyebrow}>Unit orders</span>
-                <span className={styles.activeCommand}>{command ? `${mobileCommandLabel(command)} armed` : "Tap a command, then tap the map"}</span>
-              </div>
-              <div className={styles.commandGrid}>
-                {([
-                  ["move", "Move"],
-                  ["attack", "Attack"],
-                  ["attackMove", "A-Move"],
-                  ["harvest", "Harvest"],
-                ] as const).map(([id, label]) => (
-                  <ConsoleButton key={id} className={styles.command} data-testid={`mobile-command-${id}`} aria-pressed={command === id} onClick={() => onCommand(id)}>
-                    {label}
-                  </ConsoleButton>
-                ))}
-                <ConsoleButton className={styles.command} data-testid="mobile-command-stop" onClick={onStop}>Stop</ConsoleButton>
-              </div>
-              {selectedCount === 1 ? (
-                <SelectionOrders
-                  stance={stance}
-                  formation={formation}
-                  onStop={onStop}
-                  onStance={onStance}
-                  onFormation={onFormation}
-                />
-              ) : null}
-            </section>
-          ) : null}
-
-          <section className={styles.section} data-testid="mobile-base-controls">
-            <div className={styles.sectionHeader}>
-              <span className={styles.eyebrow}>Theater systems</span>
-              <span className={styles.activeCommand}>{repairMode ? "Repair mode" : sellMode ? "Sell mode" : "Base overview"}</span>
-            </div>
-            <div className={styles.resources}>
-              <ResourceDock credits={state.credits[0]} produced={produced} used={used} surplus={power} />
-            </div>
-            <MinimapFrame
-              canvasRef={miniRef}
-              onPointerDown={onMinimapPointerDown}
-              onPointerMove={onMinimapPointerMove}
-              onPointerUp={onMinimapPointerUp}
-              isDragging={isMinimapDragging}
-            />
-          </section>
-
-          <section className={styles.section} data-testid="mobile-build-controls">
-            <div className={styles.sectionHeader}>
-              <span className={styles.eyebrow}>Command catalog</span>
-              <span className={styles.activeCommand}>Tap an item to activate</span>
-            </div>
-            <div className={styles.tabs} role="tablist" aria-label="Mobile command catalog">
-              <ConsoleButton role="tab" aria-selected={activeTab === "construction"} onClick={() => onTab("construction")}>Build</ConsoleButton>
-              <ConsoleButton role="tab" aria-selected={activeTab === "production"} onClick={() => onTab("production")}>Produce</ConsoleButton>
-              <ConsoleButton role="tab" aria-selected={activeTab === "selected"} onClick={() => onTab("selected")}>Selected</ConsoleButton>
-              <ConsoleButton aria-pressed={repairMode} onClick={onRepair}>Repair</ConsoleButton>
-              <ConsoleButton aria-pressed={sellMode} onClick={onSell}>Sell</ConsoleButton>
-            </div>
-            <CommandCatalogContent
-              state={state}
-              palette={palette}
-              profile={profile}
-              activeTab={activeTab}
-              placeKind={placeKind}
-              selected={selected}
-              selectionCount={selectedCount}
-              power={power}
-              availableProducer={availableProducer}
-              onPlace={onPlace}
-              onCancelBuilding={onCancelBuilding}
-              onQueueUnit={onQueueUnit}
-              onCancelUnit={onCancelUnit}
+            <MobileUnitOrders
+              command={command}
+              selectedCount={selectedCount}
+              stance={selected?.stance ?? "aggressive"}
+              formation={selected?.formation}
+              onCommand={onCommand}
               onStop={onStop}
               onStance={onStance}
               onFormation={onFormation}
             />
-          </section>
+          ) : null}
+
+          <MobileBaseControls
+            repairMode={repairMode}
+            sellMode={sellMode}
+            credits={state.credits[0]}
+            produced={produced}
+            used={used}
+            surplus={power}
+            miniRef={miniRef}
+            onMinimapPointerDown={onMinimapPointerDown}
+            onMinimapPointerMove={onMinimapPointerMove}
+            onMinimapPointerUp={onMinimapPointerUp}
+            isMinimapDragging={isMinimapDragging}
+          />
+
+          <MobileBuildCatalog
+            state={state}
+            palette={palette}
+            profile={profile}
+            selected={selected}
+            selectedCount={selectedCount}
+            activeTab={activeTab}
+            placeKind={placeKind}
+            repairMode={repairMode}
+            sellMode={sellMode}
+            power={power}
+            onTab={onTab}
+            onRepair={onRepair}
+            onSell={onSell}
+            onPlace={onPlace}
+            onCancelBuilding={onCancelBuilding}
+            onQueueUnit={onQueueUnit}
+            onCancelUnit={onCancelUnit}
+            availableProducer={availableProducer}
+            onStop={onStop}
+            onStance={onStance}
+            onFormation={onFormation}
+          />
         </div>
       </section>
     </div>

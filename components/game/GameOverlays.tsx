@@ -1,9 +1,9 @@
 import type { Ref } from "react";
-import { powerBreakdown } from "@/lib/sim/world";
 import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import type { GameSettings } from "@/lib/persist/settings";
-import type { Campaign, Entity, FactionVisualProfile, Palette, SimState } from "@/lib/types";
+import type { Campaign, FactionVisualProfile, SimState } from "@/lib/types";
 import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
+import { gameOverlayModel } from "./gameOverlayModel";
 import { GameMobileSurface } from "./GameMobileSurface";
 import { GamePauseSurface } from "./GamePauseSurface";
 import { GameSidebarSurface } from "./GameSidebarSurface";
@@ -61,10 +61,12 @@ export function GameOverlays({
   actions: GameActions;
   session: GameSession;
 }) {
-  const palette: Palette = state.factions[0].palette;
-  const selected = state.entities.find((entity: Entity) => selectedIds.includes(entity.id) && entity.hp > 0);
-  const grid = powerBreakdown(state, 0);
-  const mobilePlaying = !tutorial && !paused && state.result === "playing";
+  const { palette, selected, grid, mobilePlaying, sheetContext } = gameOverlayModel({
+    state,
+    selectedIds,
+    tutorial,
+    paused,
+  });
 
   return (
     <>
@@ -73,7 +75,7 @@ export function GameOverlays({
           surface={{
             dockVisible: mobilePlaying,
             sheetOpen: mobilePlaying && mobileSheetOpen,
-            sheetContext: selected?.owner === 0 && selected.class === "unit" && !selected.neutral ? "unit" : "base",
+            sheetContext,
             activeCommand: actions.mobileCommandState,
             selectionMode,
             selectedCount: selectedIds.length,

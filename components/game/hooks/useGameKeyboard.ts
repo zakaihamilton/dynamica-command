@@ -1,7 +1,7 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
-import { beep } from "@/lib/audio/synth";
 import { gameCommandFromKey, isEditableTarget, type CommandTab, type PauseView } from "@/lib/ui/shortcuts";
 import type { BuildingKind, SimState } from "@/lib/types";
+import { applyGameCommand } from "./gameKeyboard";
 
 export function useGameKeyboard({
   stateRef,
@@ -94,36 +94,29 @@ export function useGameKeyboard({
       });
       if (!command) return;
       e.preventDefault();
-      if (command.type === "pause") openPauseMenu();
-      else if (command.type === "resume") resumeMission();
-      else if (command.type === "pauseBack") setPauseView("main");
-      else if (command.type === "tab") setActiveTab(command.tab);
-      else if (command.type === "cameo" && activeTabRef.current !== "selected") {
-        activateCameo(activeTabRef.current, command.index, command.cancel);
-      }
-      else if (command.type === "home") jumpHome();
-      else if (command.type === "center") centerSelection();
-      else if (command.type === "repair") toggleRepair();
-      else if (command.type === "sell") toggleSell();
-      else if (command.type === "stop") stopSelected();
-      else if (command.type === "cancelTool") {
-        clearTools();
-        beep("select");
-      } else if (command.type === "save") saveMission();
-      else if (command.type === "load") loadMission();
-      else if (command.type === "briefing") viewMissionBriefing();
-      else if (command.type === "restart") restartMission();
-      else if (command.type === "assets") {
-        setPauseView("assets");
-        setPauseNotice("");
-      } else if (command.type === "options") {
-        setPauseView("options");
-        setPauseNotice("");
-      } else if (command.type === "menu") onNavigateHome();
-      else if (command.type === "toggleSound") toggleSound();
-      else if (command.type === "toggleMusic") toggleMusic();
-      else if (command.type === "resultPrimary") resultPrimary();
-      else if (command.type === "resultMenu") onNavigateHome();
+      applyGameCommand(command, {
+        activeTab: activeTabRef.current,
+        openPauseMenu,
+        resumeMission,
+        setPauseView,
+        setPauseNotice,
+        setActiveTab,
+        activateCameo,
+        jumpHome,
+        centerSelection,
+        toggleRepair,
+        toggleSell,
+        stopSelected,
+        clearTools,
+        saveMission,
+        loadMission,
+        viewMissionBriefing,
+        restartMission,
+        toggleSound,
+        toggleMusic,
+        resultPrimary,
+        onNavigateHome,
+      });
     };
 
     const up = (e: KeyboardEvent) => {
