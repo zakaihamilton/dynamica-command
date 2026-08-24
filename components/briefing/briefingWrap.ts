@@ -6,7 +6,8 @@ export function briefingLineStarts(lines: readonly { text: string }[]): number[]
 
 /** Index of the line currently being revealed, or -1 when the transmission is idle/complete. */
 export function briefingActiveLineIndex(lines: readonly { text: string }[], shown: number): number {
-  if (shown <= 0) return -1;
+  const totalChars = lines.reduce((total, line) => total + line.text.length, 0);
+  if (shown <= 0 || shown >= totalChars) return -1;
 
   const starts = briefingLineStarts(lines);
   for (let index = 0; index < lines.length; index += 1) {
