@@ -70,7 +70,7 @@ export function useGameInput({
     beep("ack");
   }, [camRef, clearTools, cmdQRef, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState]);
 
-  const touch = useTouchGestures({
+  const { beginTouch, moveTouch, endTouch, cancelTouch } = useTouchGestures({
     camRef,
     stateRef,
     selectionModeRef,
@@ -104,17 +104,17 @@ export function useGameInput({
   const onDown = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     const p = canvasPointerPos(e);
     if (e.pointerType === "touch") {
-      touch.beginTouch(e, p);
+      beginTouch(e, p);
       return;
     }
     if (e.button !== 0) return;
     boxRef.current = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
-  }, [touch]);
+  }, [beginTouch]);
 
   const onMove = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     const p = canvasPointerPos(e);
     const s = stateRef.current;
-    if (e.pointerType === "touch" && touch.moveTouch(e, p)) return;
+    if (e.pointerType === "touch" && moveTouch(e, p)) return;
     cursorRef.current = p;
     if (s) hoverRef.current = pickTile(s, p.x, p.y, camRef.current);
     if (e.pointerType !== "touch" && boxRef.current && e.buttons === 1) {
@@ -127,7 +127,7 @@ export function useGameInput({
         ? null
         : panDirFromPointer(e.clientX - r.left, e.clientY - r.top, r.width, r.height, EDGE_PAN_BAND, panAvailRef.current),
     );
-  }, [applyEdgePan, camRef, panAvailRef, pausedRef, stateRef, touch]);
+  }, [applyEdgePan, camRef, moveTouch, panAvailRef, pausedRef, stateRef]);
 
   const onLeave = useCallback(() => {
     cursorRef.current = null;
@@ -138,13 +138,14 @@ export function useGameInput({
   const onUp = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     const s = stateRef.current;
     if (!s) return;
-    if (e.pointerType === "touch" && touch.endTouch(e)) return;
-    applyPointerUp(resolvePointerUp({
+    if (e.pointerType === "touch" && endTouch(e)) return;
+    const p = canvasPointerPos(e);
+    const effect = resolvePointerUp({
       pointerType: e.pointerType,
       button: e.button,
       ctrlKey: e.ctrlKey,
       metaKey: e.metaKey,
-      p: canvasPointerPos(e),
+      p,
       state: s,
       cam: camRef.current,
       selectedIds: [...selectedRef.current],
@@ -154,17 +155,23 @@ export function useGameInput({
       placeKind: placeRef.current,
       repairMode: repairRef.current,
       sellMode: sellRef.current,
-    }), e);
-  }, [applyPointerUp, camRef, mobileCommandRef, placeRef, repairRef, selectedRef, selectionModeRef, sellRef, stateRef, touch]);
+    });
+    if (effect.contextOrder) {
+      if (effect.preventDefault) e.preventDefault();
+      issueContextOrder(s, p, effect.attackMove);
+      return;
+    }
+    applyPointerUp(effect, e);
+  }, [applyPointerUp, camRef, endTouch, issueContextOrder, mobileCommandRef, placeRef, repairRef, selectedRef, selectionModeRef, sellRef, stateRef]);
 
   const onCancel = useCallback(() => {
-    touch.cancelTouch();
+    cancelTouch();
     boxRef.current = null;
     mobileCommandRef.current = null;
     setMobileCommandState(null);
     setSelectionMode(false);
     applyEdgePan(null);
-  }, [applyEdgePan, mobileCommandRef, setMobileCommandState, setSelectionMode, touch]);
+  }, [applyEdgePan, cancelTouch, mobileCommandRef, setMobileCommandState, setSelectionMode]);
 
   const resetInput = useCallback(() => {
     hoverRef.current = null;

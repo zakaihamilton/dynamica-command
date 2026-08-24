@@ -37,6 +37,8 @@ export type PointerUpEffect = {
   clearMobileCommand?: boolean;
   clearPlace?: boolean;
   clearRepairAndSell?: boolean;
+  contextOrder?: boolean;
+  attackMove?: boolean;
   beep?: "select" | "ack" | "build";
 };
 
@@ -70,6 +72,8 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
     if (drag && box) {
       return {
         clearBox: true,
+        // Explicit mobile marquee selection includes every friendly unit in the box,
+        // including harvesters; desktop drag-selection keeps its existing filtering.
         select: selectionIdsInBox(state, cam, box, false),
         endSelectionMode: true,
         beep: "select",
@@ -96,12 +100,10 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
     if (repairMode || sellMode) {
       return { preventDefault: true, clearRepairAndSell: true, beep: "select" };
     }
-    const target = pickSelectableEntity(state, p.x, p.y, tx, ty, cam);
     return {
       preventDefault: true,
-      commands: contextOrders(state, selectedIds, target, tx, ty, ctrlKey || metaKey),
-      clearMobileCommand: true,
-      beep: "ack",
+      contextOrder: true,
+      attackMove: ctrlKey || metaKey,
     };
   }
 

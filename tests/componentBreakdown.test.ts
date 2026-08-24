@@ -100,6 +100,23 @@ describe("pointer-up policy", () => {
       sellMode: false,
     })).toEqual({ preventDefault: true, clearRepairAndSell: true, beep: "select" });
 
+    expect(resolvePointerUp({
+      pointerType: "mouse",
+      button: 2,
+      ctrlKey: true,
+      metaKey: false,
+      p,
+      state,
+      cam,
+      selectedIds: [],
+      box: null,
+      selectionMode: false,
+      mobileCommand: null,
+      placeKind: null,
+      repairMode: false,
+      sellMode: false,
+    })).toEqual({ preventDefault: true, contextOrder: true, attackMove: true });
+
     const unit = addUnit(state, 0, "infantry", 2, 2);
     expect(resolvePointerUp({
       pointerType: "touch",
@@ -247,6 +264,10 @@ describe("loop audio intensity", () => {
     expect(desiredMusicIntensity("opening", 50, 40, false)).toBe("engaged");
     expect(desiredMusicIntensity("finale", 50, 40, true)).toBe("critical");
     expect(warningAlert([{ type: "alert", kind: "warning", text: "Incoming" }])).toBe(true);
+    expect(warningAlert([
+      { type: "alert", kind: "contact", text: "Spotted" },
+      { type: "alert", kind: "warning", text: "Incoming" },
+    ])).toBe(false);
     expect(alertSfx("objective")).toBe("objective");
   });
 });

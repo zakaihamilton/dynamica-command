@@ -1,4 +1,4 @@
-import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "react";
+import { useCallback, useMemo, useRef, type MutableRefObject, type PointerEvent } from "react";
 import { cameraPanBounds, panCamera } from "@/lib/render/camera";
 import type { Camera } from "@/lib/iso";
 import type { SimState } from "@/lib/types";
@@ -119,5 +119,8 @@ export function useTouchGestures({
     touchPan.current = null;
   }, []);
 
-  return { beginTouch, moveTouch, endTouch, cancelTouch };
+  return useMemo(
+    () => ({ beginTouch, moveTouch, endTouch, cancelTouch }),
+    [beginTouch, moveTouch, endTouch, cancelTouch],
+  );
 }

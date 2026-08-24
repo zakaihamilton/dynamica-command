@@ -10,7 +10,7 @@ import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
 import type { Camera } from "@/lib/iso";
 import { missionMedals, missionScore } from "@/lib/sim/debrief";
 import type { Command, SimState } from "@/lib/types";
-import { alertSfx, desiredMusicIntensity, warningAlert } from "./gameLoopEffects";
+import { alertSfx, desiredMusicIntensity, firstAlert } from "./gameLoopEffects";
 
 const CAMPAIGN_SAVE_RETRY_MS = 1_000;
 
@@ -98,11 +98,12 @@ export function useGameLoop({
           setState({ ...next, entities: [...next.entities] });
         }
         if (events.some((event) => event.type === "combat")) lastCombatTick = next.tick;
+        const alert = firstAlert(events);
         const desiredIntensity = desiredMusicIntensity(
           next.runtime?.director?.phase,
           next.tick,
           lastCombatTick,
-          warningAlert(events),
+          alert?.kind === "warning",
         );
         if (desiredIntensity !== appliedIntensity) {
           appliedIntensity = desiredIntensity;
@@ -123,8 +124,7 @@ export function useGameLoop({
           setMusicCue("defeat", next.seed, next.missionIndex);
         }
         if (events.some((e) => e.type === "commandRejected")) playSfx("uiError");
-        const alert = events.find((event) => event.type === "alert");
-        if (alert && alert.type === "alert") {
+        if (alert) {
           playSfx(alertSfx(alert.kind), { force: true });
           onAlert(alert.text);
         }
