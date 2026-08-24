@@ -91,6 +91,7 @@ test("keeps mobile battlefield frames within budget with a dense late-game state
   await page.goto("/play?seed=0421&mission=7&resume=1&perf=1");
   await expect(page.getByTestId("battlefield-canvas")).toBeVisible();
   await expect(page.getByTestId("mobile-command-dock")).toBeVisible();
+  await page.keyboard.press("Escape");
 
   const canvas = page.getByTestId("battlefield-canvas");
   await expect.poll(() => canvas.getAttribute("data-perf-frame-ms")).not.toBeNull();
