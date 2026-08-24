@@ -10,6 +10,7 @@ export function useBriefingController({
   isComplete,
   replayTransmission,
   skipToEnd,
+  cancelSpeech,
 }: {
   seed: number;
   mission: number;
@@ -17,6 +18,7 @@ export function useBriefingController({
   isComplete: boolean;
   replayTransmission: () => void;
   skipToEnd: () => void;
+  cancelSpeech: () => void;
 }) {
   const router = useRouter();
   const [soundtrackOpen, setSoundtrackOpen] = useState(false);
@@ -35,6 +37,7 @@ export function useBriefingController({
       if (!command) return;
       e.preventDefault();
       if (command.type === "skip") {
+        cancelSpeech();
         skipToEnd();
         return;
       }
@@ -46,7 +49,7 @@ export function useBriefingController({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isComplete, launch, replayTransmission, returnToGame, skipToEnd]);
+  }, [cancelSpeech, isComplete, launch, replayTransmission, returnToGame, skipToEnd]);
 
   return {
     launch,

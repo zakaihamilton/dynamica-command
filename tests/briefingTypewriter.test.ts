@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { wrapBreakOffsets, briefingLineStarts, briefingRevealedLines } from "../components/briefing/briefingWrap";
+import { briefingActiveLineIndex, wrapBreakOffsets, briefingLineStarts, briefingRevealedLines } from "../components/briefing/briefingWrap";
 
 const byLength = (s: string) => s.length;
 
@@ -45,5 +45,13 @@ describe("briefing typewriter reveal", () => {
     const done = briefingRevealedLines(lines, 12);
     expect(done.every((line) => line.complete)).toBe(true);
     expect(done.map((line) => line.visible)).toEqual(["Hold", "the line"]);
+  });
+
+  it("identifies the line being spoken while the transmission is typing", () => {
+    expect(briefingActiveLineIndex(lines, 0)).toBe(-1);
+    expect(briefingActiveLineIndex(lines, 2)).toBe(0);
+    expect(briefingActiveLineIndex(lines, 4)).toBe(0);
+    expect(briefingActiveLineIndex(lines, 5)).toBe(1);
+    expect(briefingActiveLineIndex(lines, 12)).toBe(-1);
   });
 });

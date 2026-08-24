@@ -101,12 +101,14 @@ describe("tactical procedural assets", () => {
   it("crops generated neighboring artwork from affected direction assets", () => {
     const harvester = unitSprite("harvester", palette, { facing: 2 });
     const tank = unitSprite("tank", palette, { facing: 6 });
+    const repairTruck = unitSprite("repairTruck", palette, { facing: 2 });
     expect(harvester.imageCrop?.w).toBeLessThan(627);
     expect(tank.imageCrop?.w).toBeLessThan(687);
+    expect(repairTruck.imageCrop?.w).toBeLessThan(384);
   });
 
   it("selects directional unit views instead of rotating one raster", () => {
-    for (const kind of ["infantry", "harvester", "antiArmor", "tank"] as const) {
+    for (const kind of UNIT_KINDS) {
       const views = Array.from({ length: 8 }, (_, facing) =>
         unitSprite(kind, palette, { facing: facing as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 }),
       );
@@ -120,6 +122,15 @@ describe("tactical procedural assets", () => {
       expect(views[5]!.imageSrc).toContain("-back-left-v1.webp");
       expect(views[6]!.imageSrc).toMatch(/-back(?:-v1)?\.webp/);
       expect(views[7]!.imageSrc).toContain("-back-right-v1.webp");
+    }
+  });
+
+  it("requires a complete eight-view art roster for every unit kind", () => {
+    expect(Object.keys(UNIT_DIRECTION_ART).sort()).toEqual([...UNIT_KINDS].sort());
+    for (const kind of UNIT_KINDS) {
+      const views = UNIT_DIRECTION_ART[kind];
+      expect(Object.keys(views)).toHaveLength(8);
+      expect(new Set(Object.values(views)).size).toBe(8);
     }
   });
 

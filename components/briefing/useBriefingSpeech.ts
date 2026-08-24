@@ -1,4 +1,6 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
+import { localStorageAdapter } from "@/lib/persist/save";
+import { readSettings } from "@/lib/persist/settings";
 import type { BriefingLine, CharacterRole } from "@/lib/types";
 
 type SpeechProfile = {
@@ -31,11 +33,23 @@ function speechApi(): SpeechSynthesis | null {
   return window.speechSynthesis;
 }
 
+function configuredSpeechVolume(): number | null {
+  const settings = readSettings(localStorageAdapter());
+  if (!settings.sfxEnabled) return null;
+
+  const volume = settings.masterVolume * settings.sfxVolume;
+  return volume > 0 ? volume : null;
+}
+
 export function useBriefingSpeech(
   lines: readonly BriefingLine[],
   activeLineIndex: number,
   playId: number,
 ) {
+  const cancelSpeech = useCallback(() => {
+    speechApi()?.cancel();
+  }, []);
+
   useEffect(() => {
     const speech = speechApi();
     if (!speech) return;
@@ -50,12 +64,15 @@ export function useBriefingSpeech(
     const line = lines[activeLineIndex];
     if (!speech || !line || activeLineIndex < 0 || line.text.trim().length === 0) return;
 
+    const configuredVolume = configuredSpeechVolume();
+    if (configuredVolume === null) return;
+
     const utterance = new SpeechSynthesisUtterance(line.text);
     const profile = SPEECH_PROFILES[line.speaker];
     utterance.lang = "en-US";
     utterance.rate = profile.rate;
     utterance.pitch = profile.pitch;
-    utterance.volume = profile.volume;
+    utterance.volume = profile.volume * configuredVolume;
     const voice = voiceForRole(speech, line.speaker);
     if (voice) utterance.voice = voice;
 
@@ -66,4 +83,6 @@ export function useBriefingSpeech(
       // the normal visual transmission fully usable.
     }
   }, [activeLineIndex, lines]);
+
+  return cancelSpeech;
 }

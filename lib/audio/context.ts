@@ -1,3 +1,5 @@
+import { AUDIO_SAMPLE_RATE } from "./constants";
+
 let ctx: AudioContext | null = null;
 let unlocked = false;
 
@@ -15,7 +17,7 @@ export function getAudioContext(): AudioContext | null {
     const C = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!C) return null;
     try {
-      ctx = new C();
+      ctx = new C({ sampleRate: AUDIO_SAMPLE_RATE });
     } catch {
       return null;
     }

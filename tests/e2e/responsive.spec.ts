@@ -179,6 +179,39 @@ test.describe("short-height layouts", () => {
   });
 });
 
+test.describe("selected unit actions", () => {
+  test("refreshes stance and formation after clicking selected actions", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/play?seed=0421&mission=0");
+    await waitForBattlefield(page);
+
+    const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
+    const infantryEntity = playerUnits(state).find((entity) => entity.kind === "infantry");
+    if (!infantryEntity) throw new Error("Mission has no player infantry");
+    const infantry = await pointForEntity(page, infantryEntity);
+    await dispatchTouch(page, "pointerdown", infantry);
+    await dispatchTouch(page, "pointerup", infantry);
+
+    const dock = page.getByTestId("mobile-command-dock");
+    await expect(dock).toContainText("1 unit");
+    await dock.getByTestId("mobile-command-more").click();
+    const sheet = page.getByTestId("mobile-command-sheet");
+    await sheet.getByRole("tab", { name: "Selected" }).click();
+
+    const unitOrders = sheet.getByTestId("mobile-unit-commands");
+    const hold = unitOrders.getByTestId("selected-action-stance-hold");
+    await expect(hold).toHaveAttribute("aria-pressed", "false");
+    await hold.click();
+    await expect(hold).toHaveAttribute("aria-pressed", "true");
+    await expect(sheet.getByText("Stance hold", { exact: true })).toBeVisible();
+
+    const wedge = unitOrders.getByTestId("selected-action-formation-wedge");
+    await expect(wedge).toHaveAttribute("aria-pressed", "false");
+    await wedge.click();
+    await expect(wedge).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
 test.describe("mobile-first layouts", () => {
   for (const viewport of [
     { width: 390, height: 844, name: "phone portrait" },

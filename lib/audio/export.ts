@@ -1,11 +1,11 @@
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import { formatSeed } from "../seed/rng";
+import { AUDIO_SAMPLE_RATE } from "./constants";
 import { MusicExportCancelledError, renderMissionMusic } from "./music";
 
 export { MusicExportCancelledError } from "./music";
 
-export const MUSIC_EXPORT_SAMPLE_RATE = 44_100;
-const MUSIC_RENDER_SAMPLE_RATE = 22_050;
+export const MUSIC_EXPORT_SAMPLE_RATE = AUDIO_SAMPLE_RATE;
 export const MUSIC_EXPORT_BITRATE = 160_000;
 export const MUSIC_EXPORT_CODEC = "mp4a.40.2";
 
@@ -70,50 +70,6 @@ function interleaveAudioBuffer(buffer: AudioBuffer, start: number, count: number
     output[frame * 2] = left[start + frame] ?? 0;
     output[frame * 2 + 1] = right[start + frame] ?? output[frame * 2];
   }
-  return output;
-}
-
-async function resampleAudioBuffer(
-  buffer: AudioBuffer,
-  targetSampleRate: number,
-  signal?: AbortSignal,
-  onProgress?: (progress: number) => void,
-): Promise<AudioBuffer> {
-  if (buffer.sampleRate === targetSampleRate) {
-    onProgress?.(1);
-    return buffer;
-  }
-  if (typeof window === "undefined" || typeof window.AudioBuffer === "undefined") {
-    throw new Error("Audio resampling is not supported in this browser.");
-  }
-
-  const targetLength = Math.ceil(buffer.length * targetSampleRate / buffer.sampleRate);
-  const channels = Math.max(1, Math.min(2, buffer.numberOfChannels));
-  const output = new window.AudioBuffer({ numberOfChannels: 2, length: targetLength, sampleRate: targetSampleRate });
-  const sourceStep = buffer.sampleRate / targetSampleRate;
-  const totalFrames = 2 * targetLength;
-  let processed = 0;
-
-  for (let channel = 0; channel < 2; channel++) {
-    const source = buffer.getChannelData(Math.min(channel, channels - 1));
-    const target = output.getChannelData(channel);
-    for (let frame = 0; frame < targetLength; frame++) {
-      const sourcePosition = frame * sourceStep;
-      const sourceIndex = Math.floor(sourcePosition);
-      const fraction = sourcePosition - sourceIndex;
-      const first = source[sourceIndex] ?? 0;
-      const second = source[sourceIndex + 1] ?? first;
-      target[frame] = first + (second - first) * fraction;
-      processed += 1;
-      if (processed % 16_384 === 0) {
-        throwIfExportAborted(signal);
-        onProgress?.(processed / totalFrames);
-        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-      }
-    }
-  }
-  throwIfExportAborted(signal);
-  onProgress?.(1);
   return output;
 }
 
@@ -212,23 +168,17 @@ export async function exportMissionSoundtrack(
   if (!(await supportsM4aExport())) throw new Error("M4A export is unavailable in this browser. Try a browser with native AAC WebCodecs support.");
   throwIfExportAborted(options.signal);
   onProgress?.({ phase: "rendering", progress: 0.08, phaseProgress: 0 });
-  const rendered = await renderMissionMusic(seed, missionIndex, MUSIC_RENDER_SAMPLE_RATE, {
+  const rendered = await renderMissionMusic(seed, missionIndex, MUSIC_EXPORT_SAMPLE_RATE, {
     signal: options.signal,
     onProgress: (phaseProgress) => onProgress?.({
       phase: "rendering",
-      progress: 0.08 + phaseProgress * 0.4,
-      phaseProgress: phaseProgress * 0.8,
+      progress: 0.08 + phaseProgress * 0.47,
+      phaseProgress,
     }),
   });
   throwIfExportAborted(options.signal);
-  const normalized = await resampleAudioBuffer(rendered, MUSIC_EXPORT_SAMPLE_RATE, options.signal, (phaseProgress) => onProgress?.({
-    phase: "rendering",
-    progress: 0.48 + phaseProgress * 0.07,
-    phaseProgress: 0.8 + phaseProgress * 0.2,
-  }));
-  throwIfExportAborted(options.signal);
   onProgress?.({ phase: "encoding", progress: 0.55, phaseProgress: 0 });
-  const blob = await encodeM4a(normalized, (nextProgress) => onProgress?.({
+  const blob = await encodeM4a(rendered, (nextProgress) => onProgress?.({
     phase: "encoding",
     progress: 0.55 + nextProgress.phaseProgress * 0.44,
     phaseProgress: nextProgress.phaseProgress,
