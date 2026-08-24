@@ -1,25 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCampaign } from "@/lib/gen/campaign";
-import { setMusicEnabled as applyMusicEnabled } from "@/lib/audio/music";
-import { setSfxEnabled as applySfxEnabled } from "@/lib/audio/synth";
-import { setAudioLevels, type AudioVolumeKey } from "@/lib/audio/mixer";
 import { listSaves, listUnreadableSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
-import { defaultSettings, readSettings, writeSettings, type GameSettings } from "@/lib/persist/settings";
-import { formatSeed, parseSeed } from "@/lib/seed/rng";
+import { defaultSettings, readSettings, type GameSettings } from "@/lib/persist/settings";
+import { parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
+import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import type { MenuView } from "./MenuOverlay";
-
-export function rollSeed(): string {
-  return formatSeed(Math.floor(Math.random() * 10000));
-}
-
-export function menuLaunchPath(code: string, tutorialComplete: boolean): string | null {
-  const seed = parseSeed(code);
-  if (seed === null || code.length < 4) return null;
-  return tutorialComplete ? `/briefing?seed=${formatSeed(seed)}&mission=0` : `/tutorial?seed=${formatSeed(seed)}`;
-}
+import { menuLaunchPath, rollSeed } from "./menuLaunch";
 
 export function useMenuController() {
   const router = useRouter();
@@ -30,6 +19,7 @@ export function useMenuController() {
   const [view, setView] = useState<MenuView>("main");
   const [settings, setSettings] = useState<GameSettings>(() => defaultSettings());
   const inputRef = useRef<HTMLInputElement>(null);
+  const { toggleSound, toggleMusic, updateVolume } = useAudioPreferences(settings, setSettings);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -54,27 +44,6 @@ export function useMenuController() {
   }, []);
 
   const openOptions = useCallback(() => setView("options"), []);
-
-  const toggleSound = useCallback(() => {
-    const next = { ...settings, sfxEnabled: !settings.sfxEnabled };
-    setSettings(next);
-    applySfxEnabled(next.sfxEnabled);
-    writeSettings(localStorageAdapter(), next);
-  }, [settings]);
-
-  const toggleMusic = useCallback(() => {
-    const next = { ...settings, musicEnabled: !settings.musicEnabled };
-    setSettings(next);
-    applyMusicEnabled(next.musicEnabled);
-    writeSettings(localStorageAdapter(), next);
-  }, [settings]);
-
-  const updateVolume = useCallback((key: AudioVolumeKey, value: number) => {
-    const next = { ...settings, [key]: value };
-    setSettings(next);
-    setAudioLevels(next);
-    writeSettings(localStorageAdapter(), next);
-  }, [settings]);
 
   const randomize = useCallback(() => {
     setCode(rollSeed());

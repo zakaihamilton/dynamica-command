@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { campaignSummary, missionMedalDisplay } from "../components/campaign/campaignSummary";
 import { mobileCommandLabel } from "../components/game/MobileCommandDock";
 import { contextOrders, isContactTarget, mobileCommandOrders } from "../components/game/hooks/gameInputOrders";
-import { menuLaunchPath } from "../components/menu/useMenuController";
+import { menuLaunchPath } from "../components/menu/menuLaunch";
 import { createCampaign } from "../lib/gen/campaign";
 import { freshCampaignProgress } from "../lib/persist/campaign";
 import { addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
