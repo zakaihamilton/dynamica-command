@@ -22,54 +22,71 @@ export const STEPS_PER_BAR = 16;
 export const MUSIC_BARS = 64;
 export const MUSIC_STEPS = STEPS_PER_BAR * MUSIC_BARS;
 
-const MINOR_PENT = [0, 3, 5, 7, 10];
+const NATURAL_MINOR = [0, 2, 3, 5, 7, 8, 10];
 const DORIAN = [0, 2, 3, 5, 7, 9, 10];
-const PHRYGIAN = [0, 1, 3, 5, 7, 8, 10];
-const HARMONIC_MINOR = [0, 2, 3, 5, 7, 8, 11];
-const MIXOLYDIAN = [0, 2, 4, 7, 9, 10];
-const MAJOR_PENT = [0, 2, 4, 7, 9];
+const MIXOLYDIAN = [0, 2, 4, 5, 7, 9, 10];
+const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 
 const PROGRESSIONS: readonly number[][] = [
-  [0, 5, 3, 4, 0, 5, 3, 4],
-  [0, 3, 5, 4, 0, 3, 5, 4],
-  [0, 5, 6, 4, 0, 5, 6, 4],
-  [0, 3, 4, 5, 0, 3, 4, 5],
-  [0, 6, 4, 5, 0, 6, 4, 5],
-  [0, 4, 5, 3, 0, 4, 5, 3],
+  [0, 5, 2, 6, 0, 5, 3, 4],
+  [0, 6, 5, 6, 0, 5, 2, 6],
+  [0, 3, 5, 4, 2, 6, 0, 4],
+  [0, 5, 3, 4, 0, 6, 5, 4],
+  [0, 4, 5, 3, 0, 4, 5, 4],
+  [0, 3, 4, 5, 2, 4, 0, 6],
 ];
 
 type BassHit = { tone: number; oct: number } | null;
 
 const BASS_RIFFS: readonly BassHit[][] = [
   [
-    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 },
-    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 },
+    { tone: 0, oct: 0 }, { tone: 0, oct: 1 }, { tone: 0, oct: 0 }, { tone: 0, oct: 1 },
+    { tone: 0, oct: 0 }, { tone: 0, oct: 1 }, { tone: 2, oct: 0 }, { tone: 0, oct: 1 },
   ],
   [
-    { tone: 0, oct: 0 }, null, { tone: 0, oct: 1 }, { tone: 2, oct: 0 },
-    { tone: 0, oct: 0 }, null, { tone: 2, oct: 0 }, null,
+    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 2, oct: 0 },
+    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 0, oct: 1 }, { tone: 2, oct: 0 },
   ],
   [
-    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 1, oct: 0 },
-    { tone: 2, oct: 0 }, { tone: 0, oct: 0 }, null, { tone: 0, oct: -1 },
+    { tone: 0, oct: 0 }, null, { tone: 2, oct: 0 }, { tone: 0, oct: 0 },
+    null, { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 1 },
   ],
   [
-    { tone: 0, oct: 0 }, null, { tone: 2, oct: 0 }, null,
-    { tone: 0, oct: 0 }, { tone: 1, oct: 0 }, { tone: 2, oct: 0 }, null,
+    { tone: 0, oct: 0 }, { tone: 0, oct: 0 }, { tone: 0, oct: 1 }, { tone: 0, oct: 0 },
+    { tone: 2, oct: 0 }, { tone: 0, oct: 0 }, { tone: 0, oct: 1 }, null,
   ],
   [
-    { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 }, null,
-    { tone: 0, oct: 1 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 }, null,
+    { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 }, { tone: 0, oct: 1 },
+    { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 1, oct: 0 }, { tone: 0, oct: 0 },
   ],
 ];
 
-const MELODY_CONTOURS: readonly (number | null)[][] = [
-  [0, 2, 4, 2, 3, 2, 0, null],
-  [0, 1, 3, 4, 2, 4, 3, 0],
-  [2, 4, 2, 0, null, 1, 3, 2],
-  [0, null, 2, 4, 3, 2, 4, null],
-  [4, 2, 0, 2, 4, 3, 2, 0],
-  [0, 2, 4, 3, 2, 4, 3, 0],
+const VERSE_CONTOURS: readonly (number | null)[][] = [
+  [0, 0, 2, 4, 2, 0, null],
+  [0, 2, 3, 2, 0, 2, 4],
+  [2, 0, 2, 4, 3, 2, 0],
+  [0, 1, 3, 2, 4, 2, 0],
+  [0, 2, 0, 4, 2, 3, 0],
+];
+
+const HOOK_CONTOURS: readonly (number | null)[][] = [
+  [4, 4, 5, 2, 0],
+  [7, 5, 4, 2, 0],
+  [4, 6, 4, 0, 2],
+  [5, 4, 7, 5, 4],
+  [4, 2, 4, 5, 4],
+];
+
+const VERSE_RHYTHMS: readonly number[][] = [
+  [0, 2, 3, 6, 8, 10, 12],
+  [0, 1, 4, 6, 8, 11, 12],
+  [0, 2, 4, 7, 8, 10, 13],
+];
+
+const HOOK_RHYTHMS: readonly number[][] = [
+  [0, 4, 8, 12, 14],
+  [0, 3, 8, 12, 14],
+  [0, 4, 7, 10, 12],
 ];
 
 const ARP_FIGURES: readonly number[][] = [
@@ -78,13 +95,7 @@ const ARP_FIGURES: readonly number[][] = [
   [0, 2, 0, 2, 1, 2, 0, 1],
 ];
 
-const OPEN_HAT_FIGURES: readonly (readonly number[])[] = [[6], [14], [6, 14], []];
-
-const HOOK_RHYTHMS: readonly number[][] = [
-  [0, 2, 4, 7, 8, 10, 12, 14],
-  [0, 1, 4, 6, 8, 11, 12, 15],
-  [0, 2, 5, 7, 8, 10, 13, 14],
-];
+const OPEN_HAT_FIGURES: readonly (readonly number[])[] = [[6, 14], [6], [14, 6]];
 
 const SECTION_ORDER: readonly MusicSectionName[] = [
   "intro",
@@ -114,6 +125,7 @@ export type MusicDrumEvent = {
 
 export type MusicMotif = {
   degrees: (number | null)[];
+  response: (number | null)[];
   rhythm: number[];
   accentSteps: number[];
   variant: number;
@@ -185,56 +197,52 @@ function musicLabel(cue: MusicCue, missionIndex: number): string {
 
 function bpmFor(cue: MusicCue, roll: number, missionIndex: number): number {
   const mission = Math.max(0, missionIndex);
-  if (cue === "menu") return 92 + (roll % 15);
-  if (cue === "briefing") return 82 + (roll % 15);
-  if (cue === "mission") return 112 + ((roll + mission) % 13);
-  if (cue === "victory") return 118 + (roll % 11);
-  return 72 + (roll % 13);
+  if (cue === "menu") return 112 + (roll % 13);
+  if (cue === "briefing") return 104 + (roll % 13);
+  if (cue === "mission") return 118 + ((roll + mission) % 11);
+  if (cue === "victory") return 124 + (roll % 9);
+  return 88 + (roll % 11);
 }
 
 function scaleFor(cue: MusicCue, rng: Rng): { notes: readonly number[]; name: string } {
   if (cue === "victory") {
     return rng.pick([
-      { notes: MAJOR_PENT, name: "major pentatonic" },
+      { notes: MAJOR, name: "major" },
       { notes: MIXOLYDIAN, name: "mixolydian" },
       { notes: DORIAN, name: "dorian" },
     ]);
   }
   if (cue === "briefing") {
     return rng.pick([
-      { notes: PHRYGIAN, name: "phrygian" },
-      { notes: HARMONIC_MINOR, name: "harmonic minor" },
       { notes: DORIAN, name: "dorian" },
+      { notes: NATURAL_MINOR, name: "natural minor" },
     ]);
   }
   if (cue === "defeat") {
     return rng.pick([
-      { notes: PHRYGIAN, name: "phrygian" },
-      { notes: HARMONIC_MINOR, name: "harmonic minor" },
+      { notes: NATURAL_MINOR, name: "natural minor" },
+      { notes: DORIAN, name: "dorian" },
     ]);
   }
   return rng.pick([
-    { notes: MINOR_PENT, name: "minor pentatonic" },
+    { notes: NATURAL_MINOR, name: "natural minor" },
     { notes: DORIAN, name: "dorian" },
-    { notes: PHRYGIAN, name: "phrygian" },
-    { notes: HARMONIC_MINOR, name: "harmonic minor" },
     { notes: MIXOLYDIAN, name: "mixolydian" },
+    { notes: MAJOR, name: "major" },
   ]);
 }
 
-function grooveFor(cue: MusicCue, rng: Rng, missionIndex: number): MusicGroove {
-  if (cue === "briefing" || cue === "defeat") return rng.pick(["stalk", "stalk", "march"]);
-  if (cue === "menu") return rng.pick(["stalk", "pulse", "march"]);
+function grooveFor(cue: MusicCue, rng: Rng): MusicGroove {
+  if (cue === "defeat") return "march";
   if (cue === "victory") return rng.pick(["march", "pulse"]);
-  if (missionIndex >= 4) return rng.pick(["pulse", "break", "march"]);
-  return rng.pick(["march", "pulse", "break", "stalk"]);
+  return rng.pick(["pulse", "march"]);
 }
 
 function grooveHits(groove: MusicGroove, variation: 0 | 1): { kick: number[]; snare: number[] } {
   if (groove === "pulse") {
     return variation === 0
       ? { kick: [0, 4, 8, 12], snare: [4, 12] }
-      : { kick: [0, 3, 4, 8, 10, 12], snare: [4, 10, 12, 14] };
+      : { kick: [0, 4, 8, 10, 12], snare: [4, 12] };
   }
   if (groove === "break") {
     return variation === 0
@@ -248,7 +256,7 @@ function grooveHits(groove: MusicGroove, variation: 0 | 1): { kick: number[]; sn
   }
   return variation === 0
     ? { kick: [0, 8], snare: [4, 12] }
-    : { kick: [0, 6, 8, 14], snare: [4, 12] };
+    : { kick: [0, 6, 8], snare: [4, 12] };
 }
 
 function sectionEnergy(name: MusicSectionName): number {
@@ -325,27 +333,80 @@ function makeSections(): MusicSection[] {
   }));
 }
 
-function motifFor(rng: Rng): MusicMotif {
-  const contour = rng.pick(MELODY_CONTOURS);
-  const rhythm = rng.pick(HOOK_RHYTHMS);
+function motifFrom(
+  rng: Rng,
+  contours: readonly (number | null)[][],
+  rhythms: readonly number[][],
+): MusicMotif {
+  const contour = rng.pick(contours);
+  const response = pickDifferent(rng, contours, contour);
+  const rhythm = rng.pick(rhythms);
   const accents = rng.pick([
-    [0, 3, 6],
-    [0, 4, 7],
-    [0, 2, 5, 7],
+    [0, 2],
+    [0, 3],
+    [1, 4],
   ]);
-  return { degrees: [...contour], rhythm: [...rhythm], accentSteps: [...accents], variant: rng.int(8) };
+  return {
+    degrees: [...contour],
+    response: [...response],
+    rhythm: [...rhythm],
+    accentSteps: [...accents],
+    variant: rng.int(8),
+  };
+}
+
+function placeMelody(
+  notes: MusicNoteEvent[],
+  origin: number,
+  motif: MusicMotif,
+  response: boolean,
+  rootMidi: number,
+  scale: readonly number[],
+  chord: number,
+  variant: number,
+  octave: number,
+  durationFor: (index: number, sounding: number) => number,
+  velocity: number,
+  harmony: boolean,
+): void {
+  const degrees = response ? motif.response : motif.degrees;
+  let sounding = 0;
+  for (const degree of degrees) {
+    if (degree !== null) sounding += 1;
+  }
+  let placed = 0;
+  for (let i = 0; i < degrees.length; i++) {
+    const degree = degrees[i];
+    if (degree === null) continue;
+    const motifStep = motif.rhythm[i] ?? i * 2;
+    if (motifStep < 0 || motifStep >= STEPS_PER_BAR) continue;
+    const midi = scaleToneMidi(rootMidi, scale, chord, degree + variant, octave);
+    const duration = durationFor(placed, sounding);
+    noteEvent(notes, origin + motifStep, midi, duration, velocity, motif.accentSteps.includes(i));
+    if (harmony) {
+      noteEvent(
+        notes,
+        origin + motifStep,
+        scaleToneMidi(rootMidi, scale, chord, degree + variant + 2, octave),
+        duration,
+        velocity * 0.7,
+      );
+    }
+    placed += 1;
+  }
 }
 
 export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): MusicPattern {
   const rng = createRng(seed, musicLabel(cue, missionIndex));
   const scalePick = scaleFor(cue, rng);
   const rootMidi = cue === "defeat" ? rng.intRange(33, 40) : rng.intRange(36, 46);
-  const groove = grooveFor(cue, rng, missionIndex);
+  const groove = grooveFor(cue, rng);
   const progressionA = rng.pick(PROGRESSIONS);
   const progressionB = pickDifferent(rng, PROGRESSIONS, progressionA);
   const bassRiffA = rng.pick(BASS_RIFFS);
   const bassRiffB = pickDifferent(rng, BASS_RIFFS, bassRiffA);
-  const motif = motifFor(rng);
+  const motif = motifFrom(rng, VERSE_CONTOURS, VERSE_RHYTHMS);
+  const hook = motifFrom(rng, HOOK_CONTOURS, HOOK_RHYTHMS);
   const arpFigureA = rng.pick(ARP_FIGURES);
   const arpFigureB = pickDifferent(rng, ARP_FIGURES, arpFigureA);
   const openHatA = rng.pick(OPEN_HAT_FIGURES);
@@ -365,20 +426,42 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const phraseBar = bar % 8;
     const secondHalf = bar >= MUSIC_BARS / 2;
     const progression = secondHalf ? progressionB : progressionA;
-    const chord = phraseBar === 7 ? 0 : progression[phraseBar] ?? 0;
+    const chord = progression[phraseBar] ?? 0;
     const riff = secondHalf ? bassRiffB : bassRiffA;
     const arpFigure = secondHalf ? arpFigureB : arpFigureA;
     const openHatSteps = secondHalf ? openHatB : openHatA;
     const fill = phraseBar === 7;
     const intro = section.name === "intro";
     const breakdown = section.name === "breakdown";
-    const leadSection = section.name === "hook" || section.name === "development" || section.name === "escalation" || section.name === "climax" || section.name === "turnaround";
+    const climax = section.name === "climax";
+    const hookSection = section.name === "hook" || section.name === "turnaround" || climax;
     const fullDrums = !sparse && (cue === "victory" || (!breakdown && (!intro || phraseBar >= 4)));
-    const lightDrums = sparse && !breakdown && (!intro || phraseBar >= 4);
-    const sparsePulse = sparse && cue !== "defeat" && (section.name === "groove" || section.name === "hook" || section.name === "turnaround");
-    const usePulse = (!sparse && (section.name === "groove" || leadSection || section.name === "turnaround")) || sparsePulse;
-    const useMelody = leadSection || (sparse && (section.name === "hook" || section.name === "turnaround"));
-    const useCounter = !sparse && (section.name === "development" || section.name === "climax");
+    const lightDrums = (sparse && !breakdown && (!intro || phraseBar >= 4)) || (breakdown && cue === "victory");
+    const usePulse =
+      (intro && phraseBar >= 4) ||
+      section.name === "groove" ||
+      section.name === "hook" ||
+      section.name === "development" ||
+      section.name === "escalation" ||
+      climax ||
+      section.name === "turnaround" ||
+      (breakdown && phraseBar >= 6);
+    const phraseSlot = phraseBar % 4;
+    const restBar = !hookSection && !climax && phraseSlot === 3 && section.name !== "escalation";
+    const useHookLead =
+      hookSection ||
+      (intro && phraseBar >= 6) ||
+      (breakdown && phraseBar >= 4) ||
+      (section.name === "escalation" && phraseBar >= 4);
+    const useMelody =
+      !restBar &&
+      (section.name === "groove" ||
+        section.name === "development" ||
+        section.name === "escalation" ||
+        hookSection ||
+        (intro && phraseBar >= 6) ||
+        (breakdown && phraseBar >= 4));
+    const useCounter = !sparse && (section.name === "development" || climax);
 
     padRoot.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 0, 1)));
     padThird.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 1, 1)));
@@ -387,92 +470,126 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
 
     const bassStride = breakdown ? 8 : intro ? 4 : 2;
     if (breakdown) {
-      noteEvent(notes.bass, origin, chordToneMidi(rootMidi, scalePick.notes, chord, 0, -1), 8, 0.55, true);
-      if (bar % 2 === 1) noteEvent(notes.bass, origin + 8, chordToneMidi(rootMidi, scalePick.notes, chord, 0, 0), 6, 0.42);
+      noteEvent(notes.bass, origin, chordToneMidi(rootMidi, scalePick.notes, chord, 0, -1), 8, 0.58, true);
+      if (bar % 2 === 1) noteEvent(notes.bass, origin + 8, chordToneMidi(rootMidi, scalePick.notes, chord, 0, 0), 6, 0.46);
     } else {
       for (let i = 0; i < 8; i++) {
         if (i % (bassStride / 2) !== 0 && bassStride > 2) continue;
         const hit = riff[i];
         if (!hit) continue;
-        const octave = section.name === "climax" && i % 3 === 2 ? hit.oct + 1 : hit.oct;
+        const octave = climax && i % 3 === 2 ? hit.oct + 1 : hit.oct;
         noteEvent(
           notes.bass,
           origin + i * 2,
           chordToneMidi(rootMidi, scalePick.notes, chord, hit.tone, octave),
-          section.name === "intro" ? 3 : 2,
-          i === 0 || i === 4 ? 0.9 : 0.66,
+          intro ? 3 : 2,
+          i === 0 || i === 4 ? 0.92 : 0.7,
           i === 0 || i === 4,
         );
       }
     }
 
     if (usePulse) {
-      const pulseStride = section.name === "climax" ? 1 : sparsePulse ? 4 : 2;
+      const pulseStride = climax ? 1 : breakdown || (sparse && cue === "defeat") ? 4 : 2;
       for (let i = 0; i < STEPS_PER_BAR; i += pulseStride) {
-        const figureIndex = Math.floor(i / 2) % arpFigure.length;
-        const step = origin + i;
-        const velocity = section.name === "climax" ? (i % 2 === 0 ? 0.68 : 0.34) : section.name === "hook" || section.name === "escalation" ? 0.54 : 0.46;
-        noteEvent(notes.pulse, step, chordToneMidi(rootMidi, scalePick.notes, chord, arpFigure[figureIndex]!, 1), 1, velocity, i % 4 === 0);
+        const figureIndex = Math.floor(i / Math.max(1, pulseStride === 1 ? 1 : 2)) % arpFigure.length;
+        const velocity = climax
+          ? i % 2 === 0 ? 0.7 : 0.36
+          : section.name === "hook" || section.name === "escalation"
+            ? 0.56
+            : 0.48;
+        noteEvent(
+          notes.pulse,
+          origin + i,
+          chordToneMidi(rootMidi, scalePick.notes, chord, arpFigure[figureIndex]!, 1),
+          1,
+          velocity,
+          i % 4 === 0,
+        );
       }
     }
 
     if (useMelody) {
-      const variant = section.name === "climax" ? 3 : section.name === "escalation" ? 2 : section.name === "development" ? 1 : 0;
-      const response = phraseBar % 2 === 1;
-      for (let i = 0; i < motif.degrees.length; i++) {
-        const degree = motif.degrees[i];
-        if (degree === null) continue;
-        if (section.name === "development" && i % 5 === 2) continue;
-        const motifStep = motif.rhythm[i % motif.rhythm.length] ?? i * 2;
-        const step = origin + motifStep;
-        const inverted = response ? 4 - degree : degree;
-        const transposed = inverted + variant + (section.name === "climax" && i % 3 === 0 ? 1 : 0);
-        const duration = section.name === "climax" ? 2 : response ? 3 : 2;
-        const velocity = section.name === "climax" ? 0.96 : section.name === "hook" || section.name === "turnaround" ? 0.82 : 0.72;
-        noteEvent(notes.melody, step, scaleToneMidi(rootMidi, scalePick.notes, chord, transposed, 2), duration, velocity, motif.accentSteps.includes(i));
-      }
-      if (section.name === "climax" || section.name === "turnaround") {
-        noteEvent(notes.melody, origin + 15, scaleToneMidi(rootMidi, scalePick.notes, chord, 0, 2), 1, 0.9, true);
-      }
+      const lead = useHookLead ? hook : motif;
+      const variant = climax
+        ? 0
+        : section.name === "development"
+          ? 1
+          : section.name === "escalation" && !useHookLead
+            ? 1
+            : 0;
+      const response = phraseSlot === 1 || phraseSlot === 2;
+      const velocity = climax ? 0.96 : hookSection ? 0.86 : 0.74;
+      const durationFor = (index: number, sounding: number) => {
+        if (useHookLead) return index === sounding - 1 ? 4 : 6;
+        return 2;
+      };
+      placeMelody(
+        notes.melody,
+        origin,
+        lead,
+        response,
+        rootMidi,
+        scalePick.notes,
+        chord,
+        variant,
+        2,
+        durationFor,
+        velocity,
+        climax,
+      );
     }
 
-    if (useCounter) {
-      for (let i = 0; i < 8; i++) {
-        if (motif.degrees[i % motif.degrees.length] !== null || i % 2 === 1) continue;
-        noteEvent(notes.counter, origin + i * 2, chordToneMidi(rootMidi, scalePick.notes, chord, section.name === "climax" ? 1 : 2, 2), 2, section.name === "climax" ? 0.55 : 0.38);
+    if (useCounter && useMelody) {
+      const lead = useHookLead ? hook : motif;
+      const degrees = phraseSlot === 1 ? lead.response : lead.degrees;
+      for (let i = 0; i < degrees.length; i++) {
+        const degree = degrees[i];
+        if (degree === null) continue;
+        const motifStep = lead.rhythm[i] ?? i * 2;
+        if (motifStep % 2 === 1 || motifStep >= STEPS_PER_BAR) continue;
+        noteEvent(
+          notes.counter,
+          origin + motifStep,
+          scaleToneMidi(rootMidi, scalePick.notes, chord, degree, 2),
+          climax ? 4 : 2,
+          climax ? 0.5 : 0.36,
+        );
       }
     }
 
     if (fullDrums || lightDrums) {
       const hits = grooveHits(groove, secondHalf ? 1 : 0);
-      for (const step of hits.kick) drumEvent(drums, origin + step, "kick", fullDrums ? (step === 0 ? 0.95 : 0.7) : 0.44, step === 0);
+      const drumGain = fullDrums ? 1 : 0.58;
+      for (const step of hits.kick) drumEvent(drums, origin + step, "kick", (step === 0 ? 0.95 : 0.72) * drumGain, step === 0);
       for (const step of hits.snare) {
         const accent = step === 4 || step === 12;
-        drumEvent(drums, origin + step, "snare", fullDrums ? (accent ? 0.86 : 0.58) : 0.38, accent);
-        if (fullDrums && !breakdown) drumEvent(drums, origin + step, "clap", accent ? 0.72 : 0.44, accent);
+        drumEvent(drums, origin + step, "snare", (accent ? 0.9 : 0.62) * drumGain, accent);
+        if (!breakdown) drumEvent(drums, origin + step, "clap", (accent ? 0.76 : 0.48) * drumGain, accent);
       }
-      const hatStride = section.name === "climax" ? 1 : intro || breakdown || groove === "stalk" ? 4 : 2;
+      const hatStride = climax ? 1 : intro || breakdown ? 2 : 1;
       for (let step = 0; step < STEPS_PER_BAR; step += hatStride) {
-        if (step % 4 === 0 || (groove !== "stalk" && step % 4 === 2)) drumEvent(drums, origin + step, "hat", fullDrums ? 0.34 : 0.2);
+        const offbeat = step % 2 === 1;
+        drumEvent(drums, origin + step, "hat", (offbeat ? 0.28 : 0.2) * drumGain);
       }
       if (!breakdown) {
-        for (const step of openHatSteps) drumEvent(drums, origin + step, "openHat", fullDrums ? 0.42 : 0.24);
+        for (const step of openHatSteps) drumEvent(drums, origin + step, "openHat", 0.44 * drumGain);
       }
     }
 
-    if ((section.name === "escalation" || section.name === "climax") && phraseBar === 0) {
-      drumEvent(drums, origin, "impact", section.name === "climax" ? 0.9 : 0.62, true);
+    if ((section.name === "escalation" || climax) && phraseBar === 0) {
+      drumEvent(drums, origin, "impact", climax ? 0.9 : 0.62, true);
     }
 
     if (fill) {
       if (sparse) {
-        drumEvent(drums, origin + 12, "snare", 0.48, true);
-        drumEvent(drums, origin + 14, "openHat", 0.35);
+        drumEvent(drums, origin + 12, "snare", 0.52, true);
+        drumEvent(drums, origin + 14, "openHat", 0.38);
       } else {
         const fillSteps = bar === MUSIC_BARS - 1 ? [6, 8, 10, 11, 12, 13, 14, 15] : [8, 10, 12, 13, 14, 15];
         for (const step of fillSteps) drumEvent(drums, origin + step, step >= 12 ? "tom" : "snare", step >= 12 ? 0.74 : 0.6, step >= 12);
         drumEvent(drums, origin, "kick", 0.92, true);
-        if (groove !== "stalk") drumEvent(drums, origin + 8, "kick", 0.7);
+        drumEvent(drums, origin + 8, "kick", 0.7);
         if (bar === MUSIC_BARS - 1) {
           drumEvent(drums, origin + 4, "kick", 0.78);
           drumEvent(drums, origin + 12, "kick", 0.88, true);
@@ -492,7 +609,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     bassRiffA: [...bassRiffA],
     bassRiffB: [...bassRiffB],
     motif,
-    hook: motif,
+    hook,
   };
 
   return {
@@ -500,17 +617,17 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     seed,
     missionIndex,
     bpm: bpmFor(cue, rng.int(64), missionIndex),
-    swing: groove === "break" || groove === "stalk" ? 0.06 + rng.next() * 0.16 : rng.next() * 0.08,
+    swing: rng.next() * 0.03,
     bars: MUSIC_BARS,
     steps: MUSIC_STEPS,
     rootHz: midiToHz(rootMidi),
     rootMidi,
     scaleName: scalePick.name,
-    cutoff: 420 + rng.int(cue === "mission" ? 560 : 360),
-    bassType: rng.pick(["sawtooth", "square"]),
+    cutoff: 640 + rng.int(cue === "mission" ? 520 : 320),
+    bassType: rng.pick(["square", "square", "sawtooth"]),
     arpType: "square",
-    melodyType: rng.pick(["square", "sawtooth"]),
-    delayBeats: rng.pick([0.5, 0.75]),
+    melodyType: rng.pick(["sawtooth", "sawtooth", "square"]),
+    delayBeats: rng.pick([0.75, 0.75, 0.5]),
     theme,
     motif,
     sections,
