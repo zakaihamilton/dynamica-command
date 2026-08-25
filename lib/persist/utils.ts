@@ -8,7 +8,15 @@ export function readPersistedEnvelope<T>(
   normalize: (parsed: unknown) => T | null,
   fallback: T,
 ): T {
-  const raw = storage.getItem(key);
+  // Reads stay guarded like safeGetItem: storage access itself can throw
+  // under blocked privacy settings, not just JSON.parse.
+  let raw: string | null;
+  try {
+    raw = storage.getItem(key);
+  } catch {
+    console.debug(`[persist] Failed to read ${key}, using fallback`);
+    return fallback;
+  }
   if (!raw) return fallback;
   try {
     const parsed = JSON.parse(raw);
