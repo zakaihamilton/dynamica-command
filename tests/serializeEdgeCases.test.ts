@@ -1,0 +1,285 @@
+import { describe, expect, it } from "vitest";
+import {
+  decodeSave,
+  deserializeState,
+  parseSaveExport,
+  saveExportFilename,
+  saveKey,
+  serializeSaveExport,
+  serializeState,
+  SAVE_PREFIX,
+  SAVE_VERSION,
+} from "../lib/persist/save/serialize";
+import { makeFixture } from "../lib/sim/fixtures";
+import { freshCampaignProgress } from "../lib/persist/campaign";
+
+function baseState(seed = 1000) {
+  return makeFixture({ seed, win: { kind: "annihilate" } });
+}
+
+describe("serializeState / deserializeState", () => {
+  it("round-trips a state through JSON", () => {
+    const state = baseState();
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(restored.seed).toBe(state.seed);
+    expect(restored.width).toBe(state.width);
+  });
+});
+
+describe("saveKey / saveExportFilename", () => {
+  it("formats keys with 4-digit zero padding", () => {
+    expect(saveKey(42)).toBe(`${SAVE_PREFIX}0042`);
+    expect(saveKey(1000)).toBe(`${SAVE_PREFIX}1000`);
+  });
+
+  it("formats export filenames", () => {
+    expect(saveExportFilename(42)).toBe("genesis-protocol-0042-save.json");
+  });
+});
+
+describe("serializeSaveExport", () => {
+  it("produces valid JSON with matching seeds", () => {
+    const state = baseState(2000);
+    const campaign = freshCampaignProgress(2000);
+    const raw = serializeSaveExport(state, campaign, 12345);
+    const parsed = JSON.parse(raw);
+    expect(parsed.format).toBe("genesis-protocol-save");
+    expect(parsed.version).toBe(1);
+    expect(parsed.exportedAt).toBe(12345);
+    expect(parsed.campaign.seed).toBe(2000);
+  });
+
+  it("throws when campaign is invalid", () => {
+    const state = baseState(1000);
+    expect(() => serializeSaveExport(state, { notValid: true } as never)).toThrow("Invalid campaign progress");
+  });
+
+  it("throws when state seed mismatches campaign seed", () => {
+    const state = baseState(1000);
+    const campaign = freshCampaignProgress(2001);
+    expect(() => serializeSaveExport(state, campaign)).toThrow("seeds must match");
+  });
+});
+
+describe("parseSaveExport", () => {
+  it("round-trips through serializeSaveExport", () => {
+    const state = baseState(3000);
+    const campaign = freshCampaignProgress(3000);
+    const raw = serializeSaveExport(state, campaign, 99999);
+    const parsed = parseSaveExport(raw);
+    expect(parsed.state.seed).toBe(3000);
+    expect(parsed.campaign.seed).toBe(3000);
+    expect(parsed.exportedAt).toBe(99999);
+  });
+
+  it("rejects non-JSON input", () => {
+    expect(() => parseSaveExport("not-json")).toThrow("not valid JSON");
+  });
+
+  it("rejects wrong format", () => {
+    expect(() => parseSaveExport(JSON.stringify({ format: "wrong", version: 1 }))).toThrow("Unsupported save file format");
+  });
+
+  it("rejects wrong content version", () => {
+    const state = baseState(1000);
+    const campaign = freshCampaignProgress(1000);
+    const raw = serializeSaveExport(state, campaign);
+    const parsed = JSON.parse(raw);
+    parsed.contentVersion = 999;
+    expect(() => parseSaveExport(JSON.stringify(parsed))).toThrow("Unsupported save content version");
+  });
+
+  it("rejects mismatched seed in payload", () => {
+    const state = baseState(1000);
+    const campaign = freshCampaignProgress(1000);
+    const raw = serializeSaveExport(state, campaign);
+    const parsed = JSON.parse(raw);
+    parsed.campaign.seed = 2000;
+    expect(() => parseSaveExport(JSON.stringify(parsed))).toThrow("do not match");
+  });
+});
+
+describe("decodeSave", () => {
+  it("decodes a valid envelope", () => {
+    const state = baseState(1000);
+    const envelope = { version: SAVE_VERSION, savedAt: 500, state };
+    const { state: decoded, savedAt } = decodeSave(JSON.stringify(envelope));
+    expect(decoded.seed).toBe(1000);
+    expect(savedAt).toBe(500);
+  });
+
+  it("decodes legacy format with savedAt at root level", () => {
+    const state = baseState(1000);
+    const legacy = { ...state, savedAt: 600 };
+    const { state: decoded, savedAt } = decodeSave(JSON.stringify(legacy));
+    expect(decoded.seed).toBe(1000);
+    expect(savedAt).toBe(600);
+  });
+
+  it("throws on unsupported envelope version", () => {
+    const envelope = { version: 99, savedAt: 0, state: baseState() };
+    expect(() => decodeSave(JSON.stringify(envelope))).toThrow("Unsupported save version");
+  });
+
+  it("throws on invalid state shape", () => {
+    const envelope = { version: SAVE_VERSION, savedAt: 0, state: { seed: 1000 } };
+    expect(() => decodeSave(JSON.stringify(envelope))).toThrow("Invalid save state");
+  });
+
+  it("throws on invalid JSON", () => {
+    expect(() => decodeSave("not json")).toThrow();
+  });
+});
+
+describe("normalizeState edge cases", () => {
+  it("fills missing heights array", () => {
+    const state = baseState(1000);
+    delete (state as { heights?: unknown }).heights;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(restored.heights).toBeDefined();
+    expect(restored.heights.length).toBe(restored.width * restored.height);
+  });
+
+  it("fills missing surfaces array", () => {
+    const state = baseState(1000);
+    delete (state as { surfaces?: unknown }).surfaces;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(restored.surfaces).toBeDefined();
+    expect(restored.surfaces.length).toBe(restored.width * restored.height);
+  });
+
+  it("fills missing biome from seed", () => {
+    const state = baseState(1000);
+    delete (state as { biome?: unknown }).biome;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(restored.biome).toBeTruthy();
+  });
+
+  it("fills empty fog array", () => {
+    const state = baseState(1000);
+    (state as { fog: unknown }).fog = "not-array";
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(Array.isArray(restored.fog)).toBe(true);
+  });
+
+  it("fills missing losses", () => {
+    const state = baseState(1000);
+    delete (state as { losses?: unknown }).losses;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(restored.losses).toEqual({ units: [0, 0], buildings: [0, 0] });
+  });
+
+  it("fills missing unitsProducedByRole", () => {
+    const state = baseState(1000);
+    delete (state as { unitsProducedByRole?: unknown }).unitsProducedByRole;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(restored.unitsProducedByRole).toBeDefined();
+  });
+
+  it("fills missing buildingsCompletedByKind", () => {
+    const state = baseState(1000);
+    delete (state as { buildingsCompletedByKind?: unknown }).buildingsCompletedByKind;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(restored.buildingsCompletedByKind).toBeDefined();
+  });
+
+  it("fills missing entities array", () => {
+    const state = baseState(1000);
+    delete (state as { entities?: unknown }).entities;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(Array.isArray(restored.entities)).toBe(true);
+  });
+
+  it("sets default aiState when missing", () => {
+    const state = baseState(1000);
+    delete (state as { aiState?: unknown }).aiState;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect(restored.aiState).toBe("economy");
+  });
+
+  it("clears invalid aiRetreatTick", () => {
+    const state = baseState(1000);
+    (state as { aiRetreatTick: unknown }).aiRetreatTick = 1.5;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect((restored as { aiRetreatTick?: unknown }).aiRetreatTick).toBeUndefined();
+  });
+
+  it("clears non-true aiRetreatLocked", () => {
+    const state = baseState(1000);
+    (state as { aiRetreatLocked: unknown }).aiRetreatLocked = false;
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect((restored as { aiRetreatLocked?: unknown }).aiRetreatLocked).toBeUndefined();
+  });
+
+  it("removes appliedUpgrades", () => {
+    const state = baseState(1000);
+    (state as { appliedUpgrades: unknown }).appliedUpgrades = ["test"];
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    expect((restored as { appliedUpgrades?: unknown }).appliedUpgrades).toBeUndefined();
+  });
+
+  it("normalizes entity defaults on real entities", () => {
+    const state = baseState(1000);
+    for (const unit of state.entities.filter((e) => e.class === "unit")) {
+      delete (unit as { facing?: unknown }).facing;
+      delete (unit as { stance?: unknown }).stance;
+      delete (unit as { queue?: unknown }).queue;
+    }
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    for (const e of restored.entities.filter((en) => en.class === "unit")) {
+      expect(e.facing).toBeDefined();
+      expect(e.stance).toBe("aggressive");
+      expect(e.queue).toEqual([]);
+    }
+  });
+
+  it("normalizes support unit supportMode", () => {
+    const state = baseState(1000);
+    for (const medic of state.entities.filter((e) => e.kind === "medic")) {
+      (medic as { supportMode: unknown }).supportMode = "invalid";
+    }
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    for (const m of restored.entities.filter((e) => e.kind === "medic")) {
+      expect(m.supportMode).toBe("auto");
+    }
+  });
+
+  it("deletes supportTargetId from non-support units", () => {
+    const state = baseState(1000);
+    for (const unit of state.entities.filter((e) => e.class === "unit" && e.kind !== "medic" && e.kind !== "repairTruck")) {
+      (unit as { supportTargetId: unknown }).supportTargetId = 5;
+    }
+    const raw = serializeState(state);
+    const restored = deserializeState(raw);
+    for (const u of restored.entities.filter((e) => e.class === "unit" && e.kind !== "medic" && e.kind !== "repairTruck")) {
+      expect((u as { supportTargetId?: unknown }).supportTargetId).toBeUndefined();
+    }
+  });
+
+  it("normalizes widths/heights validation", () => {
+    const state = baseState(1000);
+    (state as { width: unknown }).width = -1;
+    expect(() => deserializeState(serializeState(state))).toThrow("Invalid save state");
+  });
+
+  it("normalizes zero-height state", () => {
+    const state = baseState(1000);
+    (state as { height: unknown }).height = 0;
+    expect(() => deserializeState(serializeState(state))).toThrow("Invalid save state");
+  });
+});
