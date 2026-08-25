@@ -1,4 +1,5 @@
-import type { ArmorType, BuildingKind, SupportRole, UnitDomain, UnitKind, WeaponType } from "./types";
+import { isUnitEntity } from "./types";
+import type { ArmorType, BuildingKind, Entity, SupportRole, UnitDomain, UnitKind, WeaponType } from "./types";
 
 export const TICKS_PER_SECOND = 12;
 export const MAX_PRODUCTION_QUEUE = 10;
@@ -196,9 +197,12 @@ export function footprintOf(kind: BuildingKind): Footprint {
   return BUILDING_STATS[kind].footprint;
 }
 
+export function isUnitKind(kind: UnitKind | BuildingKind): kind is UnitKind {
+  return (UNIT_KINDS as string[]).includes(kind);
+}
+
 export function labelFor(kind: UnitKind | BuildingKind): string {
-  if (kind in UNIT_LABELS) return UNIT_LABELS[kind as UnitKind];
-  return BUILDING_LABELS[kind as BuildingKind];
+  return isUnitKind(kind) ? UNIT_LABELS[kind] : BUILDING_LABELS[kind];
 }
 
 export const HARVEST_PER_TICK = 2;
@@ -233,6 +237,11 @@ export function producerFor(unit: UnitKind): BuildingKind {
 
 export function isSupportUnit(kind: UnitKind): boolean {
   return UNIT_STATS[kind].supportRole !== undefined;
+}
+
+/** Entity-level companion to isSupportUnit; false for buildings. */
+export function isSupportEntity(e: Entity): boolean {
+  return isUnitEntity(e) && UNIT_STATS[e.kind].supportRole !== undefined;
 }
 
 export function isUnitAvailable(kind: UnitKind, missionIndex: number): boolean {

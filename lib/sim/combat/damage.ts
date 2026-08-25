@@ -1,4 +1,5 @@
 import type { Entity, SimEvent, SimState } from "../../types";
+import { isUnitEntity } from "../../types";
 import { closestApproach } from "../world";
 import { statsFor } from "./grid";
 import { armorFor, damageMultiplier, heightMultiplier } from "./targeting";
@@ -42,14 +43,14 @@ export function strike(
     targetX: target.x,
     targetY: target.y,
     targetOwner: target.owner,
-    targetKind: String(target.kind),
+    targetKind: target.kind,
     destroyed,
   });
   if (!destroyed) return;
   target.hp = 0;
-  if (target.class === "unit") state.losses.units[target.owner] += 1;
+  if (isUnitEntity(target)) state.losses.units[target.owner] += 1;
   else state.losses.buildings[target.owner] += 1;
-  events.push({ type: "destroyed", id: target.id, kind: String(target.kind), x: target.x, y: target.y });
+  events.push({ type: "destroyed", id: target.id, kind: target.kind, x: target.x, y: target.y });
   if (e.attackTarget === target.id) e.attackTarget = undefined;
 }
 

@@ -1,9 +1,10 @@
-import type { Ref } from "react";
+import { useMemo, type Ref } from "react";
+import { powerBreakdown } from "@/lib/sim/world";
 import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { Campaign, FactionVisualProfile, SimState } from "@/lib/types";
 import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
-import { gameOverlayModel } from "./gameOverlayModel";
+import { gameOverlayModel, powerSignature } from "./gameOverlayModel";
 import { GameMobileSurface } from "./GameMobileSurface";
 import { GamePauseSurface } from "./GamePauseSurface";
 import { GameSidebarSurface } from "./GameSidebarSurface";
@@ -68,12 +69,17 @@ export function GameOverlays({
   actions: GameActions;
   session: GameSession;
 }) {
-  const { palette, selected, grid, mobilePlaying, sheetContext } = gameOverlayModel({
-    state,
-    selectedIds,
-    tutorial,
-    paused,
-  });
+  // Memoized so the selected-entity snapshot is not rebuilt on unrelated re-renders.
+  const { palette, selected, mobilePlaying, sheetContext } = useMemo(
+    () => gameOverlayModel({ state, selectedIds, tutorial, paused }),
+    [state, selectedIds, tutorial, paused],
+  );
+  // The power grid only changes when an owner-0 building finishes, starts
+  // construction, or dies; keying on the signature skips the full entity
+  // rescan during unit-movement ticks and selection/pause churn.
+  const powerSig = powerSignature(state);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on derived signature, not raw state
+  const grid = useMemo(() => powerBreakdown(state, 0), [powerSig]);
 
   return (
     <>

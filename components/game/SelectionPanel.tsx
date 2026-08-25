@@ -2,7 +2,7 @@ import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, TICKS_PER_SECOND, UNIT_STATS, lab
 import { ProgressMeter } from "@/components/ui/ProgressMeter";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { cx } from "@/lib/ui/cx";
-import type { BuildingKind, Entity, FactionVisualProfile, Formation, Palette, Stance } from "@/lib/types";
+import { isBuildingEntity, type Entity, type FactionVisualProfile, type Formation, type Palette, type Stance } from "@/lib/types";
 import { SelectionIdentity } from "./SelectionIdentity";
 import { SelectionOrders } from "./SelectionOrders";
 import styles from "./SelectionPanel.module.css";
@@ -51,10 +51,10 @@ export function SelectionPanel({
               onFormation={onFormation}
             />
           ) : null}
-          {selected.constructing > 0 ? (
+          {selected.constructing > 0 && isBuildingEntity(selected) ? (
             <ProgressMeter
               label="Constructing"
-              ratio={1 - selected.constructing / (BUILDING_STATS[selected.kind as BuildingKind].buildTicks || 1)}
+              ratio={1 - selected.constructing / (BUILDING_STATS[selected.kind].buildTicks || 1)}
               detail={`${Math.ceil(selected.constructing / TICKS_PER_SECOND)}s`}
             />
           ) : null}

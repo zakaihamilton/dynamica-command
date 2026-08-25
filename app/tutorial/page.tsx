@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { DynamicGameClient, GamePageContainer } from "@/components/game/GamePageWrapper";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { parseSeed } from "@/lib/seed/rng";
 
 function TutorialSession() {
@@ -12,8 +13,10 @@ function TutorialSession() {
 
 export default function TutorialPage() {
   return (
-    <GamePageContainer loadingText="Preparing training range…">
-      <TutorialSession />
-    </GamePageContainer>
+    <ErrorBoundary eyebrow="Training range offline" title="Training failed to load">
+      <GamePageContainer loadingText="Preparing training range…">
+        <TutorialSession />
+      </GamePageContainer>
+    </ErrorBoundary>
   );
 }

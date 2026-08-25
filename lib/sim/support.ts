@@ -1,13 +1,13 @@
-import { canSupportTarget, isSupportUnit, UNIT_STATS } from "../catalog";
-import type { Entity, SimEvent, SimState, UnitKind } from "../types";
+import { canSupportTarget, isSupportEntity, isSupportUnit, UNIT_STATS } from "../catalog";
+import { isUnitEntity, type Entity, type SimEvent, type SimState } from "../types";
 import { tryFindPath } from "./pathBudget";
 import { byId, distToEntity, living } from "./world";
 
 export function canSupportEntity(provider: Entity, target: Entity): boolean {
-  if (provider.class !== "unit" || target.class !== "unit") return false;
+  if (!isUnitEntity(provider) || !isUnitEntity(target)) return false;
   if (provider.id === target.id || provider.owner !== target.owner) return false;
   if (provider.neutral || target.neutral || target.hp <= 0) return false;
-  return canSupportTarget(provider.kind as UnitKind, target.kind as UnitKind);
+  return canSupportTarget(provider.kind, target.kind);
 }
 
 export function nearestSupportTarget(state: SimState, provider: Entity): Entity | undefined {
@@ -49,8 +49,8 @@ function clearSupportRoute(provider: Entity): void {
 export function tickSupport(state: SimState): SimEvent[] {
   const events: SimEvent[] = [];
   for (const provider of living(state)) {
-    if (provider.class !== "unit" || !isSupportUnit(provider.kind as UnitKind) || provider.neutral) continue;
-    const stats = UNIT_STATS[provider.kind as UnitKind];
+    if (!isUnitEntity(provider) || !isSupportUnit(provider.kind) || provider.neutral) continue;
+    const stats = UNIT_STATS[provider.kind];
     const supportRange = stats.supportRange ?? 0;
     const supportAmount = stats.supportAmount ?? 0;
     const supportInterval = stats.supportInterval ?? 0;
@@ -76,6 +76,7 @@ export function tickSupport(state: SimState): SimEvent[] {
       else if (!provider.path.length && !provider.orderDestination) provider.idle = true;
       continue;
     }
+    if (!isUnitEntity(target)) continue;
 
     const destinationChanged =
       !provider.orderDestination ||
@@ -105,9 +106,9 @@ export function tickSupport(state: SimState): SimEvent[] {
       type: "support",
       owner: provider.owner,
       providerId: provider.id,
-      providerKind: provider.kind as UnitKind,
+      providerKind: provider.kind,
       targetId: target.id,
-      targetKind: target.kind as UnitKind,
+      targetKind: target.kind,
       amount: healed,
       x: provider.x,
       y: provider.y,
@@ -119,14 +120,14 @@ export function tickSupport(state: SimState): SimEvent[] {
 }
 
 export function holdSupport(provider: Entity): void {
-  if (!isSupportUnit(provider.kind as UnitKind)) return;
+  if (!isSupportEntity(provider)) return;
   provider.supportTargetId = undefined;
   provider.supportMode = "hold";
   clearSupportRoute(provider);
 }
 
 export function clearSupportOrder(provider: Entity): void {
-  if (!isSupportUnit(provider.kind as UnitKind)) return;
+  if (!isSupportEntity(provider)) return;
   provider.supportTargetId = undefined;
   provider.supportMode = "auto";
 }

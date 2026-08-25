@@ -1,10 +1,9 @@
 import { BUILDING_KINDS, UNIT_KINDS } from "../../catalog";
 import type { BuildingKind, CampaignProgress, Entity, SimState, UnitKind } from "../../types";
 import { fogGridHeight, fogGridWidth } from "../../sim/fog";
+import { isRecord } from "../utils";
 
 export const SAVE_CONTENT_VERSION = 1;
-
-type RecordLike = Record<string, unknown>;
 
 const MISSION_KINDS = [
   "harvestQuota", "forceQuota", "structureQuota", "destroyMarked", "razeAll", "decapitate",
@@ -23,10 +22,6 @@ const ARMOR_TYPES = ["light", "heavy", "structure"] as const;
 const WEAPON_TYPES = ["smallArms", "antiArmor", "cannon"] as const;
 const SURFACE_KINDS = [0, 1, 2] as const;
 const TILE_KINDS = [0, 1, 2, 3] as const;
-
-function isRecord(value: unknown): value is RecordLike {
-  return typeof value === "object" && value !== null;
-}
 
 function isNumberPair(value: unknown): value is [number, number] {
   return Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number" && Number.isFinite(item));
@@ -145,7 +140,7 @@ function isRuntime(value: unknown): boolean {
   return true;
 }
 
-export function isNormalizableStateInput(value: unknown): value is RecordLike {
+export function isNormalizableStateInput(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false;
   if (!isIntegerInRange(value.seed, 0, 9999) || !isIntegerInRange(value.width, 1, 256) || !isIntegerInRange(value.height, 1, 256)) return false;
   if ((value.width as number) * (value.height as number) > 256 * 256) return false;
@@ -201,7 +196,7 @@ export function isCampaignProgressShape(value: unknown): value is CampaignProgre
   if (new Set(value.completedMissions).size !== value.completedMissions.length) return false;
   if (value.completedMissions.some((mission) => mission > unlockedMission)) return false;
   if (!isRecord(value.medals) || !isRecord(value.bestScores)) return false;
-  const validStats = (stats: RecordLike) => Object.entries(stats).every(([key, score]) =>
+  const validStats = (stats: Record<string, unknown>) => Object.entries(stats).every(([key, score]) =>
     /^[0-7]$/.test(key) && typeof score === "number" && Number.isFinite(score) && score >= 0,
   );
   return validStats(value.medals) && validStats(value.bestScores);

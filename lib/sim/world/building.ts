@@ -1,5 +1,5 @@
 import { footprintOf } from "../../catalog";
-import type { BuildingKind, Entity, Owner, SimState, Vec2 } from "../../types";
+import { isBuildingEntity, type BuildingEntity, type BuildingKind, type Entity, type Owner, type SimState, type Vec2 } from "../../types";
 import { heightAt, inBounds } from "./queries";
 import { isWalkable, terrainAccess } from "./terrain";
 
@@ -26,8 +26,8 @@ function buildingNetworkDistance(
 ): number {
   let nearest = Infinity;
   for (const building of state.entities) {
-    if (building.hp <= 0 || building.class !== "building" || building.owner !== owner) continue;
-    const fp = footprintOf(building.kind as BuildingKind);
+    if (building.hp <= 0 || !isBuildingEntity(building) || building.owner !== owner) continue;
+    const fp = footprintOf(building.kind);
     const dx = Math.max(building.x - (x + w), x - (building.x + fp.w), 0);
     const dy = Math.max(building.y - (y + h), y - (building.y + fp.h), 0);
     nearest = Math.min(nearest, Math.hypot(dx, dy));
@@ -115,8 +115,8 @@ function spawnCandidateOk(state: SimState, x: number, y: number, originH: number
   return Math.abs(heightAt(state, x, y) - originH) <= 1;
 }
 
-export function frontTileNear(state: SimState, e: Entity): Vec2 {
-  const fp = footprintOf(e.kind as BuildingKind);
+export function frontTileNear(state: SimState, e: BuildingEntity): Vec2 {
+  const fp = footprintOf(e.kind);
   const x0 = Math.round(e.x);
   const y0 = Math.round(e.y);
   const originH = heightAt(state, x0, y0);

@@ -1,7 +1,7 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { beep } from "@/lib/audio/synth";
 import {
-  localStorageAdapter,
+  cachedLocalStorage,
   readSave,
   saveExportFilename,
   serializeSaveExport,
@@ -49,7 +49,7 @@ export function useMissionPersistence({
   terminalSaveRef,
 }: MissionPersistenceParams) {
   const saveMissionNow = useCallback(() => {
-    const saved = writeSave(localStorageAdapter(), stateRef.current);
+    const saved = writeSave(cachedLocalStorage(), stateRef.current);
     setPauseNotice(saved ? "Mission saved." : "Unable to save: browser storage is unavailable.");
   }, [setPauseNotice, stateRef]);
 
@@ -57,7 +57,7 @@ export function useMissionPersistence({
     if (typeof window === "undefined") return;
     try {
       const state = stateRef.current;
-      const campaign = readCampaignProgress(localStorageAdapter(), state.seed);
+      const campaign = readCampaignProgress(cachedLocalStorage(), state.seed);
       const payload = serializeSaveExport(state, campaign);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -73,7 +73,7 @@ export function useMissionPersistence({
   }, [setPauseNotice, stateRef]);
 
   const loadMissionNow = useCallback(() => {
-    const loaded = readSave(localStorageAdapter(), seed);
+    const loaded = readSave(cachedLocalStorage(), seed);
     if (!loaded) {
       setPauseNotice("No save found for this seed.");
       return;
@@ -128,9 +128,9 @@ export function useMissionPersistence({
     stateRef.current.tutorialStage = next;
     setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
     if (next === "complete") {
-      const progress = readCampaignProgress(localStorageAdapter(), seed);
+      const progress = readCampaignProgress(cachedLocalStorage(), seed);
       progress.tutorialComplete = true;
-      writeCampaignProgress(localStorageAdapter(), progress);
+      writeCampaignProgress(cachedLocalStorage(), progress);
     }
   }, [seed, setState, stateRef]);
 

@@ -1,12 +1,12 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../../catalog";
-import type { BuildingKind, Entity, Owner, SimState, UnitKind, Vec2 } from "../../types";
+import { isBuildingEntity, type BuildingKind, type Entity, type Owner, type SimState, type UnitKind, type Vec2 } from "../../types";
 import { living, distToEntity } from "./queries";
 import { isWalkable, canClimb } from "./terrain";
 import { findBuildSite } from "./building";
 
 export function closestApproach(state: SimState, from: Vec2, e: Entity): Vec2 {
-  if (e.class !== "building") return { x: e.x, y: e.y };
-  const fp = footprintOf(e.kind as BuildingKind);
+  if (!isBuildingEntity(e)) return { x: e.x, y: e.y };
+  const fp = footprintOf(e.kind);
   let best: Vec2 = { x: e.x, y: e.y };
   let bestD = Infinity;
   for (let oy = 0; oy < fp.h; oy++) {
@@ -126,8 +126,8 @@ export function powerBreakdown(state: SimState, owner: Owner): { produced: numbe
   let produced = 0;
   let used = 0;
   for (const e of living(state)) {
-    if (e.class !== "building" || e.owner !== owner || e.constructing > 0) continue;
-    const watt = BUILDING_STATS[e.kind as BuildingKind].power;
+    if (!isBuildingEntity(e) || e.owner !== owner || e.constructing > 0) continue;
+    const watt = BUILDING_STATS[e.kind].power;
     if (watt >= 0) produced += watt;
     else used -= watt;
   }

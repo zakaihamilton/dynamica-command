@@ -1,5 +1,5 @@
 import { UNIT_STATS, labelFor } from "@/lib/catalog";
-import type { BuildingKind, Entity, FactionVisualProfile, Palette, Stance, UnitKind } from "@/lib/types";
+import type { Entity, FactionVisualProfile, Palette, Stance } from "@/lib/types";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import { SpritePreview } from "./SpritePreview";
 import styles from "./SelectionPanel.module.css";
@@ -18,16 +18,16 @@ export function SelectionIdentity({
   return (
     <div className={styles.row}>
       <div className={styles.portrait}>
-        <SpritePreview kind={selected.kind as BuildingKind | UnitKind} palette={palette} profile={profile} />
+        <SpritePreview kind={selected.kind} palette={palette} profile={profile} />
       </div>
       <div>
         <strong
           className={styles.name}
           data-testid="selected-kind"
-          data-tooltip={labelFor(selected.kind as BuildingKind | UnitKind)}
+          data-tooltip={labelFor(selected.kind)}
           data-shortcut={SHORTCUT.center}
         >
-          {labelFor(selected.kind as BuildingKind | UnitKind)}
+          {labelFor(selected.kind)}
         </strong>
         <span className={styles.stat}>HP {Math.ceil(selected.hp)} / {selected.maxHp}</span>
         {selected.neutral ? (

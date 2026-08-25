@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { DynamicGameClient, GamePageContainer } from "@/components/game/GamePageWrapper";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { parseSeed } from "@/lib/seed/rng";
 
 function PlaySession() {
@@ -14,8 +15,10 @@ function PlaySession() {
 
 export default function PlayPage() {
   return (
-    <GamePageContainer loadingText="Deploying…">
-      <PlaySession />
-    </GamePageContainer>
+    <ErrorBoundary eyebrow="Battlefield offline" title="Deployment failed">
+      <GamePageContainer loadingText="Deploying…">
+        <PlaySession />
+      </GamePageContainer>
+    </ErrorBoundary>
   );
 }

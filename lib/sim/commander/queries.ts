@@ -1,5 +1,5 @@
 import { isSupportUnit } from "../../catalog";
-import type { BuildingKind, Command, Entity, MissionKind, SimState, UnitKind } from "../../types";
+import { isUnitEntity, type BuildingKind, type Command, type Entity, type MissionKind, type SimState, type UnitKind } from "../../types";
 import { living } from "../world";
 
 export const COMMANDER_CADENCE = 24;
@@ -40,7 +40,7 @@ export function enemyEntities(state: SimState): Entity[] {
 export function combatUnits(state: SimState): Entity[] {
   return playerUnits(
     state,
-    (entity) => entity.kind !== "harvester" && !isSupportUnit(entity.kind as UnitKind),
+    (entity) => isUnitEntity(entity) && entity.kind !== "harvester" && !isSupportUnit(entity.kind),
   );
 }
 
@@ -72,7 +72,7 @@ export function combatValue(entity: Entity): number {
 }
 
 export function isCombatEntity(entity: Entity): boolean {
-  return entity.class === "unit" && entity.kind !== "harvester" && !isSupportUnit(entity.kind as UnitKind);
+  return isUnitEntity(entity) && entity.kind !== "harvester" && !isSupportUnit(entity.kind);
 }
 
 export function objectiveKind(state: SimState): MissionKind {

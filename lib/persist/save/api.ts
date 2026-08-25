@@ -31,7 +31,8 @@ export function readPendingSaveTransfer(storage: StorageAdapter): ParsedSaveExpo
   if (!raw) return null;
   try {
     return parseSaveExport(raw);
-  } catch {
+  } catch (err) {
+    console.debug("[persist] Failed to parse pending save transfer:", err);
     return null;
   }
 }
@@ -43,7 +44,8 @@ export function writePendingSaveTransfer(
 ): boolean {
   try {
     return safeSetItem(storage, SAVE_TRANSFER_KEY, serializeSaveExport(state, campaign));
-  } catch {
+  } catch (err) {
+    console.debug("[persist] Failed to write pending save transfer:", err);
     return false;
   }
 }
@@ -64,7 +66,8 @@ export function readSave(storage: StorageAdapter, seed: number): SimState | null
   try {
     const { state } = decodeSave(raw);
     return state.seed === seed ? state : null;
-  } catch {
+  } catch (err) {
+    console.debug(`[persist] Failed to read save for seed ${seed}:`, err);
     return null;
   }
 }
@@ -87,7 +90,8 @@ export function listUnreadableSaves(storage: StorageAdapter): string[] {
     try {
       const { state } = decodeSave(safeGetItem(storage, key) ?? "");
       if (state.seed !== Number(seed)) unreadable.push(seed);
-    } catch {
+    } catch (err) {
+      console.debug(`[persist] Save ${key} is unreadable:`, err);
       unreadable.push(seed);
     }
   }
@@ -126,8 +130,8 @@ export function listSaves(storage: StorageAdapter): SaveMeta[] {
         missionName: s.missionName,
         savedAt,
       });
-    } catch {
-      /* skip */
+    } catch (err) {
+      console.debug(`[persist] Failed to list save ${key}:`, err);
     }
   }
   return out.sort((a, b) => b.savedAt - a.savedAt || a.seed.localeCompare(b.seed));

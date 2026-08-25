@@ -6,7 +6,7 @@ import {
   producerFor,
   productionQueueSize,
 } from "../../catalog";
-import type { BuildingKind, Command, Entity, SimState, UnitKind } from "../../types";
+import { isUnitEntity, type BuildingKind, type Command, type Entity, type SimState, type UnitKind } from "../../types";
 import {
   canPlaceBuilding,
   distToEntity,
@@ -60,11 +60,11 @@ export function supportNeed(state: SimState): UnitKind | undefined {
   if (state.missionIndex < 2) return undefined;
   const humansWounded = playerUnits(
     state,
-    (entity) => !isSupportUnit(entity.kind as UnitKind) && UNIT_STATS[entity.kind as UnitKind].domain === "human" && entity.hp < entity.maxHp,
+    (entity) => isUnitEntity(entity) && !isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "human" && entity.hp < entity.maxHp,
   ).length > 0;
   const vehiclesWounded = playerUnits(
     state,
-    (entity) => !isSupportUnit(entity.kind as UnitKind) && UNIT_STATS[entity.kind as UnitKind].domain === "vehicle" && entity.hp < entity.maxHp,
+    (entity) => isUnitEntity(entity) && !isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "vehicle" && entity.hp < entity.maxHp,
   ).length > 0;
   if (humansWounded && totalUnitCount(state, "medic") + queuedUnitCount(state, "medic") === 0) return "medic";
   if (vehiclesWounded && totalUnitCount(state, "repairTruck") + queuedUnitCount(state, "repairTruck") === 0) return "repairTruck";

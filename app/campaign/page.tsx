@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CampaignCompleteScreen } from "@/components/campaign/CampaignCompleteScreen";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageFallback } from "@/components/ui/PageFallback";
 import { parseSeed } from "@/lib/seed/rng";
 
@@ -15,7 +16,9 @@ function Inner() {
 export default function CampaignPage() {
   return (
     <Suspense fallback={<PageFallback>Loading operations map…</PageFallback>}>
-      <Inner />
+      <ErrorBoundary eyebrow="Theater link lost" title="Operations map unavailable">
+        <Inner />
+      </ErrorBoundary>
     </Suspense>
   );
 }

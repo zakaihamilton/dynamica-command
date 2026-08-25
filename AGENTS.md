@@ -17,7 +17,7 @@ Node 22 and Yarn 1.22.22 are preinstalled. The startup update script runs `yarn 
 Standard commands (defined in `package.json`, don't duplicate — reference there):
 
 - `yarn dev` — Next.js dev server on port 3000 (this is the app; run it to test the UI).
-- `yarn test` — Vitest, 428 headless unit tests, no browser needed.
+- `yarn test` — Vitest unit suite, headless, no browser needed (hundreds of tests; check the run output for the current count).
 - `yarn build` — production build.
 - `yarn test:e2e` — Playwright. Its `webServer` runs `yarn build && PORT=3100 ... yarn start`, so it builds and serves its own production server on port 3100 (independent of the port-3000 dev server); it needs the Chromium installed by the update script.
 - `yarn inspect <seed>` / `yarn sim --seed <seed> --mission <n> --ticks <n>` — headless CLIs via `tsx`.

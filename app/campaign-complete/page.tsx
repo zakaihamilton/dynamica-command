@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CampaignCompleteScreen } from "@/components/campaign/CampaignCompleteScreen";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageFallback } from "@/components/ui/PageFallback";
 import { parseSeed } from "@/lib/seed/rng";
 
@@ -15,7 +16,9 @@ function Inner() {
 export default function CampaignCompletePage() {
   return (
     <Suspense fallback={<PageFallback>Loading campaign record…</PageFallback>}>
-      <Inner />
+      <ErrorBoundary eyebrow="Archive corrupted" title="Campaign record unavailable">
+        <Inner />
+      </ErrorBoundary>
     </Suspense>
   );
 }

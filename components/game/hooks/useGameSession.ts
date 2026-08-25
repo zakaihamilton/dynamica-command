@@ -2,7 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission } from "@/lib/sim/tutorial";
-import { localStorageAdapter, readSave } from "@/lib/persist/save";
+import { cachedLocalStorage, readSave } from "@/lib/persist/save";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { SimState } from "@/lib/types";
 import { useMissionConfirmation } from "./useMissionConfirmation";
@@ -14,7 +14,7 @@ export type { MissionConfirmation, MissionConfirmationAction } from "./missionCo
 export function initialMission(seed: number, mission: number, resume: boolean, tutorial: boolean): SimState {
   if (tutorial) return createTutorialMission(seed);
   if (resume && typeof window !== "undefined") {
-    const saved = readSave(localStorageAdapter(), seed);
+    const saved = readSave(cachedLocalStorage(), seed);
     if (saved) return saved;
   }
   return createMission({ seed, missionIndex: mission });

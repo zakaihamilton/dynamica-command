@@ -4,7 +4,7 @@ import { setMusicCue, setMusicIntensity, type MusicIntensity } from "@/lib/audio
 import { playSfx } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
 import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
-import { localStorageAdapter, writeSave } from "@/lib/persist/save";
+import { cachedLocalStorage, writeSave } from "@/lib/persist/save";
 import { recordTelemetry, telemetryFromMission } from "@/lib/persist/telemetry";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
@@ -75,7 +75,7 @@ export function useGameLoop({
       cancelIdle();
       const run = () => {
         idleHandle = null;
-        writeSave(localStorageAdapter(), stateRef.current);
+        writeSave(cachedLocalStorage(), stateRef.current);
       };
       if (typeof requestIdleCallback === "function") {
         idleViaTimeout = false;
@@ -183,18 +183,18 @@ export function useGameLoop({
         }
         if (s.result !== "playing" && !terminalSaveRef.current) {
           terminalSaveRef.current = true;
-          writeSave(localStorageAdapter(), s);
+          writeSave(cachedLocalStorage(), s);
           recordTelemetry(
-            localStorageAdapter(),
+            cachedLocalStorage(),
             telemetryFromMission(s, { commandsIssued, commandRejections }),
           );
           setState({ ...s, entities: [...s.entities] });
         }
         if (s.result === "won" && !campaignRecordedRef.current) {
           if (now >= nextCampaignSaveAttemptMs) {
-            const progress = readCampaignProgress(localStorageAdapter(), s.seed);
+            const progress = readCampaignProgress(cachedLocalStorage(), s.seed);
             const recorded = writeCampaignProgress(
-              localStorageAdapter(),
+              cachedLocalStorage(),
               completeMission(progress, s.missionIndex, missionMedals(s), missionScore(s)),
             );
             if (recorded) campaignRecordedRef.current = true;
