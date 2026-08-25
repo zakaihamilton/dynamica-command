@@ -1,6 +1,7 @@
 import type { CampaignProgress } from "../types";
-import { readPendingSaveTransfer, safeGetItem, safeSetItem, type StorageAdapter } from "./save";
+import { readPendingSaveTransfer, safeSetItem, type StorageAdapter } from "./save";
 import { formatSeed } from "../seed/rng";
+import { isRecord, readPersistedEnvelope } from "./utils";
 
 export const CAMPAIGN_PROGRESS_VERSION = 1 as const;
 export const CAMPAIGN_PREFIX = "genesis-protocol:campaign:";
@@ -41,15 +42,15 @@ export function normalizeCampaignProgress(value: unknown, seed: number): Campaig
 export function readCampaignProgress(storage: StorageAdapter, seed: number): CampaignProgress {
   const pending = readPendingSaveTransfer(storage);
   if (pending?.campaign.seed === seed) return pending.campaign;
-  const raw = safeGetItem(storage, campaignKey(seed));
-  if (!raw) return freshCampaignProgress(seed);
-  try {
-    const parsed = JSON.parse(raw) as { version?: number; progress?: unknown };
-    if (parsed.version !== CAMPAIGN_PROGRESS_VERSION) return freshCampaignProgress(seed);
-    return normalizeCampaignProgress(parsed.progress, seed);
-  } catch {
-    return freshCampaignProgress(seed);
-  }
+  return readPersistedEnvelope(
+    storage,
+    campaignKey(seed),
+    (parsed) => {
+      if (!isRecord(parsed) || parsed.version !== CAMPAIGN_PROGRESS_VERSION) return null;
+      return normalizeCampaignProgress(parsed.progress, seed);
+    },
+    freshCampaignProgress(seed),
+  );
 }
 
 export function writeCampaignProgress(storage: StorageAdapter, progress: CampaignProgress): boolean {

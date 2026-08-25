@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { fogAt } from "@/lib/sim/fog";
 import { terrainAccess } from "@/lib/sim/world";
-import type { Entity, SimState, Stance, Formation } from "@/lib/types";
+import type { Entity, SimState } from "@/lib/types";
+import { FORMATION_IDS, STANCE_IDS } from "@/lib/ui/orders";
+import { tileCoords } from "@/lib/ui/tileCoords";
+import { useAnnouncement } from "@/components/ui/useAnnouncement";
 import type { GameActions } from "./hooks/useGameActions";
 import type { GameCamera } from "./hooks/useGameCamera";
 import styles from "./TacticalRoster.module.css";
@@ -15,7 +18,8 @@ function entityStatus(entity: Entity): string {
 }
 
 function visibleEntity(state: SimState, entity: Entity): boolean {
-  return fogAt(state, Math.round(entity.x), Math.round(entity.y)) === 2;
+  const { x, y } = tileCoords(entity);
+  return fogAt(state, x, y) === 2;
 }
 
 export function rosterEntities(state: SimState): Entity[] {
@@ -47,19 +51,17 @@ export function TacticalRoster({
   onSelect: (ids: number[]) => void;
   onAnnounce: (message: string) => void;
 }) {
+  // Set/Map snapshots keep per-tick renders O(n) instead of O(n*m).
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const entityById = useMemo(() => new Map(state.entities.map((entity) => [entity.id, entity])), [state]);
   const entities = useMemo(() => rosterEntities(state), [state]);
-  const selectedEntity = entities.find((entity) => selectedIds.includes(entity.id));
+  const selectedEntity = entities.find((entity) => selectedIdSet.has(entity.id));
   const [x, setX] = useState(() => selectedEntity ? Math.round(selectedEntity.x) : 0);
   const [y, setY] = useState(() => selectedEntity ? Math.round(selectedEntity.y) : 0);
-  const [localAnnouncement, setLocalAnnouncement] = useState("");
+  const [localAnnouncement, announce] = useAnnouncement(onAnnounce);
 
-  const announce = (message: string) => {
-    setLocalAnnouncement(message);
-    onAnnounce(message);
-  };
-
-  const selectedUnits = selectedIds.filter((id) => {
-    const entity = state.entities.find((candidate) => candidate.id === id);
+  const selectedUnits = [...selectedIdSet].filter((id) => {
+    const entity = entityById.get(id);
     return entity?.owner === 0 && entity.class === "unit" && !entity.neutral && entity.hp > 0;
   });
   const coordinateAccess = terrainAccess(state, x, y);
@@ -79,10 +81,11 @@ export function TacticalRoster({
   };
 
   const selectEntity = (entity: Entity) => {
+    const { x: tx, y: ty } = tileCoords(entity);
     onSelect([entity.id]);
-    setX(Math.round(entity.x));
-    setY(Math.round(entity.y));
-    announce(`Selected ${entity.kind} at ${Math.round(entity.x)}, ${Math.round(entity.y)}.`);
+    setX(tx);
+    setY(ty);
+    announce(`Selected ${entity.kind} at ${tx}, ${ty}.`);
   };
 
   return (
@@ -97,15 +100,17 @@ export function TacticalRoster({
       <div className={styles.live} aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
       <div className={styles.entityList} role="list" aria-label="Visible battlefield entities">
         {entities.map((entity) => {
-          const isSelected = selectedIds.includes(entity.id);
+          const isSelected = selectedIdSet.has(entity.id);
+          const { x: ex, y: ey } = tileCoords(entity);
           const faction = entity.neutral ? "Neutral" : state.factions[entity.owner].name;
           const role = entity.scenarioRole ?? (entity.marked ? "marked target" : entity.kind === "objective" ? "objective" : "—");
+          const oreField = terrainAccess(state, ex, ey).label === "Ore field";
           return (
             <div key={entity.id} className={`${styles.entity} ${isSelected ? styles.selected : ""}`} role="listitem" data-selected={isSelected}>
               <div className={styles.entityInfo}>
                 <strong>{entity.kind}</strong>
                 <span>{faction} · {entity.hp}/{entity.maxHp} HP · {entityStatus(entity)}</span>
-                <span>Coords {Math.round(entity.x)}, {Math.round(entity.y)} · Role {role}</span>
+                <span>Coords {ex}, {ey} · Role {role}</span>
               </div>
               <div className={styles.rowActions}>
                 <button type="button" onClick={() => selectEntity(entity)} aria-label={`Select ${entity.kind} ${entity.id}`}>
@@ -126,10 +131,10 @@ export function TacticalRoster({
                     announce(issued ? `Support command accepted for ${entity.kind}.` : "Command rejected: select a support unit.");
                   }} disabled={!selectedUnits.length}>Support</button>
                 ) : null}
-                {terrainAccess(state, Math.round(entity.x), Math.round(entity.y)).label === "Ore field" ? (
+                {oreField ? (
                   <button type="button" onClick={() => {
-                    const issued = actions.issueCoordinateCommand("harvest", Math.round(entity.x), Math.round(entity.y));
-                    announce(issued ? `Harvest command accepted at ${Math.round(entity.x)}, ${Math.round(entity.y)}.` : "Command rejected: select a harvester.");
+                    const issued = actions.issueCoordinateCommand("harvest", ex, ey);
+                    announce(issued ? `Harvest command accepted at ${ex}, ${ey}.` : "Command rejected: select a harvester.");
                   }} disabled={!selectedUnits.length}>Harvest</button>
                 ) : null}
               </div>
@@ -141,10 +146,10 @@ export function TacticalRoster({
         <h3 id="roster-command-title">Selected command</h3>
         <div className={styles.commandGrid}>
           <button type="button" onClick={() => { actions.issueSelectedCommand("stop"); announce("Stop command accepted."); }} disabled={!selectedUnits.length}>Stop</button>
-          {(["aggressive", "defensive", "hold"] as Stance[]).map((stance) => (
+          {STANCE_IDS.map((stance) => (
             <button key={stance} type="button" onClick={() => { actions.issueSelectedCommand("stance", stance); announce(`Stance set to ${stance}.`); }} disabled={!selectedUnits.length}>{stance}</button>
           ))}
-          {(["line", "column", "wedge"] as Formation[]).map((formation) => (
+          {FORMATION_IDS.map((formation) => (
             <button key={formation} type="button" onClick={() => { actions.issueSelectedCommand("formation", formation); announce(`Formation set to ${formation}.`); }} disabled={!selectedUnits.length}>{formation}</button>
           ))}
         </div>

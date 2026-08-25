@@ -62,3 +62,11 @@ export function localStorageAdapter(): StorageAdapter {
     keys: () => Object.keys(window.localStorage),
   };
 }
+
+let _cachedStorage: StorageAdapter | null = null;
+
+export function cachedLocalStorage(): StorageAdapter {
+  if (typeof window === "undefined") return memoryStorage();
+  if (!_cachedStorage) _cachedStorage = localStorageAdapter();
+  return _cachedStorage;
+}

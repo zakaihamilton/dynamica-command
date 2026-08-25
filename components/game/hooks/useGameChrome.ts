@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { localStorageAdapter } from "@/lib/persist/save";
+import { useEffect, useRef, useState } from "react";
+import { cachedLocalStorage } from "@/lib/persist/save";
 import { readSettings } from "@/lib/persist/settings";
 import type { Command, SimState } from "@/lib/types";
 import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
+import { useAnnouncement } from "@/components/ui/useAnnouncement";
 
 export function useGameChrome(initialResult: SimState["result"] = "playing") {
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
@@ -15,8 +16,8 @@ export function useGameChrome(initialResult: SimState["result"] = "playing") {
   const [pauseView, setPauseView] = useState<PauseView>("main");
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
-  const [tacticalAnnouncement, setTacticalAnnouncement] = useState("");
-  const [audioSettings, setAudioSettings] = useState(() => readSettings(localStorageAdapter()));
+  const [tacticalAnnouncement, announceTactical] = useAnnouncement();
+  const [audioSettings, setAudioSettings] = useState(() => readSettings(cachedLocalStorage()));
   const cmdQ = useRef<Command[]>([]);
 
   useEffect(() => {
@@ -26,8 +27,6 @@ export function useGameChrome(initialResult: SimState["result"] = "playing") {
   useEffect(() => {
     pauseViewRef.current = pauseView;
   }, [pauseView]);
-
-  const announceTactical = useCallback((message: string) => setTacticalAnnouncement(message), []);
 
   return {
     mobileSheetOpen,

@@ -1,5 +1,5 @@
 import { UNIT_STATS, footprintOf } from "../catalog";
-import type { BuildingKind, SimEvent, SimState, UnitKind } from "../types";
+import { isBuildingEntity, type SimEvent, type SimState } from "../types";
 import { frontTileNear, openTileNear, powerFor, trySpawnUnit } from "./world";
 
 function isUnitProducer(kind: string): kind is "barracks" | "factory" {
@@ -52,7 +52,7 @@ export function tickProduction(state: SimState): SimEvent[] {
           const k = String(e.kind);
           state.buildingsCompletedByKind[k] = (state.buildingsCompletedByKind[k] ?? 0) + 1;
         }
-        events.push({ type: "built", owner: e.owner, kind: e.kind as BuildingKind });
+        events.push({ type: "built", owner: e.owner, kind: isBuildingEntity(e) ? e.kind : "objective" });
       }
       continue;
     }
@@ -60,9 +60,9 @@ export function tickProduction(state: SimState): SimEvent[] {
       if (lowPower[e.owner]) continue;
       e.producing.remaining -= rates.get(e.id) ?? 1;
       if (e.producing.remaining <= 0) {
-        const kind = e.producing.kind as UnitKind;
-        const fp = e.class === "building" ? footprintOf(e.kind as BuildingKind) : { w: 1, h: 1 };
-        const spot = e.class === "building" && (e.kind === "barracks" || e.kind === "factory")
+        const kind = e.producing.kind;
+        const fp = isBuildingEntity(e) ? footprintOf(e.kind) : { w: 1, h: 1 };
+        const spot = isBuildingEntity(e) && isUnitProducer(e.kind)
           ? frontTileNear(state, e)
           : openTileNear(state, e.x, e.y, fp.w, fp.h);
         const spawned = trySpawnUnit(state, e.owner, kind, spot.x, spot.y);

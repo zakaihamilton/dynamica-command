@@ -1,6 +1,6 @@
 import { useCallback, type MutableRefObject } from "react";
 import { useRouter } from "next/navigation";
-import { localStorageAdapter, writeSave } from "@/lib/persist/save";
+import { cachedLocalStorage, writeSave } from "@/lib/persist/save";
 import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import type { SimState } from "@/lib/types";
 import { briefingPath, campaignCompletePath, campaignPath, menuPath, resultPrimaryPath } from "./missionRoutes";
@@ -15,14 +15,14 @@ export function useMissionRoutes({
   const router = useRouter();
 
   const viewMissionBriefing = useCallback(() => {
-    writeSave(localStorageAdapter(), stateRef.current);
+    writeSave(cachedLocalStorage(), stateRef.current);
     router.push(briefingPath(stateRef.current.seed, stateRef.current.missionIndex, true));
   }, [router, stateRef]);
 
   const exitTutorial = useCallback(() => {
-    const progress = readCampaignProgress(localStorageAdapter(), seed);
+    const progress = readCampaignProgress(cachedLocalStorage(), seed);
     progress.tutorialComplete = true;
-    writeCampaignProgress(localStorageAdapter(), progress);
+    writeCampaignProgress(cachedLocalStorage(), progress);
     router.push(briefingPath(seed, 0));
   }, [router, seed]);
 

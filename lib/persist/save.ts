@@ -6,6 +6,7 @@ export {
   safeKeys,
   memoryStorage,
   localStorageAdapter,
+  cachedLocalStorage,
 } from "./save/storage";
 
 export {

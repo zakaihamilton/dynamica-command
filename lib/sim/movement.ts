@@ -1,5 +1,5 @@
 import { UNIT_STATS } from "../catalog";
-import type { Entity, Facing, SimState, UnitKind } from "../types";
+import { isUnitEntity, type Entity, type Facing, type SimState } from "../types";
 import { tryFindPath } from "./pathBudget";
 import { PATH_DIRS, diagonalCornerBlocked, stepAlongPath } from "./pathfinding";
 import { canClimb, inBounds, isStaticWalkable, makeUnitOccupancy } from "./world";
@@ -88,9 +88,9 @@ export function tickMovement(state: SimState): void {
   }
 
   for (const e of state.entities) {
-    if (e.hp <= 0 || e.class !== "unit") continue;
+    if (e.hp <= 0 || !isUnitEntity(e)) continue;
     if (swapped.has(e.id)) continue;
-    const speed = UNIT_STATS[e.kind as UnitKind].speed * (1 - Math.min(0.4, (e.suppression ?? 0) / 250));
+    const speed = UNIT_STATS[e.kind].speed * (1 - Math.min(0.4, (e.suppression ?? 0) / 250));
     const current = cellOf(state, e.x, e.y);
     const next = e.path[0];
     const nx = next ? Math.round(next.x) : Math.round(e.x);

@@ -196,9 +196,12 @@ export function footprintOf(kind: BuildingKind): Footprint {
   return BUILDING_STATS[kind].footprint;
 }
 
+export function isUnitKind(kind: UnitKind | BuildingKind): kind is UnitKind {
+  return (UNIT_KINDS as string[]).includes(kind);
+}
+
 export function labelFor(kind: UnitKind | BuildingKind): string {
-  if (kind in UNIT_LABELS) return UNIT_LABELS[kind as UnitKind];
-  return BUILDING_LABELS[kind as BuildingKind];
+  return isUnitKind(kind) ? UNIT_LABELS[kind] : BUILDING_LABELS[kind];
 }
 
 export const HARVEST_PER_TICK = 2;

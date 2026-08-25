@@ -1,5 +1,6 @@
-import { safeGetItem, safeSetItem, type StorageAdapter } from "./save";
+import { safeSetItem, type StorageAdapter } from "./save";
 import type { MissionKind, SimState } from "../types";
+import { isRecord, readPersistedEnvelope } from "./utils";
 
 export const TELEMETRY_KEY = "genesis-protocol:telemetry";
 export const TELEMETRY_VERSION = 1 as const;
@@ -26,10 +27,6 @@ type TelemetryEnvelope = {
   version: typeof TELEMETRY_VERSION;
   records: MissionTelemetry[];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 function finiteInteger(value: unknown, min = 0): value is number {
   return typeof value === "number" && Number.isInteger(value) && Number.isFinite(value) && value >= min;
@@ -72,15 +69,15 @@ export function normalizeTelemetry(value: unknown): MissionTelemetry[] {
 }
 
 export function readTelemetry(storage: StorageAdapter): MissionTelemetry[] {
-  const raw = safeGetItem(storage, TELEMETRY_KEY);
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!isRecord(parsed) || parsed.version !== TELEMETRY_VERSION) return [];
-    return normalizeTelemetry(parsed.records);
-  } catch {
-    return [];
-  }
+  return readPersistedEnvelope(
+    storage,
+    TELEMETRY_KEY,
+    (parsed) => {
+      if (!isRecord(parsed) || parsed.version !== TELEMETRY_VERSION) return null;
+      return normalizeTelemetry(parsed.records);
+    },
+    [],
+  );
 }
 
 export function writeTelemetry(storage: StorageAdapter, records: MissionTelemetry[]): boolean {

@@ -1,19 +1,8 @@
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
+import { FORMATION_OPTIONS, STANCE_OPTIONS } from "@/lib/ui/orders";
 import type { Formation, Stance } from "@/lib/types";
 import styles from "./SelectionPanel.module.css";
-
-const STANCES: { id: Stance; label: string }[] = [
-  { id: "aggressive", label: "Aggressive" },
-  { id: "defensive", label: "Defend" },
-  { id: "hold", label: "Hold" },
-];
-
-const FORMATIONS: { id: Formation; label: string }[] = [
-  { id: "line", label: "Line" },
-  { id: "column", label: "Column" },
-  { id: "wedge", label: "Wedge" },
-];
 
 export function SelectionOrders({
   stance,
@@ -41,7 +30,7 @@ export function SelectionOrders({
         Stop
       </ConsoleButton>
       <div className={styles.orderGroup} role="group" aria-label="Stance">
-        {STANCES.map((item) => (
+        {STANCE_OPTIONS.map((item) => (
           <ConsoleButton
             key={item.id}
             className={styles.order}
@@ -55,7 +44,7 @@ export function SelectionOrders({
         ))}
       </div>
       <div className={styles.orderGroup} role="group" aria-label="Formation">
-        {FORMATIONS.map((item) => (
+        {FORMATION_OPTIONS.map((item) => (
           <ConsoleButton
             key={item.id}
             className={styles.order}

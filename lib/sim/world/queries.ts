@@ -1,5 +1,5 @@
 import { footprintOf } from "../../catalog";
-import type { BuildingKind, Entity, SimState, TileKind, Vec2 } from "../../types";
+import { isBuildingEntity, type Entity, type SimState, type TileKind, type Vec2 } from "../../types";
 
 export function at(state: SimState, x: number, y: number): number {
   return y * state.width + x;
@@ -39,10 +39,10 @@ export function groundHeight(state: SimState, x: number, y: number): number {
 
 export function occupies(e: Entity, x: number, y: number): boolean {
   if (e.hp <= 0) return false;
-  if (e.class !== "building") {
+  if (!isBuildingEntity(e)) {
     return Math.round(e.x) === x && Math.round(e.y) === y;
   }
-  const fp = footprintOf(e.kind as BuildingKind);
+  const fp = footprintOf(e.kind);
   return x >= e.x && x < e.x + fp.w && y >= e.y && y < e.y + fp.h;
 }
 
@@ -69,8 +69,8 @@ export function dist(a: Vec2, b: Vec2): number {
 }
 
 export function distToEntity(from: Vec2, e: Entity): number {
-  if (e.class !== "building") return Math.hypot(from.x - e.x, from.y - e.y);
-  const fp = footprintOf(e.kind as BuildingKind);
+  if (!isBuildingEntity(e)) return Math.hypot(from.x - e.x, from.y - e.y);
+  const fp = footprintOf(e.kind);
   let best = Infinity;
   for (let oy = 0; oy < fp.h; oy++) {
     for (let ox = 0; ox < fp.w; ox++) {

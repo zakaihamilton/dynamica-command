@@ -1,4 +1,5 @@
-import { safeGetItem, safeSetItem, type StorageAdapter } from "./save";
+import { safeSetItem, type StorageAdapter } from "./save";
+import { isRecord, readPersistedEnvelope } from "./utils";
 
 export const SETTINGS_KEY = "genesis-protocol:settings";
 export const SETTINGS_VERSION = 2 as const;
@@ -44,15 +45,15 @@ function normalize(value: unknown): GameSettings {
 }
 
 export function readSettings(storage: StorageAdapter): GameSettings {
-  const raw = safeGetItem(storage, SETTINGS_KEY);
-  if (!raw) return defaultSettings();
-  try {
-    const parsed = JSON.parse(raw) as { version?: number; settings?: unknown };
-    if (parsed.version !== 1 && parsed.version !== SETTINGS_VERSION) return defaultSettings();
-    return normalize(parsed.settings);
-  } catch {
-    return defaultSettings();
-  }
+  return readPersistedEnvelope(
+    storage,
+    SETTINGS_KEY,
+    (parsed) => {
+      if (!isRecord(parsed) || (parsed.version !== 1 && parsed.version !== SETTINGS_VERSION)) return null;
+      return normalize(parsed.settings);
+    },
+    defaultSettings(),
+  );
 }
 
 export function writeSettings(storage: StorageAdapter, settings: GameSettings): boolean {

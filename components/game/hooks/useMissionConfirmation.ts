@@ -1,5 +1,5 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
-import { localStorageAdapter, readSave } from "@/lib/persist/save";
+import { cachedLocalStorage, readSave } from "@/lib/persist/save";
 import {
   missionConfirmationFor,
   type MissionConfirmation,
@@ -32,7 +32,7 @@ export function useMissionConfirmation({
   }, [requestConfirmation]);
 
   const loadMission = useCallback(() => {
-    if (!readSave(localStorageAdapter(), seed)) {
+    if (!readSave(cachedLocalStorage(), seed)) {
       setPauseNotice("No save found for this seed.");
       return;
     }

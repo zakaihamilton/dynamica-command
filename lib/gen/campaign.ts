@@ -8,7 +8,16 @@ import { generateWinCategory, pickMissionKinds } from "./objectives";
 import { generateBriefing } from "./story";
 import { generateWorld } from "./world";
 
+const campaignCache = new Map<number, Campaign>();
+
+/**
+ * Campaigns are deterministic per seed, so results are memoized. Callers
+ * (menu preview, briefing, runtime, completion screen) frequently request the
+ * same seed during a session; regeneration is pure waste.
+ */
 export function createCampaign(seed: number): Campaign {
+  const cached = campaignCache.get(seed);
+  if (cached) return cached;
   const world = generateWorld(seed);
   const factions = generateFactions(seed);
   const characters = generateCharacters(seed);
@@ -29,7 +38,7 @@ export function createCampaign(seed: number): Campaign {
     return draft;
   });
 
-  return {
+  const campaign: Campaign = {
     seed: formatSeed(seed),
     seedNumber: seed,
     world,
@@ -37,4 +46,7 @@ export function createCampaign(seed: number): Campaign {
     characters,
     missions,
   };
+  if (campaignCache.size >= 32) campaignCache.delete(campaignCache.keys().next().value!);
+  campaignCache.set(seed, campaign);
+  return campaign;
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { localStorageAdapter } from "@/lib/persist/save";
+import { cachedLocalStorage } from "@/lib/persist/save";
 import { readSettings } from "@/lib/persist/settings";
 import type { BriefingLine, CharacterRole } from "@/lib/types";
 
@@ -34,7 +34,7 @@ function speechApi(): SpeechSynthesis | null {
 }
 
 function configuredSpeechVolume(): number | null {
-  const settings = readSettings(localStorageAdapter());
+  const settings = readSettings(cachedLocalStorage());
   if (!settings.sfxEnabled) return null;
 
   const volume = settings.masterVolume * settings.sfxVolume;

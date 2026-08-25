@@ -4,7 +4,7 @@ import { createCampaign } from "@/lib/gen/campaign";
 import {
   listSaves,
   listUnreadableSaves,
-  localStorageAdapter,
+  cachedLocalStorage,
   hasSaveForSeed,
   parseSaveExport,
   removeSave,
@@ -38,14 +38,14 @@ export function useMenuController() {
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
 
   const refreshSaves = useCallback(() => {
-    const storage = localStorageAdapter();
+    const storage = cachedLocalStorage();
     setSaves(listSaves(storage));
     setUnreadableSaves(listUnreadableSaves(storage));
   }, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      const storage = localStorageAdapter();
+      const storage = cachedLocalStorage();
       refreshSaves();
       setSettings(readSettings(storage));
     });
@@ -82,7 +82,7 @@ export function useMenuController() {
 
   const launch = useCallback(() => {
     const seed = parseSeed(code);
-    const progress = seed === null ? null : readCampaignProgress(localStorageAdapter(), seed);
+    const progress = seed === null ? null : readCampaignProgress(cachedLocalStorage(), seed);
     const path = menuLaunchPath(code, progress?.tutorialComplete ?? false);
     if (!path) {
       setError("Enter a 4-digit seed (0000–9999), or roll a random theater.");
@@ -93,13 +93,13 @@ export function useMenuController() {
   }, [code, router]);
 
   const deleteSave = useCallback((saveSeed: string) => {
-    const storage = localStorageAdapter();
+    const storage = cachedLocalStorage();
     removeSave(storage, Number(saveSeed));
     refreshSaves();
   }, [refreshSaves]);
 
   const resetUnreadableSave = useCallback((saveSeed: string) => {
-    const storage = localStorageAdapter();
+    const storage = cachedLocalStorage();
     removeSave(storage, Number(saveSeed));
     refreshSaves();
   }, [refreshSaves]);
@@ -109,7 +109,7 @@ export function useMenuController() {
     setImportNotice("");
     try {
       const parsed = parseSaveExport(await file.text());
-      const collision = hasSaveForSeed(localStorageAdapter(), parsed.state.seed);
+      const collision = hasSaveForSeed(cachedLocalStorage(), parsed.state.seed);
       setImportPreview({ fileName: file.name, save: parsed, collision });
     } catch (cause) {
       setImportPreview(null);
@@ -119,7 +119,7 @@ export function useMenuController() {
 
   const confirmImport = useCallback(() => {
     if (!importPreview) return;
-    const imported = importSaveAtomically(localStorageAdapter(), importPreview.save);
+    const imported = importSaveAtomically(cachedLocalStorage(), importPreview.save);
     if (!imported) {
       setImportError("Import failed: browser storage could not be updated.");
       return;

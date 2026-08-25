@@ -1,4 +1,4 @@
-import type { Ref } from "react";
+import { useMemo, type Ref } from "react";
 import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { Campaign, FactionVisualProfile, SimState } from "@/lib/types";
@@ -68,12 +68,11 @@ export function GameOverlays({
   actions: GameActions;
   session: GameSession;
 }) {
-  const { palette, selected, grid, mobilePlaying, sheetContext } = gameOverlayModel({
-    state,
-    selectedIds,
-    tutorial,
-    paused,
-  });
+  // Memoized so powerBreakdown() does not re-scan every entity on unrelated re-renders.
+  const { palette, selected, grid, mobilePlaying, sheetContext } = useMemo(
+    () => gameOverlayModel({ state, selectedIds, tutorial, paused }),
+    [state, selectedIds, tutorial, paused],
+  );
 
   return (
     <>

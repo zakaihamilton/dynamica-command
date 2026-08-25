@@ -1,5 +1,5 @@
 import { BUILDING_STATS, sellRefundFor } from "../../catalog";
-import { type BuildingKind, type Entity, type SimEvent, type SimState } from "../../types";
+import { isBuildingEntity, type BuildingKind, type Entity, type SimEvent, type SimState } from "../../types";
 import { byId, canPlaceBuilding, spawnBuilding } from "../world";
 import { canRepair } from "../repair";
 import { canSell } from "../sell";
@@ -60,11 +60,11 @@ export function refundQueuedUnits(state: SimState, e: Entity): void {
 
 export function sellBuilding(state: SimState, buildingId: number): SimEvent[] {
   const e = byId(state, buildingId);
-  if (!e || e.owner !== 0 || !canSell(e)) return [];
+  if (!e || !isBuildingEntity(e) || e.owner !== 0 || !canSell(e)) return [];
   refundQueuedUnits(state, e);
-  state.credits[0] += sellRefundFor(e.kind as BuildingKind, e.hp);
+  state.credits[0] += sellRefundFor(e.kind, e.hp);
   e.hp = 0;
   e.repairing = false;
   state.losses.buildings[0] += 1;
-  return [{ type: "sold", id: e.id, kind: String(e.kind), x: e.x, y: e.y }];
+  return [{ type: "sold", id: e.id, kind: e.kind, x: e.x, y: e.y }];
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AudioRoot } from "@/components/audio/AudioRoot";
 import { TooltipLayer } from "@/components/TooltipLayer";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import styles from "./layout.module.css";
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={styles.html}>
       <body className={styles.body}>
         <AudioRoot />
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
         <TooltipLayer />
       </body>
     </html>

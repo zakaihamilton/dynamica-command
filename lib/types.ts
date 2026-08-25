@@ -164,6 +164,19 @@ export type Entity = {
   supportMode?: "auto" | "assigned" | "hold";
 };
 
+export type UnitEntity = Entity & { class: "unit"; kind: UnitKind };
+export type BuildingEntity = Entity & { class: "building"; kind: BuildingKind };
+
+/** Narrows `entity.kind` to `UnitKind` without an unsafe cast at the call site. */
+export function isUnitEntity(entity: Entity): entity is UnitEntity {
+  return entity.class === "unit";
+}
+
+/** Narrows `entity.kind` to `BuildingKind` without an unsafe cast at the call site. */
+export function isBuildingEntity(entity: Entity): entity is BuildingEntity {
+  return entity.class === "building";
+}
+
 export type Palette = {
   primary: string;
   secondary: string;
@@ -387,8 +400,8 @@ export type Command =
 export type SimEvent =
   | { type: "produced"; owner: Owner; kind: UnitKind }
   | { type: "built"; owner: Owner; kind: BuildingKind }
-  | { type: "destroyed"; id: number; kind: string; x: number; y: number }
-  | { type: "sold"; id: number; kind: string; x: number; y: number }
+  | { type: "destroyed"; id: number; kind: UnitKind | BuildingKind; x: number; y: number }
+  | { type: "sold"; id: number; kind: UnitKind | BuildingKind; x: number; y: number }
   | { type: "repairStarted"; x: number; y: number }
   | {
       type: "combat";
@@ -399,7 +412,7 @@ export type SimEvent =
       targetX: number;
       targetY: number;
       targetOwner: Owner;
-      targetKind: string;
+      targetKind: UnitKind | BuildingKind;
       destroyed: boolean;
     }
   | {

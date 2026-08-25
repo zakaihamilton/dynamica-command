@@ -1,5 +1,5 @@
 import { BUILDING_STATS, UNIT_STATS } from "../../catalog";
-import type { BuildingKind, Entity, SimState, UnitKind } from "../../types";
+import { isBuildingEntity, isUnitEntity, type Entity, type SimState } from "../../types";
 
 export type CombatGrid = {
   state: SimState;
@@ -24,7 +24,7 @@ export function isCombatThreat(state: SimState, e: Entity): boolean {
 }
 
 export function statsFor(e: Entity): { damage: number; range: number; cooldown: number; weapon: import("../../types").WeaponType; splashRadius: number; suppression: number } {
-  if (e.class === "unit") return UNIT_STATS[e.kind as UnitKind];
+  if (isUnitEntity(e)) return UNIT_STATS[e.kind];
   if (e.kind === "turret") {
     return { damage: 9, range: 5.5, cooldown: 14, weapon: "cannon", splashRadius: 0.5, suppression: 10 };
   }
@@ -86,7 +86,9 @@ export function closestEnemy(
 
 export function acquire(grid: CombatGrid, e: Entity, threatsOnly = false): Entity | undefined {
   const { range } = statsFor(e);
-  const sight = e.class === "unit" ? UNIT_STATS[e.kind as UnitKind].sight : BUILDING_STATS[e.kind as BuildingKind].sight;
+  const sight = isUnitEntity(e)
+    ? UNIT_STATS[e.kind].sight
+    : isBuildingEntity(e) ? BUILDING_STATS[e.kind].sight : 0;
   return closestEnemy(grid, e, Math.max(range + 4, sight), threatsOnly);
 }
 

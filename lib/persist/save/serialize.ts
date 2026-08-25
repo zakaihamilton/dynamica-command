@@ -12,6 +12,7 @@ import {
   isNumber,
   assertSupportedContentVersion,
 } from "./validation";
+import { isRecord } from "../utils";
 export { SAVE_CONTENT_VERSION } from "./validation";
 
 export const SAVE_PREFIX = "genesis-protocol:save:";
@@ -67,10 +68,6 @@ export function decodeSave(raw: string): { state: SimState; savedAt: number } {
   return { state, savedAt };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 export function serializeSaveExport(
   state: SimState,
   campaign: CampaignProgress,
@@ -94,7 +91,8 @@ export function parseSaveExport(raw: string): ParsedSaveExport {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
-  } catch {
+  } catch (err) {
+    console.debug("[persist] Failed to parse save export JSON:", err);
     throw new Error("Save file is not valid JSON");
   }
   if (!isRecord(parsed) || parsed.format !== SAVE_EXPORT_FORMAT || parsed.version !== SAVE_EXPORT_VERSION) {

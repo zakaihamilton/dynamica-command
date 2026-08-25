@@ -7,6 +7,7 @@ import { buildTurretHeadModel, type UnitModel } from "@/lib/render/gl/modelLoade
 import { draw3dModel } from "@/lib/render/gl/modelRenderer";
 import { rasterize, spriteContentBounds } from "@/lib/render/sprites";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
+import { isUnitKind } from "@/lib/catalog";
 import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import styles from "./SpritePreview.module.css";
@@ -18,8 +19,6 @@ function getTurretModel(): UnitModel {
   }
   return cachedTurretModel;
 }
-
-const UNITS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank", "medic", "repairTruck"];
 
 export function SpritePreview({
   kind,
@@ -33,7 +32,7 @@ export function SpritePreview({
   className?: string;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const isUnit = UNITS.includes(kind as UnitKind);
+  const isUnit = isUnitKind(kind);
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
@@ -42,9 +41,9 @@ export function SpritePreview({
     let frame = 0;
     let disposed = false;
     const paint = (animationFrame: 0 | 1 | 2 | 3) => {
-      const spec = isUnit
-        ? unitSprite(kind as UnitKind, palette, { facing: 0, animationFrame, profile })
-        : buildingSprite(kind as BuildingKind, palette, { profile });
+      const spec = isUnitKind(kind)
+        ? unitSprite(kind, palette, { facing: 0, animationFrame, profile })
+        : buildingSprite(kind, palette, { profile });
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const image = rasterize(spec, () => {
         if (!disposed) paint(animationFrame);
@@ -56,16 +55,16 @@ export function SpritePreview({
       ctx.imageSmoothingEnabled = true;
       if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
 
-      const movement = isUnit ? unitMovementOffset(kind as UnitKind, animationFrame) : null;
+      const movement = isUnitKind(kind) ? unitMovementOffset(kind, animationFrame) : null;
       const renderDx = Math.round((canvas.width - dw) / 2);
       const renderDy = Math.round((canvas.height - dh) / 2) - (movement?.bobY ?? 0) * scale;
       const groundX = Math.round(canvas.width / 2);
       const groundY = Math.round((canvas.height + dh) / 2);
 
-      if (isUnit) {
+      if (isUnitKind(kind)) {
         drawUnitShadow(
           ctx,
-          kind as UnitKind,
+          kind,
           groundX,
           groundY,
           scale,
