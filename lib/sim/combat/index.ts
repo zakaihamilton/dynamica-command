@@ -1,0 +1,125 @@
+import { byId, distToEntity, living } from "../world";
+import { rngFromState } from "../../seed/rng";
+import { buildGrid, statsFor, isCombatThreat, acquire, acquirePreferred, closestEnemy } from "./grid";
+import { lineOfSight, firingPosition } from "./targeting";
+import { strike, chase, resumeAttackMove } from "./damage";
+import { flushPlayerAlerts, type PendingAlerts } from "./alerts";
+import type { SimEvent, SimState } from "../../types";
+import { tryFindPath } from "../pathBudget";
+
+export function tickCombat(state: SimState): SimEvent[] {
+  const events: SimEvent[] = [];
+  const pending: PendingAlerts = { harvester: false, yard: false, convoy: false };
+  const rng = rngFromState(state.rngState);
+  const grid = buildGrid(state);
+  const escortStaging = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined;
+  for (const e of living(state)) {
+    if (escortStaging && e.owner === 1) {
+      e.attackTarget = undefined;
+      e.path = [];
+      e.orderMode = undefined;
+      e.orderDestination = undefined;
+      e.idle = true;
+      continue;
+    }
+    if (e.class === "unit") e.suppression = Math.max(0, (e.suppression ?? 0) - 1);
+    const st = statsFor(e);
+    if (st.damage <= 0 || e.neutral) continue;
+    if (e.constructing > 0) continue;
+    if (e.cooldown > 0) e.cooldown -= 1;
+
+    const ordered = e.class === "unit" && !e.idle;
+    if (ordered && e.attackTarget !== undefined) {
+      const assigned = byId(state, e.attackTarget);
+      if (!assigned) {
+        e.attackTarget = undefined;
+        resumeAttackMove(state, e);
+      } else {
+        const d = distToEntity(e, assigned);
+        if (d <= st.range) {
+          e.path = [];
+          if (lineOfSight(state, e, assigned)) {
+            strike(state, e, assigned, st, rng, events, pending);
+          } else {
+            const flank = firingPosition(state, e, assigned, st.range);
+            if (flank) {
+              const path = tryFindPath(state, e, flank);
+              if (path !== undefined) e.path = path;
+            }
+          }
+          if (e.attackTarget === undefined) resumeAttackMove(state, e);
+        } else {
+          const intercept = e.owner === 1 && !isCombatThreat(state, assigned)
+            ? closestEnemy(grid, e, st.range, true)
+            : undefined;
+          if (intercept && lineOfSight(state, e, intercept)) {
+            e.attackTarget = intercept.id;
+            e.path = [];
+            strike(state, e, intercept, st, rng, events, pending);
+          } else {
+            chase(state, e, assigned);
+          }
+        }
+        continue;
+      }
+    }
+
+    if (ordered && e.path.length > 0) {
+      if (e.orderMode === "attackMove") {
+        const visible = acquire(grid, e, false);
+        if (visible && lineOfSight(state, e, visible)) {
+          e.attackTarget = visible.id;
+          e.path = [];
+          if (distToEntity(e, visible) <= st.range) {
+            strike(state, e, visible, st, rng, events, pending);
+            if (e.attackTarget === undefined) resumeAttackMove(state, e);
+          } else chase(state, e, visible);
+        } else {
+          const opportunity = closestEnemy(grid, e, st.range, false);
+          if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
+        }
+      } else {
+        const opportunity = closestEnemy(grid, e, st.range, false);
+        if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
+      }
+      continue;
+    }
+
+    if (ordered) e.idle = true;
+
+    const stance = e.class === "unit" ? (e.stance ?? "aggressive") : "aggressive";
+    const hold = stance === "hold";
+    const defend = stance === "defensive";
+    const inRangeThreat = hold ? undefined : closestEnemy(grid, e, st.range, true);
+    let target = inRangeThreat ?? (hold ? undefined : e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined);
+    if (target && !isCombatThreat(state, target)) {
+      const threat = hold || defend ? closestEnemy(grid, e, st.range, true) : acquire(grid, e, true);
+      if (threat) {
+        target = threat;
+        e.path = [];
+      }
+    }
+    if (!target && !hold && !defend) target = acquirePreferred(grid, e);
+    if (target) e.attackTarget = target.id;
+    else {
+      if (hold || defend) e.attackTarget = undefined;
+      continue;
+    }
+
+    const d = distToEntity(e, target);
+    if (d <= st.range && lineOfSight(state, e, target)) {
+      e.path = [];
+      strike(state, e, target, st, rng, events, pending);
+      continue;
+    }
+
+    if (e.class === "unit" && !hold && !defend) chase(state, e, target);
+    else {
+      e.path = [];
+      e.attackTarget = undefined;
+    }
+  }
+  flushPlayerAlerts(state, pending, events);
+  state.rngState = rng.state;
+  return events;
+}

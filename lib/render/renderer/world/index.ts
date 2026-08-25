@@ -1,0 +1,59 @@
+import type { Entity, SimState } from "../../../types";
+import { animClock } from "../../anim";
+import { type Camera } from "../../../iso";
+import { isPerfHudEnabled, type WorldPhaseTimings } from "../../perfHud";
+import { drawCombatEffects, drawFxLayer } from "../../renderCombat";
+import { drawSelectBox } from "../../renderOverlays";
+import type { RenderExtras } from "../../renderOverlays";
+import { facingFor as resolveFacing } from "../../renderEntities";
+import { entityById } from "../cache";
+import { renderTerrainPhase } from "./terrain";
+import { renderEntityPhase } from "./entities";
+import { renderHoverPhase } from "./hover";
+
+export type { RenderExtras };
+
+export function renderWorld(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  selected: Set<number>,
+  hoverTile: { x: number; y: number } | null,
+  extras: RenderExtras = {},
+): WorldPhaseTimings | null {
+  const profile = isPerfHudEnabled();
+  const timings: WorldPhaseTimings = { terrain: 0, fx: 0, entities: 0, combat: 0 };
+  let mark = profile ? performance.now() : 0;
+  const lap = (key: keyof WorldPhaseTimings) => {
+    if (!profile) return;
+    const now = performance.now();
+    timings[key] = now - mark;
+    mark = now;
+  };
+
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "medium";
+
+  renderTerrainPhase(ctx, state, cam, w, h, extras, hoverTile);
+  lap("fx");
+
+  const clock = extras.clockMs;
+  renderEntityPhase(ctx, state, cam, selected, w, h, clock, {
+    subTickAlpha: extras.subTickAlpha,
+    fx: extras.fx,
+  });
+
+  lap("entities");
+
+  const timeMs = animClock(state.tick, clock);
+  drawCombatEffects(ctx, state, cam, [], entityById, (st: SimState, ent: Entity) => resolveFacing(st, ent, entityById), clock);
+  drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
+  drawSelectBox(ctx, extras.selectBox);
+
+  renderHoverPhase(ctx, state, cam, hoverTile, w, h, extras);
+  lap("combat");
+  return profile ? timings : null;
+}
