@@ -69,7 +69,7 @@ describe("issue command dispatch", () => {
 
   it("handles unknown command type gracefully", () => {
     const s = makePlayingState();
-    const events = issue(s, { type: "unknown" as never });
+    const events = issue(s, { type: "unknown" } as unknown as Parameters<typeof issue>[1]);
     expect(events).toEqual([]);
   });
 });

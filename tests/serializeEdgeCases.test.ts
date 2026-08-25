@@ -225,7 +225,7 @@ describe("normalizeState edge cases", () => {
 
   it("removes appliedUpgrades", () => {
     const state = baseState(1000);
-    (state as { appliedUpgrades: unknown }).appliedUpgrades = ["test"];
+    (state as unknown as { appliedUpgrades: unknown }).appliedUpgrades = ["test"];
     const raw = serializeState(state);
     const restored = deserializeState(raw);
     expect((restored as { appliedUpgrades?: unknown }).appliedUpgrades).toBeUndefined();

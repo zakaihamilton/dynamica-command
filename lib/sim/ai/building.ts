@@ -7,7 +7,7 @@ import { directorPhase } from "./director";
 function tryPlaceBuilding(
   state: SimState,
   kind: BuildingKind,
-  spot: { x: number; y: number } | null,
+  spot: { x: number; y: number } | null | undefined,
 ): boolean {
   if (!spot) return false;
   const stats = BUILDING_STATS[kind];

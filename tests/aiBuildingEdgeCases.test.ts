@@ -24,14 +24,13 @@ describe("tryBuildPower / tryBuildRefinery", () => {
 describe("tryBuildForwardInfrastructure", () => {
   it("returns false during opening phase", () => {
     const s = enemyState();
-    s.aiDirector = { phase: "opening", tick: 0 } as never;
+    s.tutorialStage = "move";
     const yard = living(s).find((e) => e.kind === "constructionYard" && e.owner === 1)!;
     expect(tryBuildForwardInfrastructure(s, yard)).toBe(false);
   });
 
   it("returns false when power is negative", () => {
     const s = enemyState();
-    s.aiDirector = { phase: "midgame", tick: 0 } as never;
     for (const e of living(s).filter((e) => e.kind === "power" && e.owner === 1)) e.hp = 0;
     const yard = living(s).find((e) => e.kind === "constructionYard" && e.owner === 1)!;
     expect(tryBuildForwardInfrastructure(s, yard)).toBe(false);
@@ -39,7 +38,6 @@ describe("tryBuildForwardInfrastructure", () => {
 
   it("returns false when there are already >= 2 refineries", () => {
     const s = enemyState();
-    s.aiDirector = { phase: "midgame", tick: 0 } as never;
     addBuilding(s, 1, "refinery", 14, 20);
     const yard = living(s).find((e) => e.kind === "constructionYard" && e.owner === 1)!;
     expect(tryBuildForwardInfrastructure(s, yard)).toBe(false);

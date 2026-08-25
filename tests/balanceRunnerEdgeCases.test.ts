@@ -108,11 +108,11 @@ describe("sortBalanceRecords", () => {
 describe("stableBalanceRecords", () => {
   it("strips scenarioMs and sorts", () => {
     const records = [
-      { seed: "0002", mission: 0, scenarioMs: 100 } as never,
-      { seed: "0001", mission: 0, scenarioMs: 200 } as never,
+      { kind: "b", mission: 0, scenarioMs: 100 } as never,
+      { kind: "a", mission: 0, scenarioMs: 200 } as never,
     ];
     const stable = stableBalanceRecords(records);
-    expect(stable.map((r) => r.seed)).toEqual(["0001", "0002"]);
+    expect(stable.map((r) => r.kind)).toEqual(["b", "a"]);
     expect(stable[0]).not.toHaveProperty("scenarioMs");
   });
 });
