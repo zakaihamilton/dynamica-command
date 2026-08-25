@@ -31,7 +31,7 @@ import {
 } from "./musicState";
 import { applyIntensityAt, scheduleStep, ensureMusicPlaying, applyPattern, stopMusic } from "./musicScheduler";
 
-export { TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue };
+export { TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION };
 export type { MusicIntensity } from "./compose";
 export { isAudioUnlocked } from "./context";
 
