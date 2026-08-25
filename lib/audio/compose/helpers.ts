@@ -1,4 +1,4 @@
-import { createRng, type Rng } from "../../seed/rng";
+import type { Rng } from "../../seed/rng";
 import {
   type MusicCue,
   type MusicDrumKind,
@@ -6,10 +6,7 @@ import {
   type MusicGroove,
   type MusicNoteEvent,
   type MusicSectionName,
-  type BassHit,
   MUSIC_STEPS,
-  STEPS_PER_BAR,
-  TITLE_MUSIC_SEED,
   TUTORIAL_MUSIC_MISSION,
   NATURAL_MINOR,
   DORIAN,
@@ -18,7 +15,6 @@ import {
   MINOR_PROGRESSIONS,
   MAJOR_PROGRESSIONS,
   MIXOLYDIAN_PROGRESSIONS,
-  SECTION_ORDER,
 } from "./types";
 
 export function midiToHz(midi: number): number {

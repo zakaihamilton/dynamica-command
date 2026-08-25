@@ -25,7 +25,6 @@ function heightAtClamped(state: SimState, x: number, y: number): number {
   return state.heights[cy * state.width + cx] ?? 1;
 }
 
-/** Bilinear sample so moving units ride slopes instead of snapping tile to tile. */
 export function groundHeight(state: SimState, x: number, y: number): number {
   const x0 = Math.floor(x);
   const y0 = Math.floor(y);

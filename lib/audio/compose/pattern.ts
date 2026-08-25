@@ -4,7 +4,6 @@ import {
   type MusicMotif,
   type MusicPattern,
   type MusicSection,
-  type MusicSectionName,
   type MusicStem,
   type MusicNoteEvent,
   type MusicDrumEvent,

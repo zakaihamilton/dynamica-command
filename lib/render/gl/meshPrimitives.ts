@@ -23,7 +23,6 @@ export function computeNormal(
   return [cx / len, cy / len, cz / len];
 }
 
-/** Helper to construct a 3D box mesh with vertex normals and palette mask */
 export function createBoxMesh(
   minX: number,
   minY: number,
@@ -74,7 +73,6 @@ export function createBoxMesh(
   };
 }
 
-/** Construct a tapered / sloped 6-sided trapezoid box with distinct top and bottom bounds */
 export function createTrapezoidMesh(
   bMinX: number,
   bMinY: number,
@@ -128,7 +126,6 @@ export function createTrapezoidMesh(
   };
 }
 
-/** Construct a cylinder or truncated cone aligned along Z axis (for azimuth bearings, cupolas, collars) */
 export function createCylinderMesh(
   cx: number,
   cy: number,
@@ -222,7 +219,6 @@ export function createCylinderMesh(
   };
 }
 
-/** Construct a cylinder or truncated cone aligned along X axis (for cannon barrels, muzzles, recoil pistons) */
 export function createCylinderXMesh(
   minX: number,
   maxX: number,
@@ -316,7 +312,6 @@ export function createCylinderXMesh(
   };
 }
 
-/** Construct an extruded polygon prism along Z axis (for faceted hulls and sloped armor deflectors) */
 export function createPolygonPrismMesh(
   pointsXY: [number, number][],
   minZ: number,

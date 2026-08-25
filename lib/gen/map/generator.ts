@@ -18,7 +18,6 @@ import {
   inBounds,
   meanderingRoute,
   carveRoute,
-  flattenArea,
   paintBase,
   smoothWater,
   pruneWaterIslands,

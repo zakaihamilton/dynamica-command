@@ -8,7 +8,6 @@ export type TerrainAccess = {
   label: "Open ground" | "Water" | "Ore field" | "Hard blocker" | "Outside map";
 };
 
-/** The shared terrain contract for movement, construction, tooltips, and picking feedback. */
 export function terrainAccess(state: SimState, x: number, y: number): TerrainAccess {
   if (!inBounds(state, x, y)) return { traversable: false, buildable: false, label: "Outside map" };
   const tile = tileAt(state, x, y);
@@ -18,7 +17,6 @@ export function terrainAccess(state: SimState, x: number, y: number): TerrainAcc
   return { traversable: true, buildable: true, label: "Open ground" };
 }
 
-/** Terrain and buildings only — other units are handled at move time. */
 export function isStaticWalkable(state: SimState, x: number, y: number): boolean {
   if (!terrainAccess(state, x, y).traversable) return false;
   if (buildingAt(state, x, y)) return false;

@@ -3,14 +3,6 @@ import type { AudioGraphContext, MusicGraph } from "./musicGraph";
 import { notePan } from "./musicGraph";
 import { getNoiseBuffer } from "./musicGraph";
 
-/**
- * Offline exports do not need the live score's layered effects graph. The
- * live path intentionally creates a rich, short-lived graph for each note;
- * doing that for a two-minute offline render creates tens of thousands of
- * Web Audio nodes and makes native AAC export unacceptably slow in Chromium.
- * This path keeps the same deterministic events and musical timing while
- * using one oscillator/noise source per event and the shared buses.
- */
 export function playFastSynthTone(
   audio: AudioGraphContext,
   destination: AudioNode,

@@ -4,8 +4,6 @@ import {
   TILE_RESOURCE,
   TILE_WATER,
   type BiomeName,
-  type Vec2,
-  type WinCategory,
 } from "../../types";
 import { biomeTuning } from "./config";
 import { warpedFbm } from "./noise";

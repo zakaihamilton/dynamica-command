@@ -23,10 +23,6 @@ import {
 } from "./combat";
 import type { CommanderMetrics } from "./queries";
 
-/**
- * A deterministic, intentionally conservative commander for balance and regression runs.
- * It uses only public simulation state and the same commands available to a player.
- */
 export class CompetentCommander {
   private lastCombatOrder = "";
   private lastCombatOrderTick = Number.NEGATIVE_INFINITY;

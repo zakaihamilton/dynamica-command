@@ -35,10 +35,6 @@ export type UnitModel = {
   nodes: ModelNode[];
 };
 
-// -------------------------------------------------------------
-// Built-in Low-Poly 3D Unit Models
-// -------------------------------------------------------------
-
 export function buildTankModel(): UnitModel {
   // Chassis
   const mainHull = createBoxMesh(-0.55, -0.28, 0.15, 0.55, 0.28, 0.55, 1); // primary color
