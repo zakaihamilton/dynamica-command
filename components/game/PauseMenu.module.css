@@ -1,3 +1,5 @@
+@import "./dialog.module.css" layer(base);
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -12,18 +14,11 @@
 }
 
 .dialog {
-  width: 100%;
-  max-width: 24rem;
-  padding: 1.5rem;
+  composes: dialog from "./dialog.module.css";
 }
 
 .title {
-  margin: 0.5rem 0 0;
-  font-size: 1.5rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--chrome-text);
+  composes: title from "./dialog.module.css";
 }
 
 .actions {

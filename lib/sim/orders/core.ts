@@ -1,5 +1,5 @@
 import { isSupportUnit } from "../../catalog";
-import { TILE_RESOURCE, type BuildingKind, type Command, type Entity, type SimEvent, type SimState, type TutorialStage, type UnitKind } from "../../types";
+import { TILE_RESOURCE, type Command, type Entity, type SimEvent, type SimState, type TutorialStage, type UnitKind } from "../../types";
 import { findPath } from "../pathfinding";
 import { byId, inBounds, tileAt } from "../world";
 import { holdSupport } from "../support";

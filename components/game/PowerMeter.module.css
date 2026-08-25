@@ -1,16 +1,9 @@
+@import "./chromePanel.module.css" layer(base);
+
 .meter {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
+  composes: panel from "./chromePanel.module.css";
   column-gap: 0.34rem;
-  row-gap: 0.16rem;
   min-width: 5.4rem;
-  padding: 0.28rem 0.32rem 0.3rem;
-  border: 1px solid var(--chrome-inset);
-  background: linear-gradient(180deg, var(--chrome-steel-hi), var(--chrome-steel-lo));
-  box-shadow:
-    inset 1px 1px var(--chrome-bevel),
-    inset -1px -1px var(--chrome-void);
 }
 
 .icon {
@@ -21,12 +14,8 @@
 }
 
 .label {
+  composes: label from "./chromePanel.module.css";
   color: var(--chrome-cyan-dim);
-  font-size: 0.5rem;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  text-shadow: 0 1px 0 var(--chrome-void);
 }
 
 .lcd {
@@ -59,16 +48,8 @@
 }
 
 .digits {
-  position: relative;
-  z-index: 1;
+  composes: digits from "./chromePanel.module.css";
   color: var(--chrome-cyan);
-  font-family: var(--font-geist-mono), "Courier New", monospace;
-  font-size: 1.12rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-align: right;
   text-shadow:
     0 0 6px color-mix(in srgb, var(--chrome-cyan) 55%, transparent),
     0 0 14px color-mix(in srgb, var(--chrome-cyan) 25%, transparent);

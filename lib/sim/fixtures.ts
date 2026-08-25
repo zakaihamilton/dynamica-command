@@ -2,7 +2,8 @@ import { mixSeed } from "../seed/rng";
 import type { BuildingKind, SimState, UnitKind, WinCategory } from "../types";
 import { SURFACE_NONE, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../types";
 import { makeFog } from "./fog";
-import { emptyRoleCounts, spawnBuilding, spawnUnit } from "./world";
+import { createBaseState } from "./state";
+import { spawnBuilding, spawnUnit } from "./world";
 
 export type FixtureOpts = {
   width?: number;
@@ -16,10 +17,9 @@ export function makeFixture(opts: FixtureOpts): SimState {
   const height = opts.height ?? 12;
   const tiles = new Array(width * height).fill(TILE_CLEAR);
   const resourceAmount = new Array(width * height).fill(0);
-  const state: SimState = {
+  const state = createBaseState({
     seed: opts.seed ?? 0,
     missionIndex: 0,
-    tick: 0,
     width,
     height,
     tiles,
@@ -28,17 +28,8 @@ export function makeFixture(opts: FixtureOpts): SimState {
     biome: "ash plains",
     resourceAmount,
     fog: makeFog(width, height, 2),
-    entities: [],
-    nextId: 1,
     credits: [5000, 2000],
-    creditsEarned: [0, 0],
-    unitsProduced: [0, 0],
-    unitsProducedByRole: emptyRoleCounts(),
-    buildingsCompleted: [0, 0],
-    buildingsCompletedByKind: {},
-    losses: { units: [0, 0], buildings: [0, 0] },
     win: { ...opts.win },
-    result: "playing",
     rngState: mixSeed(opts.seed ?? 0, "fixture") || 1,
     factions: [
       {
@@ -69,7 +60,7 @@ export function makeFixture(opts: FixtureOpts): SimState {
       },
     ],
     missionName: "Fixture",
-  };
+  });
   return state;
 }
 

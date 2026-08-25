@@ -15,7 +15,8 @@ import { tickRepair } from "./repair";
 import { tickSupport } from "./support";
 import { ensureMissionDirector, tickMissionDirector } from "./director";
 import { configureMissionScenario, tickScenario } from "./scenarios";
-import { emptyRoleCounts, spawnBuildingAt, spawnUnit } from "./world";
+import { spawnBuildingAt, spawnUnit } from "./world";
+import { createBaseState } from "./state";
 import type { Command } from "../types";
 import { missionDifficulty } from "./difficulty";
 import { tickMovement } from "./movement";
@@ -43,10 +44,9 @@ export function createMissionFromData(opts: {
   const rng = createRng(opts.seed, `mission-spawn:${opts.missionIndex}`);
   const difficulty = missionDifficulty(mission.index);
 
-  const state: SimState = {
+  const state = createBaseState({
     seed: opts.seed,
     missionIndex: opts.missionIndex,
-    tick: 0,
     width: map.width,
     height: map.height,
     tiles: map.tiles,
@@ -55,23 +55,14 @@ export function createMissionFromData(opts: {
     biome: map.biome,
     resourceAmount: map.resourceAmount,
     fog: makeFog(map.width, map.height, 0),
-    entities: [],
-    nextId: 1,
     credits: [STARTING_CREDITS.player, STARTING_CREDITS.enemy],
-    creditsEarned: [0, 0],
-    unitsProduced: [0, 0],
-    unitsProducedByRole: emptyRoleCounts(),
-    buildingsCompleted: [0, 0],
-    buildingsCompletedByKind: {},
-    losses: { units: [0, 0], buildings: [0, 0] },
     win: { ...mission.win },
-    result: "playing",
     rngState: mixSeed(opts.seed, `sim:${opts.missionIndex}`) || 1,
     factions: campaign.factions,
     missionName: mission.name,
-    missionKind: mission.win.kind,
-    aiState: "economy",
-  };
+  });
+  state.missionKind = mission.win.kind;
+  state.aiState = "economy";
 
   const p = map.playerStart;
   const e = map.enemyStart;

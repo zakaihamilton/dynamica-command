@@ -41,6 +41,37 @@ describe("floating tooltips", () => {
     expect(parseTooltipPos(null)).toBe("above");
   });
 
+  it("parses right and inset positions", () => {
+    expect(parseTooltipPos("right")).toBe("right");
+    expect(parseTooltipPos("inset")).toBe("inset");
+  });
+
+  it("parses explicit above string", () => {
+    expect(parseTooltipPos("above")).toBe("above");
+  });
+
+  it("returns above for undefined input", () => {
+    expect(parseTooltipPos(undefined)).toBe("above");
+  });
+
+  it("returns above for unrecognized strings", () => {
+    expect(parseTooltipPos("random")).toBe("above");
+  });
+
+  it("caps tooltip size to the padded viewport so copy can wrap instead of clipping", () => {
+    expect(tooltipMaxBox({ width: 400, height: 300 })).toEqual({
+      width: 400 - TOOLTIP_PAD * 2,
+      height: 300 - TOOLTIP_PAD * 2,
+    });
+  });
+
+  it("respects custom pad in tooltipMaxBox", () => {
+    expect(tooltipMaxBox({ width: 400, height: 300 }, 16)).toEqual({
+      width: 368,
+      height: 268,
+    });
+  });
+
   it("stays inside the viewport when the anchor is scrolled near a clip edge", () => {
     const placed = placeTooltip(
       { top: 8, left: 20, width: 80, height: 40 },
@@ -64,6 +95,70 @@ describe("floating tooltips", () => {
     expect(placed.left).toBeGreaterThan(50);
   });
 
+  it("flips a right tooltip to the left when it would overflow", () => {
+    const placed = placeTooltip(
+      { top: 80, left: 380, width: 40, height: 20 },
+      { width: 120, height: 24 },
+      "right",
+      { width: 400, height: 300 },
+    );
+    expect(placed.left).toBeLessThan(300);
+  });
+
+  it("positions below the anchor and flips up when near the bottom", () => {
+    const placed = placeTooltip(
+      { top: 280, left: 200, width: 40, height: 20 },
+      { width: 100, height: 30 },
+      "below",
+      { width: 400, height: 320 },
+    );
+    expect(placed.top).toBeLessThan(280);
+  });
+
+  it("positions below without flipping when there is room", () => {
+    const placed = placeTooltip(
+      { top: 50, left: 200, width: 40, height: 20 },
+      { width: 100, height: 30 },
+      "below",
+      { width: 400, height: 400 },
+    );
+    expect(placed.top).toBeGreaterThanOrEqual(50 + 20 + 6);
+  });
+
+  it("centers an inset tooltip on the anchor", () => {
+    const placed = placeTooltip(
+      { top: 100, left: 200, width: 40, height: 20 },
+      { width: 100, height: 30 },
+      "inset",
+      { width: 400, height: 400 },
+    );
+    expect(placed.top).toBe(110 - 15);
+    expect(placed.left).toBe(220 - 50);
+  });
+
+  it("flips above tooltip down when near the top", () => {
+    const placed = placeTooltip(
+      { top: 5, left: 200, width: 40, height: 20 },
+      { width: 100, height: 30 },
+      "above",
+      { width: 400, height: 400 },
+    );
+    expect(placed.top).toBeGreaterThan(5 + 20);
+  });
+
+  it("uses custom gap and pad parameters", () => {
+    const placed = placeTooltip(
+      { top: 100, left: 200, width: 40, height: 20 },
+      { width: 80, height: 24 },
+      "above",
+      { width: 400, height: 400 },
+      12,
+      16,
+    );
+    expect(placed.top).toBeGreaterThanOrEqual(16);
+    expect(placed.left).toBeGreaterThanOrEqual(16);
+  });
+
   it("keeps a wide tooltip inside the viewport near a right edge", () => {
     const size = { width: 280, height: 36 };
     const view = { width: 400, height: 300 };
@@ -77,12 +172,5 @@ describe("floating tooltips", () => {
     expect(placed.left + size.width).toBeLessThanOrEqual(view.width - TOOLTIP_PAD);
     expect(placed.top).toBeGreaterThanOrEqual(TOOLTIP_PAD);
     expect(placed.top + size.height).toBeLessThanOrEqual(view.height - TOOLTIP_PAD);
-  });
-
-  it("caps tooltip size to the padded viewport so copy can wrap instead of clipping", () => {
-    expect(tooltipMaxBox({ width: 400, height: 300 })).toEqual({
-      width: 400 - TOOLTIP_PAD * 2,
-      height: 300 - TOOLTIP_PAD * 2,
-    });
   });
 });

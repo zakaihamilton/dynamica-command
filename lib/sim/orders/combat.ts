@@ -1,8 +1,8 @@
 import { UNIT_STATS, isSupportUnit } from "../../catalog";
-import { type Command, type Entity, type Formation, type SimEvent, type SimState, type UnitKind } from "../../types";
+import { type Formation, type SimEvent, type SimState, type UnitKind } from "../../types";
 import { findPath } from "../pathfinding";
 import { byId, closestApproach } from "../world";
-import { assignSupportTarget, canSupportEntity, holdSupport } from "../support";
+import { assignSupportTarget, canSupportEntity } from "../support";
 
 export function attackUnits(state: SimState, ids: number[], targetId: number): SimEvent[] {
   const target = byId(state, targetId);

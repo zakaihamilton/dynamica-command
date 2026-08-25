@@ -1,16 +1,12 @@
+@import "../game/dialog.module.css" layer(base);
+
 .dialog {
-  width: 100%;
+  composes: dialog from "../game/dialog.module.css";
   max-width: 32rem;
-  padding: 1.5rem;
 }
 
 .title {
-  margin: 0.5rem 0 0;
-  font-size: 1.5rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--chrome-text);
+  composes: title from "../game/dialog.module.css";
 }
 
 .copy {

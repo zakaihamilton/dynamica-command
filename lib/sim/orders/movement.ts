@@ -4,33 +4,29 @@ import { byId, inBounds, isStaticWalkable } from "../world";
 import { clearSupportOrder } from "../support";
 
 export function moveUnits(state: SimState, ids: number[], x: number, y: number, formation?: Formation): SimEvent[] {
-  const tx = Math.round(x);
-  const ty = Math.round(y);
-  const movers = collectMovers(state, ids, false);
-  const dests = destinationsForGroup(state, movers, tx, ty, formation);
-  movers.forEach((e, index) => {
-    clearSupportOrder(e);
-    e.attackTarget = undefined;
-    e.orderMode = "move";
-    e.orderDestination = dests[index] ?? { x: tx, y: ty };
-    e.gatherX = undefined;
-    e.gatherY = undefined;
-    e.idle = false;
-    if (formation) e.formation = formation;
-    e.path = findPath(state, e, dests[index] ?? { x: tx, y: ty });
-  });
-  return [];
+  return issueTravelOrder(state, ids, x, y, "move", formation);
 }
 
 export function attackMoveUnits(state: SimState, ids: number[], x: number, y: number, formation?: Formation): SimEvent[] {
+  return issueTravelOrder(state, ids, x, y, "attackMove", formation);
+}
+
+function issueTravelOrder(
+  state: SimState,
+  ids: number[],
+  x: number,
+  y: number,
+  orderMode: "move" | "attackMove",
+  formation?: Formation,
+): SimEvent[] {
   const tx = Math.round(x);
   const ty = Math.round(y);
-  const movers = collectMovers(state, ids, true);
+  const movers = collectMovers(state, ids, orderMode === "attackMove");
   const dests = destinationsForGroup(state, movers, tx, ty, formation);
   movers.forEach((e, index) => {
     clearSupportOrder(e);
     e.attackTarget = undefined;
-    e.orderMode = "attackMove";
+    e.orderMode = orderMode;
     e.orderDestination = dests[index] ?? { x: tx, y: ty };
     e.gatherX = undefined;
     e.gatherY = undefined;

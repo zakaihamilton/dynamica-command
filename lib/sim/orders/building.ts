@@ -1,5 +1,5 @@
 import { BUILDING_STATS, sellRefundFor } from "../../catalog";
-import { type BuildingKind, type Entity, type SimEvent, type SimState, type UnitKind } from "../../types";
+import { type BuildingKind, type Entity, type SimEvent, type SimState } from "../../types";
 import { byId, canPlaceBuilding, spawnBuilding } from "../world";
 import { canRepair } from "../repair";
 import { canSell } from "../sell";

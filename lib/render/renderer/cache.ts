@@ -2,7 +2,6 @@ import type { Entity, SimState } from "../../types";
 import type { SpriteSpec } from "../../types";
 import {
   emptyScrollLayer,
-  terrainScrollPad,
   type ScrollLayer,
 } from "../scrollLayer";
 import type { Camera } from "../../iso";
