@@ -18,6 +18,8 @@ export function useSoundtrackExport({
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("Checking browser audio support…");
   const exportAbortController = useRef<AbortController | null>(null);
+  const exportTaskId = useRef(0);
+  const [draining, setDraining] = useState(false);
   const mounted = useRef(true);
   const busy = exportState === "rendering" || exportState === "encoding" || exportState === "cancelling";
 
@@ -57,20 +59,30 @@ export function useSoundtrackExport({
     const controller = exportAbortController.current;
     if (!controller) return;
     controller.abort();
-    setExportState("cancelling");
-    setStatus("Cancelling soundtrack export…");
+    exportTaskId.current += 1;
+    setDraining(true);
+    setExportState("idle");
+    setProgress(0);
+    setStatus("Export cancelled. You can close this panel while the renderer finishes releasing resources.");
   }, []);
 
   const exportTrack = async () => {
-    if (availability !== "available" || exportState === "rendering" || exportState === "encoding") return;
+    if (
+      availability !== "available" ||
+      exportState === "rendering" ||
+      exportState === "encoding" ||
+      exportAbortController.current !== null ||
+      draining
+    ) return;
     const controller = new AbortController();
+    const taskId = ++exportTaskId.current;
     exportAbortController.current = controller;
     setExportState("rendering");
     setProgress(0.08);
     setStatus("Rendering mission score…");
     try {
       const result = await exportMissionSoundtrack(seed, missionIndex, ({ phase, progress: nextProgress, phaseProgress }) => {
-        if (exportAbortController.current !== controller || !mounted.current) return;
+        if (exportAbortController.current !== controller || exportTaskId.current !== taskId || !mounted.current) return;
         setProgress(nextProgress);
         if (phase === "rendering") {
           setExportState("rendering");
@@ -81,26 +93,29 @@ export function useSoundtrackExport({
           setStatus(`Encoding AAC and packaging the M4A file… ${Math.round(phaseProgress * 100)}%`);
         }
       }, { signal: controller.signal });
-      if (controller.signal.aborted || exportAbortController.current !== controller || !mounted.current) return;
+      if (controller.signal.aborted || exportAbortController.current !== controller || exportTaskId.current !== taskId || !mounted.current) return;
       downloadMusicExport(result);
       setExportState("complete");
       setProgress(1);
       setStatus(`Downloaded ${result.filename}`);
     } catch (error) {
       if (controller.signal.aborted) {
-        if (exportAbortController.current === controller && mounted.current) {
+        if (exportAbortController.current === controller && exportTaskId.current === taskId && mounted.current) {
           setExportState("idle");
           setProgress(0);
           setStatus("Export cancelled. You can start it again when ready.");
         }
         return;
       }
-      if (exportAbortController.current !== controller || !mounted.current) return;
+      if (exportAbortController.current !== controller || exportTaskId.current !== taskId || !mounted.current) return;
       setExportState("error");
       setProgress(0);
       setStatus(error instanceof Error ? error.message : "Unable to export the mission soundtrack.");
     } finally {
-      if (exportAbortController.current === controller) exportAbortController.current = null;
+      if (exportAbortController.current === controller) {
+        exportAbortController.current = null;
+        setDraining(false);
+      }
     }
   };
 
@@ -110,6 +125,7 @@ export function useSoundtrackExport({
     progress,
     status,
     busy,
+    draining,
     cancelExport,
     exportTrack,
   };

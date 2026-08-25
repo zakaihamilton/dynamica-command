@@ -10,6 +10,7 @@ export function PauseOptions({
   settings,
   onToggleSound,
   onToggleMusic,
+  onToggleTacticalRoster,
   onVolumeChange,
   onBack,
   titleId = "pause-title",
@@ -18,6 +19,7 @@ export function PauseOptions({
   settings: GameSettings;
   onToggleSound: () => void;
   onToggleMusic: () => void;
+  onToggleTacticalRoster?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
   titleId?: string;
@@ -33,6 +35,9 @@ export function PauseOptions({
         </ConsoleButton>
         <ConsoleButton className={styles.action} tooltip="Toggle synthesized audio cues" shortcut={SHORTCUT.mute} onClick={onToggleSound}>
           Sound effects: {settings.sfxEnabled ? "On" : "Off"}
+        </ConsoleButton>
+        <ConsoleButton className={styles.action} tooltip="Show a keyboard and screen-reader tactical roster beside the battlefield" onClick={onToggleTacticalRoster}>
+          Tactical roster: {settings.tacticalRosterEnabled ? "On" : "Off"}
         </ConsoleButton>
         <ConsoleButton muted className={styles.action} tooltip={backTooltip} shortcut={SHORTCUT.back} onClick={onBack}>Back</ConsoleButton>
       </div>

@@ -16,7 +16,7 @@ export function SoundtrackPanel({
   missionIndex: number;
   onClose: () => void;
 }) {
-  const { availability, exportState, progress, status, busy, cancelExport, exportTrack } = useSoundtrackExport({
+  const { availability, exportState, progress, status, busy, draining, cancelExport, exportTrack } = useSoundtrackExport({
     seed,
     missionIndex,
     onClose,
@@ -38,7 +38,7 @@ export function SoundtrackPanel({
         <div className={styles.actions}>
           <ConsoleButton
             onClick={exportTrack}
-            disabled={availability !== "available" || busy}
+            disabled={availability !== "available" || busy || draining}
             tooltip={availability === "unsupported" ? "Native AAC export is not supported here" : "Render and download the mission soundtrack as M4A"}
           >
             {busy

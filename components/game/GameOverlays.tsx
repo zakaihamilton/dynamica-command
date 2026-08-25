@@ -8,6 +8,7 @@ import { GameMobileSurface } from "./GameMobileSurface";
 import { GamePauseSurface } from "./GamePauseSurface";
 import { GameSidebarSurface } from "./GameSidebarSurface";
 import { MissionConfirmation } from "./MissionConfirmation";
+import { TacticalRoster } from "./TacticalRoster";
 import type { GameActions } from "./hooks/useGameActions";
 import type { GameCamera } from "./hooks/useGameCamera";
 import type { GameSession } from "./hooks/useGameSession";
@@ -27,6 +28,7 @@ export function GameOverlays({
   paused,
   pauseView,
   pauseNotice,
+  tacticalAnnouncement = "",
   audioSettings,
   camera,
   setPauseView,
@@ -34,6 +36,8 @@ export function GameOverlays({
   onSelectionMode,
   onOpenMobileSheet,
   onCloseMobileSheet,
+  onSelect = () => undefined,
+  onAnnounce = () => undefined,
   actions,
   session,
 }: {
@@ -51,6 +55,7 @@ export function GameOverlays({
   paused: boolean;
   pauseView: PauseView;
   pauseNotice: string;
+  tacticalAnnouncement?: string;
   audioSettings: GameSettings;
   camera: GameCamera;
   setPauseView: (view: PauseView) => void;
@@ -58,6 +63,8 @@ export function GameOverlays({
   onSelectionMode: (active: boolean) => void;
   onOpenMobileSheet: () => void;
   onCloseMobileSheet: () => void;
+  onSelect?: (ids: number[]) => void;
+  onAnnounce?: (message: string) => void;
   actions: GameActions;
   session: GameSession;
 }) {
@@ -118,6 +125,18 @@ export function GameOverlays({
           camera={camera}
           onTab={onTab}
           actions={actions}
+        />
+      ) : null}
+
+      {!tutorial && audioSettings.tacticalRosterEnabled ? (
+        <TacticalRoster
+          state={state}
+          selectedIds={selectedIds}
+          actions={actions}
+          camera={camera}
+          announcement={tacticalAnnouncement}
+          onSelect={onSelect}
+          onAnnounce={onAnnounce}
         />
       ) : null}
 

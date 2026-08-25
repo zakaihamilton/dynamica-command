@@ -1,6 +1,12 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { beep } from "@/lib/audio/synth";
-import { localStorageAdapter, readSave, writeSave } from "@/lib/persist/save";
+import {
+  localStorageAdapter,
+  readSave,
+  saveExportFilename,
+  serializeSaveExport,
+  writeSave,
+} from "@/lib/persist/save";
 import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { createMission } from "@/lib/sim/api";
 import type { Command, SimState } from "@/lib/types";
@@ -45,6 +51,25 @@ export function useMissionPersistence({
   const saveMissionNow = useCallback(() => {
     const saved = writeSave(localStorageAdapter(), stateRef.current);
     setPauseNotice(saved ? "Mission saved." : "Unable to save: browser storage is unavailable.");
+  }, [setPauseNotice, stateRef]);
+
+  const exportMissionNow = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const state = stateRef.current;
+      const campaign = readCampaignProgress(localStorageAdapter(), state.seed);
+      const payload = serializeSaveExport(state, campaign);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = saveExportFilename(state.seed);
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setPauseNotice("Save exported.");
+    } catch {
+      setPauseNotice("Unable to export: the save could not be serialized.");
+    }
   }, [setPauseNotice, stateRef]);
 
   const loadMissionNow = useCallback(() => {
@@ -109,5 +134,5 @@ export function useMissionPersistence({
     }
   }, [seed, setState, stateRef]);
 
-  return { saveMissionNow, loadMissionNow, restartMissionNow, advanceTutorial };
+  return { saveMissionNow, exportMissionNow, loadMissionNow, restartMissionNow, advanceTutorial };
 }

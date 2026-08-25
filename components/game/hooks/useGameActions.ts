@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
-import { buildingCameoStatus, unitCameoStatus } from "@/lib/catalog";
+import { buildingCameoStatus, isSupportUnit, unitCameoStatus } from "@/lib/catalog";
 import { beep } from "@/lib/audio/synth";
 import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
+import { terrainAccess } from "@/lib/sim/world";
 import type { MobileCommand } from "../MobileCommandTray";
 import { PLACEABLE, PRODUCIBLE, leastLoadedProducer } from "./gameActions";
 
@@ -60,6 +61,39 @@ export function useGameActions({
     setMobileCommandState(null);
     beep("ack");
   }, [cmdQ, selected, selectedIds]);
+
+  const issueCoordinateCommand = useCallback((command: "move" | "attackMove" | "harvest", x: number, y: number) => {
+    const tx = Math.round(x);
+    const ty = Math.round(y);
+    const state = stateRef.current;
+    const selectedUnitIds = [...(selectedIds.length > 0 ? selectedIds : selected.current)];
+    const unitIds = selectedUnitIds.filter((id) => {
+      const entity = state.entities.find((candidate) => candidate.id === id);
+      if (!entity || entity.owner !== 0 || entity.class !== "unit" || entity.neutral || entity.hp <= 0) return false;
+      if (command === "harvest") return entity.kind === "harvester";
+      if (command === "attackMove") return entity.kind !== "harvester";
+      return true;
+    });
+    const access = terrainAccess(state, tx, ty);
+    if (!unitIds.length || !Number.isInteger(tx) || !Number.isInteger(ty) || !access.traversable || (command === "harvest" && access.label !== "Ore field")) return false;
+    cmdQ.current.push({ type: command, unitIds, x: tx, y: ty });
+    beep("ack");
+    return true;
+  }, [cmdQ, selected, selectedIds, stateRef]);
+
+  const issueTargetCommand = useCallback((command: "attack" | "support", targetId: number) => {
+    const selectedUnitIds = [...(selectedIds.length > 0 ? selectedIds : selected.current)];
+    const unitIds = selectedUnitIds.filter((id) => {
+      const entity = stateRef.current.entities.find((candidate) => candidate.id === id);
+      if (!entity || entity.owner !== 0 || entity.class !== "unit" || entity.neutral || entity.hp <= 0) return false;
+      if (command === "attack") return entity.kind !== "harvester" && !isSupportUnit(entity.kind as UnitKind);
+      return isSupportUnit(entity.kind as UnitKind);
+    });
+    if (!unitIds.length) return false;
+    cmdQ.current.push({ type: command, unitIds, targetId });
+    beep("ack");
+    return true;
+  }, [cmdQ, selected, selectedIds, stateRef]);
 
   const togglePlace = useCallback((kind: BuildingKind) => {
     const next = place.current === kind ? null : kind;
@@ -159,6 +193,8 @@ export function useGameActions({
     chooseMobileCommand,
     cancelMobileCommand,
     issueSelectedCommand,
+    issueCoordinateCommand,
+    issueTargetCommand,
     togglePlace,
     toggleRepair,
     toggleSell,

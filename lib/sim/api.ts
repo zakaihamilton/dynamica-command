@@ -1,8 +1,8 @@
 import { STARTING_CREDITS } from "../catalog";
 import { createRng, mixSeed } from "../seed/rng";
-import type { SimEvent, SimState, UnitKind } from "../types";
+import type { Campaign, MissionDef, SimEvent, SimState, UnitKind } from "../types";
 import { createCampaign } from "../gen/campaign";
-import { generateMap } from "../gen/map";
+import { generateMap, type GeneratedMap } from "../gen/map";
 import { tickAi } from "./ai";
 import { tickCombat } from "./combat";
 import { tickEconomy } from "./economy";
@@ -28,6 +28,18 @@ export function createMission(opts: { seed: number; missionIndex: number }): Sim
   const mission = campaign.missions[opts.missionIndex];
   if (!mission) throw new Error(`No mission ${opts.missionIndex}`);
   const map = generateMap(opts.seed, mission);
+  return createMissionFromData({ seed: opts.seed, missionIndex: opts.missionIndex, campaign, mission, map });
+}
+
+/** Create a mission from already-generated campaign and map data. */
+export function createMissionFromData(opts: {
+  seed: number;
+  missionIndex: number;
+  campaign: Campaign;
+  mission: MissionDef;
+  map: GeneratedMap;
+}): SimState {
+  const { campaign, mission, map } = opts;
   const rng = createRng(opts.seed, `mission-spawn:${opts.missionIndex}`);
   const difficulty = missionDifficulty(mission.index);
 

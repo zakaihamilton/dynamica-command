@@ -35,7 +35,7 @@ export function useGameRuntime({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const miniRef = useRef<HTMLCanvasElement>(null);
   const mobileMiniRef = useRef<HTMLCanvasElement>(null);
-  const chrome = useGameChrome();
+  const chrome = useGameChrome(state.result);
   const {
     mobileSheetOpen,
     setMobileSheetOpen,
@@ -52,6 +52,8 @@ export function useGameRuntime({
     pauseViewRef,
     pauseNotice,
     setPauseNotice,
+    tacticalAnnouncement,
+    announceTactical,
     audioSettings,
     setAudioSettings,
     cmdQ,
@@ -204,6 +206,7 @@ export function useGameRuntime({
     campaignRecordedRef,
     redraw,
     onAlert,
+    onTacticalAnnouncement: announceTactical,
   });
 
   useGameAudioLifecycle({ seed, missionIndex: state.missionIndex, tutorial, paused });
@@ -249,6 +252,7 @@ export function useGameRuntime({
       paused,
       pauseView,
       pauseNotice,
+      tacticalAnnouncement,
       audioSettings,
       camera,
       setPauseView,
@@ -258,6 +262,8 @@ export function useGameRuntime({
         setSelectionMode(active);
         if (active) setMobileSheetOpen(false);
       },
+      onSelect: commitSelection,
+      onAnnounce: announceTactical,
       onOpenMobileSheet: () => {
         setSelectionMode(false);
         setMobileSheetOpen(true);

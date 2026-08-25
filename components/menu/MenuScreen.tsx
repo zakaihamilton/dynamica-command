@@ -6,6 +6,7 @@ import { MenuBackdrop } from "./MenuBackdrop";
 import { MenuHero } from "./MenuHero";
 import { MenuMainPanel } from "./MenuMainPanel";
 import { MenuOverlay } from "./MenuOverlay";
+import { SaveImportDialog } from "./SaveImportDialog";
 import { useMenuController } from "./useMenuController";
 import styles from "./MenuScreen.module.css";
 
@@ -32,6 +33,9 @@ export function MenuScreen() {
           onCampaignMap={controller.openCampaign}
           onDelete={controller.deleteSave}
           onResetUnreadable={controller.resetUnreadableSave}
+          onImportFile={controller.handleImportFile}
+          importError={controller.importError}
+          importNotice={controller.importNotice}
         />
       </div>
 
@@ -48,9 +52,20 @@ export function MenuScreen() {
         onOperations={controller.openOperations}
         onToggleSound={controller.toggleSound}
         onToggleMusic={controller.toggleMusic}
+        onToggleTacticalRoster={controller.toggleTacticalRoster}
         onVolumeChange={controller.updateVolume}
         onBack={controller.goBack}
       />
+      {controller.importPreview ? (
+        <SaveImportDialog
+          fileName={controller.importPreview.fileName}
+          save={controller.importPreview.save}
+          collision={controller.importPreview.collision}
+          error={controller.importError}
+          onConfirm={controller.confirmImport}
+          onCancel={controller.cancelImport}
+        />
+      ) : null}
     </div>
   );
 }

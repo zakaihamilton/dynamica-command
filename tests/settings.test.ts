@@ -37,6 +37,13 @@ describe("audio settings", () => {
     }));
     expect(readSettings(storage)).toEqual({ ...defaultSettings(), sfxEnabled: false });
 
+    storage.setItem(SETTINGS_KEY, JSON.stringify({
+      version: 2,
+      savedAt: 1,
+      settings: { musicEnabled: false, tacticalRosterEnabled: true },
+    }));
+    expect(readSettings(storage)).toEqual({ ...defaultSettings(), musicEnabled: false, tacticalRosterEnabled: true });
+
     storage.setItem(SETTINGS_KEY, "{not-json");
     expect(readSettings(storage)).toEqual(defaultSettings());
   });
@@ -64,6 +71,12 @@ describe("audio settings", () => {
     expect(envelope.version).toBe(SETTINGS_VERSION);
     expect(envelope.settings).toEqual({ ...defaultSettings(), sfxEnabled: false, musicEnabled: false });
     expect(typeof envelope.savedAt).toBe("number");
+  });
+
+  it("persists the tactical roster setting", () => {
+    const storage = memoryStorage();
+    writeSettings(storage, { ...defaultSettings(), tacticalRosterEnabled: true });
+    expect(readSettings(storage).tacticalRosterEnabled).toBe(true);
   });
 
   it("returns false when settings cannot be written", () => {

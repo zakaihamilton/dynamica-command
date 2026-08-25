@@ -1,4 +1,5 @@
 export type BalanceRecord = {
+  mission?: number;
   kind: string;
   result: "playing" | "won" | "lost";
   truncated: boolean;
@@ -50,10 +51,12 @@ export type BalanceSummary = {
   averageCommands: number;
   averageCommandRejections: number;
   byMissionKind: Record<string, BalanceKindSummary>;
+  byMission: Record<string, BalanceKindSummary>;
 };
 
 export type BalanceThresholds = {
   minWinRate: number;
+  maxWinRate?: number;
   maxTimeoutRate: number;
   minKindSamples: number;
   minKindWinRate: number;
@@ -71,11 +74,12 @@ export type BalanceCheck = {
 };
 
 export const DEFAULT_BALANCE_THRESHOLDS: BalanceThresholds = {
-  minWinRate: 0.20,
-  maxTimeoutRate: 0.65,
+  minWinRate: 0.60,
+  maxWinRate: 0.90,
+  maxTimeoutRate: 0.20,
   minKindSamples: 4,
-  minKindWinRate: 0.10,
-  maxKindTimeoutRate: 0.80,
+  minKindWinRate: 0.40,
+  maxKindTimeoutRate: 0.20,
   maxTruncatedRate: 0,
   maxMapFailureRate: 0,
   maxPowerDeficitRate: 0,
@@ -135,6 +139,11 @@ export function summarizeBalance(records: BalanceRecord[]): BalanceSummary {
       summarizeKind(records.filter((record) => record.kind === kind)),
     ]),
   );
+  const missionIndexes = [...new Set(records.map((record) => record.mission).filter((mission): mission is number => mission !== undefined))].sort((a, b) => a - b);
+  const byMission = Object.fromEntries(missionIndexes.map((mission) => [
+    String(mission),
+    summarizeKind(records.filter((record) => record.mission === mission)),
+  ]));
   return {
     samples: records.length,
     wins,
@@ -153,6 +162,7 @@ export function summarizeBalance(records: BalanceRecord[]): BalanceSummary {
     averageCommands: average(records, (record) => record.commandsIssued),
     averageCommandRejections: average(records, (record) => record.commandRejections),
     byMissionKind,
+    byMission,
   };
 }
 
@@ -160,6 +170,9 @@ export function checkBalance(summary: BalanceSummary, thresholds: BalanceThresho
   const failures: string[] = [];
   if (summary.winRate < thresholds.minWinRate) {
     failures.push(`win rate ${(summary.winRate * 100).toFixed(1)}% is below ${(thresholds.minWinRate * 100).toFixed(1)}%`);
+  }
+  if (thresholds.maxWinRate !== undefined && summary.winRate > thresholds.maxWinRate) {
+    failures.push(`win rate ${(summary.winRate * 100).toFixed(1)}% exceeds ${(thresholds.maxWinRate * 100).toFixed(1)}%`);
   }
   if (summary.timeoutRate > thresholds.maxTimeoutRate) {
     failures.push(`timeout rate ${(summary.timeoutRate * 100).toFixed(1)}% exceeds ${(thresholds.maxTimeoutRate * 100).toFixed(1)}%`);
@@ -174,6 +187,12 @@ export function checkBalance(summary: BalanceSummary, thresholds: BalanceThresho
     }
     if (kindSummary.timeouts / kindSummary.samples > thresholds.maxKindTimeoutRate) {
       failures.push(`${kind} timeout rate ${((kindSummary.timeouts / kindSummary.samples) * 100).toFixed(1)}% exceeds ${(thresholds.maxKindTimeoutRate * 100).toFixed(1)}%`);
+    }
+  }
+  for (const [mission, missionSummary] of Object.entries(summary.byMission)) {
+    if (missionSummary.samples < thresholds.minKindSamples) continue;
+    if (missionSummary.winRate < thresholds.minKindWinRate) {
+      failures.push(`mission ${Number(mission) + 1} win rate ${(missionSummary.winRate * 100).toFixed(1)}% is below ${(thresholds.minKindWinRate * 100).toFixed(1)}%`);
     }
   }
   if (summary.mapFailureRate > thresholds.maxMapFailureRate) {

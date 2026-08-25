@@ -1,5 +1,5 @@
 import type { CampaignProgress } from "../types";
-import { safeGetItem, safeSetItem, type StorageAdapter } from "./save";
+import { readPendingSaveTransfer, safeGetItem, safeSetItem, type StorageAdapter } from "./save";
 import { formatSeed } from "../seed/rng";
 
 export const CAMPAIGN_PROGRESS_VERSION = 1 as const;
@@ -21,7 +21,7 @@ export function freshCampaignProgress(seed: number): CampaignProgress {
   };
 }
 
-function normalize(value: unknown, seed: number): CampaignProgress {
+export function normalizeCampaignProgress(value: unknown, seed: number): CampaignProgress {
   const base = freshCampaignProgress(seed);
   if (!value || typeof value !== "object") return base;
   const raw = value as Partial<CampaignProgress>;
@@ -39,12 +39,14 @@ function normalize(value: unknown, seed: number): CampaignProgress {
 }
 
 export function readCampaignProgress(storage: StorageAdapter, seed: number): CampaignProgress {
+  const pending = readPendingSaveTransfer(storage);
+  if (pending?.campaign.seed === seed) return pending.campaign;
   const raw = safeGetItem(storage, campaignKey(seed));
   if (!raw) return freshCampaignProgress(seed);
   try {
     const parsed = JSON.parse(raw) as { version?: number; progress?: unknown };
     if (parsed.version !== CAMPAIGN_PROGRESS_VERSION) return freshCampaignProgress(seed);
-    return normalize(parsed.progress, seed);
+    return normalizeCampaignProgress(parsed.progress, seed);
   } catch {
     return freshCampaignProgress(seed);
   }
@@ -72,5 +74,34 @@ export function completeMission(
     unlockedMission: Math.max(progress.unlockedMission, Math.min(7, missionIndex + 1)),
     medals: { ...progress.medals, [key]: Math.max(progress.medals[key] ?? 0, medals) },
     bestScores: { ...progress.bestScores, [key]: Math.max(progress.bestScores[key] ?? 0, score) },
+  };
+}
+
+/**
+ * Merge imported progress without allowing a portable save to erase local
+ * campaign progress for the same seed.
+ */
+export function mergeCampaignProgress(
+  local: CampaignProgress,
+  imported: CampaignProgress,
+): CampaignProgress {
+  if (local.seed !== imported.seed) throw new Error("Campaign seed mismatch");
+  const missionKeys = new Set([...local.completedMissions, ...imported.completedMissions]);
+  const medals = { ...local.medals };
+  const bestScores = { ...local.bestScores };
+  for (const [key, value] of Object.entries(imported.medals)) {
+    medals[key] = Math.max(medals[key] ?? 0, value);
+  }
+  for (const [key, value] of Object.entries(imported.bestScores)) {
+    bestScores[key] = Math.max(bestScores[key] ?? 0, value);
+  }
+  return {
+    version: CAMPAIGN_PROGRESS_VERSION,
+    seed: local.seed,
+    tutorialComplete: local.tutorialComplete || imported.tutorialComplete,
+    unlockedMission: Math.max(local.unlockedMission, imported.unlockedMission),
+    completedMissions: [...missionKeys].sort((a, b) => a - b),
+    medals,
+    bestScores,
   };
 }

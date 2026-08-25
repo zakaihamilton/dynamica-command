@@ -42,7 +42,7 @@ export function useGameSession({
   settings: GameSettings;
   setSettings: Dispatch<SetStateAction<GameSettings>>;
 }) {
-  const { toggleSound, toggleMusic, updateVolume } = useAudioPreferences(settings, setSettings);
+  const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
   const routes = useMissionRoutes({ seed, stateRef });
   const persistence = useMissionPersistence({
     seed,
@@ -92,11 +92,13 @@ export function useGameSession({
     openPauseMenu,
     resumeMission,
     saveMission: confirmation.saveMission,
+    exportMission: persistence.exportMissionNow,
     loadMission: confirmation.loadMission,
     viewMissionBriefing: routes.viewMissionBriefing,
     restartMission: confirmation.restartMission,
     toggleSound,
     toggleMusic,
+    toggleTacticalRoster,
     updateVolume,
     advanceTutorial: persistence.advanceTutorial,
     exitTutorial: routes.exitTutorial,

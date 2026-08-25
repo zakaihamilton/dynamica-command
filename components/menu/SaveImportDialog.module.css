@@ -1,0 +1,74 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.dialog {
+  width: min(100%, 34rem);
+  padding: 1.4rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--chrome-alert);
+  font-size: 0.63rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dialog h2 {
+  margin: 0.3rem 0 0.4rem;
+  color: var(--chrome-text);
+  font-size: 1.2rem;
+}
+
+.fileName {
+  margin: 0 0 1rem;
+  overflow-wrap: anywhere;
+  color: var(--chrome-muted);
+  font-size: 0.7rem;
+}
+
+.details {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--chrome-text);
+  font-size: 0.72rem;
+}
+
+.details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--chrome-inset);
+  padding-bottom: 0.3rem;
+}
+
+.details dt {
+  color: var(--chrome-muted);
+}
+
+.details dd {
+  margin: 0;
+  text-align: right;
+}
+
+.warning {
+  margin: 1rem 0 0;
+  color: #ffb08a;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.2rem;
+}

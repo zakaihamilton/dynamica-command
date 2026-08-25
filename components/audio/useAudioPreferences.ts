@@ -30,5 +30,11 @@ export function useAudioPreferences(
     writeSettings(localStorageAdapter(), next);
   }, [setSettings, settings]);
 
-  return { toggleSound, toggleMusic, updateVolume };
+  const toggleTacticalRoster = useCallback(() => {
+    const next = { ...settings, tacticalRosterEnabled: !settings.tacticalRosterEnabled };
+    setSettings(next);
+    writeSettings(localStorageAdapter(), next);
+  }, [setSettings, settings]);
+
+  return { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume };
 }

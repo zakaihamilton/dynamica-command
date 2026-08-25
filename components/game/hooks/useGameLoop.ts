@@ -5,6 +5,7 @@ import { playSfx } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
 import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { localStorageAdapter, writeSave } from "@/lib/persist/save";
+import { recordTelemetry, telemetryFromMission } from "@/lib/persist/telemetry";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
 import type { Camera } from "@/lib/iso";
@@ -33,6 +34,7 @@ export function useGameLoop({
   campaignRecordedRef,
   redraw,
   onAlert,
+  onTacticalAnnouncement,
 }: {
   stateRef: MutableRefObject<SimState>;
   setState: (s: SimState) => void;
@@ -52,12 +54,15 @@ export function useGameLoop({
   campaignRecordedRef: MutableRefObject<boolean>;
   redraw: (nowMs?: number, subTickAlpha?: number) => void;
   onAlert: (text: string) => void;
+  onTacticalAnnouncement: (text: string) => void;
 }) {
   useEffect(() => {
     let appliedIntensity: MusicIntensity = "calm";
     let lastCombatTick = Number.NEGATIVE_INFINITY;
     let nextCampaignSaveAttemptMs = 0;
     let commandApplied = false;
+    let commandsIssued = 0;
+    let commandRejections = 0;
     let idleHandle: number | null = null;
     let idleViaTimeout = false;
     const cancelIdle = () => {
@@ -88,10 +93,12 @@ export function useGameLoop({
       drainCommands: () => {
         const commands = cmdQ.current.splice(0, cmdQ.current.length);
         commandApplied = commands.length > 0;
+        commandsIssued += commands.length;
         return commands;
       },
       isPaused: () => pausedRef.current,
       onTick: (next, events, now) => {
+        commandRejections += events.filter((event) => event.type === "commandRejected").length;
         if (next.tick % 48 === 0) scheduleAutosave();
         if (commandApplied || next.tick % 6 === 0) {
           commandApplied = false;
@@ -123,10 +130,15 @@ export function useGameLoop({
           playSfx("defeat", { force: true });
           setMusicCue("defeat", next.seed, next.missionIndex);
         }
-        if (events.some((e) => e.type === "commandRejected")) playSfx("uiError");
+        const rejection = events.find((e) => e.type === "commandRejected");
+        if (rejection) {
+          playSfx("uiError");
+          onTacticalAnnouncement(`Command rejected: ${rejection.reason}.`);
+        }
         if (alert) {
           playSfx(alertSfx(alert.kind), { force: true });
           onAlert(alert.text);
+          onTacticalAnnouncement(alert.text);
         }
         if (events.some((e) => e.type === "destroyed")) {
           const spawned = burstsFromDestroyed(events, next, now, fxSeq.current);
@@ -172,6 +184,10 @@ export function useGameLoop({
         if (s.result !== "playing" && !terminalSaveRef.current) {
           terminalSaveRef.current = true;
           writeSave(localStorageAdapter(), s);
+          recordTelemetry(
+            localStorageAdapter(),
+            telemetryFromMission(s, { commandsIssued, commandRejections }),
+          );
           setState({ ...s, entities: [...s.entities] });
         }
         if (s.result === "won" && !campaignRecordedRef.current) {
@@ -203,6 +219,7 @@ export function useGameLoop({
     fxSeq,
     keys,
     onAlert,
+    onTacticalAnnouncement,
     panAvailRef,
     panHold,
     pausedRef,

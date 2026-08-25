@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRef } from "react";
 import { createCamera } from "../lib/iso";
 import { makeFixture } from "../lib/sim/fixtures";
+import { localStorageAdapter, writeSave } from "../lib/persist/save";
+import { TELEMETRY_KEY } from "../lib/persist/telemetry";
 import type { BuildingKind } from "../lib/types";
 
 const renderGameFrame = vi.hoisted(() => vi.fn(() => ({
@@ -37,6 +39,7 @@ import { useGameRuntime } from "../components/game/hooks/useGameRuntime";
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   renderGameFrame.mockClear();
   startLoop.mockClear();
 });
@@ -134,5 +137,18 @@ describe("useGameRuntime", () => {
     expect(result.current.overlays.selectionMode).toBe(true);
     expect(result.current.overlays.mobileSheetOpen).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
+  });
+
+  it("does not record telemetry again when resuming a terminal save", () => {
+    const terminalState = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    terminalState.result = "won";
+    expect(writeSave(localStorageAdapter(), terminalState)).toBe(true);
+
+    renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: true, tutorial: false }));
+    const firstCall = startLoop.mock.calls[0] as unknown as [{ onFrame: (now: number, state: typeof terminalState, paused: boolean, alpha: number) => void }] | undefined;
+    expect(firstCall).toBeDefined();
+    act(() => firstCall?.[0].onFrame(1_000, terminalState, false, 0));
+
+    expect(window.localStorage.getItem(TELEMETRY_KEY)).toBeNull();
   });
 });

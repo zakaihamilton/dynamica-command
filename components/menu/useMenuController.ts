@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCampaign } from "@/lib/gen/campaign";
-import { listSaves, listUnreadableSaves, localStorageAdapter, removeSave } from "@/lib/persist/save";
+import {
+  listSaves,
+  listUnreadableSaves,
+  localStorageAdapter,
+  hasSaveForSeed,
+  parseSaveExport,
+  removeSave,
+  type ParsedSaveExport,
+} from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
+import { importSaveAtomically } from "@/lib/persist/saveTransfer";
 import { defaultSettings, readSettings, type GameSettings } from "@/lib/persist/settings";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
@@ -18,18 +27,30 @@ export function useMenuController() {
   const [error, setError] = useState("");
   const [view, setView] = useState<MenuView>("main");
   const [settings, setSettings] = useState<GameSettings>(() => defaultSettings());
+  const [importPreview, setImportPreview] = useState<{
+    fileName: string;
+    save: ParsedSaveExport;
+    collision: boolean;
+  } | null>(null);
+  const [importError, setImportError] = useState("");
+  const [importNotice, setImportNotice] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const { toggleSound, toggleMusic, updateVolume } = useAudioPreferences(settings, setSettings);
+  const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
+
+  const refreshSaves = useCallback(() => {
+    const storage = localStorageAdapter();
+    setSaves(listSaves(storage));
+    setUnreadableSaves(listUnreadableSaves(storage));
+  }, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const storage = localStorageAdapter();
-      setSaves(listSaves(storage));
-      setUnreadableSaves(listUnreadableSaves(storage));
+      refreshSaves();
       setSettings(readSettings(storage));
     });
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [refreshSaves]);
 
   const preview = useMemo(() => {
     const seed = parseSeed(code);
@@ -74,14 +95,43 @@ export function useMenuController() {
   const deleteSave = useCallback((saveSeed: string) => {
     const storage = localStorageAdapter();
     removeSave(storage, Number(saveSeed));
-    setSaves(listSaves(storage));
-    setUnreadableSaves(listUnreadableSaves(storage));
-  }, []);
+    refreshSaves();
+  }, [refreshSaves]);
 
   const resetUnreadableSave = useCallback((saveSeed: string) => {
     const storage = localStorageAdapter();
     removeSave(storage, Number(saveSeed));
-    setUnreadableSaves(listUnreadableSaves(storage));
+    refreshSaves();
+  }, [refreshSaves]);
+
+  const handleImportFile = useCallback(async (file: File) => {
+    setImportError("");
+    setImportNotice("");
+    try {
+      const parsed = parseSaveExport(await file.text());
+      const collision = hasSaveForSeed(localStorageAdapter(), parsed.state.seed);
+      setImportPreview({ fileName: file.name, save: parsed, collision });
+    } catch (cause) {
+      setImportPreview(null);
+      setImportError(cause instanceof Error ? cause.message : "Unable to read save file");
+    }
+  }, []);
+
+  const confirmImport = useCallback(() => {
+    if (!importPreview) return;
+    const imported = importSaveAtomically(localStorageAdapter(), importPreview.save);
+    if (!imported) {
+      setImportError("Import failed: browser storage could not be updated.");
+      return;
+    }
+    setImportPreview(null);
+    setImportNotice(`Imported save ${formatSeed(importPreview.save.state.seed)}. Choose Resume or Operations when ready.`);
+    refreshSaves();
+  }, [importPreview, refreshSaves]);
+
+  const cancelImport = useCallback(() => {
+    setImportPreview(null);
+    setImportError("");
   }, []);
 
   useEffect(() => {
@@ -110,6 +160,9 @@ export function useMenuController() {
     saves,
     unreadableSaves,
     error,
+    importPreview,
+    importError,
+    importNotice,
     view,
     settings,
     inputRef,
@@ -123,9 +176,13 @@ export function useMenuController() {
     launch,
     toggleSound,
     toggleMusic,
+    toggleTacticalRoster,
     updateVolume,
     deleteSave,
     resetUnreadableSave,
+    handleImportFile,
+    confirmImport,
+    cancelImport,
     setCode: (value: string) => {
       setCode(value);
       setError("");

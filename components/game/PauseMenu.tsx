@@ -18,6 +18,7 @@ export function PauseMenu({
   missionIndex,
   onResume,
   onSave,
+  onExport = () => undefined,
   onLoad,
   onBriefing,
   onRestart,
@@ -27,6 +28,7 @@ export function PauseMenu({
   onMenu,
   onToggleSound,
   onToggleMusic,
+  onToggleTacticalRoster,
   onVolumeChange,
   onBack,
   onCloseAssets,
@@ -39,6 +41,7 @@ export function PauseMenu({
   missionIndex: number;
   onResume: () => void;
   onSave: () => void;
+  onExport?: () => void;
   onLoad: () => void;
   onBriefing: () => void;
   onRestart: () => void;
@@ -48,6 +51,7 @@ export function PauseMenu({
   onMenu: () => void;
   onToggleSound: () => void;
   onToggleMusic: () => void;
+  onToggleTacticalRoster?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
   onCloseAssets: () => void;
@@ -64,6 +68,7 @@ export function PauseMenu({
             <PauseMainMenu
               onResume={onResume}
               onSave={onSave}
+              onExport={onExport}
               onLoad={onLoad}
               onBriefing={onBriefing}
               onRestart={onRestart}
@@ -77,6 +82,7 @@ export function PauseMenu({
               settings={settings}
               onToggleSound={onToggleSound}
               onToggleMusic={onToggleMusic}
+              onToggleTacticalRoster={onToggleTacticalRoster}
               onVolumeChange={onVolumeChange}
               onBack={onBack}
             />

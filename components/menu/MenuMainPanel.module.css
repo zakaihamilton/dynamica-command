@@ -16,6 +16,25 @@
   text-align: left;
 }
 
+.hiddenInput {
+  display: none;
+}
+
+.importError,
+.importNotice {
+  margin: 0.75rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.importError {
+  color: #ffb08a;
+}
+
+.importNotice {
+  color: #9ee7bd;
+}
+
 .recovery {
   display: flex;
   flex-wrap: wrap;
