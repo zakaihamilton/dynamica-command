@@ -1,9 +1,13 @@
-import { beforeEach } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { resetPathBudget } from "../lib/sim/pathBudget";
 import { resetFxTileIndex } from "../lib/render/terrainWeather";
 import { clearTurretRasterCache } from "../lib/render/gl/turretRaster";
 import { invalidateMinimap } from "../lib/render/minimap";
 import { resetPerfHudFlag } from "../lib/render/perfHud";
+
+// Persistence tests intentionally feed corrupted envelopes to the readers;
+// keep their [persist] debug diagnostics out of test output.
+vi.spyOn(console, "debug").mockImplementation(() => {});
 
 beforeEach(() => {
   resetPathBudget();
