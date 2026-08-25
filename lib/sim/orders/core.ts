@@ -1,4 +1,4 @@
-import { isSupportUnit } from "../../catalog";
+import { isSupportEntity, isSupportUnit } from "../../catalog";
 import { TILE_RESOURCE, type Command, type Entity, type SimEvent, type SimState, type TutorialStage, type UnitKind } from "../../types";
 import { findPath } from "../pathfinding";
 import { byId, inBounds, tileAt } from "../world";
@@ -107,7 +107,7 @@ function stopUnits(state: SimState, ids: number[]): SimEvent[] {
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = true;
-    if (isSupportUnit(e.kind as UnitKind)) holdSupport(e);
+    if (isSupportEntity(e)) holdSupport(e);
   }
   return [];
 }

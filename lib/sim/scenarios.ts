@@ -37,7 +37,7 @@ export function configureMissionScenario(
     const count = mission.win.targetCount ?? 1;
     for (let i = 0; i < count; i++) {
       const spot = spots[i] ?? { x: enemyStart.x - 4 - i * 3, y: enemyStart.y - 6 };
-      const kind = rng.pick(["refinery", "factory", "objective"]) as BuildingKind;
+      const kind = rng.pick(["refinery", "factory", "objective"] as const);
       const placed = spawnBuildingAt(
         state,
         1,

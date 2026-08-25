@@ -1,5 +1,5 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf, isSupportUnit, isUnitAvailable } from "../../catalog";
-import type { Entity, MissionDirectorPhase, SimState, UnitKind } from "../../types";
+import { isUnitEntity, type Entity, type MissionDirectorPhase, type SimState, type UnitKind } from "../../types";
 import { rngFromState } from "../../seed/rng";
 import { missionDifficulty } from "../difficulty";
 import { byId, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "../world";
@@ -73,12 +73,12 @@ export function tickAi(state: SimState): void {
     const want: UnitKind = playerTanks > playerInfantry ? "antiArmor" : rng.chance(0.4) ? "tank" : "infantry";
     const producer = want === "infantry" || want === "antiArmor" ? barracks : factory;
     const woundedHumans = living(state).some(
-      (entity) => entity.owner === 1 && entity.class === "unit" && !isSupportUnit(entity.kind as UnitKind) &&
-        UNIT_STATS[entity.kind as UnitKind].domain === "human" && entity.hp < entity.maxHp,
+      (entity) => entity.owner === 1 && isUnitEntity(entity) && !isSupportUnit(entity.kind) &&
+        UNIT_STATS[entity.kind].domain === "human" && entity.hp < entity.maxHp,
     );
     const woundedVehicles = living(state).some(
-      (entity) => entity.owner === 1 && entity.class === "unit" && !isSupportUnit(entity.kind as UnitKind) &&
-        UNIT_STATS[entity.kind as UnitKind].domain === "vehicle" && entity.hp < entity.maxHp,
+      (entity) => entity.owner === 1 && isUnitEntity(entity) && !isSupportUnit(entity.kind) &&
+        UNIT_STATS[entity.kind].domain === "vehicle" && entity.hp < entity.maxHp,
     );
     const medicCount = living(state).filter((entity) => entity.owner === 1 && entity.kind === "medic").length;
     const repairTruckCount = living(state).filter((entity) => entity.owner === 1 && entity.kind === "repairTruck").length;
@@ -155,7 +155,7 @@ export function tickAi(state: SimState): void {
   const threat = nearest(
     state,
     yard,
-    (e) => e.owner === 0 && e.class === "unit" && e.kind !== "harvester" && !isSupportUnit(e.kind as UnitKind) && (
+    (e) => e.owner === 0 && isUnitEntity(e) && e.kind !== "harvester" && !isSupportUnit(e.kind) && (
       !e.neutral || e.scenarioRole === "convoy"
     ) && !(
       e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined

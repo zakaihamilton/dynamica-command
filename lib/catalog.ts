@@ -1,4 +1,5 @@
-import type { ArmorType, BuildingKind, SupportRole, UnitDomain, UnitKind, WeaponType } from "./types";
+import { isUnitEntity } from "./types";
+import type { ArmorType, BuildingKind, Entity, SupportRole, UnitDomain, UnitKind, WeaponType } from "./types";
 
 export const TICKS_PER_SECOND = 12;
 export const MAX_PRODUCTION_QUEUE = 10;
@@ -236,6 +237,11 @@ export function producerFor(unit: UnitKind): BuildingKind {
 
 export function isSupportUnit(kind: UnitKind): boolean {
   return UNIT_STATS[kind].supportRole !== undefined;
+}
+
+/** Entity-level companion to isSupportUnit; false for buildings. */
+export function isSupportEntity(e: Entity): boolean {
+  return isUnitEntity(e) && UNIT_STATS[e.kind].supportRole !== undefined;
 }
 
 export function isUnitAvailable(kind: UnitKind, missionIndex: number): boolean {

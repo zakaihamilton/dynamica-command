@@ -1,5 +1,5 @@
 import { UNIT_STATS, isSupportUnit } from "../../catalog";
-import { type Formation, type SimEvent, type SimState, type UnitKind } from "../../types";
+import { isUnitEntity, type Formation, type SimEvent, type SimState } from "../../types";
 import { findPath } from "../pathfinding";
 import { byId, closestApproach } from "../world";
 import { assignSupportTarget, canSupportEntity } from "../support";
@@ -9,15 +9,15 @@ export function attackUnits(state: SimState, ids: number[], targetId: number): S
   if (!target || target.owner !== 1 || target.neutral) return [{ type: "commandRejected", reason: "invalid attack target" }];
   for (const id of ids) {
     const e = byId(state, id);
-    if (!e || e.class !== "unit" || e.owner !== 0 || e.neutral) continue;
-    if (e.kind === "harvester" || isSupportUnit(e.kind as UnitKind)) continue;
+    if (!e || !isUnitEntity(e) || e.owner !== 0 || e.neutral) continue;
+    if (e.kind === "harvester" || isSupportUnit(e.kind)) continue;
     e.attackTarget = targetId;
     e.orderMode = "attack";
     e.orderDestination = { x: target.x, y: target.y };
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
-    const range = UNIT_STATS[e.kind as UnitKind].range;
+    const range = UNIT_STATS[e.kind].range;
     const dest = target.class === "building" ? closestApproach(state, e, target) : target;
     if (Math.hypot(e.x - dest.x, e.y - dest.y) > range) {
       e.path = findPath(state, e, dest);
@@ -34,8 +34,8 @@ export function supportUnits(state: SimState, ids: number[], targetId: number): 
   let assigned = 0;
   for (const id of ids) {
     const provider = byId(state, id);
-    if (!provider || provider.owner !== 0 || provider.class !== "unit" || provider.neutral) continue;
-    if (!isSupportUnit(provider.kind as UnitKind) || !canSupportEntity(provider, target)) continue;
+    if (!provider || !isUnitEntity(provider) || provider.owner !== 0 || provider.neutral) continue;
+    if (!isSupportUnit(provider.kind) || !canSupportEntity(provider, target)) continue;
     assignSupportTarget(state, provider, target);
     assigned += 1;
   }
