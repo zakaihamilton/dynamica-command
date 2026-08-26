@@ -10,7 +10,8 @@ function PlaySession() {
   const seed = parseSeed(sp.get("seed") ?? "0000") ?? 0;
   const mission = Number(sp.get("mission") ?? "0") || 0;
   const resume = sp.get("resume") === "1";
-  return <DynamicGameClient key={`${seed}:${mission}:${resume}`} seed={seed} mission={mission} resume={resume} />;
+  const fresh = sp.get("fresh") === "1";
+  return <DynamicGameClient key={`${seed}:${mission}:${resume}:${fresh}`} seed={seed} mission={mission} resume={resume} fresh={fresh} />;
 }
 
 export default function PlayPage() {

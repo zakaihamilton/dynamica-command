@@ -20,16 +20,18 @@ export function useGameRuntime({
   seed,
   mission,
   resume,
+  fresh = false,
   tutorial = false,
 }: {
   seed: number;
   mission: number;
   resume: boolean;
+  fresh?: boolean;
   tutorial?: boolean;
 }) {
   const campaign = useMemo(() => createCampaign(seed), [seed]);
   const playerVisualProfile = useMemo(() => generateVisualProfile(seed, 0), [seed]);
-  const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume, tutorial));
+  const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume, tutorial, fresh));
   const stateRef = useRef<SimState>(state);
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);

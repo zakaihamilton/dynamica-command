@@ -11,11 +11,17 @@ import { useMissionRoutes } from "./useMissionRoutes";
 
 export type { MissionConfirmation, MissionConfirmationAction } from "./missionConfirmation";
 
-export function initialMission(seed: number, mission: number, resume: boolean, tutorial: boolean): SimState {
+export function initialMission(
+  seed: number,
+  mission: number,
+  resume: boolean,
+  tutorial: boolean,
+  fresh = false,
+): SimState {
   if (tutorial) return createTutorialMission(seed);
-  if (resume && typeof window !== "undefined") {
+  if (!fresh && typeof window !== "undefined") {
     const saved = readSave(cachedLocalStorage(), seed);
-    if (saved) return saved;
+    if (saved && (resume || saved.missionIndex === mission)) return saved;
   }
   return createMission({ seed, missionIndex: mission });
 }

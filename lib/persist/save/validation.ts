@@ -22,6 +22,8 @@ const ARMOR_TYPES = ["light", "heavy", "structure"] as const;
 const WEAPON_TYPES = ["smallArms", "antiArmor", "cannon"] as const;
 const SURFACE_KINDS = [0, 1, 2] as const;
 const TILE_KINDS = [0, 1, 2, 3] as const;
+const RNG_STATE_MIN = -0x80000000;
+const RNG_STATE_MAX = 0xffffffff;
 
 function isNumberPair(value: unknown): value is [number, number] {
   return Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number" && Number.isFinite(item));
@@ -37,6 +39,13 @@ function isNonNegativeNumber(value: unknown): value is number {
 
 function isIntegerInRange(value: unknown, min: number, max: number): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+}
+
+function isRngState(value: unknown): value is number {
+  // The initial seed is an unsigned hash, while mulberryStep stores the
+  // advanced state as a signed 32-bit integer. Both represent valid RNG
+  // states and must survive JSON save/load.
+  return isIntegerInRange(value, RNG_STATE_MIN, RNG_STATE_MAX);
 }
 
 function isString(value: unknown): value is string {
@@ -173,7 +182,7 @@ export function isStateShape(value: unknown): value is SimState {
   if (!isRecord(value.losses) || !isNumberPair(value.losses.units) || !isNumberPair(value.losses.buildings)) return false;
   if (!isWin(value.win) || !["playing", "won", "lost"].includes(value.result as string)) return false;
   if (value.lossReason !== undefined && !isOneOf(value.lossReason, LOSS_REASONS)) return false;
-  if (!isIntegerInRange(value.rngState, 0, Number.MAX_SAFE_INTEGER) || !isOneOf(value.biome, BIOMES)) return false;
+  if (!isRngState(value.rngState) || !isOneOf(value.biome, BIOMES)) return false;
   if (!Array.isArray(value.factions) || value.factions.length !== 2 || !isFaction(value.factions[0], 0) || !isFaction(value.factions[1], 1)) return false;
   if (!isString(value.missionName)) return false;
   if (value.missionKind !== undefined && !isOneOf(value.missionKind, MISSION_KINDS)) return false;

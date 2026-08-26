@@ -1,6 +1,5 @@
 import type { GameSettings } from "@/lib/persist/settings";
 import type { PauseView } from "@/lib/ui/shortcuts";
-import type { Palette } from "@/lib/types";
 import { PauseMenu } from "./PauseMenu";
 import type { GameSession } from "./hooks/useGameSession";
 
@@ -8,7 +7,6 @@ export function GamePauseSurface({
   view,
   notice,
   settings,
-  palette,
   seed,
   missionIndex,
   setView,
@@ -18,7 +16,6 @@ export function GamePauseSurface({
   view: PauseView;
   notice: string;
   settings: GameSettings;
-  palette: Palette;
   seed: number;
   missionIndex: number;
   setView: (view: PauseView) => void;
@@ -30,7 +27,6 @@ export function GamePauseSurface({
       view={view}
       notice={notice}
       settings={settings}
-      palette={palette}
       seed={seed}
       missionIndex={missionIndex}
       onResume={session.resumeMission}
@@ -39,10 +35,6 @@ export function GamePauseSurface({
       onLoad={session.loadMission}
       onBriefing={session.viewMissionBriefing}
       onRestart={session.restartMission}
-      onAssets={() => {
-        setView("assets");
-        setNotice("");
-      }}
       onSoundtrack={() => {
         setView("soundtrack");
         setNotice("");
@@ -57,7 +49,6 @@ export function GamePauseSurface({
       onToggleTacticalRoster={session.toggleTacticalRoster}
       onVolumeChange={session.updateVolume}
       onBack={() => setView("main")}
-      onCloseAssets={() => setView("main")}
     />
   );
 }

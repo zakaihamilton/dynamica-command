@@ -25,7 +25,6 @@ export const SCHEDULE_AHEAD_S = 0.22;
 export const SCHEDULER_MS = 25;
 export const ATTACK_S = 0.012;
 export const PHRASE_STEPS = STEPS_PER_BAR * 8;
-export const OFFLINE_RENDER_CHUNK_S = 2.5;
 
 export const INTENSITY_MULTIPLIER: Record<MusicIntensity, number> = {
   calm: 0.82,

@@ -15,7 +15,7 @@ yarn
 yarn dev
 ```
 
-Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load, briefing, and an **assets browser** for generated sprites.
+Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load and briefing. The generated sprite browser is available privately at **`/assets`**.
 
 | Script | What it does |
 | --- | --- |
@@ -100,7 +100,7 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 
 Next.js (App Router) + TypeScript + Canvas 2D. The browser is a renderer and input adapter. **`lib/gen` and `lib/sim` import nothing from the DOM** so tests and CLIs use the same functions as the UI.
 
-The **battlefield draws sprites** (procedural specs and `public/art` rasters). CPU-projected 3D meshes (`draw3dModel`) are used for turret heads and the pause-menu assets/preview lab, not for units in play.
+The **battlefield draws sprites** (procedural specs and `public/art` rasters). CPU-projected 3D meshes (`draw3dModel`) are used for turret heads and the private Asset Bay preview lab, not for units in play.
 
 ```text
 app/           menu, briefing, play, tutorial, campaign, campaign-complete

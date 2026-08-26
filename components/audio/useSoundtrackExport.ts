@@ -23,9 +23,12 @@ export function useSoundtrackExport({
   const mounted = useRef(true);
   const busy = exportState === "rendering" || exportState === "encoding" || exportState === "cancelling";
 
-  useEffect(() => () => {
-    mounted.current = false;
-    exportAbortController.current?.abort();
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      exportAbortController.current?.abort();
+    };
   }, []);
 
   useEffect(() => {

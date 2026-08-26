@@ -3,7 +3,6 @@ import { peekAudioContext, unlockAudioContext } from "./context";
 import { setAudioBusEnabled } from "./mixer";
 import {
   SAMPLE_RATE,
-  OFFLINE_RENDER_CHUNK_S,
   masterGain,
   createGraph,
   disconnectGraph,
@@ -119,44 +118,30 @@ async function renderOfflineAudio(
   const rendering = offline.startRendering();
   void rendering.catch(() => undefined);
 
-  if (typeof offline.suspend !== "function" || typeof offline.resume !== "function") {
-    const buffer = await rendering;
-    throwIfRenderAborted(signal);
-    onProgress?.(1);
-    return buffer;
-  }
-
-  let suspended = false;
-  const resumeAfterFailure = async () => {
-    if (!suspended) return;
-    suspended = false;
-    try {
-      await offline.resume();
-    } catch {
-      // The render may have completed while the suspension was being handled.
+  // OfflineAudioContext.suspend() is not consistently implemented. In some
+  // browsers its promise never resolves, leaving an otherwise healthy export
+  // stuck in the rendering phase. Let the context render continuously and use
+  // its clock for best-effort progress updates instead.
+  let lastProgress = 0;
+  let progressTimer: number | null = null;
+  const updateProgress = () => {
+    if (signal?.aborted) return;
+    const current = Number.isFinite(offline.currentTime) ? offline.currentTime : 0;
+    const nextProgress = Math.min(0.99, Math.max(lastProgress, current / duration));
+    if (nextProgress > lastProgress) {
+      lastProgress = nextProgress;
+      onProgress?.(nextProgress);
     }
+    progressTimer = window.setTimeout(updateProgress, 100);
   };
-
+  updateProgress();
   try {
-    let nextSuspendAt = OFFLINE_RENDER_CHUNK_S;
-    while (nextSuspendAt < duration) {
-      await offline.suspend(nextSuspendAt);
-      suspended = true;
-      throwIfRenderAborted(signal);
-      onProgress?.(Math.min(0.99, nextSuspendAt / duration));
-      await offline.resume();
-      suspended = false;
-      throwIfRenderAborted(signal);
-      nextSuspendAt += OFFLINE_RENDER_CHUNK_S;
-    }
-
     const buffer = await rendering;
     throwIfRenderAborted(signal);
     onProgress?.(1);
     return buffer;
-  } catch (error) {
-    await resumeAfterFailure();
-    throw error;
+  } finally {
+    if (progressTimer !== null) window.clearTimeout(progressTimer);
   }
 }
 
@@ -178,10 +163,14 @@ export async function renderMissionMusic(
   const musicalDuration = renderedPattern.steps * stepDuration;
   const tailSeconds = 2.2;
   const length = Math.ceil((musicalDuration + tailSeconds) * sampleRate);
+  const renderDuration = length / sampleRate;
   const offline = new window.OfflineAudioContext(2, length, sampleRate);
   const offlineGraph = createGraph(offline, offline.destination, renderedPattern, true);
   try {
     const arc: MusicIntensity[] = ["calm", "engaged", "calm", "engaged", "critical", "engaged", "engaged", "engaged"];
+    for (const oscillator of [offlineGraph.padOscA, offlineGraph.padOscB, offlineGraph.padOscC, offlineGraph.padOscD, offlineGraph.padLfo]) {
+      oscillator.stop(Math.max(0, renderDuration - 0.01));
+    }
     for (let bar = 0; bar < MUSIC_BARS; bar++) {
       throwIfRenderAborted(options.signal);
       const value = arc[Math.floor(bar / 8)] ?? "engaged";
@@ -196,7 +185,7 @@ export async function renderMissionMusic(
     const fadeAt = Math.max(0, musicalDuration - 1.35);
     offlineGraph.master.gain.setValueAtTime(masterGain("engaged", false), fadeAt);
     offlineGraph.master.gain.linearRampToValueAtTime(0.0001, musicalDuration + tailSeconds);
-    return await renderOfflineAudio(offline, musicalDuration + tailSeconds, options.signal, options.onProgress);
+    return await renderOfflineAudio(offline, renderDuration, options.signal, options.onProgress);
   } finally {
     disconnectGraph(offlineGraph);
   }

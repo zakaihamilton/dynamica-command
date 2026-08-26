@@ -32,11 +32,14 @@ export function SoundtrackPanel({
           Render the complete adaptive command score as a standalone M4A file. The download is generated from this mission seed and does not include battlefield effects.
         </p>
         <div className={styles.readout} aria-live="polite">
-          <span>{status}</span>
-          {busy ? <progress className={styles.progress} max="1" value={progress} aria-label="Export progress" /> : null}
+          <span className={styles.status}>{status}</span>
+          <span className={styles.progressSlot} aria-hidden={!busy}>
+            <progress className={styles.progress} max="1" value={busy ? progress : 0} aria-label="Export progress" />
+          </span>
         </div>
         <div className={styles.actions}>
           <ConsoleButton
+            className={styles.action}
             onClick={exportTrack}
             disabled={availability !== "available" || busy || draining}
             tooltip={availability === "unsupported" ? "Native AAC export is not supported here" : "Render and download the mission soundtrack as M4A"}
@@ -46,11 +49,11 @@ export function SoundtrackPanel({
               : exportState === "complete" ? "Download again" : "Download M4A"}
           </ConsoleButton>
           {busy ? (
-            <ConsoleButton muted onClick={cancelExport} disabled={exportState === "cancelling"} tooltip="Stop rendering or encoding this soundtrack">
+            <ConsoleButton className={styles.action} muted onClick={cancelExport} disabled={exportState === "cancelling"} tooltip="Stop rendering or encoding this soundtrack">
               {exportState === "cancelling" ? "Cancelling…" : "Cancel export"}
             </ConsoleButton>
           ) : (
-            <ConsoleButton muted onClick={onClose} tooltip="Return to the previous screen">Close</ConsoleButton>
+            <ConsoleButton className={styles.action} muted onClick={onClose} tooltip="Return to the previous screen">Close</ConsoleButton>
           )}
         </div>
         <p className={styles.format}>AAC-LC · 44.1 kHz · stereo · native browser encoder</p>

@@ -13,6 +13,21 @@ function playUntilWon(state: SimState): void {
 }
 
 describe("scripted mission loops", () => {
+  it("lets harvesters load 500 ore before returning", () => {
+    const s = makeFixture({ win: { kind: "holdTheLine", ticks: 1000 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "refinery", 3, 2);
+    const harvester = addUnit(s, 0, "harvester", 7, 4);
+    setTile(s, 7, 4, TILE_RESOURCE, 1000);
+
+    expect(issue(s, { type: "harvest", unitIds: [harvester.id], x: 7, y: 4 })).toEqual([]);
+    for (let i = 0; i < 125; i++) tick(s);
+    expect(harvester.carry).toBe(250);
+
+    for (let i = 0; i < 125; i++) tick(s);
+    expect(harvester.carry).toBe(500);
+  });
+
   it("wins a harvestQuota by issuing harvest and ticking", () => {
     const s = makeFixture({ width: 16, height: 12, win: { kind: "harvestQuota", target: 80 } });
     addBuilding(s, 0, "constructionYard", 0, 0);

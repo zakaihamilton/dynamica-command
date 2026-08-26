@@ -67,7 +67,7 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     cost: 450,
     buildTicks: 108,
     sight: 5,
-    carryMax: 250,
+    carryMax: 500,
     armor: "light",
     weapon: "smallArms",
     splashRadius: 0,

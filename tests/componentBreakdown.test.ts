@@ -195,7 +195,6 @@ describe("keyboard command dispatch", () => {
     applyGameCommand({ type: "cameo", index: 1, cancel: false }, next);
     applyGameCommand({ type: "repair" }, next);
     applyGameCommand({ type: "cancelTool" }, next);
-    applyGameCommand({ type: "assets" }, next);
     applyGameCommand({ type: "resultMenu" }, next);
     expect(next.openPauseMenu).toHaveBeenCalledOnce();
     expect(next.resumeMission).toHaveBeenCalledOnce();
@@ -203,7 +202,6 @@ describe("keyboard command dispatch", () => {
     expect(next.activateCameo).toHaveBeenCalledWith("construction", 1, false);
     expect(next.toggleRepair).toHaveBeenCalledOnce();
     expect(next.clearTools).toHaveBeenCalledOnce();
-    expect(next.setPauseView).toHaveBeenCalledWith("assets");
     expect(next.onNavigateHome).toHaveBeenCalledOnce();
   });
 
@@ -253,6 +251,26 @@ describe("production and overlay helpers", () => {
     expect(overlay.sheetContext).toBe("unit");
     expect(overlay.selected?.id).toBe(unit.id);
     expect(gameOverlayModel({ state, selectedIds: [], tutorial: true, paused: false }).mobilePlaying).toBe(false);
+  });
+
+  it("does not show a duplicate operation window for hold missions", () => {
+    const hold = makeFixture({ win: { kind: "holdTheLine", ticks: 120 } });
+    expect(playFieldStatus(hold)).toMatchObject({
+      objective: "Hold 0:10",
+      deadline: undefined,
+    });
+
+    const timed = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 120 } });
+    timed.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [],
+      deadline: 120,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+    expect(playFieldStatus(timed).deadline).toBe("Window 0:10");
   });
 });
 

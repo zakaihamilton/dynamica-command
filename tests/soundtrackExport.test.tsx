@@ -2,6 +2,7 @@
 
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SoundtrackPanel } from "../components/audio/SoundtrackPanel";
 import { useSoundtrackExport } from "../components/audio/useSoundtrackExport";
@@ -61,5 +62,20 @@ describe("soundtrack export cancellation", () => {
     expect(screen.getByText(/Export cancelled/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("does not discard a completed export after the Strict Mode effect cycle", async () => {
+    audioMock.exportMissionSoundtrack.mockResolvedValueOnce({ blob: new Blob(["fresh"]), filename: "fresh.m4a" });
+    const { result } = renderHook(() => useSoundtrackExport({ seed: 421, missionIndex: 0, onClose: vi.fn() }), {
+      wrapper: StrictMode,
+    });
+    await waitFor(() => expect(result.current.availability).toBe("available"));
+
+    await act(async () => {
+      await result.current.exportTrack();
+    });
+
+    expect(audioMock.downloadMusicExport).toHaveBeenCalledOnce();
+    expect(result.current.exportState).toBe("complete");
   });
 });

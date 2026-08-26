@@ -8,7 +8,7 @@ export type KeyEventLike = {
   shiftKey?: boolean;
 };
 
-export type PauseView = "main" | "options" | "assets" | "soundtrack";
+export type PauseView = "main" | "options" | "soundtrack";
 export type CommandTab = "construction" | "production" | "selected";
 
 export type GameCommand =
@@ -27,7 +27,6 @@ export type GameCommand =
   | { type: "load" }
   | { type: "briefing" }
   | { type: "restart" }
-  | { type: "assets" }
   | { type: "options" }
   | { type: "menu" }
   | { type: "toggleSound" }
@@ -70,7 +69,6 @@ export const SHORTCUT = {
   load: "L",
   briefing: "B",
   restart: "R",
-  assets: "A",
   options: "O",
   menu: "M",
   mute: "M",
@@ -142,7 +140,6 @@ export function gameCommandFromKey(
   }
 
   if (ctx.paused) {
-    if (ctx.pauseView === "assets") return null;
     if (ctx.pauseView === "soundtrack") {
       if (isEscape(e)) return { type: "pauseBack" };
       return null;
@@ -159,7 +156,6 @@ export function gameCommandFromKey(
     if (key === "l") return { type: "load" };
     if (key === "b") return { type: "briefing" };
     if (key === "r") return { type: "restart" };
-    if (key === "a") return { type: "assets" };
     if (key === "o") return { type: "options" };
     if (key === "m") return { type: "menu" };
     return null;

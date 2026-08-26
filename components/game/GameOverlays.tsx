@@ -151,7 +151,6 @@ export function GameOverlays({
           view={pauseView}
           notice={pauseNotice}
           settings={audioSettings}
-          palette={palette}
           seed={state.seed}
           missionIndex={state.missionIndex}
           setView={setPauseView}

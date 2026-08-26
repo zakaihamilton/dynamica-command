@@ -1,4 +1,4 @@
-import { UNIT_STATS, isUnitAvailable, unitCameoStatus } from "@/lib/catalog";
+import { UNIT_STATS, isUnitAvailable, labelFor, producerFor, unitCameoStatus } from "@/lib/catalog";
 import type { Entity, FactionVisualProfile, Palette, SimState, UnitKind } from "@/lib/types";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import { CameoGrid } from "./CameoGrid";
@@ -25,10 +25,10 @@ export function ProductionCameos({
   return (
     <CameoGrid>
       {PRODUCIBLE.map((unit, index) => {
-        if (!isUnitAvailable(unit, state.missionIndex)) return null;
         const cameo = unitCameoStatus(state.entities, 0, unit);
         const producer = availableProducer(unit);
         const canBuy = state.credits[0] >= UNIT_STATS[unit].cost && !!producer && power >= 0;
+        const disabled = cameo.phase === "idle" && !canBuy;
         return (
           <CommandCameo
             key={unit}
@@ -36,7 +36,8 @@ export function ProductionCameos({
             palette={palette}
             profile={profile}
             cost={UNIT_STATS[unit].cost}
-            disabled={cameo.phase === "idle" && !canBuy}
+            disabled={disabled}
+            disabledReason={disabled ? productionBlockerText(state, unit, power, producer) : undefined}
             cameo={cameo}
             shortcut={SHORTCUT.cameo[index]}
             onClick={() => onQueueUnit(unit)}
@@ -46,4 +47,36 @@ export function ProductionCameos({
       })}
     </CameoGrid>
   );
+}
+
+export function productionBlockerText(
+  state: SimState,
+  unit: UnitKind,
+  power: number,
+  producer: Entity | undefined,
+): string {
+  if (!isUnitAvailable(unit, state.missionIndex)) return "Advance the campaign to unlock this unit";
+
+  const blockers: string[] = [];
+  const producerKind = producerFor(unit);
+  const producerEntities = state.entities.filter(
+    (entity) => entity.hp > 0 && entity.owner === 0 && entity.class === "building" && entity.kind === producerKind,
+  );
+
+  if (!producer) {
+    const finishedProducer = producerEntities.some((entity) => entity.constructing <= 0);
+    blockers.push(
+      finishedProducer
+        ? `Wait for a ${labelFor(producerKind)} production slot`
+        : producerEntities.length > 0
+          ? `Finish a ${labelFor(producerKind)}`
+          : `Build a ${labelFor(producerKind)}`,
+    );
+  }
+  if (state.credits[0] < UNIT_STATS[unit].cost) {
+    blockers.push(`Need ${UNIT_STATS[unit].cost - state.credits[0]} more credits`);
+  }
+  if (power < 0) blockers.push("Restore power");
+
+  return blockers.join(" · ");
 }

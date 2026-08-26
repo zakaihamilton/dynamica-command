@@ -21,7 +21,7 @@ export function useBriefingController({
   const router = useRouter();
 
   const launch = useCallback(() => {
-    router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`);
+    router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : "&fresh=1"}`);
   }, [mission, returnToGame, router, seed]);
 
   useEffect(() => {

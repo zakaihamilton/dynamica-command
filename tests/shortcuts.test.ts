@@ -58,7 +58,7 @@ describe("shortcut matching", () => {
     expect(gameCommandFromKey({ key: "Escape" }, { ...paused, pauseView: "options" })).toEqual({ type: "pauseBack" });
     expect(gameCommandFromKey({ key: "m" }, { ...paused, pauseView: "options" })).toEqual({ type: "toggleSound" });
     expect(gameCommandFromKey({ key: "u" }, { ...paused, pauseView: "options" })).toEqual({ type: "toggleMusic" });
-    expect(gameCommandFromKey({ key: "Escape" }, { ...paused, pauseView: "assets" })).toBeNull();
+    expect(gameCommandFromKey({ key: "a" }, paused)).toBeNull();
   });
 
   it("uses Enter and Esc on the mission-result overlay", () => {

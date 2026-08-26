@@ -53,6 +53,19 @@
   line-height: 1.4;
 }
 
+.status {
+  min-height: 2.8em;
+}
+
+.progressSlot {
+  display: block;
+  height: 0.38rem;
+}
+
+.progressSlot[aria-hidden="true"] {
+  visibility: hidden;
+}
+
 .progress {
   width: 100%;
   height: 0.38rem;
@@ -64,6 +77,12 @@
   flex-wrap: wrap;
   gap: 0.65rem;
   margin-top: 1rem;
+}
+
+.action {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .format {

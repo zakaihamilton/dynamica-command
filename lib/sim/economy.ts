@@ -50,7 +50,8 @@ export function tickEconomy(state: SimState): SimEvent[] {
   for (const e of living(state)) {
     if (e.kind !== "harvester" || e.hp <= 0) continue;
     const carryMax = UNIT_STATS.harvester.carryMax;
-    if (e.carry >= carryMax) {
+    const shouldReturnToRefinery = e.carry >= carryMax || (e.carry > 0 && !nearestResource(state, e));
+    if (shouldReturnToRefinery) {
       const ref = nearest(
         state,
         e,

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRef } from "react";
 import { createCamera } from "../lib/iso";
 import { makeFixture } from "../lib/sim/fixtures";
-import { localStorageAdapter, writeSave } from "../lib/persist/save";
+import { localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
 import { TELEMETRY_KEY } from "../lib/persist/telemetry";
 import type { BuildingKind } from "../lib/types";
 
@@ -35,6 +35,7 @@ vi.mock("@/lib/game/loop", () => ({ startLoop }));
 vi.mock("../components/game/renderFrame", () => ({ renderGameFrame }));
 
 import { useGameRenderer } from "../components/game/hooks/useGameRenderer";
+import { initialMission } from "../components/game/hooks/useGameSession";
 import { useGameRuntime } from "../components/game/hooks/useGameRuntime";
 
 afterEach(() => {
@@ -113,6 +114,41 @@ describe("useGameRenderer", () => {
 });
 
 describe("useGameRuntime", () => {
+  it("resumes the matching save when opened without a fresh-deployment flag", () => {
+    const saved = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    saved.tick = 120;
+    saved.credits[0] = 9876;
+    expect(writeSave(localStorageAdapter(), saved)).toBe(true);
+
+    const resumed = initialMission(421, 0, false, false);
+
+    expect(resumed.tick).toBe(120);
+    expect(resumed.credits[0]).toBe(9876);
+  });
+
+  it("starts a fresh mission when explicitly requested even when a save exists", () => {
+    const saved = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    saved.tick = 120;
+    expect(writeSave(localStorageAdapter(), saved)).toBe(true);
+
+    const fresh = initialMission(421, 0, false, false, true);
+
+    expect(fresh.tick).toBe(0);
+  });
+
+  it("saves the current state when the page is unloaded", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.playField.state) => void };
+    const current = { ...result.current.playField.state, tick: 120 };
+
+    loopOptions.setState(current);
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    expect(readSave(localStorageAdapter(), 421)?.tick).toBe(120);
+  });
+
   it("starts the sim loop and exposes play-field plus overlay props", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
 

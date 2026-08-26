@@ -4,7 +4,7 @@ import type { SimState } from "@/lib/types";
 
 export function playFieldStatus(state: SimState) {
   const objective = objectiveProgress(state);
-  const deadline = objective.deadlineTicks === undefined
+  const deadline = state.runtime?.deadline === undefined || objective.deadlineTicks === undefined
     ? undefined
     : `Window ${formatHoldClock(Math.ceil(objective.deadlineTicks / TICKS_PER_SECOND))}`;
   const stagingWindow = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined

@@ -28,9 +28,6 @@ const palette: Palette = {
   dark: "#131",
 };
 
-vi.mock("@/components/assets/AssetsBrowser", () => ({
-  AssetsBrowser: ({ onClose }: { onClose: () => void }) => <button onClick={onClose}>Close assets</button>,
-}));
 vi.mock("@/components/audio/SoundtrackPanel", () => ({
   SoundtrackPanel: ({ onClose }: { onClose: () => void }) => <button onClick={onClose}>Close soundtrack</button>,
 }));
@@ -281,7 +278,6 @@ describe("NewGameSetup", () => {
 describe("PauseMenu", () => {
   it("routes main actions and alternate views through callbacks", () => {
     const onResume = vi.fn();
-    const onAssets = vi.fn();
     const onSoundtrack = vi.fn();
     const onOptions = vi.fn();
     const onBack = vi.fn();
@@ -289,7 +285,6 @@ describe("PauseMenu", () => {
       view: "main" as const,
       notice: "Mission saved.",
       settings: defaultSettings(),
-      palette,
       seed: 421,
       missionIndex: 0,
       onResume,
@@ -297,7 +292,6 @@ describe("PauseMenu", () => {
       onLoad: vi.fn(),
       onBriefing: vi.fn(),
       onRestart: vi.fn(),
-      onAssets,
       onSoundtrack,
       onOptions,
       onMenu: vi.fn(),
@@ -305,14 +299,12 @@ describe("PauseMenu", () => {
       onToggleMusic: vi.fn(),
       onVolumeChange: vi.fn(),
       onBack,
-      onCloseAssets: vi.fn(),
     };
     const { rerender } = render(<PauseMenu {...props} />);
     expect(screen.getByTestId("pause-menu")).toHaveTextContent("Mission saved.");
     fireEvent.click(screen.getByRole("button", { name: "Resume Mission" }));
     expect(onResume).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole("button", { name: "Assets" }));
-    expect(onAssets).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Assets" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Soundtrack" }));
     expect(onSoundtrack).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole("button", { name: "Options" }));

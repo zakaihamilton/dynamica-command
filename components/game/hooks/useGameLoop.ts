@@ -1,5 +1,6 @@
 import { useEffect, type MutableRefObject } from "react";
 import { dispatchBattlefieldAudio } from "@/lib/audio/battlefield";
+import { TICKS_PER_SECOND } from "@/lib/catalog";
 import { setMusicCue, setMusicIntensity, type MusicIntensity } from "@/lib/audio/music";
 import { playSfx } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
@@ -14,6 +15,7 @@ import type { Command, SimState } from "@/lib/types";
 import { alertSfx, desiredMusicIntensity, firstAlert } from "./gameLoopEffects";
 
 const CAMPAIGN_SAVE_RETRY_MS = 1_000;
+const AUTOSAVE_INTERVAL_TICKS = 30 * TICKS_PER_SECOND;
 
 export function useGameLoop({
   stateRef,
@@ -79,12 +81,18 @@ export function useGameLoop({
       };
       if (typeof requestIdleCallback === "function") {
         idleViaTimeout = false;
-        idleHandle = requestIdleCallback(run);
+        idleHandle = requestIdleCallback(run, { timeout: 250 });
       } else {
         idleViaTimeout = true;
         idleHandle = window.setTimeout(run, 0);
       }
     };
+    const saveOnPageHide = () => {
+      const current = stateRef.current;
+      writeSave(cachedLocalStorage(), current);
+    };
+    window.addEventListener("pagehide", saveOnPageHide);
+    window.addEventListener("beforeunload", saveOnPageHide);
     const loop = startLoop({
       getState: () => stateRef.current,
       setState: (next) => {
@@ -99,7 +107,7 @@ export function useGameLoop({
       isPaused: () => pausedRef.current,
       onTick: (next, events, now) => {
         commandRejections += events.filter((event) => event.type === "commandRejected").length;
-        if (next.tick % 48 === 0) scheduleAutosave();
+        if (next.tick % AUTOSAVE_INTERVAL_TICKS === 0) scheduleAutosave();
         if (commandApplied || next.tick % 6 === 0) {
           commandApplied = false;
           setState({ ...next, entities: [...next.entities] });
@@ -206,6 +214,8 @@ export function useGameLoop({
     });
     return () => {
       cancelIdle();
+      window.removeEventListener("pagehide", saveOnPageHide);
+      window.removeEventListener("beforeunload", saveOnPageHide);
       loop.stop();
     };
   }, [

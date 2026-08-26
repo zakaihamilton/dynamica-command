@@ -10,14 +10,16 @@ export function GameClient({
   seed,
   mission,
   resume,
+  fresh = false,
   tutorial = false,
 }: {
   seed: number;
   mission: number;
   resume: boolean;
+  fresh?: boolean;
   tutorial?: boolean;
 }) {
-  const { palette, playField, overlays } = useGameRuntime({ seed, mission, resume, tutorial });
+  const { palette, playField, overlays } = useGameRuntime({ seed, mission, resume, fresh, tutorial });
 
   return (
     <div

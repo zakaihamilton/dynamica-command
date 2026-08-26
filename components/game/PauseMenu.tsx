@@ -1,10 +1,8 @@
-import { AssetsBrowser } from "@/components/assets/AssetsBrowser";
 import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import type { AudioVolumeKey } from "@/lib/audio/mixer";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { PauseView } from "@/lib/ui/shortcuts";
-import type { Palette } from "@/lib/types";
 import { PauseMainMenu } from "./PauseMainMenu";
 import { PauseOptions } from "./PauseOptions";
 import styles from "./PauseMenu.module.css";
@@ -13,7 +11,6 @@ export function PauseMenu({
   view,
   notice,
   settings,
-  palette,
   seed,
   missionIndex,
   onResume,
@@ -22,7 +19,6 @@ export function PauseMenu({
   onLoad,
   onBriefing,
   onRestart,
-  onAssets,
   onSoundtrack,
   onOptions,
   onMenu,
@@ -31,12 +27,10 @@ export function PauseMenu({
   onToggleTacticalRoster,
   onVolumeChange,
   onBack,
-  onCloseAssets,
 }: {
   view: PauseView;
   notice: string;
   settings: GameSettings;
-  palette: Palette;
   seed: number;
   missionIndex: number;
   onResume: () => void;
@@ -45,7 +39,6 @@ export function PauseMenu({
   onLoad: () => void;
   onBriefing: () => void;
   onRestart: () => void;
-  onAssets: () => void;
   onSoundtrack: () => void;
   onOptions: () => void;
   onMenu: () => void;
@@ -54,13 +47,10 @@ export function PauseMenu({
   onToggleTacticalRoster?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
-  onCloseAssets: () => void;
 }) {
   return (
     <div className={styles.overlay} data-testid="pause-menu">
-      {view === "assets" ? (
-        <AssetsBrowser palette={palette} onClose={onCloseAssets} />
-      ) : view === "soundtrack" ? (
+      {view === "soundtrack" ? (
         <SoundtrackPanel seed={seed} missionIndex={missionIndex} onClose={onBack} />
       ) : (
         <MetalPanel className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="pause-title">
@@ -72,7 +62,6 @@ export function PauseMenu({
               onLoad={onLoad}
               onBriefing={onBriefing}
               onRestart={onRestart}
-              onAssets={onAssets}
               onSoundtrack={onSoundtrack}
               onOptions={onOptions}
               onMenu={onMenu}

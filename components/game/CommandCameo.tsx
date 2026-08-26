@@ -11,6 +11,7 @@ export function CommandCameo({
   profile,
   cost,
   disabled,
+  disabledReason,
   active,
   cameo,
   shortcut,
@@ -22,6 +23,7 @@ export function CommandCameo({
   profile: FactionVisualProfile;
   cost: number;
   disabled?: boolean;
+  disabledReason?: string;
   active?: boolean;
   cameo: CameoStatus;
   shortcut?: string;
@@ -30,7 +32,8 @@ export function CommandCameo({
 }) {
   const busy = cameo.phase !== "idle";
   const showCount = cameo.queued > 1 || cameo.phase === "waiting";
-  const tooltip = `${labelFor(kind)} · ${cost} credits${busy ? (cameo.phase === "waiting" ? ` · ${cameo.queued} queued` : ` · ${Math.round(cameo.ratio * 100)}%`) : ""}${busy || active ? " · Right-click to cancel" : ""}`;
+  const tooltip = `${labelFor(kind)} · ${cost} credits${busy ? (cameo.phase === "waiting" ? ` · ${cameo.queued} queued` : ` · ${Math.round(cameo.ratio * 100)}%`) : ""}${busy || active ? " · Right-click to cancel" : ""}${disabledReason ? ` · ${disabledReason}` : ""}`;
+  const ariaStatus = disabledReason ? `, ${disabledReason}` : "";
   return (
     <span
       className={styles.wrap}
@@ -47,7 +50,7 @@ export function CommandCameo({
         disabled={disabled}
         className={cx(styles.card, active && styles.active, busy && styles.busy)}
         onClick={onClick}
-        aria-label={`${labelFor(kind)}, ${cost} credits${busy ? `, ${cameo.phase === "waiting" ? `${cameo.queued} queued` : `${Math.round(cameo.ratio * 100)} percent`}` : ""}${busy || active ? ", right-click to cancel" : ""}`}
+        aria-label={`${labelFor(kind)}, ${cost} credits${busy ? `, ${cameo.phase === "waiting" ? `${cameo.queued} queued` : `${Math.round(cameo.ratio * 100)} percent`}` : ""}${busy || active ? ", right-click to cancel" : ""}${ariaStatus}`}
         aria-keyshortcuts={shortcut}
       >
         <span className={styles.art}>

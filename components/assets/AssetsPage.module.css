@@ -1,0 +1,25 @@
+.page {
+  box-sizing: border-box;
+  display: grid;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  place-items: center;
+  padding: 1rem;
+  background:
+    linear-gradient(rgba(92, 225, 230, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92, 225, 230, 0.025) 1px, transparent 1px),
+    var(--chrome-bg);
+  background-size: 32px 32px;
+}
+
+.page > [data-testid="assets-browser"] {
+  box-sizing: border-box;
+  width: min(72rem, calc(100vw - 2rem));
+}
+
+@media (max-width: 799px) {
+  .page {
+    padding: 0.5rem;
+  }
+}

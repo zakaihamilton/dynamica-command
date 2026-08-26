@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { deserializeState, listSaves, listUnreadableSaves, memoryStorage, readSave, removeSave, saveKey, SAVE_CONTENT_VERSION, SAVE_VERSION, serializeState, writeSave } from "../lib/persist/save";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
-import { tick } from "../lib/sim/api";
+import { createMission, tick } from "../lib/sim/api";
 
 describe("persist", () => {
   it("round-trips a save through memory storage", () => {
@@ -23,6 +23,14 @@ describe("persist", () => {
     expect(listed).toHaveLength(1);
     expect(listed[0]!.seed).toBe("0421");
     expect(listed[0]!.campaignName).toBeTruthy();
+  });
+
+  it("round-trips the signed RNG state produced after a mission tick", () => {
+    const state = createMission({ seed: 8212, missionIndex: 0 });
+    tick(state);
+
+    expect(state.rngState).toBeLessThan(0);
+    expect(deserializeState(serializeState(state)).rngState).toBe(state.rngState);
   });
 
   it("writes a versioned envelope and rejects malformed or mismatched saves", () => {

@@ -67,7 +67,7 @@ describe("BriefingScreen", () => {
     rerender(<BriefingScreen seed={421} mission={0} />);
     expect(screen.getByTestId("briefing-screen")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Launch" }));
-    expect(router.push).toHaveBeenCalledWith("/play?seed=0421&mission=0");
+    expect(router.push).toHaveBeenCalledWith("/play?seed=0421&mission=0&fresh=1");
   });
 });
 

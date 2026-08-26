@@ -53,23 +53,17 @@ vi.mock("../components/game/CommandSidebar", () => ({
 }));
 vi.mock("../components/game/PauseMenu", () => ({
   PauseMenu: ({
-    onAssets,
     onSoundtrack,
     onOptions,
     onBack,
-    onCloseAssets,
   }: {
-    onAssets: () => void;
     onSoundtrack: () => void;
     onOptions: () => void;
     onBack: () => void;
-    onCloseAssets: () => void;
   }) => {
-    onAssets();
     onSoundtrack();
     onOptions();
     onBack();
-    onCloseAssets();
     return <div data-testid="surface-pause" />;
   },
 }));

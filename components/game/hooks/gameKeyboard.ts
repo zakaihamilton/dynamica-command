@@ -58,10 +58,7 @@ export function applyGameCommand(command: GameCommand, handlers: GameCommandHand
   else if (command.type === "load") handlers.loadMission();
   else if (command.type === "briefing") handlers.viewMissionBriefing();
   else if (command.type === "restart") handlers.restartMission();
-  else if (command.type === "assets") {
-    handlers.setPauseView("assets");
-    handlers.setPauseNotice("");
-  } else if (command.type === "options") {
+  else if (command.type === "options") {
     handlers.setPauseView("options");
     handlers.setPauseNotice("");
   } else if (command.type === "menu") handlers.onNavigateHome();
