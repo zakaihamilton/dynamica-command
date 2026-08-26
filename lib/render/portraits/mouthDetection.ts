@@ -24,7 +24,10 @@ function detectMouthFromViseme(
   const x0 = Math.floor(width * 0.32);
   const x1 = Math.ceil(width * 0.68);
   const y0 = Math.floor(height * 0.54);
-  const y1 = Math.ceil(height * 0.72);
+  // Some portrait crops place the mouth below the legacy .72 boundary. Keep
+  // the search in the face/neck transition, where the viseme still has strong
+  // central contrast, instead of latching onto eyes or collar details.
+  const y1 = Math.ceil(height * 0.9);
   if (x1 <= x0 || y1 <= y0) return null;
 
   const midX = width * 0.5;

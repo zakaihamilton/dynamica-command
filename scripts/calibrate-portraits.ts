@@ -26,7 +26,7 @@ const MOUTH_REGION = {
   cx0: 0.35,
   cx1: 0.65,
   cy0: 0.54,
-  cy1: 0.72,
+  cy1: 0.9,
 } as const;
 
 type CalibratedPortrait = {
@@ -60,6 +60,29 @@ function formatClip(clip: PortraitClip): string {
 
 function formatCalibration(calibration: PortraitMouthCalibration): string {
   return `{ clip: ${formatClip(calibration.clip)}, talkOffset: ${formatOffset(calibration.talkOffset)} }`;
+}
+
+function translateRgba(
+  rgba: Buffer,
+  width: number,
+  height: number,
+  offset: PortraitOffset,
+): Buffer {
+  const translated = Buffer.alloc(rgba.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const sourceX = x - offset.dx;
+      const sourceY = y - offset.dy;
+      if (sourceX < 0 || sourceX >= width || sourceY < 0 || sourceY >= height) continue;
+      const targetIndex = (y * width + x) * 4;
+      const sourceIndex = (Math.round(sourceY) * width + Math.round(sourceX)) * 4;
+      translated[targetIndex] = rgba[sourceIndex] ?? 0;
+      translated[targetIndex + 1] = rgba[sourceIndex + 1] ?? 0;
+      translated[targetIndex + 2] = rgba[sourceIndex + 2] ?? 0;
+      translated[targetIndex + 3] = rgba[sourceIndex + 3] ?? 0;
+    }
+  }
+  return translated;
 }
 
 function generatedFileText(results: readonly CalibratedPortrait[]): string {
@@ -118,7 +141,7 @@ function maxMouthSignal(idleRgba: ArrayLike<number>, talkRgba: ArrayLike<number>
   const x0 = Math.floor(PORTRAIT_MEASURE_WIDTH * 0.32);
   const x1 = Math.ceil(PORTRAIT_MEASURE_WIDTH * 0.68);
   const y0 = Math.floor(PORTRAIT_MEASURE_HEIGHT * 0.54);
-  const y1 = Math.ceil(PORTRAIT_MEASURE_HEIGHT * 0.72);
+  const y1 = Math.ceil(PORTRAIT_MEASURE_HEIGHT * 0.9);
   let best = 0;
   for (let y = y0; y < y1; y += 1) {
     let total = 0;
@@ -167,8 +190,8 @@ async function calibrateAsset(asset: (typeof PORTRAIT_ASSETS)[number]): Promise<
   const manualOverride = Boolean(PORTRAIT_MOUTH_CALIBRATION_OVERRIDES[asset.id]);
   const manualCalibration = PORTRAIT_MOUTH_CALIBRATION_OVERRIDES[asset.id];
 
-  if (!width || !height || width % PORTRAIT_FRAME_COUNT !== 0 || width / PORTRAIT_FRAME_COUNT <= 0) {
-    const reason = `sheet must have ${PORTRAIT_FRAME_COUNT} equal-width frames; got ${width ?? "unknown"}×${height ?? "unknown"}`;
+  if (!width || !height || width / PORTRAIT_FRAME_COUNT <= 0) {
+    const reason = `sheet must have ${PORTRAIT_FRAME_COUNT} equal logical frame regions; got ${width ?? "unknown"}×${height ?? "unknown"}`;
     if (manualCalibration) {
       return {
         id: asset.id,
@@ -192,8 +215,6 @@ async function calibrateAsset(asset: (typeof PORTRAIT_ASSETS)[number]): Promise<
     readFrame(file, width, height, 1),
     readFrame(file, width, height, 2),
   ]);
-  const mouthSignal = maxMouthSignal(idle, talk);
-  const mouthClip = detectPortraitMouthClip(idle, PORTRAIT_MEASURE_WIDTH, PORTRAIT_MEASURE_HEIGHT, talk);
   const registrationWindow = portraitRegistrationWindow(PORTRAIT_MEASURE_WIDTH, PORTRAIT_MEASURE_HEIGHT);
   const talkOffset = measurePortraitOffset(
     idle,
@@ -202,6 +223,18 @@ async function calibrateAsset(asset: (typeof PORTRAIT_ASSETS)[number]): Promise<
     PORTRAIT_MEASURE_HEIGHT,
     16,
     registrationWindow,
+  );
+  // The runtime translates the talking frame by this same offset before it
+  // clips the mouth. Detect against the registered frame so frame drift cannot
+  // masquerade as a second mouth feature (or move the detector toward the
+  // eyes, hair, or collar).
+  const registeredTalk = translateRgba(talk, PORTRAIT_MEASURE_WIDTH, PORTRAIT_MEASURE_HEIGHT, talkOffset);
+  const mouthSignal = maxMouthSignal(idle, registeredTalk);
+  const mouthClip = detectPortraitMouthClip(
+    idle,
+    PORTRAIT_MEASURE_WIDTH,
+    PORTRAIT_MEASURE_HEIGHT,
+    registeredTalk,
   );
   const blinkOffset = resolvePortraitBlinkAlignment(idle, blink, PORTRAIT_MEASURE_WIDTH, PORTRAIT_MEASURE_HEIGHT);
   const failures = [

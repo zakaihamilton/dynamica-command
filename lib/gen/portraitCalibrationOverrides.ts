@@ -31,5 +31,4 @@ export const PORTRAIT_MOUTH_CALIBRATION_OVERRIDES: Readonly<Record<string, Portr
   "commander-09": calibration(0.55, { rx: 0.18, ry: 0.085 }),
   "commander-10": calibration(0.56, { rx: 0.18, ry: 0.09 }),
   "commander-11": calibration(0.56, { rx: 0.19, ry: 0.095 }),
-  "commander-12": calibration(0.56, { rx: 0.18, ry: 0.09 }),
 };

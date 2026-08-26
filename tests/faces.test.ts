@@ -127,8 +127,12 @@ describe("portrait DNA", () => {
     const generatedLower = getPortraitAsset("advisor-01")?.mouthCalibration;
     expect(lower?.clip.cy).toBeGreaterThan(upper?.clip.cy ?? 1);
     expect(lower?.talkOffset).toEqual({ dx: 9, dy: 0 });
-    expect(generatedLower?.clip.cy).toBeGreaterThan(generatedUpper?.clip.cy ?? 1);
+    expect(generatedLower?.clip.cy).toBeGreaterThan(0.7);
+    expect(generatedUpper?.clip.cy).toBeGreaterThan(0.7);
     expect(getPortraitAsset("enemy-leader-01")?.mouthCalibration.talkOffset).toEqual({ dx: 6, dy: 0 });
+    expect(getPortraitAsset("enemy-leader-04")?.mouthCalibration.clip.cy).toBeCloseTo(0.7);
+    expect(getPortraitAsset("enemy-leader-04")?.mouthCalibration.talkOffset).toEqual({ dx: 1, dy: -3 });
+    expect(getPortraitAsset("commander-12")?.mouthCalibration.clip.cy).toBeCloseTo(0.65);
     expect(generatedLower).not.toBe(generatedUpper);
     expect(portraitMouthCalibration("missing-portrait")).toEqual(DEFAULT_PORTRAIT_MOUTH_CALIBRATION);
   });
@@ -142,7 +146,7 @@ describe("portrait DNA", () => {
       expect(entry.clip.cx).toBeGreaterThanOrEqual(0.35);
       expect(entry.clip.cx).toBeLessThanOrEqual(0.65);
       expect(entry.clip.cy).toBeGreaterThanOrEqual(0.54);
-      expect(entry.clip.cy).toBeLessThanOrEqual(0.72);
+      expect(entry.clip.cy).toBeLessThanOrEqual(0.9);
       expect(entry.clip.cx - entry.clip.rx).toBeGreaterThanOrEqual(0);
       expect(entry.clip.cx + entry.clip.rx).toBeLessThanOrEqual(1);
       expect(entry.clip.cy - entry.clip.ry).toBeGreaterThanOrEqual(0);
@@ -286,6 +290,18 @@ describe("portrait DNA", () => {
     const solved = resolvePortraitAnimation(idle, idle, talk, width, height);
     expect(solved.mouthClip.cy).toBeGreaterThan(0.6);
     expect(solved.talk).toEqual(PORTRAIT_OFFSET_NONE);
+  });
+
+  it("finds lower visemes after the production crop", () => {
+    const width = 80;
+    const height = 120;
+    const idle = rgbaSquare(width, height, 0, 0, width, height, 170);
+    paintRect(idle, width, 28, 96, 24, 3, 18);
+    const talk = new Uint8ClampedArray(idle);
+    paintRect(talk, width, 30, 99, 20, 8, 230);
+    const clip = detectPortraitMouthClip(idle, width, height, talk);
+    expect(clip.cy).toBeGreaterThan(0.72);
+    expect(clip.cy).toBeLessThan(0.9);
   });
 
   it("keeps generic mouth clips when detection latches onto a collar", () => {
