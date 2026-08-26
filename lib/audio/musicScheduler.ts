@@ -15,7 +15,6 @@ import {
 import type { AudioGraphContext, MusicGraph } from "./musicGraph";
 import { playSynthTone, playTransition, retunePad, schedulePadGate, syncDelay } from "./musicSynth";
 import { playKick, playSnare, playClap, playHat, playTom, playImpact } from "./musicDrums";
-import { playFastSynthTone, playFastNoise, playFastDrum } from "./musicFastSynth";
 import {
   intensity,
   pendingIntensity,
@@ -59,45 +58,6 @@ export function applyIntensityAt(audio: AudioGraphContext, g: MusicGraph, value:
   g.padFilter.frequency.setTargetAtTime(value === "critical" ? 1_550 : value === "engaged" ? 1_150 : 880, t, ramp);
 }
 
-function scheduleFastStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern, when: number, index: number, value: MusicIntensity): void {
-  const stepDuration = 60 / p.bpm / 4;
-  const t = when + (index % 2 === 1 ? p.swing * stepDuration : 0);
-  const bar = Math.floor(index / STEPS_PER_BAR);
-  const section = p.sections[Math.floor(bar / 8)]?.name;
-  if (index % STEPS_PER_BAR === 0) {
-    retunePad(audio, g, p, bar, t);
-    if (bar % 8 === 7 && bar < p.bars - 1) {
-      playFastNoise(audio, g.fxBus, t + stepDuration * 5, 0.07, stepDuration * 9);
-    }
-    if (bar % 8 === 0 && bar > 0) {
-      playFastNoise(audio, g.fxBus, t, 0.05, stepDuration * 3);
-    }
-  }
-
-  const isBreakdown = section === "breakdown";
-  schedulePadGate(audio, g, t, stepDuration, index, section, value);
-  const stemVoices: Array<[MusicStem, MusicVoiceType]> = [
-    ["bass", p.bassType],
-    ["pulse", p.arpType],
-    ["counter", p.counterType],
-    ["melody", p.melodyType],
-  ];
-  for (const [stem, voice] of stemVoices) {
-    for (const event of g.index.notes[stem].get(index) ?? []) {
-      const duration = Math.max(stepDuration * event.duration, stepDuration * (stem === "pulse" ? 0.55 : 0.7));
-      playFastSynthTone(audio, stemBus(g, stem), midiToHz(event.midi), t, duration, voice, event.velocity * layerMultiplier(stem === "pulse" ? "pulse" : stem, value), stem, !!event.accent);
-      if (value === "critical" && stem === "bass" && event.accent) {
-        playFastSynthTone(audio, g.bassBus, midiToHz(event.midi - 12), t, duration * 0.9, "triangle", event.velocity * 0.42, "bass", true);
-      }
-    }
-  }
-
-  for (const event of g.index.drums.get(index) ?? []) {
-    if (value === "calm" && isBreakdown && (event.kind === "tom" || event.kind === "impact")) continue;
-    playFastDrum(audio, g, t, event.kind, event.velocity * layerMultiplier("drums", value), !!event.accent);
-  }
-}
-
 function duckPad(audio: AudioGraphContext, g: MusicGraph, time: number): void {
   const t = Math.max(time, audio.currentTime);
   g.padGain.gain.cancelScheduledValues(t);
@@ -107,10 +67,6 @@ function duckPad(audio: AudioGraphContext, g: MusicGraph, time: number): void {
 }
 
 export function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern, when: number, index: number, value: MusicIntensity): void {
-  if (g.fast) {
-    scheduleFastStep(audio, g, p, when, index, value);
-    return;
-  }
   const stepDuration = 60 / p.bpm / 4;
   const t = when + (index % 2 === 1 ? p.swing * stepDuration : 0);
   const bar = Math.floor(index / STEPS_PER_BAR);

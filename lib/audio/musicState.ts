@@ -17,7 +17,6 @@ export type PatternIndex = {
 };
 
 export type MusicGraph = {
-  fast: boolean;
   style: MusicStyleProfile;
   master: GainNode;
   highpass: BiquadFilterNode;

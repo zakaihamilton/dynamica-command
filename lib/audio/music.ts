@@ -165,7 +165,7 @@ export async function renderMissionMusic(
   const length = Math.ceil((musicalDuration + tailSeconds) * sampleRate);
   const renderDuration = length / sampleRate;
   const offline = new window.OfflineAudioContext(2, length, sampleRate);
-  const offlineGraph = createGraph(offline, offline.destination, renderedPattern, true);
+  const offlineGraph = createGraph(offline, offline.destination, renderedPattern);
   try {
     const arc: MusicIntensity[] = ["calm", "engaged", "calm", "engaged", "critical", "engaged", "engaged", "engaged"];
     for (const oscillator of [offlineGraph.padOscA, offlineGraph.padOscB, offlineGraph.padOscC, offlineGraph.padOscD, offlineGraph.padLfo]) {

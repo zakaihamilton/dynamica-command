@@ -132,7 +132,7 @@ export function notePan(stem: MusicStem): number {
   return 0;
 }
 
-export function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicPattern, fast = false): MusicGraph {
+export function createGraph(audio: AudioGraphContext, destination: AudioNode, p: MusicPattern): MusicGraph {
   const master = audio.createGain();
   const highpass = audio.createBiquadFilter();
   const saturation = audio.createWaveShaper();
@@ -231,7 +231,6 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   padLfo.start(now);
 
   return {
-    fast,
     style: p.style,
     master,
     highpass,

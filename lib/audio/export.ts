@@ -6,6 +6,8 @@ import { MusicExportCancelledError, renderMissionMusic } from "./music";
 export { MusicExportCancelledError } from "./music";
 
 export const MUSIC_EXPORT_SAMPLE_RATE = AUDIO_SAMPLE_RATE;
+// Keep the expensive shared synth graph practical to render; the final AAC
+// input remains at the live graph's 44.1 kHz rate after this upsample.
 const MUSIC_RENDER_SAMPLE_RATE = 22_050;
 export const MUSIC_EXPORT_BITRATE = 160_000;
 export const MUSIC_EXPORT_CODEC = "mp4a.40.2";
