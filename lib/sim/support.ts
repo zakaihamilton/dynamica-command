@@ -1,6 +1,7 @@
 import { canSupportTarget, isSupportEntity, isSupportUnit, UNIT_STATS } from "../catalog";
 import { isUnitEntity, type Entity, type SimEvent, type SimState } from "../types";
-import { tryFindPath } from "./pathBudget";
+import { tryFindPathDetailed } from "./pathBudget";
+import { routePendingFor } from "./pathfinding";
 import { byId, distToEntity, living } from "./world";
 
 export function canSupportEntity(provider: Entity, target: Entity): boolean {
@@ -34,12 +35,19 @@ export function assignSupportTarget(state: SimState, provider: Entity, target: E
   provider.gatherX = undefined;
   provider.gatherY = undefined;
   provider.idle = false;
-  const path = tryFindPath(state, provider, target);
-  if (path !== undefined) provider.path = path;
+  const result = tryFindPathDetailed(state, provider, target);
+  if (result) {
+    provider.path = result.path;
+    provider.routePending = routePendingFor(result.status);
+  } else {
+    provider.path = [];
+    provider.routePending = true;
+  }
 }
 
 function clearSupportRoute(provider: Entity): void {
   provider.supportTargetId = undefined;
+  provider.routePending = false;
   provider.path = [];
   provider.orderMode = undefined;
   provider.orderDestination = undefined;
@@ -90,13 +98,19 @@ export function tickSupport(state: SimState): SimEvent[] {
 
     if (distToEntity(provider, target) > supportRange) {
       if (!provider.path.length || destinationChanged) {
-        const path = tryFindPath(state, provider, target);
-        if (path !== undefined) provider.path = path;
+        if (provider.routePending === false && !destinationChanged) continue;
+        const result = tryFindPathDetailed(state, provider, target);
+        if (result) {
+          provider.path = result.path;
+          provider.routePending = routePendingFor(result.status);
+          provider.idle = result.status === "unreachable";
+        }
       }
       continue;
     }
 
     provider.path = [];
+    provider.routePending = false;
     if (provider.cooldown > 0 || target.hp >= target.maxHp || supportAmount <= 0) continue;
     const healed = Math.min(supportAmount, target.maxHp - target.hp);
     if (healed <= 0) continue;

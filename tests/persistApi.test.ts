@@ -9,6 +9,7 @@ import {
   hasSaveForSeed,
   readPendingSaveTransfer,
   writePendingSaveTransfer,
+  createSaveSession,
   saveKey,
   SAVE_TRANSFER_KEY,
 } from "../lib/persist/save";
@@ -106,6 +107,79 @@ describe("writeSave", () => {
 
     expect(writeSave(storage, state)).toBe(false);
     expect(storage.getItem(saveKey(421))).toBeNull();
+  });
+});
+
+describe("SaveSession", () => {
+  it("does not overwrite a save changed after the session started", () => {
+    const storage = memoryStorage();
+    const session = createSaveSession(storage, 421);
+    const initial = makeState(421);
+    expect(session.write(initial, "implicit")).toBe("saved");
+
+    const external = makeState(421);
+    external.tick = 99;
+    expect(writeSave(storage, external)).toBe(true);
+
+    const local = makeState(421);
+    local.tick = 12;
+    expect(session.write(local, "implicit")).toBe("conflict");
+    expect(readSave(storage, 421)?.tick).toBe(99);
+  });
+
+  it("allows an explicit save to replace the current record", () => {
+    const storage = memoryStorage();
+    const session = createSaveSession(storage, 421);
+    const external = makeState(421);
+    external.tick = 99;
+    expect(writeSave(storage, external)).toBe(true);
+
+    const local = makeState(421);
+    local.tick = 12;
+    expect(session.write(local, "explicit")).toBe("saved");
+    expect(readSave(storage, 421)?.tick).toBe(12);
+  });
+
+  it("treats pending transfers as conflicts for implicit writes", () => {
+    const storage = memoryStorage();
+    const session = createSaveSession(storage, 421);
+    expect(session.write(makeState(421), "implicit")).toBe("saved");
+    expect(writePendingSaveTransfer(storage, makeState(421), freshCampaignProgress(421))).toBe(true);
+
+    const local = makeState(421);
+    local.tick = 12;
+    expect(session.write(local, "implicit")).toBe("conflict");
+    expect(readPendingSaveTransfer(storage)?.state.tick).toBe(0);
+  });
+
+  it("can adopt an externally selected save before continuing implicit writes", () => {
+    const storage = memoryStorage();
+    const session = createSaveSession(storage, 421);
+    const external = makeState(421);
+    external.tick = 99;
+    expect(writeSave(storage, external)).toBe(true);
+    session.adoptCurrent();
+
+    const local = makeState(421);
+    local.tick = 12;
+    expect(session.write(local, "implicit")).toBe("saved");
+    expect(readSave(storage, 421)?.tick).toBe(12);
+  });
+
+  it("honors an explicit storage-change notification", () => {
+    const storage = memoryStorage();
+    const session = createSaveSession(storage, 421);
+    expect(session.write(makeState(421), "implicit")).toBe("saved");
+    session.markExternalChange();
+    expect(session.write(makeState(421), "implicit")).toBe("conflict");
+  });
+
+  it("reports failed when the underlying storage rejects a write", () => {
+    const storage = memoryStorage();
+    storage.setItem = () => { throw new Error("quota"); };
+    const session = createSaveSession(storage, 421);
+
+    expect(session.write(makeState(421), "implicit")).toBe("failed");
   });
 });
 

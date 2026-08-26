@@ -1,5 +1,5 @@
 import { footprintOf } from "../../catalog";
-import { isBuildingEntity, type BuildingEntity, type BuildingKind, type Entity, type Owner, type SimState, type Vec2 } from "../../types";
+import { isBuildingEntity, type BuildingEntity, type BuildingKind, type Owner, type SimState, type Vec2 } from "../../types";
 import { heightAt, inBounds } from "./queries";
 import { isWalkable, terrainAccess } from "./terrain";
 

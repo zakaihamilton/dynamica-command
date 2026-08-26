@@ -38,3 +38,12 @@ export {
   listUnreadableSaves,
   listSaves,
 } from "./save/api";
+
+export {
+  createSaveSession,
+  saveStorageSnapshot,
+  type SaveSession,
+  type SaveStorageSnapshot,
+  type SaveWriteMode,
+  type SaveWriteStatus,
+} from "./save/session";

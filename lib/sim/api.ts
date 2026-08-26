@@ -15,7 +15,7 @@ import { tickRepair } from "./repair";
 import { tickSupport } from "./support";
 import { ensureMissionDirector, tickMissionDirector } from "./director";
 import { configureMissionScenario, tickScenario } from "./scenarios";
-import { spawnBuildingAt, spawnUnit } from "./world";
+import { compactDestroyedEntities, spawnBuildingAt, spawnUnit } from "./world";
 import { createBaseState } from "./state";
 import type { Command } from "../types";
 import { missionDifficulty } from "./difficulty";
@@ -156,6 +156,7 @@ export function tick(state: SimState, commands?: Command[]): { state: SimState; 
   state.tick += 1;
   events.push(...tickScenario(state));
   events.push(...evaluateObjectives(state));
+  compactDestroyedEntities(state);
   return { state, events };
 }
 

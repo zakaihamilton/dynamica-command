@@ -43,8 +43,8 @@ describe("combat fx bursts", () => {
     yard.hp = 0;
     const { bursts, nextId } = burstsFromDestroyed(
       [
-        { type: "destroyed", id: tank.id, kind: "tank", x: tank.x, y: tank.y },
-        { type: "destroyed", id: yard.id, kind: "constructionYard", x: yard.x, y: yard.y },
+        { type: "destroyed", id: tank.id, owner: tank.owner, kind: "tank", x: tank.x, y: tank.y },
+        { type: "destroyed", id: yard.id, owner: yard.owner, kind: "constructionYard", x: yard.x, y: yard.y },
       ],
       state,
       500,
@@ -56,5 +56,21 @@ describe("combat fx bursts", () => {
     expect(bursts.filter((item) => item.entityKind === "tank" && item.kind === "rubble")).toHaveLength(0);
     expect(bursts.find((item) => item.entityKind === "tank")?.x).toBe(4);
     expect(bursts.find((item) => item.entityKind === "constructionYard")?.y).toBe(6);
+  });
+
+  it("keeps the destroyed owner's palette metadata after compaction", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const enemy = addUnit(state, 1, "tank", 4, 5);
+    enemy.hp = 0;
+    state.entities = state.entities.filter((entity) => entity.id !== enemy.id);
+
+    const { bursts } = burstsFromDestroyed(
+      [{ type: "destroyed", id: enemy.id, owner: 1, kind: "tank", x: enemy.x, y: enemy.y }],
+      state,
+      500,
+      10,
+    );
+
+    expect(bursts[0]?.owner).toBe(1);
   });
 });

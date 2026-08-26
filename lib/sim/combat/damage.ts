@@ -5,7 +5,8 @@ import { statsFor } from "./grid";
 import { armorFor, damageMultiplier, heightMultiplier } from "./targeting";
 import type { Rng } from "../../seed/rng";
 import { type PendingAlerts, notePlayerAlert } from "./alerts";
-import { tryFindPath } from "../pathBudget";
+import { tryFindPathDetailed } from "../pathBudget";
+import { routePendingFor } from "../pathfinding";
 
 export function strike(
   state: SimState,
@@ -50,7 +51,7 @@ export function strike(
   target.hp = 0;
   if (isUnitEntity(target)) state.losses.units[target.owner] += 1;
   else state.losses.buildings[target.owner] += 1;
-  events.push({ type: "destroyed", id: target.id, kind: target.kind, x: target.x, y: target.y });
+  events.push({ type: "destroyed", id: target.id, owner: target.owner, kind: target.kind, x: target.x, y: target.y });
   if (e.attackTarget === target.id) e.attackTarget = undefined;
 }
 
@@ -59,8 +60,11 @@ export function chase(state: SimState, e: Entity, target: Entity): void {
   const end = pathDest(e.path);
   const stale = !end || Math.hypot(end.x - dest.x, end.y - dest.y) > 1.25;
   if (!e.path.length || stale) {
-    const path = tryFindPath(state, e, dest);
-    if (path !== undefined) e.path = path;
+    const result = tryFindPathDetailed(state, e, dest);
+    if (result) {
+      e.path = result.path;
+      e.routePending = routePendingFor(result.status);
+    }
   }
 }
 
@@ -69,8 +73,11 @@ export function resumeAttackMove(state: SimState, e: Entity): void {
     e.idle = true;
     return;
   }
-  const path = tryFindPath(state, e, e.orderDestination);
-  if (path !== undefined) e.path = path;
+  const result = tryFindPathDetailed(state, e, e.orderDestination);
+  if (result) {
+    e.path = result.path;
+    e.routePending = routePendingFor(result.status);
+  }
   e.idle = false;
 }
 

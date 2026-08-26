@@ -64,7 +64,7 @@ export function burstsFromDestroyed(
     const tx = Math.round(x);
     const ty = Math.round(y);
     const elev = state.heights[ty * state.width + tx] ?? 1;
-    const owner = (entity?.owner ?? 0) as Owner;
+    const owner = event.owner ?? entity?.owner ?? 0;
     bursts.push({
       id: id++,
       kind: "explosion",

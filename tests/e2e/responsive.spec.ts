@@ -72,6 +72,17 @@ async function waitForBattlefield(page: import("@playwright/test").Page) {
     const height = Math.max(mins.height, Math.floor(host.clientHeight));
     return canvasEl.width === width && canvasEl.height === height;
   }, { width: MIN_RENDER_WIDTH, height: MIN_RENDER_HEIGHT })).toBe(true);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+}
+
+async function waitForStableSelection(page: import("@playwright/test").Page, text: string) {
+  const dock = page.getByTestId("mobile-command-dock");
+  await expect.poll(async () => (await dock.textContent())?.includes(text) ?? false).toBe(true);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
 }
 
 async function pageCamera(page: import("@playwright/test").Page, state: SimState) {
@@ -262,7 +273,7 @@ test.describe("selected unit actions", () => {
     await dispatchTouch(page, "pointerup", infantry);
 
     const dock = page.getByTestId("mobile-command-dock");
-    await expect(dock).toContainText("1 unit");
+    await waitForStableSelection(page, "1 unit");
     await dock.getByTestId("mobile-command-more").click();
     const sheet = page.getByTestId("mobile-command-sheet");
     await sheet.getByRole("tab", { name: "Selected" }).click();
@@ -391,13 +402,13 @@ test.describe("mobile-first layouts", () => {
     await dispatchTouch(page, "pointermove", marquee.end);
     await dispatchTouch(page, "pointerup", marquee.end);
     await expect(page.getByTestId("mobile-marquee")).toHaveCount(0);
-    await expect(page.getByTestId("mobile-command-dock")).toContainText(`${units.length} units`);
+    await waitForStableSelection(page, `${units.length} units`);
 
     const dragStart = { x: 90, y: 650 };
     await dispatchTouch(page, "pointerdown", dragStart);
     await dispatchTouch(page, "pointermove", { x: 155, y: 650 });
     await dispatchTouch(page, "pointerup", { x: 155, y: 650 });
-    await expect(page.getByTestId("mobile-command-dock")).toContainText(`${units.length} units`);
+    await waitForStableSelection(page, `${units.length} units`);
 
     await page.getByTestId("mobile-command-move").click();
     await expect(page.getByTestId("mobile-command-dock")).toContainText("Move active");

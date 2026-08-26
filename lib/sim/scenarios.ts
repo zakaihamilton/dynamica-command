@@ -1,7 +1,6 @@
 import type { Rng } from "../seed/rng";
 import type { GeneratedMap } from "../gen/map";
 import type {
-  BuildingKind,
   MissionDef,
   MissionRuntime,
   SimEvent,
@@ -11,8 +10,8 @@ import type {
 import { secondaryObjectivesForMission } from "../gen/objectives";
 import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
 import { CONVOY_STAGING_MINUTES, minutesToTicks } from "../gen/pacing";
-import { PATH_DIRS, diagonalCornerBlocked } from "./pathfinding";
-import { tryFindPath } from "./pathBudget";
+import { PATH_DIRS, diagonalCornerBlocked, routePendingFor } from "./pathfinding";
+import { tryFindPathDetailed } from "./pathBudget";
 import { canClimb, inBounds, isStaticWalkable, isWalkable, spawnBuildingAt, spawnUnit } from "./world";
 
 export const CONVOY_STAGING_TICKS = minutesToTicks(CONVOY_STAGING_MINUTES);
@@ -201,6 +200,7 @@ export function tickScenario(state: SimState): SimEvent[] {
       const e = state.entities.find((item) => item.id === id && item.hp > 0);
       if (!e?.neutral) continue;
       e.path = [];
+      e.routePending = false;
       e.idle = true;
       if (rescuers.some((rescuer) => Math.hypot(rescuer.x - e.x, rescuer.y - e.y) <= RESCUE_CONTACT_RADIUS)) {
         e.neutral = false;
@@ -213,8 +213,16 @@ export function tickScenario(state: SimState): SimEvent[] {
     for (const [index, id] of runtime.targetIds.entries()) {
       const convoy = state.entities.find((entity) => entity.id === id && entity.hp > 0);
       if (convoy?.scenarioRole === "convoy" && convoy.neutral) {
-        const route = tryFindPath(state, convoy, convoyDestination(state, state.runtime!.zone!, index));
-        if (route !== undefined) convoy.path = route;
+        const destination = convoyDestination(state, state.runtime!.zone!, index);
+        convoy.orderDestination = destination;
+        const result = tryFindPathDetailed(state, convoy, destination);
+        if (result) {
+          convoy.path = result.path;
+          convoy.routePending = routePendingFor(result.status);
+        } else {
+          convoy.path = [];
+          convoy.routePending = true;
+        }
       }
     }
     delete runtime.convoyStartTick;

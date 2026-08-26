@@ -1,4 +1,5 @@
-import { findPath } from "../pathfinding";
+import { findPathDetailed, routePendingFor } from "../pathfinding";
+import { FOREGROUND_PATH_MAX_NODES, FOREGROUND_PATHS_PER_ORDER } from "../pathBudget";
 import { type Entity, type Formation, type SimEvent, type SimState } from "../../types";
 import { byId, inBounds, isStaticWalkable } from "../world";
 import { clearSupportOrder } from "../support";
@@ -31,8 +32,16 @@ function issueTravelOrder(
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
+    e.routePending = false;
     if (formation) e.formation = formation;
-    e.path = findPath(state, e, dests[index] ?? { x: tx, y: ty });
+    if (index < FOREGROUND_PATHS_PER_ORDER) {
+      const result = findPathDetailed(state, e, dests[index] ?? { x: tx, y: ty }, { maxNodes: FOREGROUND_PATH_MAX_NODES });
+      e.path = result.path;
+      e.routePending = routePendingFor(result.status);
+    } else {
+      e.path = [];
+      e.routePending = true;
+    }
   });
   return [];
 }

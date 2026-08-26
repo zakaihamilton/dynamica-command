@@ -15,6 +15,7 @@ import { useGameLoop } from "./useGameLoop";
 import { useGameRenderer } from "./useGameRenderer";
 import { initialMission, useGameSession } from "./useGameSession";
 import { useGameSelection } from "./useGameSelection";
+import { cachedLocalStorage, createSaveSession } from "@/lib/persist/save";
 
 export function useGameRuntime({
   seed,
@@ -30,6 +31,7 @@ export function useGameRuntime({
   tutorial?: boolean;
 }) {
   const campaign = useMemo(() => createCampaign(seed), [seed]);
+  const saveSession = useMemo(() => createSaveSession(cachedLocalStorage(), seed), [seed]);
   const playerVisualProfile = useMemo(() => generateVisualProfile(seed, 0), [seed]);
   const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume, tutorial, fresh));
   const stateRef = useRef<SimState>(state);
@@ -156,6 +158,7 @@ export function useGameRuntime({
     terminalSaveRef,
     settings: audioSettings,
     setSettings: setAudioSettings,
+    saveSession,
   });
 
   const { keys } = useGameKeyboard({
@@ -207,6 +210,7 @@ export function useGameRuntime({
     fxSeq,
     terminalSaveRef,
     campaignRecordedRef,
+    saveSession,
     redraw,
     onAlert,
     onTacticalAnnouncement: announceTactical,

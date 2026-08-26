@@ -5,7 +5,8 @@ import { setMusicCue, setMusicIntensity, type MusicIntensity } from "@/lib/audio
 import { playSfx } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
 import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
-import { cachedLocalStorage, writeSave } from "@/lib/persist/save";
+import { cachedLocalStorage } from "@/lib/persist/save";
+import { SAVE_TRANSFER_KEY, saveKey, type SaveSession } from "@/lib/persist/save";
 import { recordTelemetry, telemetryFromMission } from "@/lib/persist/telemetry";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
@@ -37,6 +38,7 @@ export function useGameLoop({
   redraw,
   onAlert,
   onTacticalAnnouncement,
+  saveSession,
 }: {
   stateRef: MutableRefObject<SimState>;
   setState: (s: SimState) => void;
@@ -57,6 +59,7 @@ export function useGameLoop({
   redraw: (nowMs?: number, subTickAlpha?: number) => void;
   onAlert: (text: string) => void;
   onTacticalAnnouncement: (text: string) => void;
+  saveSession: SaveSession;
 }) {
   useEffect(() => {
     let appliedIntensity: MusicIntensity = "calm";
@@ -77,7 +80,7 @@ export function useGameLoop({
       cancelIdle();
       const run = () => {
         idleHandle = null;
-        writeSave(cachedLocalStorage(), stateRef.current);
+        saveSession.write(stateRef.current, "implicit");
       };
       if (typeof requestIdleCallback === "function") {
         idleViaTimeout = false;
@@ -89,10 +92,17 @@ export function useGameLoop({
     };
     const saveOnPageHide = () => {
       const current = stateRef.current;
-      writeSave(cachedLocalStorage(), current);
+      saveSession.write(current, "implicit");
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea && event.storageArea !== window.localStorage) return;
+      if (event.key === saveKey(stateRef.current.seed) || event.key === SAVE_TRANSFER_KEY) {
+        saveSession.markExternalChange();
+      }
     };
     window.addEventListener("pagehide", saveOnPageHide);
     window.addEventListener("beforeunload", saveOnPageHide);
+    window.addEventListener("storage", onStorage);
     const loop = startLoop({
       getState: () => stateRef.current,
       setState: (next) => {
@@ -191,7 +201,7 @@ export function useGameLoop({
         }
         if (s.result !== "playing" && !terminalSaveRef.current) {
           terminalSaveRef.current = true;
-          writeSave(cachedLocalStorage(), s);
+          saveSession.write(s, "implicit");
           recordTelemetry(
             cachedLocalStorage(),
             telemetryFromMission(s, { commandsIssued, commandRejections }),
@@ -216,6 +226,7 @@ export function useGameLoop({
       cancelIdle();
       window.removeEventListener("pagehide", saveOnPageHide);
       window.removeEventListener("beforeunload", saveOnPageHide);
+      window.removeEventListener("storage", onStorage);
       loop.stop();
     };
   }, [
@@ -238,5 +249,6 @@ export function useGameLoop({
     setState,
     stateRef,
     terminalSaveRef,
+    saveSession,
   ]);
 }

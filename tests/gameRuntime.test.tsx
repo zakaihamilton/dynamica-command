@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRef } from "react";
 import { createCamera } from "../lib/iso";
 import { makeFixture } from "../lib/sim/fixtures";
-import { localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
+import { localStorageAdapter, readSave, saveKey, writeSave } from "../lib/persist/save";
 import { TELEMETRY_KEY } from "../lib/persist/telemetry";
 import type { BuildingKind } from "../lib/types";
 
@@ -147,6 +147,41 @@ describe("useGameRuntime", () => {
     });
 
     expect(readSave(localStorageAdapter(), 421)?.tick).toBe(120);
+  });
+
+  it("does not replace a newer same-seed save during unload", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.playField.state) => void };
+    loopOptions.setState({ ...result.current.playField.state, tick: 120 });
+
+    const replacement = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    replacement.tick = 77;
+    expect(writeSave(localStorageAdapter(), replacement)).toBe(true);
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    expect(readSave(localStorageAdapter(), 421)?.tick).toBe(77);
+  });
+
+  it("honors cross-tab storage notifications even when the raw value is unchanged", () => {
+    const saved = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    expect(writeSave(localStorageAdapter(), saved)).toBe(true);
+    const raw = window.localStorage.getItem(saveKey(421));
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: true, tutorial: false }));
+    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.playField.state) => void };
+    loopOptions.setState({ ...result.current.playField.state, tick: 120 });
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: saveKey(421),
+        oldValue: raw,
+        newValue: raw,
+      }));
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    expect(readSave(localStorageAdapter(), 421)?.tick).toBe(0);
   });
 
   it("starts the sim loop and exposes play-field plus overlay props", () => {

@@ -17,6 +17,7 @@ export function tickCombat(state: SimState): SimEvent[] {
     if (escortStaging && e.owner === 1) {
       e.attackTarget = undefined;
       e.path = [];
+      e.routePending = false;
       e.orderMode = undefined;
       e.orderDestination = undefined;
       e.idle = true;
@@ -38,6 +39,7 @@ export function tickCombat(state: SimState): SimEvent[] {
         const d = distToEntity(e, assigned);
         if (d <= st.range) {
           e.path = [];
+          e.routePending = false;
           if (lineOfSight(state, e, assigned)) {
             strike(state, e, assigned, st, rng, events, pending);
           } else {
@@ -55,6 +57,7 @@ export function tickCombat(state: SimState): SimEvent[] {
           if (intercept && lineOfSight(state, e, intercept)) {
             e.attackTarget = intercept.id;
             e.path = [];
+            e.routePending = false;
             strike(state, e, intercept, st, rng, events, pending);
           } else {
             chase(state, e, assigned);
@@ -70,6 +73,7 @@ export function tickCombat(state: SimState): SimEvent[] {
         if (visible && lineOfSight(state, e, visible)) {
           e.attackTarget = visible.id;
           e.path = [];
+          e.routePending = false;
           if (distToEntity(e, visible) <= st.range) {
             strike(state, e, visible, st, rng, events, pending);
             if (e.attackTarget === undefined) resumeAttackMove(state, e);
@@ -97,6 +101,7 @@ export function tickCombat(state: SimState): SimEvent[] {
       if (threat) {
         target = threat;
         e.path = [];
+        e.routePending = false;
       }
     }
     if (!target && !hold && !defend) target = acquirePreferred(grid, e);
@@ -109,6 +114,7 @@ export function tickCombat(state: SimState): SimEvent[] {
     const d = distToEntity(e, target);
     if (d <= st.range && lineOfSight(state, e, target)) {
       e.path = [];
+      e.routePending = false;
       strike(state, e, target, st, rng, events, pending);
       continue;
     }
@@ -116,6 +122,7 @@ export function tickCombat(state: SimState): SimEvent[] {
     if (e.class === "unit" && !hold && !defend) chase(state, e, target);
     else {
       e.path = [];
+      e.routePending = false;
       e.attackTarget = undefined;
     }
   }

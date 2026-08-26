@@ -1,4 +1,4 @@
-import { createMission, tick } from "../lib/sim/api";
+import { createMission, issue, tick } from "../lib/sim/api";
 import { CompetentCommander } from "../lib/sim/commander";
 import { tickCombat } from "../lib/sim/combat";
 import { addBuilding, addUnit, makeFixture, setHeight } from "../lib/sim/fixtures";
@@ -13,6 +13,9 @@ const SIM_TICKS = 600;
 const SIM_WARMUP_TICKS = 60;
 const BLOCKED_COMBAT_UNITS = 24;
 const BLOCKED_COMBAT_TICKS = 120;
+const FOREGROUND_GROUP_UNITS = 48;
+const FOREGROUND_PATH_SAMPLES = 6;
+const MAX_FOREGROUND_PATH_P95_MS = 25;
 
 type Sample = {
   seed: number;
@@ -75,6 +78,47 @@ for (const seed of [0, 421, 9999]) {
   });
 }
 
+type ForegroundPathSample = {
+  units: number;
+  p50Ms: number;
+  p95Ms: number;
+  maxMs: number;
+  pendingAfterOrder: number;
+  pendingAfterFirstTick: number;
+};
+
+const foregroundPathTimings: number[] = [];
+let pendingAfterOrder = 0;
+let pendingAfterFirstTick = 0;
+for (let sample = 0; sample < FOREGROUND_PATH_SAMPLES; sample++) {
+  const state = makeFixture({ width: 96, height: 96, win: { kind: "harvestQuota", target: 99999 } });
+  addBuilding(state, 0, "constructionYard", 0, 0);
+  const units = Array.from({ length: FOREGROUND_GROUP_UNITS }, (_, i) =>
+    addUnit(state, 0, "infantry", 3 + (i % 12), 4 + Math.floor(i / 12)),
+  );
+  const started = performance.now();
+  issue(state, {
+    type: "move",
+    unitIds: units.map((unit) => unit.id),
+    x: 80,
+    y: 80,
+    formation: "line",
+  });
+  foregroundPathTimings.push(performance.now() - started);
+  pendingAfterOrder = units.filter((unit) => unit.routePending).length;
+  tick(state);
+  pendingAfterFirstTick = units.filter((unit) => unit.routePending).length;
+}
+
+const foregroundPathSample: ForegroundPathSample = {
+  units: FOREGROUND_GROUP_UNITS,
+  p50Ms: percentile(foregroundPathTimings, 0.5),
+  p95Ms: percentile(foregroundPathTimings, 0.95),
+  maxMs: Math.max(...foregroundPathTimings, 0),
+  pendingAfterOrder,
+  pendingAfterFirstTick,
+};
+
 const blockedCombatState = makeFixture({ width: 40, height: 28, win: { kind: "annihilate" } });
 const blockedTarget = addBuilding(blockedCombatState, 1, "power", 20, 12);
 blockedTarget.hp = 1_000_000;
@@ -96,15 +140,18 @@ for (let i = 0; i < BLOCKED_COMBAT_TICKS; i++) {
 
 const atlasFailures = atlasSamples.filter((sample) => sample.ms > MAX_ATLAS_MS || sample.bytes > MAX_ATLAS_BYTES);
 const simulationFailures = simulationSamples.filter((sample) => sample.p95Ms > MAX_SIM_P95_MS);
+const foregroundPathFailures = foregroundPathSample.p95Ms > MAX_FOREGROUND_PATH_P95_MS;
 const blockedCombatP95Ms = percentile(blockedCombatTimings, 0.95);
 console.log(JSON.stringify({
   maxAtlasMs: MAX_ATLAS_MS,
   maxAtlasBytes: MAX_ATLAS_BYTES,
   maxSimulationP95Ms: MAX_SIM_P95_MS,
   maxBlockedCombatP95Ms: MAX_BLOCKED_COMBAT_P95_MS,
+  maxForegroundPathP95Ms: MAX_FOREGROUND_PATH_P95_MS,
   simulationTicks: SIM_TICKS,
   atlasSamples,
   simulationSamples,
+  foregroundPath: foregroundPathSample,
   blockedCombat: {
     units: BLOCKED_COMBAT_UNITS,
     ticks: BLOCKED_COMBAT_TICKS,
@@ -113,11 +160,12 @@ console.log(JSON.stringify({
     maxMs: Math.max(...blockedCombatTimings, 0),
   },
 }, null, 2));
-if (atlasFailures.length || simulationFailures.length || blockedCombatP95Ms > MAX_BLOCKED_COMBAT_P95_MS) {
+if (atlasFailures.length || simulationFailures.length || blockedCombatP95Ms > MAX_BLOCKED_COMBAT_P95_MS || foregroundPathFailures) {
   const failures = [
     ...atlasFailures.map((sample) => `terrain ${sample.seed}/${sample.mission}`),
     ...simulationFailures.map((sample) => `simulation ${sample.seed}/${sample.mission}`),
     ...(blockedCombatP95Ms > MAX_BLOCKED_COMBAT_P95_MS ? ["blocked combat"] : []),
+    ...(foregroundPathFailures ? ["foreground path"] : []),
   ];
   throw new Error(`Performance budget exceeded for ${failures.join(", ")}`);
 }

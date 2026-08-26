@@ -3,6 +3,31 @@ import { canClimb, inBounds, isStaticWalkable, makeUnitOccupancy } from "./world
 
 type Node = { x: number; y: number; g: number; f: number; px: number; py: number; seq: number };
 
+export type PathSearchStatus = "complete" | "partial" | "unreachable";
+
+export type PathSearchResult = {
+  path: Vec2[];
+  status: PathSearchStatus;
+};
+
+export const PATH_MAX_NODES = 4096;
+
+/** Persist only the states that need another search or must stay blocked. */
+export function routePendingFor(status: PathSearchStatus): boolean | undefined {
+  if (status === "partial") return true;
+  if (status === "unreachable") return false;
+  return undefined;
+}
+
+type SearchBuffers = {
+  stamps: Uint32Array;
+  gScore: Float64Array;
+  parent: Int32Array;
+  generation: number;
+};
+
+const searchBuffers = new WeakMap<SimState, SearchBuffers>();
+
 export const PATH_DIRS: Vec2[] = [
   { x: 1, y: 0 },
   { x: -1, y: 0 },
@@ -110,12 +135,21 @@ export function findPath(
   to: Vec2,
   opts?: FindPathOptions,
 ): Vec2[] {
+  return findPathDetailed(state, from, to, opts).path;
+}
+
+export function findPathDetailed(
+  state: SimState,
+  from: Vec2,
+  to: Vec2,
+  opts?: FindPathOptions,
+): PathSearchResult {
   const sx = Math.round(from.x);
   const sy = Math.round(from.y);
   const gx = Math.round(to.x);
   const gy = Math.round(to.y);
-  if (sx === gx && sy === gy) return [];
-  if (!inBounds(state, gx, gy)) return [];
+  if (sx === gx && sy === gy) return { path: [], status: "complete" };
+  if (!inBounds(state, gx, gy)) return { path: [], status: "unreachable" };
 
   const ignoreId = ignoreIdOf(from, opts);
   const avoidUnits = opts?.avoidUnits === true;
@@ -136,31 +170,32 @@ export function findPath(
   const goalOk = (x: number, y: number) =>
     walkableGoal ? x === gx && y === gy : Math.max(Math.abs(x - gx), Math.abs(y - gy)) === 1;
 
-  const maxNodes = opts?.maxNodes ?? w * state.height;
+  const maxNodes = Math.min(opts?.maxNodes ?? PATH_MAX_NODES, PATH_MAX_NODES, w * state.height);
   const key = (x: number, y: number) => y * w + x;
   const open = new MinHeap();
   let seq = 0;
   open.push({ x: sx, y: sy, g: 0, f: heuristic(sx, sy, gx, gy), px: -1, py: -1, seq: seq++ });
-  const came = new Map<number, Node>();
-  const gScore = new Map<number, number>([[key(sx, sy), 0]]);
+  const buffers = buffersFor(state, w * state.height);
+  const generation = nextGeneration(buffers);
+  buffers.stamps[startKey] = generation;
+  buffers.gScore[startKey] = 0;
   let explored = 0;
-  let best: Node | undefined;
+  let bestKey = -1;
   let bestH = Infinity;
 
   while (open.length && explored < maxNodes) {
     const current = open.pop()!;
     const currentKey = key(current.x, current.y);
-    if (current.g > (gScore.get(currentKey) ?? Infinity)) continue;
+    if (current.g > (buffers.gScore[currentKey] ?? Infinity)) continue;
     explored++;
-    came.set(currentKey, current);
     const h = heuristic(current.x, current.y, gx, gy);
     if (h < bestH && !(current.x === sx && current.y === sy)) {
       bestH = h;
-      best = current;
+      bestKey = currentKey;
     }
     if (goalOk(current.x, current.y) && !(current.x === sx && current.y === sy && !walkableGoal)) {
       if (current.x === sx && current.y === sy) continue;
-      return reconstruct(came, current, w);
+      return { path: reconstruct(buffers.parent, currentKey, startKey, w), status: "complete" };
     }
     for (const d of PATH_DIRS) {
       const nx = current.x + d.x;
@@ -172,8 +207,10 @@ export function findPath(
       const step = d.x !== 0 && d.y !== 0 ? 1.414 : 1;
       const tentative = current.g + step;
       const k = key(nx, ny);
-      if (tentative >= (gScore.get(k) ?? Infinity)) continue;
-      gScore.set(k, tentative);
+      if (tentative >= (buffers.stamps[k] === generation ? buffers.gScore[k] : Infinity)) continue;
+      buffers.stamps[k] = generation;
+      buffers.gScore[k] = tentative;
+      buffers.parent[k] = currentKey;
       open.push({
         x: nx,
         y: ny,
@@ -185,8 +222,15 @@ export function findPath(
       });
     }
   }
-  if (best && best.px >= 0) return reconstruct(came, best, w);
-  return [];
+  const capped = explored >= maxNodes && open.length > 0;
+  if (capped && bestKey < 0) return { path: [], status: "partial" };
+  if (bestKey >= 0) {
+    return {
+      path: reconstruct(buffers.parent, bestKey, startKey, w),
+      status: capped ? "partial" : "unreachable",
+    };
+  }
+  return { path: [], status: "unreachable" };
 }
 
 function heuristic(x: number, y: number, gx: number, gy: number): number {
@@ -195,12 +239,36 @@ function heuristic(x: number, y: number, gx: number, gy: number): number {
   return dx + dy + (1.414 - 2) * Math.min(dx, dy);
 }
 
-function reconstruct(came: Map<number, Node>, end: Node, w: number): Vec2[] {
+function buffersFor(state: SimState, size: number): SearchBuffers {
+  const existing = searchBuffers.get(state);
+  if (existing && existing.stamps.length === size) return existing;
+  const created: SearchBuffers = {
+    stamps: new Uint32Array(size),
+    gScore: new Float64Array(size),
+    parent: new Int32Array(size),
+    generation: 0,
+  };
+  searchBuffers.set(state, created);
+  return created;
+}
+
+function nextGeneration(buffers: SearchBuffers): number {
+  buffers.generation += 1;
+  if (buffers.generation === 0xffffffff) {
+    buffers.stamps.fill(0);
+    buffers.generation = 1;
+  }
+  return buffers.generation;
+}
+
+function reconstruct(parent: Int32Array, endKey: number, startKey: number, w: number): Vec2[] {
   const path: Vec2[] = [];
-  let cur: Node | undefined = end;
-  while (cur && cur.px >= 0) {
-    path.push({ x: cur.x, y: cur.y });
-    cur = came.get(cur.py * w + cur.px);
+  let cur = endKey;
+  while (cur !== startKey && cur >= 0) {
+    const x = cur % w;
+    const y = Math.floor(cur / w);
+    path.push({ x, y });
+    cur = parent[cur] ?? -1;
   }
   path.reverse();
   return path;

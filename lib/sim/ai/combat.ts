@@ -1,6 +1,7 @@
 import { isSupportUnit, UNIT_STATS } from "../../catalog";
-import { isUnitEntity, type Entity, type SimState, type UnitKind } from "../../types";
-import { tryFindPath } from "../pathBudget";
+import { isUnitEntity, type Entity, type SimState } from "../../types";
+import { tryFindPathDetailed } from "../pathBudget";
+import { routePendingFor } from "../pathfinding";
 import { byId, closestApproach, distToEntity, living, nearest } from "../world";
 import { contestedResourcePoint } from "./helpers";
 import { homeGuardCount } from "./director";
@@ -14,8 +15,13 @@ export function sendHome(state: SimState, unit: Entity, yard: Entity): void {
   unit.orderMode = "move";
   unit.orderDestination = { x: yard.x, y: yard.y };
   unit.idle = false;
-  const path = tryFindPath(state, unit, closestApproach(state, unit, yard));
-  if (path !== undefined) unit.path = path;
+  const result = tryFindPathDetailed(state, unit, closestApproach(state, unit, yard));
+  if (result) {
+    unit.path = result.path;
+    unit.routePending = routePendingFor(result.status);
+  } else {
+    unit.routePending = true;
+  }
 }
 
 export function assignAttack(state: SimState, unit: Entity, target: Entity): void {
@@ -23,8 +29,13 @@ export function assignAttack(state: SimState, unit: Entity, target: Entity): voi
   unit.orderMode = "attack";
   unit.orderDestination = { x: target.x, y: target.y };
   unit.idle = false;
-  const path = tryFindPath(state, unit, closestApproach(state, unit, target));
-  if (path !== undefined) unit.path = path;
+  const result = tryFindPathDetailed(state, unit, closestApproach(state, unit, target));
+  if (result) {
+    unit.path = result.path;
+    unit.routePending = routePendingFor(result.status);
+  } else {
+    unit.routePending = true;
+  }
 }
 
 export function assignMove(state: SimState, unit: Entity, destination: { x: number; y: number }): void {
@@ -32,8 +43,13 @@ export function assignMove(state: SimState, unit: Entity, destination: { x: numb
   unit.orderMode = "move";
   unit.orderDestination = { x: destination.x, y: destination.y };
   unit.idle = false;
-  const path = tryFindPath(state, unit, destination);
-  if (path !== undefined) unit.path = path;
+  const result = tryFindPathDetailed(state, unit, destination);
+  if (result) {
+    unit.path = result.path;
+    unit.routePending = routePendingFor(result.status);
+  } else {
+    unit.routePending = true;
+  }
 }
 
 export function scenarioAssaultTarget(state: SimState, from: Entity): Entity | undefined {

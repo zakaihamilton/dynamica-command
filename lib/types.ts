@@ -160,6 +160,7 @@ export type Entity = {
   weapon?: WeaponType;
   formation?: Formation;
   blockedTicks?: number;
+  routePending?: boolean;
   supportTargetId?: number;
   supportMode?: "auto" | "assigned" | "hold";
 };
@@ -400,7 +401,7 @@ export type Command =
 export type SimEvent =
   | { type: "produced"; owner: Owner; kind: UnitKind }
   | { type: "built"; owner: Owner; kind: BuildingKind }
-  | { type: "destroyed"; id: number; kind: UnitKind | BuildingKind; x: number; y: number }
+  | { type: "destroyed"; id: number; owner: Owner; kind: UnitKind | BuildingKind; x: number; y: number }
   | { type: "sold"; id: number; kind: UnitKind | BuildingKind; x: number; y: number }
   | { type: "repairStarted"; x: number; y: number }
   | {

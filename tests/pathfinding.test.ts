@@ -1,16 +1,66 @@
 import { describe, expect, it } from "vitest";
-import { findPath } from "../lib/sim/pathfinding";
+import { findPath, findPathDetailed, PATH_MAX_NODES } from "../lib/sim/pathfinding";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
 import { issue, tick } from "../lib/sim/api";
 import { tickAi } from "../lib/sim/ai";
 import { tickCombat } from "../lib/sim/combat";
-import { PATH_BUDGET_PER_TICK, backgroundPathSearches, resetPathBudget, tryFindPath } from "../lib/sim/pathBudget";
+import { FOREGROUND_PATHS_PER_ORDER, PATH_BUDGET_PER_TICK, backgroundPathSearches, resetPathBudget, tryFindPath } from "../lib/sim/pathBudget";
 import { groundOrders } from "../lib/sim/orders";
 import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, terrainAccess, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
 describe("pathfinding", () => {
+  it("returns a bounded partial result for a long search", () => {
+    const s = makeFixture({ width: 96, height: 96, win: { kind: "annihilate" } });
+    const result = findPathDetailed(s, { x: 1, y: 1 }, { x: 95, y: 95 }, { maxNodes: 8 });
+
+    expect(PATH_MAX_NODES).toBe(4096);
+    expect(result.status).toBe("partial");
+    expect(result.path.length).toBeGreaterThan(0);
+  });
+
+  it("keeps a capped search pending when only the start node was explored", () => {
+    const s = makeFixture({ width: 10, height: 10, win: { kind: "annihilate" } });
+    const result = findPathDetailed(s, { x: 1, y: 1 }, { x: 8, y: 8 }, { maxNodes: 1 });
+
+    expect(result.status).toBe("partial");
+    expect(result.path).toEqual([]);
+  });
+
+  it("defers large foreground group orders and services them fairly", () => {
+    const s = makeFixture({ width: 48, height: 48, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const units = Array.from({ length: FOREGROUND_PATHS_PER_ORDER + 6 }, (_, i) =>
+      addUnit(s, 0, "infantry", 3 + (i % 10), 4 + Math.floor(i / 10)),
+    );
+    issue(s, {
+      type: "move",
+      unitIds: units.map((unit) => unit.id),
+      x: 38,
+      y: 38,
+      formation: "line",
+    });
+
+    const deferred = units.slice(FOREGROUND_PATHS_PER_ORDER);
+    expect(units.slice(0, FOREGROUND_PATHS_PER_ORDER).every((unit) => unit.path.length > 0)).toBe(true);
+    expect(deferred.every((unit) => unit.routePending)).toBe(true);
+    tick(s);
+    expect(deferred.every((unit) => !unit.routePending && unit.path.length > 0)).toBe(true);
+    expect(backgroundPathSearches()).toBe(PATH_BUDGET_PER_TICK);
+  });
+
+  it("marks a sealed destination unreachable without leaving a pending route", () => {
+    const s = makeFixture({ width: 10, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    for (const [x, y] of [
+      [2, 2], [3, 2], [4, 2], [2, 3], [4, 3], [2, 4], [3, 4], [4, 4],
+    ]) setTile(s, x, y, TILE_BLOCKED);
+    const result = findPathDetailed(s, { x: 3, y: 3 }, { x: 8, y: 8 });
+
+    expect(result.status).toBe("unreachable");
+    expect(result.path).toEqual([]);
+  });
+
   it("shares explicit terrain access rules between movement and construction", () => {
     const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
     setTile(s, 2, 2, TILE_WATER);

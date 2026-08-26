@@ -1,12 +1,15 @@
 import type { Vec2 } from "../types";
 import type { SimState } from "../types";
-import { findPath, type FindPathOptions } from "./pathfinding";
+import { findPath, findPathDetailed, type FindPathOptions, type PathSearchResult } from "./pathfinding";
 
 /**
  * Shared background search cap for one sim tick: movement detours, combat chase,
- * and AI repath. Player orders and harvester economy use unbounded `findPath`.
+ * and AI repath. Foreground orders use the bounded foreground cap, while all
+ * background and harvester replans spend this shared pool.
  */
 export const PATH_BUDGET_PER_TICK = 6;
+export const FOREGROUND_PATHS_PER_ORDER = 24;
+export const FOREGROUND_PATH_MAX_NODES = 128;
 
 let remaining = PATH_BUDGET_PER_TICK;
 let used = 0;
@@ -34,4 +37,16 @@ export function tryFindPath(
   remaining -= 1;
   used += 1;
   return findPath(state, from, to, opts);
+}
+
+export function tryFindPathDetailed(
+  state: SimState,
+  from: Vec2,
+  to: Vec2,
+  opts?: FindPathOptions,
+): PathSearchResult | undefined {
+  if (remaining <= 0) return undefined;
+  remaining -= 1;
+  used += 1;
+  return findPathDetailed(state, from, to, opts);
 }

@@ -1,6 +1,7 @@
-import { isSupportEntity, isSupportUnit } from "../../catalog";
-import { TILE_RESOURCE, type Command, type Entity, type SimEvent, type SimState, type TutorialStage, type UnitKind } from "../../types";
-import { findPath } from "../pathfinding";
+import { isSupportEntity } from "../../catalog";
+import { TILE_RESOURCE, type Command, type Entity, type SimEvent, type SimState, type TutorialStage } from "../../types";
+import { findPathDetailed, routePendingFor } from "../pathfinding";
+import { FOREGROUND_PATH_MAX_NODES, FOREGROUND_PATHS_PER_ORDER } from "../pathBudget";
 import { byId, inBounds, tileAt } from "../world";
 import { holdSupport } from "../support";
 import { moveUnits, attackMoveUnits } from "./movement";
@@ -106,6 +107,7 @@ function stopUnits(state: SimState, ids: number[]): SimEvent[] {
     e.orderDestination = undefined;
     e.gatherX = undefined;
     e.gatherY = undefined;
+    e.routePending = false;
     e.idle = true;
     if (isSupportEntity(e)) holdSupport(e);
   }
@@ -140,6 +142,7 @@ export function groundOrders(state: SimState, ids: number[], x: number, y: numbe
 }
 
 function harvestUnits(state: SimState, ids: number[], x: number, y: number): SimEvent[] {
+  let searches = 0;
   for (const id of ids) {
     const e = byId(state, id);
     if (!e || e.kind !== "harvester" || e.owner !== 0 || e.neutral) continue;
@@ -149,7 +152,15 @@ function harvestUnits(state: SimState, ids: number[], x: number, y: number): Sim
     e.gatherX = Math.round(x);
     e.gatherY = Math.round(y);
     e.idle = false;
-    e.path = findPath(state, e, { x: e.gatherX, y: e.gatherY });
+    if (searches < FOREGROUND_PATHS_PER_ORDER) {
+      const result = findPathDetailed(state, e, { x: e.gatherX, y: e.gatherY }, { maxNodes: FOREGROUND_PATH_MAX_NODES });
+      e.path = result.path;
+      e.routePending = routePendingFor(result.status);
+      searches += 1;
+    } else {
+      e.path = [];
+      e.routePending = true;
+    }
   }
   return [];
 }
@@ -161,5 +172,7 @@ export function applyCommands(state: SimState, commands: Command[]): SimEvent[] 
 }
 
 export function setPathTo(state: SimState, e: Entity, dest: { x: number; y: number }): void {
-  e.path = findPath(state, e, dest);
+  const result = findPathDetailed(state, e, dest);
+  e.path = result.path;
+  e.routePending = routePendingFor(result.status);
 }

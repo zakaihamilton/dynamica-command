@@ -1,7 +1,7 @@
 import { UNIT_STATS } from "../catalog";
 import { isUnitEntity, type Entity, type Facing, type SimState } from "../types";
-import { tryFindPath } from "./pathBudget";
-import { PATH_DIRS, diagonalCornerBlocked, stepAlongPath } from "./pathfinding";
+import { tryFindPath, tryFindPathDetailed } from "./pathBudget";
+import { PATH_DIRS, diagonalCornerBlocked, routePendingFor, stepAlongPath } from "./pathfinding";
 import { canClimb, inBounds, isStaticWalkable, makeUnitOccupancy } from "./world";
 
 function cellOf(state: SimState, x: number, y: number): number {
@@ -82,6 +82,14 @@ export function tickMovement(state: SimState): void {
   const atTile = new Map<number, Entity>();
   const reserved = new Map<number, number>();
   const swapped = new Set<number>();
+  for (const e of state.entities) {
+    if (e.hp <= 0 || e.class !== "unit" || !e.routePending || e.path.length || !e.orderDestination) continue;
+    const result = tryFindPathDetailed(state, e, e.orderDestination);
+    if (!result) continue;
+    e.path = result.path;
+    e.routePending = routePendingFor(result.status);
+    e.idle = result.status === "unreachable";
+  }
   for (const e of state.entities) {
     if (e.hp <= 0 || e.class !== "unit") continue;
     atTile.set(cellOf(state, e.x, e.y), e);

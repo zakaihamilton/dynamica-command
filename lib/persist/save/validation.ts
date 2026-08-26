@@ -109,6 +109,7 @@ export function isEntity(value: unknown): value is Entity {
   if (value.weapon !== undefined && !isOneOf(value.weapon, WEAPON_TYPES)) return false;
   if (value.formation !== undefined && !isOneOf(value.formation, FORMATIONS)) return false;
   if (value.blockedTicks !== undefined && !isNonNegativeNumber(value.blockedTicks)) return false;
+  if (value.routePending !== undefined && typeof value.routePending !== "boolean") return false;
   if (value.supportTargetId !== undefined && !isIntegerInRange(value.supportTargetId, 0, Number.MAX_SAFE_INTEGER)) return false;
   if (value.supportMode !== undefined && !isOneOf(value.supportMode, ["auto", "assigned", "hold"] as const)) return false;
   return true;

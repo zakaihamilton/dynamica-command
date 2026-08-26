@@ -26,6 +26,10 @@ describe("scripted mission loops", () => {
 
     for (let i = 0; i < 125; i++) tick(s);
     expect(harvester.carry).toBe(500);
+
+    for (let i = 0; i < 400; i++) tick(s);
+    expect(harvester.carry).toBe(0);
+    expect(s.credits[0]).toBeGreaterThan(5000);
   });
 
   it("wins a harvestQuota by issuing harvest and ticking", () => {

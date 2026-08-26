@@ -11,9 +11,10 @@ import { useGameAudioLifecycle } from "../components/game/hooks/useGameAudioLife
 import { useGameKeyboard } from "../components/game/hooks/useGameKeyboard";
 import { useGameSession } from "../components/game/hooks/useGameSession";
 import { useGameSelection } from "../components/game/hooks/useGameSelection";
+import { useMissionRoutes } from "../components/game/hooks/useMissionRoutes";
 import { useMenuController } from "../components/menu/useMenuController";
 import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
-import { localStorageAdapter, readSave } from "../lib/persist/save";
+import { createSaveSession, localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
 import { defaultSettings } from "../lib/persist/settings";
 import { makeFixture, addBuilding, addUnit } from "../lib/sim/fixtures";
 import type { Command } from "../lib/types";
@@ -150,6 +151,25 @@ describe("useGameActions", () => {
 });
 
 describe("game lifecycle hooks", () => {
+  it("does not overwrite a newer save during a briefing transition", () => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const storage = localStorageAdapter();
+    const session = createSaveSession(storage, 421);
+    const replacement = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    replacement.tick = 77;
+    expect(writeSave(storage, replacement)).toBe(true);
+    const { result } = renderHook(() => useMissionRoutes({
+      seed: 421,
+      stateRef: { current: state },
+      saveSession: session,
+    }));
+
+    act(() => result.current.viewMissionBriefing());
+
+    expect(readSave(storage, 421)?.tick).toBe(77);
+    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&return=game");
+  });
+
   it("requires confirmation before saving, loading, restarting, or leaving a mission", () => {
     const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
     const stateRef = { current: state };
@@ -171,6 +191,7 @@ describe("game lifecycle hooks", () => {
       terminalSaveRef: { current: false },
       settings: defaultSettings(),
       setSettings: vi.fn(),
+      saveSession: createSaveSession(localStorageAdapter(), 421),
     };
     const { result } = renderHook(() => useGameSession(props));
 

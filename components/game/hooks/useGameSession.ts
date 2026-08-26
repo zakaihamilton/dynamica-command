@@ -3,6 +3,7 @@ import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission } from "@/lib/sim/tutorial";
 import { cachedLocalStorage, readSave } from "@/lib/persist/save";
+import type { SaveSession } from "@/lib/persist/save";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { SimState } from "@/lib/types";
 import { useMissionConfirmation } from "./useMissionConfirmation";
@@ -44,12 +45,14 @@ export function useGameSession({
   terminalSaveRef,
   settings,
   setSettings,
+  saveSession,
 }: MissionPersistenceParams & {
   settings: GameSettings;
   setSettings: Dispatch<SetStateAction<GameSettings>>;
+  saveSession: SaveSession;
 }) {
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
-  const routes = useMissionRoutes({ seed, stateRef });
+  const routes = useMissionRoutes({ seed, stateRef, saveSession });
   const persistence = useMissionPersistence({
     seed,
     stateRef,
@@ -66,6 +69,7 @@ export function useGameSession({
     setPauseNotice,
     campaignRecordedRef,
     terminalSaveRef,
+    saveSession,
   });
   const confirmation = useMissionConfirmation({
     seed,

@@ -122,6 +122,7 @@ export function tickAi(state: SimState): void {
     for (const unit of enemyCombat(state)) {
       unit.attackTarget = undefined;
       unit.path = [];
+      unit.routePending = false;
       unit.orderMode = undefined;
       unit.orderDestination = undefined;
       unit.idle = true;
@@ -193,4 +194,3 @@ export function tickAi(state: SimState): void {
   }
   state.rngState = rng.state;
 }
-

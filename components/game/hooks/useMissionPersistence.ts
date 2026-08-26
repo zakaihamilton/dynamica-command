@@ -3,8 +3,8 @@ import { beep } from "@/lib/audio/synth";
 import {
   cachedLocalStorage,
   readSave,
-  writeSave,
 } from "@/lib/persist/save";
+import type { SaveSession } from "@/lib/persist/save";
 import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { createMission } from "@/lib/sim/api";
 import type { Command, SimState } from "@/lib/types";
@@ -27,6 +27,7 @@ export type MissionPersistenceParams = {
   setPauseNotice: Dispatch<SetStateAction<string>>;
   campaignRecordedRef: MutableRefObject<boolean>;
   terminalSaveRef: MutableRefObject<boolean>;
+  saveSession: SaveSession;
 };
 
 export function useMissionPersistence({
@@ -45,11 +46,12 @@ export function useMissionPersistence({
   setPauseNotice,
   campaignRecordedRef,
   terminalSaveRef,
+  saveSession,
 }: MissionPersistenceParams) {
   const saveMissionNow = useCallback(() => {
-    const saved = writeSave(cachedLocalStorage(), stateRef.current);
-    setPauseNotice(saved ? "Mission saved." : "Unable to save: browser storage is unavailable.");
-  }, [setPauseNotice, stateRef]);
+    const status = saveSession.write(stateRef.current, "explicit");
+    setPauseNotice(status === "saved" ? "Mission saved." : "Unable to save: browser storage is unavailable.");
+  }, [saveSession, setPauseNotice, stateRef]);
 
   const loadMissionNow = useCallback(() => {
     const loaded = readSave(cachedLocalStorage(), seed);
@@ -58,6 +60,7 @@ export function useMissionPersistence({
       return;
     }
     stateRef.current = loaded;
+    saveSession.adoptCurrent();
     campaignRecordedRef.current = loaded.result === "won";
     terminalSaveRef.current = loaded.result !== "playing";
     setState({ ...loaded, entities: [...loaded.entities] });
@@ -77,6 +80,7 @@ export function useMissionPersistence({
     resetCamera,
     resetInput,
     seed,
+    saveSession,
     setPauseNotice,
     setState,
     stateRef,

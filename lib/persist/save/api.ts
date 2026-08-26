@@ -15,6 +15,7 @@ import {
   saveKey,
   decodeSave,
 } from "./serialize";
+import { compactedState } from "../../sim/world/lifecycle";
 
 export function writeSave(storage: StorageAdapter, state: SimState): boolean {
   try {
@@ -22,7 +23,7 @@ export function writeSave(storage: StorageAdapter, state: SimState): boolean {
       version: SAVE_VERSION,
       contentVersion: SAVE_CONTENT_VERSION,
       savedAt: Date.now(),
-      state,
+      state: compactedState(state),
     };
     return safeSetItem(storage, saveKey(state.seed), JSON.stringify(payload));
   } catch (err) {

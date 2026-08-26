@@ -3,6 +3,7 @@ import { SURFACE_NONE } from "../../types";
 import type { CampaignProgress, SimState, UnitKind } from "../../types";
 import { generateWorld } from "../../gen/world";
 import { expandFog } from "../../sim/fog";
+import { compactDestroyedEntities, compactedState } from "../../sim/world/lifecycle";
 import { isSupportUnit, UNIT_KINDS, UNIT_STATS } from "../../catalog";
 import {
   SAVE_CONTENT_VERSION,
@@ -81,7 +82,7 @@ export function serializeSaveExport(
     version: SAVE_EXPORT_VERSION,
     contentVersion: SAVE_CONTENT_VERSION,
     exportedAt,
-    state,
+    state: compactedState(state),
     campaign,
   };
   return JSON.stringify(envelope);
@@ -128,7 +129,7 @@ export type SaveMeta = {
 };
 
 export function serializeState(state: SimState): string {
-  return JSON.stringify(state);
+  return JSON.stringify(compactedState(state));
 }
 
 export function deserializeState(raw: string): SimState {
@@ -199,6 +200,7 @@ function normalizeState(value: unknown): SimState {
     if (e.scenarioRole === undefined && e.class === "unit" && scenarioRole && scenarioTargetIds.has(e.id)) {
       e.scenarioRole = scenarioRole;
     }
+    if (e.routePending === undefined) delete e.routePending;
   }
   if (!s.aiState) s.aiState = "economy";
   if (typeof s.aiRetreatTick !== "number" || !Number.isInteger(s.aiRetreatTick)) {
@@ -206,5 +208,6 @@ function normalizeState(value: unknown): SimState {
   }
   if (s.aiRetreatLocked !== true) delete s.aiRetreatLocked;
   delete (s as { appliedUpgrades?: unknown }).appliedUpgrades;
+  compactDestroyedEntities(s);
   return s;
 }

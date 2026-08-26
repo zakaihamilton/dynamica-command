@@ -1,7 +1,8 @@
 import { HARVEST_PER_TICK, UNIT_STATS } from "../catalog";
 import { TILE_RESOURCE } from "../types";
 import type { Entity, SimEvent, SimState } from "../types";
-import { findPath } from "./pathfinding";
+import { tryFindPathDetailed } from "./pathBudget";
+import { routePendingFor } from "./pathfinding";
 import { at, closestApproach, dist, distToEntity, living, nearest, tileAt } from "./world";
 
 const resourceIndex = new WeakMap<SimState, number[]>();
@@ -62,6 +63,11 @@ export function tickEconomy(state: SimState): SimEvent[] {
           b.constructing === 0,
       );
       if (!ref) continue;
+      const destination = closestApproach(state, e, ref);
+      if (!e.orderDestination || e.orderDestination.x !== destination.x || e.orderDestination.y !== destination.y) {
+        e.routePending = undefined;
+      }
+      e.orderDestination = destination;
       if (distToEntity(e, ref) <= 1.6) {
         const amount = e.carry;
         e.carry = 0;
@@ -69,8 +75,13 @@ export function tickEconomy(state: SimState): SimEvent[] {
         state.creditsEarned[e.owner] += amount;
         events.push({ type: "credits", owner: e.owner, amount });
         e.path = [];
-      } else if (!e.path.length) {
-        e.path = findPath(state, e, closestApproach(state, e, ref));
+        e.routePending = false;
+      } else if (!e.path.length && e.routePending !== false) {
+        const result = tryFindPathDetailed(state, e, destination);
+        if (result) {
+          e.path = result.path;
+          e.routePending = routePendingFor(result.status);
+        }
       }
       continue;
     }
@@ -84,21 +95,33 @@ export function tickEconomy(state: SimState): SimEvent[] {
       gy = n.y;
       e.gatherX = gx;
       e.gatherY = gy;
+      e.routePending = undefined;
     }
+    if (!e.orderDestination || e.orderDestination.x !== gx || e.orderDestination.y !== gy) {
+      e.routePending = undefined;
+    }
+    e.orderDestination = { x: gx, y: gy };
     if (dist(e, { x: gx, y: gy }) <= 0.6) {
       const i = at(state, gx, gy);
       const take = Math.min(HARVEST_PER_TICK, state.resourceAmount[i]!, carryMax - e.carry);
       state.resourceAmount[i]! -= take;
       e.carry += take;
       e.path = [];
+      e.routePending = false;
       if (state.resourceAmount[i]! <= 0) {
         state.tiles[i] = 0;
         e.gatherX = undefined;
         e.gatherY = undefined;
+        e.orderDestination = undefined;
+        e.routePending = undefined;
         dropResourceTile(state, i);
       }
-    } else if (!e.path.length) {
-      e.path = findPath(state, e, { x: gx, y: gy });
+    } else if (!e.path.length && e.routePending !== false) {
+      const result = tryFindPathDetailed(state, e, { x: gx, y: gy });
+      if (result) {
+        e.path = result.path;
+        e.routePending = routePendingFor(result.status);
+      }
     }
   }
   return events;
