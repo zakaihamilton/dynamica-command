@@ -3,8 +3,6 @@ import { beep } from "@/lib/audio/synth";
 import {
   cachedLocalStorage,
   readSave,
-  saveExportFilename,
-  serializeSaveExport,
   writeSave,
 } from "@/lib/persist/save";
 import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
@@ -51,25 +49,6 @@ export function useMissionPersistence({
   const saveMissionNow = useCallback(() => {
     const saved = writeSave(cachedLocalStorage(), stateRef.current);
     setPauseNotice(saved ? "Mission saved." : "Unable to save: browser storage is unavailable.");
-  }, [setPauseNotice, stateRef]);
-
-  const exportMissionNow = useCallback(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const state = stateRef.current;
-      const campaign = readCampaignProgress(cachedLocalStorage(), state.seed);
-      const payload = serializeSaveExport(state, campaign);
-      const blob = new Blob([payload], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = saveExportFilename(state.seed);
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      setPauseNotice("Save exported.");
-    } catch {
-      setPauseNotice("Unable to export: the save could not be serialized.");
-    }
   }, [setPauseNotice, stateRef]);
 
   const loadMissionNow = useCallback(() => {
@@ -152,5 +131,5 @@ export function useMissionPersistence({
     }
   }, [seed, setState, stateRef]);
 
-  return { saveMissionNow, exportMissionNow, loadMissionNow, restartMissionNow, advanceTutorial };
+  return { saveMissionNow, loadMissionNow, restartMissionNow, advanceTutorial };
 }
