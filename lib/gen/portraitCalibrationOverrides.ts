@@ -31,4 +31,7 @@ export const PORTRAIT_MOUTH_CALIBRATION_OVERRIDES: Readonly<Record<string, Portr
   "commander-09": calibration(0.55, { rx: 0.18, ry: 0.085 }),
   "commander-10": calibration(0.56, { rx: 0.18, ry: 0.09 }),
   "commander-11": calibration(0.56, { rx: 0.19, ry: 0.095 }),
+  // The viseme and collar both produce strong difference bands; keep the
+  // reviewed mouth center instead of the detector's lower false positive.
+  "enemy-leader-07": calibration(0.79, { cx: 0.513524, rx: 0.18, ry: 0.09 }),
 };

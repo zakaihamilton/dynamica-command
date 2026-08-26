@@ -133,6 +133,7 @@ describe("portrait DNA", () => {
     expect(getPortraitAsset("enemy-leader-04")?.mouthCalibration.clip.cy).toBeCloseTo(0.7);
     expect(getPortraitAsset("enemy-leader-04")?.mouthCalibration.talkOffset).toEqual({ dx: 1, dy: -3 });
     expect(getPortraitAsset("commander-12")?.mouthCalibration.clip.cy).toBeCloseTo(0.65);
+    expect(getPortraitAsset("enemy-leader-07")?.mouthCalibration.clip.cy).toBeCloseTo(0.79);
     expect(generatedLower).not.toBe(generatedUpper);
     expect(portraitMouthCalibration("missing-portrait")).toEqual(DEFAULT_PORTRAIT_MOUTH_CALIBRATION);
   });
