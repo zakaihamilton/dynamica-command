@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { findPath, findPathDetailed, PATH_MAX_NODES } from "../lib/sim/pathfinding";
+import { flowFieldFor, flowStep } from "../lib/sim/flowField";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../lib/sim/fixtures";
 import { issue, tick } from "../lib/sim/api";
 import { tickAi } from "../lib/sim/ai";
 import { tickCombat } from "../lib/sim/combat";
 import { FOREGROUND_PATHS_PER_ORDER, PATH_BUDGET_PER_TICK, backgroundPathSearches, resetPathBudget, tryFindPath } from "../lib/sim/pathBudget";
 import { groundOrders } from "../lib/sim/orders";
-import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, occupies, powerBreakdown, powerFor, terrainAccess, unitAt } from "../lib/sim/world";
+import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, compactDestroyedEntities, occupies, powerBreakdown, powerFor, terrainAccess, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
@@ -28,7 +29,7 @@ describe("pathfinding", () => {
     expect(result.path).toEqual([]);
   });
 
-  it("defers large foreground group orders and services them fairly", () => {
+  it("routes large foreground groups through one shared terrain field", () => {
     const s = makeFixture({ width: 48, height: 48, win: { kind: "harvestQuota", target: 99999 } });
     addBuilding(s, 0, "constructionYard", 0, 0);
     const units = Array.from({ length: FOREGROUND_PATHS_PER_ORDER + 6 }, (_, i) =>
@@ -42,12 +43,11 @@ describe("pathfinding", () => {
       formation: "line",
     });
 
-    const deferred = units.slice(FOREGROUND_PATHS_PER_ORDER);
-    expect(units.slice(0, FOREGROUND_PATHS_PER_ORDER).every((unit) => unit.path.length > 0)).toBe(true);
-    expect(deferred.every((unit) => unit.routePending)).toBe(true);
+    expect(units.every((unit) => unit.path.length === 0 && unit.routePending)).toBe(true);
+    expect(units.every((unit) => !!unit.flowGoal)).toBe(true);
     tick(s);
-    expect(deferred.every((unit) => !unit.routePending && unit.path.length > 0)).toBe(true);
-    expect(backgroundPathSearches()).toBe(PATH_BUDGET_PER_TICK);
+    expect(units.every((unit) => unit.x !== 3 || unit.y !== 4 || unit.path.length > 0)).toBe(true);
+    expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
   });
 
   it("marks a sealed destination unreachable without leaving a pending route", () => {
@@ -319,11 +319,29 @@ describe("pathfinding", () => {
     const a = addUnit(s, 0, "infantry", 2, 2);
     const b = addUnit(s, 0, "infantry", 2, 3);
     issue(s, { type: "move", unitIds: [a.id, b.id], x: 7, y: 3 });
-    const endA = a.path[a.path.length - 1];
-    const endB = b.path[b.path.length - 1];
-    expect(endA).toBeTruthy();
-    expect(endB).toBeTruthy();
-    expect(endA).not.toEqual(endB);
+    expect(a.flowGoal).toEqual({ x: 7, y: 3 });
+    expect(b.flowGoal).toEqual({ x: 7, y: 3 });
+    expect(a.orderDestination).not.toEqual(b.orderDestination);
+  });
+
+  it("moves a flow-field formation into distinct final slots", () => {
+    const s = makeFixture({ width: 24, height: 16, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const units = [
+      addUnit(s, 0, "infantry", 3, 4),
+      addUnit(s, 0, "infantry", 3, 5),
+      addUnit(s, 0, "infantry", 4, 4),
+      addUnit(s, 0, "infantry", 4, 5),
+    ];
+    issue(s, { type: "move", unitIds: units.map((unit) => unit.id), x: 16, y: 9, formation: "line" });
+
+    for (let i = 0; i < 500; i++) tick(s);
+
+    expect(units.every((unit) => {
+      const destination = unit.orderDestination!;
+      return Math.max(Math.abs(Math.round(unit.x) - destination.x), Math.abs(Math.round(unit.y) - destination.y)) <= 1;
+    })).toBe(true);
+    expect(new Set(units.map((unit) => `${Math.round(unit.x)},${Math.round(unit.y)}`)).size).toBe(units.length);
   });
 
   it("keeps a stored formation when the next move omits one", () => {
@@ -335,10 +353,47 @@ describe("pathfinding", () => {
     issue(s, { type: "move", unitIds: [a.id, b.id], x: 7, y: 3 });
     expect(a.formation).toBe("line");
     expect(b.formation).toBe("line");
-    const endA = a.path[a.path.length - 1]!;
-    const endB = b.path[b.path.length - 1]!;
+    const endA = a.orderDestination!;
+    const endB = b.orderDestination!;
     expect(endA.x).toBe(endB.x);
     expect(endA.y).not.toBe(endB.y);
+  });
+
+  it("builds deterministic fields around water, cliffs, and blocked goals", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "annihilate" } });
+    for (let y = 0; y < s.height; y++) setTile(s, 5, y, TILE_WATER);
+    const field = flowFieldFor(s, { x: 9, y: 5 });
+    const sameField = flowFieldFor(s, { x: 9, y: 5 });
+    expect(sameField).toBe(field);
+    expect(field.distance[5 * s.width + 2]).toBe(-1);
+    expect(flowStep(field, 8, 5)).toEqual({ x: 9, y: 5 });
+
+    const cliff = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    for (let y = 0; y < cliff.height; y++) setHeight(cliff, 3, y, 3);
+    const cliffField = flowFieldFor(cliff, { x: 6, y: 2 });
+    expect(cliffField.distance[2 * cliff.width + 1]).toBe(-1);
+
+    const blockedGoal = makeFixture({ width: 12, height: 10, win: { kind: "annihilate" } });
+    addBuilding(blockedGoal, 1, "power", 6, 4);
+    const blockedField = flowFieldFor(blockedGoal, { x: 6, y: 4 });
+    expect(blockedField.goal).not.toEqual({ x: 6, y: 4 });
+    expect(flowStep(blockedField, 2, 4)).toBeTruthy();
+  });
+
+  it("invalidates cached fields when a building footprint changes", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "annihilate" } });
+    const before = flowFieldFor(s, { x: 9, y: 4 });
+    const revision = s.navigationRevision;
+    addBuilding(s, 1, "power", 5, 4);
+    const after = flowFieldFor(s, { x: 9, y: 4 });
+    expect(s.navigationRevision).toBe(revision + 1);
+    expect(after).not.toBe(before);
+
+    const revisionAfterAdd = s.navigationRevision;
+    const building = s.entities.find((entity) => entity.class === "building" && entity.kind === "power");
+    building!.hp = 0;
+    compactDestroyedEntities(s);
+    expect(s.navigationRevision).toBe(revisionAfterAdd + 1);
   });
 });
 

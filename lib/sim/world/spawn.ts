@@ -193,6 +193,7 @@ export function spawnBuilding(
 ): Entity {
   const e = makeBuilding(state, owner, kind, x, y, constructing, marked);
   state.entities.push(e);
+  state.navigationRevision = (state.navigationRevision ?? 0) + 1;
   return e;
 }
 

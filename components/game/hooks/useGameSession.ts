@@ -102,6 +102,7 @@ export function useGameSession({
     openPauseMenu,
     resumeMission,
     saveMission: confirmation.saveMission,
+    exportMission: persistence.exportMissionNow,
     loadMission: confirmation.loadMission,
     viewMissionBriefing: routes.viewMissionBriefing,
     restartMission: confirmation.restartMission,

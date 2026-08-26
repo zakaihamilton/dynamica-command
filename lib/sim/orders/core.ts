@@ -105,6 +105,7 @@ function stopUnits(state: SimState, ids: number[]): SimEvent[] {
     e.attackTarget = undefined;
     e.orderMode = undefined;
     e.orderDestination = undefined;
+    e.flowGoal = undefined;
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.routePending = false;
@@ -147,6 +148,7 @@ function harvestUnits(state: SimState, ids: number[], x: number, y: number): Sim
     const e = byId(state, id);
     if (!e || e.kind !== "harvester" || e.owner !== 0 || e.neutral) continue;
     e.attackTarget = undefined;
+    e.flowGoal = undefined;
     e.orderMode = "move";
     e.orderDestination = { x: Math.round(x), y: Math.round(y) };
     e.gatherX = Math.round(x);
@@ -172,6 +174,7 @@ export function applyCommands(state: SimState, commands: Command[]): SimEvent[] 
 }
 
 export function setPathTo(state: SimState, e: Entity, dest: { x: number; y: number }): void {
+  e.flowGoal = undefined;
   const result = findPathDetailed(state, e, dest);
   e.path = result.path;
   e.routePending = routePendingFor(result.status);

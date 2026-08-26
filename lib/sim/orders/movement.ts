@@ -24,6 +24,7 @@ function issueTravelOrder(
   const ty = Math.round(y);
   const movers = collectMovers(state, ids, orderMode === "attackMove");
   const dests = destinationsForGroup(state, movers, tx, ty, formation);
+  const sharedFlowGoal = movers.length > 1 ? { x: tx, y: ty } : undefined;
   movers.forEach((e, index) => {
     clearSupportOrder(e);
     e.attackTarget = undefined;
@@ -32,8 +33,14 @@ function issueTravelOrder(
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
-    e.routePending = false;
     if (formation) e.formation = formation;
+    e.flowGoal = sharedFlowGoal ? { ...sharedFlowGoal } : undefined;
+    e.routePending = false;
+    if (sharedFlowGoal) {
+      e.path = [];
+      e.routePending = true;
+      return;
+    }
     if (index < FOREGROUND_PATHS_PER_ORDER) {
       const result = findPathDetailed(state, e, dests[index] ?? { x: tx, y: ty }, { maxNodes: FOREGROUND_PATH_MAX_NODES });
       e.path = result.path;

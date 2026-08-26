@@ -15,18 +15,20 @@ yarn
 yarn dev
 ```
 
-Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load and briefing. The generated sprite browser is available privately at **`/assets`**.
+Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load, portable export, and briefing. The generated sprite browser is public at **`/assets`**, with a public JSON API at **`/api/assets`**.
 
 | Script | What it does |
 | --- | --- |
 | `yarn dev` | Next.js dev server |
 | `yarn build` / `yarn start` | Production build and serve |
 | `yarn test` | Vitest (headless, no browser) |
-| `yarn test:e2e` | Playwright browser smoke test (run `yarn playwright install chromium` once) |
+| `yarn test:e2e` | Playwright browser smoke test; runs a browser preflight first |
 | `yarn inspect 0421` | Dump generated campaign JSON |
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
-| `yarn balance --from 0 --to 9 --jobs 4 --check true` | Run the competent commander through the full mission horizon with bounded worker parallelism and enforce balance thresholds. `--jobs 1` is the serial reference; omit it for a bounded CPU-based default. Nightly CI samples seed `0000`. |
+| `yarn balance --from 0 --to 9 --jobs 4 --check true` | Run the competent commander through the full mission horizon with bounded worker parallelism and enforce balance thresholds. `--jobs 1` is the serial reference; omit it for a bounded CPU-based default. Nightly CI samples seeds `0000`–`0009` (80 scenarios) with 8 workers. |
 | `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
+
+For local E2E runs, the preflight launches the same headless browser used by Playwright and reports an actionable install/path error before starting the app. Run `yarn playwright install chromium`, or point at an installed browser with `PLAYWRIGHT_CHROME_PATH=/absolute/path/to/chrome yarn test:e2e`. Ubuntu CI installs and runs the bundled Chromium as the authoritative browser environment.
 
 ## How a seed works
 
@@ -100,7 +102,7 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 
 Next.js (App Router) + TypeScript + Canvas 2D. The browser is a renderer and input adapter. **`lib/gen` and `lib/sim` import nothing from the DOM** so tests and CLIs use the same functions as the UI.
 
-The **battlefield draws sprites** (procedural specs and `public/art` rasters). CPU-projected 3D meshes (`draw3dModel`) are used for turret heads and the private Asset Bay preview lab, not for units in play.
+The **battlefield draws sprites** (procedural specs and `public/art` rasters). CPU-projected 3D meshes (`draw3dModel`) are used for turret heads and the Asset Bay preview lab, not for units in play.
 
 ```text
 app/           menu, briefing, play, tutorial, campaign, campaign-complete
@@ -115,6 +117,19 @@ lib/persist    save/load + audio settings (localStorage or in-memory)
 scripts/       inspect + headless sim
 tests/         Vitest
 ```
+
+### Public asset API
+
+The Asset Bay is intentionally public and does not require an account or API key. The browser UI is available at `/assets`; JSON consumers can use these stable routes:
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/assets` | List all generated assets; optional `category` is `unit`, `building`, `wreck`, or `rubble`. |
+| `GET /api/assets/:id` | Return metadata, dimensions, source URL, and supported directions for one catalog ID such as `unit:infantry`. |
+| `GET /api/assets/:id/preview` | Return an SVG preview; units accept `facing=0`–`7`, while buildings, wrecks, and rubble accept the default facing `0` only. |
+| `OPTIONS /api/assets` | CORS preflight for the list endpoint. |
+
+Responses advertise `apiVersion: 1`, allow cross-origin reads, and use a one-hour public cache (`Cache-Control: public, max-age=3600, s-maxage=3600`). Consumers should pin the API version and treat catalog IDs as the stable asset identifiers; a future incompatible contract will increment the version.
 
 Units, buildings, portraits, biomes, and terrain plates are **seed-tinted rasters** under `public/art`, composited with procedural specs (cliffs, wrecks, damage overlays). SFX and **background music** are generated in Web Audio from the seed. Music adapts to mission pressure, while battlefield effects are rate-limited and subtly stereo-positioned. Welcome and pause **Options** expose independent toggles and volume controls.
 

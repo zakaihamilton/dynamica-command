@@ -105,6 +105,11 @@ export function createMissionFromData(opts: {
     spawnUnit(state, 1, "tank", e.x - 4, e.y + 1);
   }
 
+  const openingGuardKinds: UnitKind[] = ["infantry", "antiArmor", "tank"];
+  for (let i = 0; i < difficulty.startingGuards; i++) {
+    spawnUnit(state, 1, openingGuardKinds[i % openingGuardKinds.length]!, e.x - 2 - (i % 3), e.y + 3 + Math.floor(i / 3));
+  }
+
   const extraGuards = Math.floor(mission.index / 2);
   for (let i = 0; i < extraGuards; i++) {
     spawnUnit(state, 1, i % 2 === 0 ? "infantry" : "antiArmor", e.x - 6 - (i % 2), e.y + 1 + i);
@@ -125,7 +130,7 @@ export function createMissionFromData(opts: {
   }
 
   if (mission.win.kind === "holdTheLine") {
-    const holdLineKinds: UnitKind[] = ["infantry", "antiArmor", "tank", "infantry"];
+    const holdLineKinds: UnitKind[] = ["infantry", "antiArmor", "tank", "infantry", "antiArmor", "tank", "infantry", "antiArmor"];
     for (let i = 0; i < difficulty.holdLineReinforcements; i++) {
       const kind = holdLineKinds[i]!;
       spawnUnit(state, 1, kind, e.x - 6 - (i % 2), e.y - (i % 3));

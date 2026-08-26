@@ -1,9 +1,5 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { createCampaign } from "@/lib/gen/campaign";
-import { generateVisualProfile } from "@/lib/gen/visualProfile";
-import type { SimState } from "@/lib/types";
 import { useCombatAlert } from "./useCombatAlert";
 import { useGameActions } from "./useGameActions";
 import { useGameAudioLifecycle } from "./useGameAudioLifecycle";
@@ -13,9 +9,9 @@ import { useGameInput } from "./useGameInput";
 import { useGameKeyboard } from "./useGameKeyboard";
 import { useGameLoop } from "./useGameLoop";
 import { useGameRenderer } from "./useGameRenderer";
-import { initialMission, useGameSession } from "./useGameSession";
+import { useGameSession } from "./useGameSession";
 import { useGameSelection } from "./useGameSelection";
-import { cachedLocalStorage, createSaveSession } from "@/lib/persist/save";
+import { useGameRuntimeState } from "./useGameRuntimeState";
 
 export function useGameRuntime({
   seed,
@@ -30,15 +26,18 @@ export function useGameRuntime({
   fresh?: boolean;
   tutorial?: boolean;
 }) {
-  const campaign = useMemo(() => createCampaign(seed), [seed]);
-  const saveSession = useMemo(() => createSaveSession(cachedLocalStorage(), seed), [seed]);
-  const playerVisualProfile = useMemo(() => generateVisualProfile(seed, 0), [seed]);
-  const [state, setState] = useState<SimState>(() => initialMission(seed, mission, resume, tutorial, fresh));
-  const stateRef = useRef<SimState>(state);
-  const hostRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const miniRef = useRef<HTMLCanvasElement>(null);
-  const mobileMiniRef = useRef<HTMLCanvasElement>(null);
+  const {
+    campaign,
+    saveSession,
+    playerVisualProfile,
+    state,
+    setState,
+    stateRef,
+    hostRef,
+    canvasRef,
+    miniRef,
+    mobileMiniRef,
+  } = useGameRuntimeState({ seed, mission, resume, fresh, tutorial });
   const chrome = useGameChrome(state.result);
   const {
     mobileSheetOpen,

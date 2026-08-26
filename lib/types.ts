@@ -154,6 +154,8 @@ export type Entity = {
   scenarioRole?: ScenarioRole;
   orderMode?: OrderMode;
   orderDestination?: Vec2;
+  /** Shared terrain destination for group flow-field routing. */
+  flowGoal?: Vec2;
   stance?: Stance;
   suppression?: number;
   armor?: ArmorType;
@@ -380,6 +382,8 @@ export type SimState = {
   aiRetreatTick?: number;
   /** After a timed-out retreat, stay out until average HP recovers to the leave threshold. */
   aiRetreatLocked?: boolean;
+  /** Increments whenever a building footprint changes the static navigation grid. */
+  navigationRevision: number;
 };
 
 export type Command =

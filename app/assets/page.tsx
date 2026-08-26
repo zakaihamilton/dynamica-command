@@ -6,7 +6,7 @@ const ASSET_BAY_PALETTE = generateFactions(421)[0].palette;
 
 export const metadata: Metadata = {
   title: "Asset Bay | Genesis Protocol",
-  description: "Private generated asset browser.",
+  description: "Public generated asset browser and preview API.",
   robots: {
     index: false,
     follow: false,

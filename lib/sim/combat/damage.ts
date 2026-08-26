@@ -56,6 +56,7 @@ export function strike(
 }
 
 export function chase(state: SimState, e: Entity, target: Entity): void {
+  e.flowGoal = undefined;
   const dest = target.class === "building" ? closestApproach(state, e, target) : target;
   const end = pathDest(e.path);
   const stale = !end || Math.hypot(end.x - dest.x, end.y - dest.y) > 1.25;
@@ -70,6 +71,7 @@ export function chase(state: SimState, e: Entity, target: Entity): void {
 
 export function resumeAttackMove(state: SimState, e: Entity): void {
   if (e.orderMode !== "attackMove" || !e.orderDestination) {
+    e.flowGoal = undefined;
     e.idle = true;
     return;
   }

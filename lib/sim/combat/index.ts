@@ -18,6 +18,7 @@ export function tickCombat(state: SimState): SimEvent[] {
       e.attackTarget = undefined;
       e.path = [];
       e.routePending = false;
+      e.flowGoal = undefined;
       e.orderMode = undefined;
       e.orderDestination = undefined;
       e.idle = true;
@@ -40,6 +41,7 @@ export function tickCombat(state: SimState): SimEvent[] {
         if (d <= st.range) {
           e.path = [];
           e.routePending = false;
+          e.flowGoal = undefined;
           if (lineOfSight(state, e, assigned)) {
             strike(state, e, assigned, st, rng, events, pending);
           } else {
@@ -58,6 +60,7 @@ export function tickCombat(state: SimState): SimEvent[] {
             e.attackTarget = intercept.id;
             e.path = [];
             e.routePending = false;
+            e.flowGoal = undefined;
             strike(state, e, intercept, st, rng, events, pending);
           } else {
             chase(state, e, assigned);
@@ -74,6 +77,7 @@ export function tickCombat(state: SimState): SimEvent[] {
           e.attackTarget = visible.id;
           e.path = [];
           e.routePending = false;
+          e.flowGoal = undefined;
           if (distToEntity(e, visible) <= st.range) {
             strike(state, e, visible, st, rng, events, pending);
             if (e.attackTarget === undefined) resumeAttackMove(state, e);

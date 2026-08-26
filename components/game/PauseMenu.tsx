@@ -15,6 +15,7 @@ export function PauseMenu({
   missionIndex,
   onResume,
   onSave,
+  onExport = () => {},
   onLoad,
   onBriefing,
   onRestart,
@@ -34,6 +35,7 @@ export function PauseMenu({
   missionIndex: number;
   onResume: () => void;
   onSave: () => void;
+  onExport?: () => void;
   onLoad: () => void;
   onBriefing: () => void;
   onRestart: () => void;
@@ -56,6 +58,7 @@ export function PauseMenu({
             <PauseMainMenu
               onResume={onResume}
               onSave={onSave}
+              onExport={onExport}
               onLoad={onLoad}
               onBriefing={onBriefing}
               onRestart={onRestart}

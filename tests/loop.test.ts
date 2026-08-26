@@ -99,4 +99,21 @@ describe("startLoop", () => {
     expect(state.tick).toBe(0);
     loop.stop();
   });
+
+  it("makes loop cleanup idempotent", () => {
+    const raf = vi.fn(() => 1);
+    const cancel = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", raf);
+    vi.stubGlobal("cancelAnimationFrame", cancel);
+    const loop = startLoop({
+      getState: () => createMission({ seed: 421, missionIndex: 0 }),
+      setState: () => undefined,
+      drainCommands: () => [],
+    });
+
+    loop.stop();
+    loop.stop();
+
+    expect(cancel).toHaveBeenCalledOnce();
+  });
 });

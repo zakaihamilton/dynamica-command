@@ -6,6 +6,7 @@ export function createBaseState(
 ): SimState {
   return {
     tick: 0,
+    navigationRevision: 0,
     entities: [],
     nextId: 1,
     creditsEarned: [0, 0],

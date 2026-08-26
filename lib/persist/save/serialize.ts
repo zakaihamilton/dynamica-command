@@ -145,6 +145,7 @@ function normalizeState(value: unknown): SimState {
     throw new Error("Invalid save state");
   }
   const s = value as unknown as SimState;
+  if (!Number.isInteger(s.navigationRevision) || s.navigationRevision < 0) s.navigationRevision = 0;
   if (!s.heights || s.heights.length !== s.width * s.height) {
     s.heights = new Array(s.width * s.height).fill(1);
   }

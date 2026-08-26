@@ -29,7 +29,8 @@ export function assignSupportTarget(state: SimState, provider: Entity, target: E
   if (!canSupportEntity(provider, target)) return;
   provider.supportTargetId = target.id;
   provider.supportMode = "assigned";
-  provider.attackTarget = undefined;
+    provider.attackTarget = undefined;
+  provider.flowGoal = undefined;
   provider.orderMode = "move";
   provider.orderDestination = { x: target.x, y: target.y };
   provider.gatherX = undefined;
@@ -47,6 +48,7 @@ export function assignSupportTarget(state: SimState, provider: Entity, target: E
 
 function clearSupportRoute(provider: Entity): void {
   provider.supportTargetId = undefined;
+  provider.flowGoal = undefined;
   provider.routePending = false;
   provider.path = [];
   provider.orderMode = undefined;
@@ -65,7 +67,7 @@ export function tickSupport(state: SimState): SimEvent[] {
     const mode = provider.supportMode ?? "auto";
     provider.supportMode = mode;
     if (provider.cooldown > 0) provider.cooldown -= 1;
-    provider.attackTarget = undefined;
+  provider.attackTarget = undefined;
 
     if (mode === "hold") continue;
 
@@ -90,6 +92,7 @@ export function tickSupport(state: SimState): SimEvent[] {
       !provider.orderDestination ||
       Math.hypot(provider.orderDestination.x - target.x, provider.orderDestination.y - target.y) > 1;
     provider.supportTargetId = target.id;
+    provider.flowGoal = undefined;
     provider.orderMode = "move";
     provider.orderDestination = { x: target.x, y: target.y };
     provider.gatherX = undefined;

@@ -7,6 +7,7 @@ import { rotatedSpriteBounds } from "./spriteBounds";
 import type { Facing, ShapeSpec, SpriteSpec } from "../types";
 
 export const ASSET_API_VERSION = 1;
+export const ASSET_API_CATEGORIES = ["unit", "building", "wreck", "rubble"] as const;
 export const ASSET_API_HEADERS = {
   "Cache-Control": "public, max-age=3600, s-maxage=3600",
   "Access-Control-Allow-Origin": "*",

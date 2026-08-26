@@ -6,6 +6,10 @@ export function compactDestroyedEntities(state: SimState): number {
   );
   if (removedIds.size === 0) return 0;
 
+  if (state.entities.some((entity) => entity.hp <= 0 && entity.class === "building")) {
+    state.navigationRevision = (state.navigationRevision ?? 0) + 1;
+  }
+
   for (const entity of state.entities) {
     if (entity.hp <= 0) continue;
     clearDeadReferences(entity, removedIds);

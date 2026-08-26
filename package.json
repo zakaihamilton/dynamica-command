@@ -15,7 +15,7 @@
     "balance": "tsx scripts/balance.ts",
     "compress-art": "tsx scripts/compress-art.ts",
     "calibrate-portraits": "tsx scripts/calibrate-portraits.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "tsx scripts/e2e-preflight.ts && playwright test",
     "health": "repnix check",
     "health:dead-code": "knip",
     "health:duplication": "jscpd app components lib scripts",

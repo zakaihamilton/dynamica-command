@@ -14,6 +14,7 @@ export function attackUnits(state: SimState, ids: number[], targetId: number): S
     if (!e || !isUnitEntity(e) || e.owner !== 0 || e.neutral) continue;
     if (e.kind === "harvester" || isSupportUnit(e.kind)) continue;
     e.attackTarget = targetId;
+    e.flowGoal = undefined;
     e.orderMode = "attack";
     e.orderDestination = { x: target.x, y: target.y };
     e.gatherX = undefined;

@@ -12,6 +12,7 @@ export function enemyCombat(state: SimState): Entity[] {
 
 export function sendHome(state: SimState, unit: Entity, yard: Entity): void {
   unit.attackTarget = undefined;
+  unit.flowGoal = undefined;
   unit.orderMode = "move";
   unit.orderDestination = { x: yard.x, y: yard.y };
   unit.idle = false;
@@ -26,6 +27,7 @@ export function sendHome(state: SimState, unit: Entity, yard: Entity): void {
 
 export function assignAttack(state: SimState, unit: Entity, target: Entity): void {
   unit.attackTarget = target.id;
+  unit.flowGoal = undefined;
   unit.orderMode = "attack";
   unit.orderDestination = { x: target.x, y: target.y };
   unit.idle = false;
@@ -40,6 +42,7 @@ export function assignAttack(state: SimState, unit: Entity, target: Entity): voi
 
 export function assignMove(state: SimState, unit: Entity, destination: { x: number; y: number }): void {
   unit.attackTarget = undefined;
+  unit.flowGoal = undefined;
   unit.orderMode = "move";
   unit.orderDestination = { x: destination.x, y: destination.y };
   unit.idle = false;

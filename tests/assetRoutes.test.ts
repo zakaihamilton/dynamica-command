@@ -25,11 +25,13 @@ describe("GET /api/assets", () => {
     const body = await response.json() as {
       apiVersion: number;
       name: string;
+      categories: string[];
       count: number;
       assets: Array<{ id: string; metadataUrl: string; previewUrl: string }>;
     };
     expect(body.apiVersion).toBe(ASSET_API_VERSION);
     expect(body.name).toBe("Genesis Protocol Asset Bay");
+    expect(body.categories).toEqual(["unit", "building", "wreck", "rubble"]);
     expect(body.count).toBe(listGeneratedAssets().length);
     expect(body.assets).toHaveLength(body.count);
     expect(body.assets[0]?.metadataUrl).toContain("/api/assets/");
@@ -52,8 +54,9 @@ describe("GET /api/assets", () => {
   it("answers OPTIONS with the allowed methods", () => {
     const response = OPTIONS();
     expect(response.status).toBe(200);
-    expect(response.headers.get("Allow")).toBe("GET, OPTIONS");
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Cache-Control")).toContain("max-age=3600");
+    expect(response.headers.get("Allow")).toBe("GET, OPTIONS");
   });
 });
 
@@ -61,6 +64,7 @@ describe("GET /api/assets/:id", () => {
   it("returns one catalog item", async () => {
     const response = await getAsset(request("/api/assets/unit:infantry"), assetContext("unit:infantry"));
     expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     const body = await response.json() as { apiVersion: number; asset: { id: string; render: { supportsFacing: boolean } } };
     expect(body.apiVersion).toBe(ASSET_API_VERSION);
     expect(body.asset.id).toBe("unit:infantry");
@@ -88,6 +92,7 @@ describe("GET /api/assets/:id/preview", () => {
       assetContext("unit:medic"),
     );
     expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(response.headers.get("Content-Type")).toContain("image/svg+xml");
     const svg = await response.text();
     expect(svg).toContain("<svg");
@@ -107,6 +112,13 @@ describe("GET /api/assets/:id/preview", () => {
     );
     expect(buildingFacing.status).toBe(400);
     expect(await buildingFacing.json()).toEqual({ error: "This asset does not support directional previews" });
+
+    const fractionalFacing = await getPreview(
+      request("/api/assets/unit:infantry/preview?facing=1.5"),
+      assetContext("unit:infantry"),
+    );
+    expect(fractionalFacing.status).toBe(400);
+    expect(await fractionalFacing.json()).toEqual({ error: "facing must be an integer from 0 to 7" });
   });
 
   it("redirects raster building previews to the art plate", async () => {
@@ -115,6 +127,8 @@ describe("GET /api/assets/:id/preview", () => {
       assetContext("building:power"),
     );
     expect(response.status).toBe(307);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Cache-Control")).toContain("max-age=3600");
     expect(response.headers.get("Location")).toMatch(/\/art\/sprites\/.+\.webp$/);
   });
 });

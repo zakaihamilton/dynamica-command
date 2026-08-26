@@ -50,6 +50,9 @@ export function tickEconomy(state: SimState): SimEvent[] {
   const events: SimEvent[] = [];
   for (const e of living(state)) {
     if (e.kind !== "harvester" || e.hp <= 0) continue;
+    // Harvesters use their economy assignment rather than a player group
+    // flow field once the economy loop takes control of their route.
+    e.flowGoal = undefined;
     const carryMax = UNIT_STATS.harvester.carryMax;
     const shouldReturnToRefinery = e.carry >= carryMax || (e.carry > 0 && !nearestResource(state, e));
     if (shouldReturnToRefinery) {

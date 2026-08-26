@@ -91,6 +91,7 @@ export function startLoop({
   raf = requestAnimationFrame(frame);
   return {
     stop() {
+      if (stopped) return;
       stopped = true;
       cancelAnimationFrame(raf);
       if (addWindowListener) {

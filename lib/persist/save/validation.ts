@@ -103,6 +103,7 @@ export function isEntity(value: unknown): value is Entity {
   if (value.scenarioRole !== undefined && !isOneOf(value.scenarioRole, SCENARIO_ROLES)) return false;
   if (value.orderMode !== undefined && !isOneOf(value.orderMode, ORDER_MODES)) return false;
   if (value.orderDestination !== undefined && !isVec2(value.orderDestination)) return false;
+  if (value.flowGoal !== undefined && !isVec2(value.flowGoal)) return false;
   if (value.stance !== undefined && !isOneOf(value.stance, STANCES)) return false;
   if (value.suppression !== undefined && !isNonNegativeNumber(value.suppression)) return false;
   if (value.armor !== undefined && !isOneOf(value.armor, ARMOR_TYPES)) return false;
@@ -165,6 +166,7 @@ export function isStateShape(value: unknown): value is SimState {
   const height = value.height;
   if (!isIntegerInRange(width, 1, 256) || !isIntegerInRange(height, 1, 256) || width * height > 256 * 256) return false;
   if (!isIntegerInRange(value.seed, 0, 9999) || !isIntegerInRange(value.missionIndex, 0, 7) || !isIntegerInRange(value.tick, 0, Number.MAX_SAFE_INTEGER)) return false;
+  if (!isIntegerInRange(value.navigationRevision, 0, Number.MAX_SAFE_INTEGER)) return false;
   if (!Array.isArray(value.tiles) || value.tiles.length !== width * height || !value.tiles.every((tile) => typeof tile === "number" && TILE_KINDS.includes(tile as typeof TILE_KINDS[number]))) return false;
   if (!Array.isArray(value.heights) || value.heights.length !== width * height || !value.heights.every(isFiniteNumber)) return false;
   if (!Array.isArray(value.surfaces) || value.surfaces.length !== width * height || !value.surfaces.every((surface) => typeof surface === "number" && SURFACE_KINDS.includes(surface as typeof SURFACE_KINDS[number]))) return false;

@@ -135,6 +135,12 @@ describe("persist", () => {
     expect(new Set(loaded.surfaces)).toEqual(new Set([0]));
   });
 
+  it("normalizes navigation revisions for saves written before flow routing", () => {
+    const raw = JSON.parse(serializeState(makeFixture({ seed: 77, win: { kind: "annihilate" } }))) as { navigationRevision?: number };
+    delete raw.navigationRevision;
+    expect(deserializeState(JSON.stringify(raw)).navigationRevision).toBe(0);
+  });
+
   it("backfills zeroed loss counters in legacy saves", () => {
     const legacy = JSON.parse(serializeState(makeFixture({ seed: 77, win: { kind: "annihilate" } }))) as { losses?: unknown };
     delete legacy.losses;

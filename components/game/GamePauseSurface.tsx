@@ -31,6 +31,7 @@ export function GamePauseSurface({
       missionIndex={missionIndex}
       onResume={session.resumeMission}
       onSave={session.saveMission}
+      onExport={session.exportMission}
       onLoad={session.loadMission}
       onBriefing={session.viewMissionBriefing}
       onRestart={session.restartMission}

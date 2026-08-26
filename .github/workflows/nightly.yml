@@ -21,4 +21,4 @@ jobs:
         continue-on-error: true
       - run: yarn health:performance
       - run: yarn health:duplication
-      - run: yarn balance --from 0 --to 0 --check true --progress false
+      - run: yarn balance --from 0 --to 9 --jobs 8 --check true --progress false

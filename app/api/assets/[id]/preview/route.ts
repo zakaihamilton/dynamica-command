@@ -14,7 +14,13 @@ export const GET = withAssetRoute((asset, request) => {
 
   const spec = assetPreviewSpec(asset, facing as Facing);
   if (spec.imageSrc && asset.category !== "unit") {
-    return Response.redirect(new URL(spec.imageSrc, request.url), 307);
+    return new Response(null, {
+      status: 307,
+      headers: {
+        ...ASSET_API_HEADERS,
+        Location: new URL(spec.imageSrc, request.url).toString(),
+      },
+    });
   }
 
   const svgContent = spec.svg ?? spriteSpecToSvg(spec, spec.imageSrc ? new URL(spec.imageSrc, request.url).toString() : undefined);

@@ -3,6 +3,8 @@ import { beep } from "@/lib/audio/synth";
 import {
   cachedLocalStorage,
   readSave,
+  saveExportFilename,
+  serializeSaveExport,
 } from "@/lib/persist/save";
 import type { SaveSession } from "@/lib/persist/save";
 import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
@@ -10,6 +12,7 @@ import { createMission } from "@/lib/sim/api";
 import type { Command, SimState } from "@/lib/types";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { FxBurst } from "@/lib/render/fx";
+import { downloadSaveExport } from "@/lib/persist/saveDownload";
 
 export type MissionPersistenceParams = {
   seed: number;
@@ -52,6 +55,18 @@ export function useMissionPersistence({
     const status = saveSession.write(stateRef.current, "explicit");
     setPauseNotice(status === "saved" ? "Mission saved." : "Unable to save: browser storage is unavailable.");
   }, [saveSession, setPauseNotice, stateRef]);
+
+  const exportMissionNow = useCallback(() => {
+    try {
+      const current = stateRef.current;
+      const campaign = readCampaignProgress(cachedLocalStorage(), seed);
+      const contents = serializeSaveExport(current, campaign);
+      downloadSaveExport(contents, saveExportFilename(seed));
+      setPauseNotice("Save export downloaded.");
+    } catch {
+      setPauseNotice("Unable to export save: browser downloads are unavailable.");
+    }
+  }, [seed, setPauseNotice, stateRef]);
 
   const loadMissionNow = useCallback(() => {
     const loaded = readSave(cachedLocalStorage(), seed);
@@ -135,5 +150,5 @@ export function useMissionPersistence({
     }
   }, [seed, setState, stateRef]);
 
-  return { saveMissionNow, loadMissionNow, restartMissionNow, advanceTutorial };
+  return { saveMissionNow, exportMissionNow, loadMissionNow, restartMissionNow, advanceTutorial };
 }
