@@ -116,6 +116,16 @@ test("opens the operations map and launches an available mission", async ({ page
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
 });
 
+test("returns from the operations map with Escape", async ({ page }) => {
+  await markTutorialComplete(page);
+  await page.goto("/campaign?seed=0421");
+
+  await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await expect(page).toHaveURL(/\/$/);
+});
+
 test("exposes Field Medic production on the first mission", async ({ page }) => {
   const state = createMission({ seed: 421, missionIndex: 0 });
   const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
