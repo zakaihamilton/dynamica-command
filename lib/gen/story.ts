@@ -115,6 +115,38 @@ export function missionObjectives(
   ];
 }
 
+/**
+ * FNV-1a over a short key: picks deterministic dialogue variants so two
+ * missions of one campaign rarely open identically without needing an RNG
+ * threaded through campaign generation.
+ */
+function variantIndex(key: string, mod: number): number {
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % mod;
+}
+
+const ADVISOR_LEADS = [
+  "Recon is in.",
+  "Signal intercepts just confirmed it.",
+  "Survey teams finished their sweep.",
+  "Long-range scans cleared an hour ago.",
+  "Here is the tactical picture.",
+  "Forward observers checked in early.",
+];
+
+const COMMANDER_ACKS = [
+  (analyst: string) => `${analyst} has the measure of it.`,
+  (analyst: string) => `I share ${analyst}'s read.`,
+  (analyst: string) => `${analyst} sees what I see.`,
+  (analyst: string) => `Confirmed — and ${analyst} understates it.`,
+  (analyst: string) => `${analyst} is right on every count.`,
+  (analyst: string) => `That matches ${analyst}'s assessment.`,
+];
+
 export function generateBriefing(
   campaign: Pick<Campaign, "world" | "factions" | "characters">,
   mission: Pick<MissionDef, "name" | "win" | "index" | "biome">,
@@ -127,103 +159,106 @@ export function generateBriefing(
   const you = characterLabel(commander);
   const foe = characterLabel(enemyLeader);
   const win = mission.win;
+  const pick = (mod: number) => variantIndex(`${mission.index}:${win.kind}:${place}`, mod);
+  const lead = ADVISOR_LEADS[pick(ADVISOR_LEADS.length)]!;
+  const ack = COMMANDER_ACKS[pick(COMMANDER_ACKS.length)]!(analyst);
 
   const report = (() => {
     switch (win.kind) {
       case "harvestQuota":
-        return `${you}, ${place} still has ore in the ground. Get ${win.target} credits out before the ${them.name} cuts us off. ${foe} is already in the ${biome}.`;
+        return `Our geologists count ${win.target} credits still in the ground under ${place}. ${foe} has scouts working the ${biome}, and the ${them.name} intends to starve this field before we load a single harvester.`;
       case "forceQuota":
-        return `${you}, we don't have enough troops at ${place}. Train ${win.target} ${win.role ? countedLabel(win.role, win.target ?? 0) : "combat units"} or we lose this. The ${them.name} is already building up.`;
+        return `Headcounts put us light against the ${them.name} buildup in the ${biome}. We need ${win.target} ${win.role ? countedLabel(win.role, win.target ?? 0) : "combat units"} in the field soon — ${foe} recruits faster than we do.`;
       case "structureQuota":
-        return `${you}, lock down ${place}. We need ${win.target} ${win.building ? countedLabel(win.building, win.target ?? 0) : "structures"} up before the ${them.name} pushes through the ${biome}.`;
+        return `${place} is open ground right now, but not for long. Survey calls for ${win.target} ${win.building ? countedLabel(win.building, win.target ?? 0) : "structures"}, sited before the ${them.name} arrives in strength through the ${biome}. Every foundation gets more expensive once ${foe} commits.`;
       case "destroyMarked":
-        return `${you}, we marked ${win.targetCount ?? 1} high-value structures on ${place}. Take them out and the ${them.name} line breaks.`;
+        return `We painted ${win.targetCount ?? 1} high-value structures inside the enemy perimeter at ${place}. Kill them and the ${them.name} line folds. ${foe} knows we know — expect layered defenses.`;
       case "razeAll":
-        return `${you}, don't occupy. Burn every ${them.name} building on ${place}. ${foe} does not keep the ${biome}.`;
+        return `No occupation this time. The ${them.name} built hard across ${place}; command wants every structure gone. Leave ${foe} nothing worth garrisoning in the ${biome}.`;
       case "decapitate":
-        return `${you}, find the ${them.name} construction yard and destroy it. Without it, ${foe} can't hold ${place}.`;
+        return `Every ${them.name} operation routes through a single construction yard under ${foe}'s banner in the ${biome}. Find it and cut it out of ${place} — without it they cannot rebuild.`;
       case "annihilate":
-        return `${you}, wipe the ${them.name} off ${place}. No units. No buildings.`;
+        return `This ends at ${place}. Every ${them.name} unit, every structure — gone from the ${biome}. ${foe} does not get a second base or a third chance.`;
       case "holdTheLine":
-        return `${you}, hold ${place} for ${holdDurationLabel(win.ticks ?? 0)}. Stay alive. Don't give ${foe} the ${biome}.`;
+        return `${foe} is massing for a full push on ${place}. If we stand for ${holdDurationLabel(win.ticks ?? 0)}, their advance dies in the ${biome}. Expect everything they have left.`;
       case "escort":
-        return `${you}, escort ${win.targetCount ?? 1} convoy units through ${place}. ${foe} will try to cut the route. Keep the construction yard standing.`;
+        return `A supply convoy crosses ${place} — ${win.targetCount ?? 1} slow movers through ambush country. ${foe} hunts soft targets first, and the ${biome} offers endless killing lanes.`;
       case "sabotage":
-        return `${you}, sabotage ${win.targetCount ?? 1} enemy systems in ${place}. ${foe} is protecting the construction yard, so move fast.`;
+        return `${foe} runs ${win.targetCount ?? 1} hardened systems beneath ${place}: comms, power, munitions. Drop all of them before the deadline and the ${them.name} goes blind in the ${biome}.`;
       case "rescue":
-        return `${you}, rescue ${win.targetCount ?? 1} stranded units from ${place}. ${foe} is sweeping the area. Protect the construction yard.`;
+        return `Survivors are broadcasting from the ${biome} — ${win.targetCount ?? 1} of ours at ${place}, scattered but alive. ${foe}'s sweeps close by the hour.`;
       case "extraction":
-        return `${you}, extract ${win.targetCount ?? 1} assets from ${place}. ${foe} is closing the route. Keep the construction yard standing.`;
+        return `Our assets at ${place} are packed and ready — ${win.targetCount ?? 1} crates that cannot reach ${them.name} hands. Pull them out before ${foe} seals the corridor.`;
       default:
-        return `${you}, the ${us.name} must ${objectivePhrase(win)}.`;
+        return `The ${them.name} holds the ${biome}, and ${foe} means to keep it. ${us.name} command requires that we ${objectivePhrase(win)} before they finish digging in.`;
     }
   })();
 
   const orders = (() => {
     switch (win.kind) {
       case "harvestQuota":
-        return `${analyst} is right. Get the ore out before ${foe} does. If the construction yard goes down, we're done.`;
+        return `Then the ore comes out first. Get your harvesters rolling, screen the refineries, and keep the construction yard protected — no ore, no war.`;
       case "forceQuota":
-        return `${analyst} is right. Train the units. Keep the construction yard up while they come online. ${foe} is already recruiting.`;
+        return `Then we out-produce them. Train those units fast, cover the construction yard while they come online, and make ${foe} pay for every probe against your lines.`;
       case "structureQuota":
-        return `${analyst} is right. Get those buildings up. Protect the construction yard — if it falls, the base is gone. ${foe} won't wait.`;
+        return `Break ground now. I want those structures up before the ${them.name} crests the ridge, turrets covering the approaches, and the construction yard defended around the clock.`;
       case "destroyMarked":
-        return `${analyst} marked the targets. Hit them. Don't lose the construction yard to ${foe} while you do it.`;
+        return `Strike the marked targets hard and fast — in, out, done. Keep the construction yard standing while you do it. Losing it loses ${place}.`;
       case "razeAll":
-        return `${analyst} is clear. Flatten ${foe}'s base. Ours stays up — starting with the construction yard.`;
+        return `Total demolition, then. Nothing of theirs stays upright across ${place}. Ours stays up — starting with the construction yard.`;
       case "decapitate":
-        return `${analyst} found the opening. Hit ${foe}'s yard. Protect ours.`;
+        return `One target matters. Their construction yard falls today — cut the head off and the rest is cleanup at ${place}. Guard ours until then.`;
       case "annihilate":
-        return `${analyst} is right. Wipe ${foe} out. The construction yard does not fall.`;
+        return `Understood. Nothing walks away and nothing stands. Shield the construction yard while you finish the ${them.name} off.`;
       case "holdTheLine":
-        return `${analyst} has the timer. We hold against ${foe}. Keep the construction yard up until time runs out.`;
+        return `Then we plant our boots. The line holds for ${holdDurationLabel(win.ticks ?? 0)} — not a second less — and the construction yard holds with it.`;
       case "escort":
-        return `${analyst} marked the convoy route. Keep the escorts alive and reach extraction. ${foe} will hunt the convoy. Protect the construction yard.`;
+        return `The convoy reaches extraction. Screen the route, keep escorts tight, and cover the construction yard until the last wheel clears ${place}.`;
       case "sabotage":
-        return `${analyst} has the enemy systems mapped. Hit them before ${foe} closes the window. Protect the construction yard.`;
+        return `Quiet work, loud exit. All of those systems go dark before the deadline — and if the construction yard is threatened, the yard wins.`;
       case "rescue":
-        return `${analyst} found survivors in the ${biome}. Bring them home before the line collapses. ${foe} is sweeping the construction yard.`;
+        return `We bring our people home. Fast in, faster out — and the construction yard stays untouchable until they are aboard.`;
       case "extraction":
-        return `${analyst} has the payload route. Secure the assets and bring them back to our construction yard. Keep the yard standing.`;
+        return `Load everything. Nothing of ours stays on ${place} for ${foe} to catalogue. The construction yard stands until the last lift clears.`;
       default:
-        return `${analyst} is clear. Don't lose the construction yard to ${foe}.`;
+        return `Proceed as briefed. Protect the construction yard, complete the objective, and give ${foe} no openings. Good hunting.`;
     }
   })();
 
   const taunt = (() => {
     switch (win.kind) {
       case "harvestQuota":
-        return `The ore on ${place} belongs to the ${them.name}. ${you} will leave empty-handed.`;
+        return `Ore flows to the strong, ${you}. The ${them.name} claims this field — roll your harvesters out and watch them burn.`;
       case "forceQuota":
-        return `Train all you want, ${you}. The ${them.name} already owns the ${biome}.`;
+        return `Count your new recruits twice, ${you}. The ${biome} has swallowed better armies than the one you are assembling.`;
       case "structureQuota":
-        return `Build your base. The ${them.name} will tear it down. ${you} won't keep ${place}.`;
+        return `Raise your little fortress, ${you}. Fixed defenses only give ${foe} something to aim at.`;
       case "destroyMarked":
-        return `Those structures aren't yours. Come die in the ${biome}, ${you}.`;
+        return `Come for the painted structures by all means, ${you}. The ${biome} is generous with graves.`;
       case "razeAll":
-        return `Burn what you can, ${you}. The ${them.name} still holds ${place}.`;
+        return `Burn whatever you can reach, ${you}. The ${them.name} buries arsonists where they stand.`;
       case "decapitate":
-        return `You won't reach our construction yard, ${you}. The ${biome} will bury you.`;
+        return `Our construction yard sits behind three lines of steel, ${you}. Bring a map. You will want it for the retreat.`;
       case "annihilate":
-        return `You want total war, ${you}? The ${them.name} will finish it. Stay off ${place}.`;
+        return `You want everything dead, ${you}? Bold words from someone so exposed. The ${them.name} digs graves in pairs.`;
       case "holdTheLine":
-        return `Hold as long as you want, ${you}. The ${them.name} can wait. ${place} is already ours.`;
+        return `Dig in all you like, ${you}. Time fights for the ${them.name}. When the clock runs down, the ${biome} belongs to ${foe}.`;
       case "escort":
-        return `The convoy will not leave ${place}, ${you}. The ${them.name} owns the route and your construction yard will fall.`;
+        return `Your convoy rolls into a shooting gallery, ${you}. ${foe} collects its tolls in wrecks.`;
       case "sabotage":
-        return `Touch our systems and the ${them.name} will answer, ${you}. Your construction yard cannot hide you.`;
+        return `Sneak, crawl, cut wires — it changes nothing, ${you}. ${foe}'s systems bite back, and my crews are waiting.`;
       case "rescue":
-        return `Your stranded units belong to the ${them.name}, ${you}. We will surround your construction yard next.`;
+        return `Faint signals in the dark, ${you}. Your people stopped answering hours ago, and ${foe} sweeps closer every hour you delay.`;
       case "extraction":
-        return `You will not extract anything from ${place}, ${you}. The ${them.name} will leave your construction yard in ruins.`;
+        return `Run with your cargo, ${you}. The corridor out of ${place} closes soon — and it closes on whatever is still inside.`;
       default:
-        return `The ${them.name} already holds the ${biome}. ${you} won't take ${place}.`;
+        return `The ${biome} already flies ${them.name} colors, ${you}. Pray your retreat outruns your advance.`;
     }
   })();
 
   return [
-    { speaker: "advisor", text: report },
-    { speaker: "commander", text: orders },
+    { speaker: "advisor", text: `${lead} ${report}` },
+    { speaker: "commander", text: `${ack} ${orders}` },
     { speaker: "enemyLeader", text: taunt },
   ];
 }

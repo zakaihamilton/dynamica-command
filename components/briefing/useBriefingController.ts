@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { formatSeed } from "@/lib/seed/rng";
 import { briefingCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
@@ -10,7 +10,6 @@ export function useBriefingController({
   isComplete,
   replayTransmission,
   skipToEnd,
-  cancelSpeech,
 }: {
   seed: number;
   mission: number;
@@ -18,10 +17,8 @@ export function useBriefingController({
   isComplete: boolean;
   replayTransmission: () => void;
   skipToEnd: () => void;
-  cancelSpeech: () => void;
 }) {
   const router = useRouter();
-  const [soundtrackOpen, setSoundtrackOpen] = useState(false);
 
   const launch = useCallback(() => {
     router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : ""}`);
@@ -37,7 +34,6 @@ export function useBriefingController({
       if (!command) return;
       e.preventDefault();
       if (command.type === "skip") {
-        cancelSpeech();
         skipToEnd();
         return;
       }
@@ -49,12 +45,9 @@ export function useBriefingController({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelSpeech, isComplete, launch, replayTransmission, returnToGame, skipToEnd]);
+  }, [isComplete, launch, replayTransmission, returnToGame, skipToEnd]);
 
   return {
     launch,
-    soundtrackOpen,
-    openSoundtrack: () => setSoundtrackOpen(true),
-    closeSoundtrack: () => setSoundtrackOpen(false),
   };
 }

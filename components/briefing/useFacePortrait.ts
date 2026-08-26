@@ -6,7 +6,7 @@ import {
   PORTRAIT_MEASURE_WIDTH,
   PORTRAIT_MOUTH_CLIP,
   PORTRAIT_OFFSET_NONE,
-  resolvePortraitAnimation,
+  resolvePortraitBlinkAlignment,
   type PortraitClip,
   type PortraitOffset,
 } from "@/lib/render/portraits";
@@ -48,8 +48,8 @@ export function useFacePortrait(portraitId: string): FacePortrait {
       imageRef.current = image;
       loadedIdRef.current = portraitId;
       const measured = measureLoadedPortraitOffsets(image, asset);
-      offsetsRef.current = { blink: measured.blink, talk: measured.talk };
-      mouthClipRef.current = measured.mouthClip;
+      offsetsRef.current = { blink: measured.blink, talk: asset.mouthCalibration.talkOffset };
+      mouthClipRef.current = asset.mouthCalibration.clip;
     };
     image.onload = () => {
       if (typeof image.decode === "function") {
@@ -81,11 +81,7 @@ export function useFacePortrait(portraitId: string): FacePortrait {
 }
 
 function measureLoadedPortraitOffsets(image: HTMLImageElement, asset: PortraitAsset) {
-  const fallback = {
-    blink: PORTRAIT_OFFSET_NONE,
-    talk: PORTRAIT_OFFSET_NONE,
-    mouthClip: PORTRAIT_MOUTH_CLIP,
-  };
+  const fallback = { blink: PORTRAIT_OFFSET_NONE };
   if (asset.frameCount < 2) return fallback;
   const canvas = document.createElement("canvas");
   canvas.width = PORTRAIT_MEASURE_WIDTH;
@@ -101,6 +97,5 @@ function measureLoadedPortraitOffsets(image: HTMLImageElement, asset: PortraitAs
 
   const idle = sample(0);
   const blinkFrame = sample(1);
-  const talkFrame = asset.frameCount >= 3 ? sample(2) : null;
-  return resolvePortraitAnimation(idle, blinkFrame, talkFrame, PORTRAIT_MEASURE_WIDTH, PORTRAIT_MEASURE_HEIGHT);
+  return { blink: resolvePortraitBlinkAlignment(idle, blinkFrame, PORTRAIT_MEASURE_WIDTH, PORTRAIT_MEASURE_HEIGHT) };
 }

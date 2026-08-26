@@ -1,0 +1,231 @@
+.page {
+  min-height: 100vh;
+  padding: 2.5rem clamp(1rem, 3vw, 3rem) 4rem;
+  background:
+    linear-gradient(rgba(92, 225, 230, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92, 225, 230, 0.025) 1px, transparent 1px),
+    var(--chrome-bg);
+  background-size: 32px 32px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  max-width: 1500px;
+  margin: 0 auto 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--chrome-line);
+}
+
+.eyebrow,
+.description,
+.sectionHeader span,
+.counterLabel,
+.assetId,
+.calibration {
+  color: var(--chrome-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin: 0 0 0.7rem;
+  color: var(--chrome-cyan);
+}
+
+.header h1 {
+  margin: 0;
+  color: var(--chrome-text);
+  font-size: clamp(2rem, 5vw, 4.25rem);
+  letter-spacing: 0.12em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.description {
+  max-width: 44rem;
+  margin: 1rem 0 0;
+  color: var(--chrome-body);
+  line-height: 1.6;
+  text-transform: none;
+}
+
+.counter {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: 0.15rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--chrome-line);
+  background: var(--chrome-glass);
+  text-align: right;
+}
+
+.counterValue {
+  color: var(--chrome-cyan);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.section {
+  max-width: 1500px;
+  margin: 0 auto 2.75rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  color: var(--chrome-text);
+  font-size: 0.95rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 0.85rem;
+}
+
+.card {
+  min-width: 0;
+  border: 1px solid var(--chrome-line);
+  background: rgba(5, 8, 14, 0.92);
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+.card[data-tone="enemy"] {
+  border-color: rgba(224, 112, 88, 0.28);
+}
+
+.cardHeader,
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.7rem;
+}
+
+.cardHeader {
+  border-bottom: 1px solid var(--chrome-line);
+}
+
+.assetId {
+  overflow: hidden;
+  color: var(--chrome-body);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.idle,
+.live {
+  flex-shrink: 0;
+  color: var(--chrome-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.live {
+  color: var(--chrome-cyan);
+}
+
+.card[data-tone="enemy"] .live {
+  color: var(--chrome-alert);
+}
+
+.canvasFrame {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: var(--chrome-void);
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.canvasFrame:hover {
+  filter: brightness(1.08);
+}
+
+.canvasFrame:focus-visible {
+  outline: 2px solid var(--chrome-cyan);
+  outline-offset: -2px;
+}
+
+.cardFooter {
+  align-items: flex-end;
+  border-top: 1px solid var(--chrome-line);
+}
+
+.calibration {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.57rem;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+}
+
+.toggle {
+  border: 1px solid var(--chrome-cyan-dim);
+  padding: 0.45rem 0.65rem;
+  background: transparent;
+  color: var(--chrome-cyan);
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.toggle:hover,
+.toggle[aria-pressed="true"] {
+  background: var(--chrome-cyan);
+  color: var(--chrome-void);
+}
+
+.card[data-tone="enemy"] .toggle {
+  border-color: var(--chrome-alert);
+  color: var(--chrome-alert);
+}
+
+.card[data-tone="enemy"] .toggle:hover,
+.card[data-tone="enemy"] .toggle[aria-pressed="true"] {
+  background: var(--chrome-alert);
+  color: var(--chrome-void);
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding-top: 1.5rem;
+  }
+
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .counter {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

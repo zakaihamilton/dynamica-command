@@ -337,3 +337,344 @@
     width: 100%;
   }
 }
+
+/* The operations map is a height-constrained command surface. Keep the
+   campaign record above on its original document flow. */
+.operationsScreen {
+  overflow: hidden;
+}
+
+.operationsScreen .content {
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 0;
+}
+
+.operationsPanel {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: clamp(0.5rem, 1.5vh, 0.9rem);
+  height: calc(100dvh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  min-height: 0;
+  overflow: hidden;
+  padding: clamp(0.75rem, 2vh, 1.35rem);
+}
+
+.operationsPanel .title {
+  font-size: clamp(1.75rem, 5vh, 3.25rem);
+}
+
+.operationsPanel .subtitle {
+  font-size: clamp(0.75rem, 1.8vh, 1.1rem);
+}
+
+.operationsPanel .meta {
+  margin-top: 0.45rem;
+  font-size: 0.62rem;
+}
+
+.operationsPanel .summary {
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.operationsPanel .summary > div {
+  gap: 0.15rem;
+  padding: clamp(0.4rem, 1vh, 0.65rem);
+}
+
+.operationsPanel .summary strong {
+  font-size: 1rem;
+}
+
+.operationsBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(20rem, 0.92fr);
+  gap: 0.7rem;
+  min-height: 0;
+}
+
+.operationsBody > .section,
+.operationsBody > .detail {
+  min-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+}
+
+.operationsBody > .section {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.operationsBody .sectionTitle {
+  margin-bottom: 0.45rem;
+}
+
+.operationsBody .missions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  min-height: 0;
+  gap: 0.35rem;
+}
+
+.operationsBody .mission {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto;
+  grid-template-areas:
+    "topline topline"
+    "title action"
+    "meta action"
+    "record action";
+  align-items: center;
+  column-gap: 0.5rem;
+  row-gap: 0.05rem;
+  min-height: 0;
+  padding: 0.35rem 0.45rem;
+}
+
+.operationsBody .missionTopline {
+  grid-area: topline;
+  min-width: 0;
+  font-size: 0.58rem;
+}
+
+.operationsBody .missionTopline > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operationsBody .missionTitle {
+  grid-area: title;
+  min-width: 0;
+  margin-top: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+}
+
+.operationsBody .missionMeta {
+  grid-area: meta;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6rem;
+}
+
+.operationsBody .missionRecord {
+  grid-area: record;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.58rem;
+}
+
+.operationsBody .missionAction {
+  grid-area: action;
+  align-self: center;
+  margin-top: 0;
+  font-size: 0.56rem;
+  writing-mode: vertical-rl;
+}
+
+.operationsBody > .detail {
+  display: flex;
+  flex-direction: column;
+  padding: 0.65rem 0.75rem;
+}
+
+.operationsBody .detailTitle {
+  font-size: 0.92rem;
+}
+
+.operationsBody .detailGrid {
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.operationsBody .detailBlock {
+  gap: 0.2rem;
+  padding: 0.45rem;
+}
+
+.operationsBody .detailBlock > span {
+  font-size: 0.56rem;
+}
+
+.operationsBody .detailBlock strong,
+.operationsBody .detailBlock li {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.operationsBody .detailBlock ul {
+  gap: 0.15rem;
+}
+
+.operationsBody .detailActions {
+  margin-top: auto;
+}
+
+.operationsPanel .actions {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .operationsScreen {
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .operationsScreen .content {
+    height: auto;
+    min-height: 100dvh;
+    justify-content: flex-start;
+  }
+
+  .operationsPanel {
+    display: block;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .operationsPanel .summary {
+    margin: 0.75rem 0;
+  }
+
+  .operationsBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .operationsBody > .section,
+  .operationsBody > .detail {
+    overflow: visible;
+  }
+
+  .operationsBody > .section {
+    display: block;
+  }
+
+  .operationsBody .missions {
+    grid-template-rows: none;
+  }
+
+  .operationsBody .mission {
+    min-height: 5.35rem;
+  }
+
+  .operationsPanel .actions {
+    margin-top: 0.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .operationsPanel .summary {
+    margin: 0.65rem 0;
+  }
+
+  .operationsBody .missions {
+    grid-template-columns: 1fr;
+  }
+
+  .operationsBody .mission {
+    min-height: 5.5rem;
+  }
+}
+
+/* Reduce nested panel chrome on the operations surface. The outer console
+   remains framed, while the queue and detail read more like one instrument. */
+.operationsPanel .summary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.7rem;
+  border: 0;
+  border-bottom: 1px solid var(--chrome-line);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--chrome-steel-lo) 58%, transparent), transparent);
+}
+
+.operationsBody > .section {
+  border: 0;
+  border-right: 1px solid var(--chrome-line);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-steel) 32%, transparent), transparent 92%);
+  padding-right: 0.85rem;
+}
+
+.operationsBody > .detail {
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--chrome-cyan) 42%, var(--chrome-line));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 7%, transparent), transparent 78%);
+  padding-left: 1rem;
+}
+
+.operationsBody .mission {
+  border: 0;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--chrome-line);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-steel-lo) 76%, transparent), transparent 92%);
+  box-shadow: none;
+}
+
+.operationsBody .missionButton:hover {
+  border-left-color: color-mix(in srgb, var(--chrome-cyan) 72%, var(--chrome-inset));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 12%, var(--chrome-steel-lo)), transparent 92%);
+}
+
+.operationsBody .mission.complete {
+  border-left-color: color-mix(in srgb, var(--chrome-cyan) 60%, transparent);
+  box-shadow: none;
+}
+
+.operationsBody .mission.available {
+  border-left-color: color-mix(in srgb, var(--chrome-gold) 72%, transparent);
+}
+
+.operationsBody .mission.selected {
+  border-left-color: var(--chrome-cyan);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 22%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 16%, var(--chrome-steel-lo)), transparent 92%);
+}
+
+.operationsBody .missionAction {
+  writing-mode: horizontal-tb;
+  white-space: nowrap;
+}
+
+.operationsBody .detailBlock {
+  border: 0;
+  border-top: 1px solid var(--chrome-line);
+  background: transparent;
+  padding: 0.5rem 0;
+}
+
+.operationsBody .detailBlock:nth-child(-n + 2) {
+  border-top: 0;
+  padding-top: 0.15rem;
+}
+
+@media (max-width: 900px) {
+  .operationsBody > .section {
+    border-right: 0;
+    border-bottom: 1px solid var(--chrome-line);
+    padding-right: 0;
+    padding-bottom: 0.75rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--chrome-steel) 32%, transparent), transparent 92%);
+  }
+
+  .operationsBody > .detail {
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--chrome-cyan) 42%, var(--chrome-line));
+    padding-left: 0;
+    padding-top: 0.9rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--chrome-cyan) 7%, transparent), transparent 78%);
+  }
+}

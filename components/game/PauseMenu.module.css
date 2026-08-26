@@ -1,4 +1,4 @@
-@import "./dialog.module.css" layer(base);
+@import "./dialog.module.css";
 
 .overlay {
   position: absolute;
@@ -15,6 +15,7 @@
 
 .dialog {
   composes: dialog from "./dialog.module.css";
+  max-width: 32rem;
 }
 
 .title {

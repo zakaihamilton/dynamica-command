@@ -1,4 +1,5 @@
 import type { CharacterRole } from "../types";
+import { portraitMouthCalibration, type PortraitMouthCalibration } from "./portraitCalibration";
 
 export const PORTRAIT_FRAME_COUNT = 3;
 export const PORTRAIT_FRAME_WIDTH = 512;
@@ -13,6 +14,7 @@ export type PortraitAsset = {
   frameCount: typeof PORTRAIT_FRAME_COUNT;
   frameWidth: typeof PORTRAIT_FRAME_WIDTH;
   frameHeight: typeof PORTRAIT_FRAME_HEIGHT;
+  mouthCalibration: PortraitMouthCalibration;
 };
 
 const FEMININE_SHEETS: Record<CharacterRole, ReadonlySet<number>> = {
@@ -35,6 +37,7 @@ function createPortraitAssets(role: CharacterRole, prefix: string): PortraitAsse
       frameCount: PORTRAIT_FRAME_COUNT,
       frameWidth: PORTRAIT_FRAME_WIDTH,
       frameHeight: PORTRAIT_FRAME_HEIGHT,
+      mouthCalibration: portraitMouthCalibration(`${prefix}-${number}`),
     };
   });
 }

@@ -8,13 +8,11 @@ export function BriefingActions({
   returnToGame,
   onReplay,
   onLaunch,
-  onSoundtrack,
 }: {
   campaign: Campaign;
   returnToGame: boolean;
   onReplay: () => void;
   onLaunch: () => void;
-  onSoundtrack: () => void;
 }) {
   return (
     <div className={styles.actions} data-testid="briefing-actions">
@@ -31,9 +29,6 @@ export function BriefingActions({
         onClick={onLaunch}
       >
         {returnToGame ? "Return to mission" : "Launch"}
-      </ConsoleButton>
-      <ConsoleButton tooltip="Render and download the mission soundtrack as an M4A" onClick={onSoundtrack}>
-        Soundtrack
       </ConsoleButton>
       <p className={styles.tone}>
         {campaign.world.tone} · {campaign.world.conflict}

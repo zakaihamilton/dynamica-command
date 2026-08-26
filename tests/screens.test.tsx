@@ -34,11 +34,10 @@ vi.mock("@/components/briefing/BriefingPortraits", () => ({
 vi.mock("@/components/briefing/BriefingStory", () => ({ BriefingStory: () => <div data-testid="briefing-story" /> }));
 vi.mock("@/components/briefing/BriefingObjectives", () => ({ BriefingObjectives: () => <div data-testid="briefing-objectives" /> }));
 vi.mock("@/components/briefing/BriefingActions", () => ({
-  BriefingActions: ({ onLaunch, onReplay, onSoundtrack }: { onLaunch: () => void; onReplay: () => void; onSoundtrack: () => void }) => (
-    <div data-testid="briefing-actions"><button onClick={onLaunch}>Launch</button><button onClick={onReplay}>Replay</button><button onClick={onSoundtrack}>Soundtrack</button></div>
+  BriefingActions: ({ onLaunch, onReplay }: { onLaunch: () => void; onReplay: () => void }) => (
+    <div data-testid="briefing-actions"><button onClick={onLaunch}>Launch</button><button onClick={onReplay}>Replay</button></div>
   ),
 }));
-vi.mock("@/components/audio/SoundtrackPanel", () => ({ SoundtrackPanel: ({ onClose }: { onClose: () => void }) => <button onClick={onClose}>Close soundtrack</button> }));
 
 beforeEach(() => {
   router.push.mockReset();
@@ -107,5 +106,13 @@ describe("CampaignCompleteScreen", () => {
     expect(screen.getByTestId("mission-detail")).toHaveTextContent(/Unlocks after completion/i);
     fireEvent.click(screen.getByTestId("launch-selected-mission"));
     expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=1");
+  });
+
+  it("returns to the menu when Escape is pressed on the operations map", () => {
+    render(<CampaignCompleteScreen seed={421} mode="operations" />);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(router.push).toHaveBeenCalledWith("/");
   });
 });

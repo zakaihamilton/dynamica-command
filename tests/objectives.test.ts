@@ -176,4 +176,29 @@ describe("mission briefing dialogue", () => {
       expect(joined.toLowerCase()).toContain("construction yard");
     }
   });
+
+  it("gives every speaker a distinct voice across many seeds", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const campaign = createCampaign(seed);
+      const { advisor, commander, enemyLeader } = campaign.characters;
+      const labels = [
+        `${advisor.title} ${advisor.name}`,
+        `${commander.title} ${commander.name}`,
+        `${enemyLeader.title} ${enemyLeader.name}`,
+      ];
+      for (const mission of campaign.missions) {
+        const joined = mission.briefing.map((line) => line.text).join(" ");
+        for (const label of labels) expect(joined).toContain(label);
+        expect(joined.toLowerCase()).toContain("construction yard");
+        expect(joined).not.toMatch(/under strength|levy|form up|right of it/i);
+        for (const line of mission.briefing) {
+          expect(line.text).toMatch(/[.!?]$/);
+        }
+      }
+      for (const speaker of ["advisor", "commander", "enemyLeader"] as const) {
+        const texts = campaign.missions.map((m) => m.briefing.find((l) => l.speaker === speaker)!.text);
+        expect(new Set(texts).size).toBeGreaterThan(1);
+      }
+    }
+  });
 });

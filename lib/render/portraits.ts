@@ -15,6 +15,7 @@ export {
   portraitHasDrift,
   choosePortraitMouthClip,
   resolvePortraitAnimation,
+  resolvePortraitBlinkAlignment,
   refinePortraitOffset,
   measurePortraitOffset,
 } from "./portraits/alignment";

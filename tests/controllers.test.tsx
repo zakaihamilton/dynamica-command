@@ -65,7 +65,6 @@ describe("useBriefingController", () => {
   it("routes launches and maps keyboard commands to typewriter actions", () => {
     const replay = vi.fn();
     const skip = vi.fn();
-    const cancelSpeech = vi.fn();
     const { result } = renderHook(() => useBriefingController({
       seed: 421,
       mission: 2,
@@ -73,14 +72,12 @@ describe("useBriefingController", () => {
       isComplete: false,
       replayTransmission: replay,
       skipToEnd: skip,
-      cancelSpeech,
     }));
 
     act(() => result.current.launch());
     expect(router.push).toHaveBeenCalledWith("/play?seed=0421&mission=2&resume=1");
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: " " })));
     expect(skip).toHaveBeenCalledOnce();
-    expect(cancelSpeech).toHaveBeenCalledOnce();
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" })));
     expect(replay).toHaveBeenCalledOnce();
   });

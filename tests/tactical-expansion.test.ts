@@ -4,7 +4,7 @@ import { tickCombat } from "../lib/sim/combat";
 import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
-import { BUILDING_STATS, STARTING_CREDITS, UNIT_STATS } from "../lib/catalog";
+import { BUILDING_STATS, STARTING_CREDITS, TICKS_PER_SECOND, UNIT_STATS } from "../lib/catalog";
 import { tooltipLines, tileTooltipLines } from "../lib/render/renderer";
 import { objectiveProgress } from "../lib/sim/objectives";
 import type { MissionKind } from "../lib/types";
@@ -77,6 +77,7 @@ describe("tactical expansion", () => {
       expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 20)).toBe(true);
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
+      expect(CONVOY_STAGING_TICKS).toBeGreaterThanOrEqual(5 * 60 * TICKS_PER_SECOND);
       expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS);
       for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) tick(state);
       expect(state.entities.filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined)).toEqual([]);

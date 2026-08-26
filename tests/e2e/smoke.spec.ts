@@ -247,21 +247,6 @@ test("shows briefing portraits before launch", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Replay" })).toBeVisible();
 });
 
-test("opens the deterministic soundtrack panel from the briefing", async ({ page }) => {
-  await openBriefingSkippingTutorial(page);
-  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("Seed 0421 // Mission 1");
-  const download = dialog.getByRole("button", { name: "Download M4A", exact: true });
-  if (await browserSupportsNativeAac(page)) {
-    await expect(download).toBeEnabled();
-  } else {
-    await expect(download).toBeDisabled();
-    await expect(dialog).toContainText(/cannot encode native AAC|unavailable/i);
-  }
-});
-
 test("exposes the soundtrack panel from pause and mission result screens", async ({ page }) => {
   await deployToBattlefield(page);
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
@@ -289,8 +274,9 @@ test("exposes the soundtrack panel from pause and mission result screens", async
 
 test("downloads a valid deterministic M4A when native AAC is supported", async ({ page }) => {
   test.setTimeout(180_000);
-  await openBriefingSkippingTutorial(page);
-  test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
+  await deployToBattlefield(page);
+  await expect(page.getByTestId("command-sidebar")).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
   const downloadPromise = page.waitForEvent("download", { timeout: 180_000 });
@@ -308,7 +294,9 @@ test("downloads a valid deterministic M4A when native AAC is supported", async (
 });
 
 test("cancels a soundtrack export without closing the panel", async ({ page }) => {
-  await openBriefingSkippingTutorial(page);
+  await deployToBattlefield(page);
+  await expect(page.getByTestId("command-sidebar")).toBeVisible();
+  await page.keyboard.press("Escape");
   test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
   await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });

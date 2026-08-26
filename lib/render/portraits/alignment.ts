@@ -94,6 +94,37 @@ export function resolvePortraitAnimation(
   };
 }
 
+/**
+ * Resolve only the blink registration used by the live portrait renderer.
+ * Mouth registration is asset metadata because viseme pixels are too noisy
+ * to use as a runtime landmark.
+ */
+export function resolvePortraitBlinkAlignment(
+  idleRgba: ArrayLike<number>,
+  blinkRgba: ArrayLike<number> | null,
+  width: number,
+  height: number,
+): PortraitOffset {
+  if (!blinkRgba) return PORTRAIT_OFFSET_NONE;
+  const faceWindow: PortraitSearchWindow = {
+    x0: Math.floor(width * 0.12),
+    y0: Math.floor(height * 0.08),
+    x1: Math.ceil(width * 0.88),
+    y1: Math.ceil(height * 0.9),
+  };
+  const blinkDrift = measurePortraitOffset(idleRgba, blinkRgba, width, height, 16, faceWindow);
+  if (!portraitHasDrift(blinkDrift)) return PORTRAIT_OFFSET_NONE;
+  const eyeWindow = portraitClipWindow(PORTRAIT_EYE_CLIPS, width, height);
+  return refinePortraitOffset(
+    idleRgba,
+    blinkRgba,
+    width,
+    height,
+    measurePortraitOffset(idleRgba, blinkRgba, width, height, 16, eyeWindow),
+    eyeWindow,
+  );
+}
+
 export function refinePortraitOffset(
   idleRgba: ArrayLike<number>,
   otherRgba: ArrayLike<number>,

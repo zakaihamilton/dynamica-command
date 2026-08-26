@@ -30,7 +30,9 @@ export const PORTRAIT_OFFSET_NONE: PortraitOffset = { dx: 0, dy: 0 };
 export const PORTRAIT_MEASURE_WIDTH = 200;
 export const PORTRAIT_MEASURE_HEIGHT = 240;
 
-export const PORTRAIT_MOUTH_CLIP: PortraitClip = { cx: 0.5, cy: 0.58, rx: 0.16, ry: 0.06 };
+// Conservative fallback for unknown or missing portrait assets. Shipped
+// portraits use the per-asset calibration in lib/gen/portraitCalibration.ts.
+export const PORTRAIT_MOUTH_CLIP: PortraitClip = { cx: 0.5, cy: 0.635, rx: 0.18, ry: 0.09 };
 export const PORTRAIT_EYE_CLIPS: readonly PortraitClip[] = [
   { cx: 0.36, cy: 0.405, rx: 0.135, ry: 0.075 },
   { cx: 0.64, cy: 0.405, rx: 0.135, ry: 0.075 },

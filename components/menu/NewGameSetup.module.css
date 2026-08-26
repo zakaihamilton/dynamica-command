@@ -1,4 +1,4 @@
-@import "../game/dialog.module.css" layer(base);
+@import "../game/dialog.module.css";
 
 .dialog {
   composes: dialog from "../game/dialog.module.css";

@@ -36,7 +36,8 @@ export type { MusicIntensity } from "./compose";
 export { isAudioUnlocked } from "./context";
 
 export function musicCueFromPath(pathname: string): MusicCue | null {
-  if (pathname.startsWith("/briefing")) return "briefing";
+  // Briefings are intentionally silent; returning null lets AudioRoot stop
+  // any mission music that was playing before the route changed.
   if (pathname.startsWith("/play") || pathname.startsWith("/tutorial")) return "mission";
   if (pathname.startsWith("/campaign-complete")) return "victory";
   return null;

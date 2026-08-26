@@ -6,6 +6,11 @@ import { generateCharacters } from "../lib/gen/characters";
 import { generateFace } from "../lib/gen/faces";
 import { PORTRAIT_ASSETS, getPortraitAsset, portraitCandidates, portraitSheetNumber } from "../lib/gen/portraitCatalog";
 import {
+  DEFAULT_PORTRAIT_MOUTH_CALIBRATION,
+  PORTRAIT_MOUTH_CALIBRATIONS,
+  portraitMouthCalibration,
+} from "../lib/gen/portraitCalibration";
+import {
   PORTRAIT_EYE_CLIPS,
   PORTRAIT_MOUTH_CLIP,
   PORTRAIT_OFFSET_NONE,
@@ -18,6 +23,7 @@ import {
   portraitFrameRect,
   portraitHasDrift,
   portraitSpeechFrame,
+  resolvePortraitBlinkAlignment,
   resolvePortraitAnimation,
   scalePortraitOffset,
 } from "../lib/render/portraits";
@@ -86,6 +92,33 @@ describe("portrait DNA", () => {
     }
   });
 
+  it("has destination-space mouth calibration for every shipped portrait", () => {
+    expect(Object.keys(PORTRAIT_MOUTH_CALIBRATIONS)).toHaveLength(PORTRAIT_ASSETS.length);
+    for (const asset of PORTRAIT_ASSETS) {
+      const calibration = PORTRAIT_MOUTH_CALIBRATIONS[asset.id];
+      expect(calibration, asset.id).toBeDefined();
+      expect(asset.mouthCalibration).toBe(calibration);
+      if (!calibration) continue;
+      expect(calibration.clip.cx - calibration.clip.rx).toBeGreaterThanOrEqual(0);
+      expect(calibration.clip.cx + calibration.clip.rx).toBeLessThanOrEqual(1);
+      expect(calibration.clip.cy - calibration.clip.ry).toBeGreaterThanOrEqual(0);
+      expect(calibration.clip.cy + calibration.clip.ry).toBeLessThanOrEqual(1);
+      expect(Number.isFinite(calibration.talkOffset.dx)).toBe(true);
+      expect(Number.isFinite(calibration.talkOffset.dy)).toBe(true);
+    }
+  });
+
+  it("keeps upper and lower mouth placements and talk offsets stable", () => {
+    const lower = getPortraitAsset("commander-01")?.mouthCalibration;
+    const upper = getPortraitAsset("commander-02")?.mouthCalibration;
+    const offset = getPortraitAsset("advisor-05")?.mouthCalibration;
+    expect(lower?.clip.cy).toBeGreaterThan(upper?.clip.cy ?? 1);
+    expect(lower?.talkOffset).toEqual({ dx: 9, dy: 0 });
+    expect(getPortraitAsset("enemy-leader-01")?.mouthCalibration.talkOffset).toEqual({ dx: 9, dy: 0 });
+    expect(offset?.talkOffset).toEqual({ dx: 2, dy: 0 });
+    expect(portraitMouthCalibration("missing-portrait")).toEqual(DEFAULT_PORTRAIT_MOUTH_CALIBRATION);
+  });
+
   it("always has portrait candidates for a role and presentation", () => {
     for (const role of ["commander", "advisor", "enemyLeader"] as const) {
       expect(portraitCandidates({ role }).length).toBeGreaterThan(0);
@@ -137,8 +170,10 @@ describe("portrait DNA", () => {
 
   it("clips blink and speech onto the idle frame instead of swapping the whole sheet", () => {
     expect(PORTRAIT_MOUTH_CLIP.cx).toBeCloseTo(0.5);
-    expect(PORTRAIT_MOUTH_CLIP.cy).toBeGreaterThan(0.55);
+    expect(PORTRAIT_MOUTH_CLIP.cy).toBeCloseTo(0.635);
     expect(PORTRAIT_MOUTH_CLIP.cy).toBeLessThan(0.75);
+    expect(PORTRAIT_MOUTH_CLIP.rx).toBeCloseTo(0.18);
+    expect(PORTRAIT_MOUTH_CLIP.ry).toBeCloseTo(0.09);
     expect(PORTRAIT_MOUTH_CLIP.cy - PORTRAIT_MOUTH_CLIP.ry).toBeGreaterThanOrEqual(0.52);
     expect(PORTRAIT_EYE_CLIPS).toHaveLength(2);
     for (const clip of [PORTRAIT_MOUTH_CLIP, ...PORTRAIT_EYE_CLIPS]) {
@@ -171,6 +206,14 @@ describe("portrait DNA", () => {
     const drifted = rgbaSquare(width, height, 12 + 4, 10 - 3, 18, 16);
     expect(measurePortraitOffset(idle, drifted, width, height, 8)).toEqual({ dx: -4, dy: 3 });
     expect(scalePortraitOffset({ dx: -4, dy: 3 }, 80, 200)).toEqual({ dx: -10, dy: 7.5 });
+  });
+
+  it("keeps blink registration independent from static mouth calibration", () => {
+    const width = 48;
+    const height = 48;
+    const idle = rgbaSquare(width, height, 12, 10, 18, 16);
+    const blink = rgbaSquare(width, height, 12 + 4, 10 - 3, 18, 16);
+    expect(resolvePortraitBlinkAlignment(idle, blink, width, height)).toEqual({ dx: -4, dy: 3 });
   });
 
   it("registers a talk viseme using the mouth window, not the whole sheet", () => {

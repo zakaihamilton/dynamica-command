@@ -26,6 +26,41 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   return dimensions;
 }
 
+async function expectOperationsMapFit(
+  page: import("@playwright/test").Page,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  await page.goto("/campaign?seed=0421");
+  await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
+
+  const dimensions = await expectNoHorizontalOverflow(page);
+  expect(dimensions.documentHeight).toBeLessThanOrEqual(viewport.height);
+
+  const panel = page.getByTestId("operations-panel");
+  const launch = page.getByTestId("launch-selected-mission");
+  const returnToMenu = page.getByRole("button", { name: "Return to menu" });
+  const layout = await panel.evaluate((element) => {
+    const panelRect = element.getBoundingClientRect();
+    return {
+      panel: { top: panelRect.top, bottom: panelRect.bottom },
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    };
+  });
+
+  expect(layout.panel.top).toBeGreaterThanOrEqual(0);
+  expect(layout.panel.bottom).toBeLessThanOrEqual(viewport.height);
+  expect(layout.scrollHeight).toBeLessThanOrEqual(layout.clientHeight + 1);
+
+  for (const control of [launch, returnToMenu]) {
+    const bounds = await control.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+  }
+}
+
 async function waitForBattlefield(page: import("@playwright/test").Page) {
   const canvas = page.getByTestId("battlefield-canvas");
   await expect(canvas).toBeVisible();
@@ -121,6 +156,40 @@ async function dispatchTouch(
     }));
   }, { type, pointerId, x: point.x, y: point.y });
 }
+
+test.describe("operations map responsive layout", () => {
+  test("fits the full command console inside desktop windows", async ({ page }) => {
+    for (const viewport of [
+      { width: 1280, height: 600 },
+      { width: 1280, height: 720 },
+      { width: 1600, height: 900 },
+      { width: 1024, height: 768 },
+    ]) {
+      await expectOperationsMapFit(page, viewport);
+    }
+  });
+
+  test("reflows to a scrollable page on narrow viewports", async ({ page }) => {
+    for (const viewport of [
+      { width: 700, height: 400 },
+      { width: 390, height: 844 },
+      { width: 320, height: 568 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/campaign?seed=0421");
+      await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+
+      const launch = page.getByTestId("launch-selected-mission");
+      await launch.scrollIntoViewIfNeeded();
+      await expect(launch).toBeVisible();
+      const launchBounds = await launch.boundingBox();
+      expect(launchBounds).not.toBeNull();
+      expect(launchBounds!.y).toBeGreaterThanOrEqual(0);
+      expect(launchBounds!.y + launchBounds!.height).toBeLessThanOrEqual(viewport.height);
+    }
+  });
+});
 
 test.describe("short-height layouts", () => {
   test("keeps the briefing actions reachable at short desktop heights", async ({ page }) => {

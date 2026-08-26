@@ -8,6 +8,8 @@ export { MusicExportCancelledError } from "./music";
 export const MUSIC_EXPORT_SAMPLE_RATE = AUDIO_SAMPLE_RATE;
 export const MUSIC_EXPORT_BITRATE = 160_000;
 export const MUSIC_EXPORT_CODEC = "mp4a.40.2";
+const ENCODER_QUEUE_LIMIT = 8;
+const ENCODE_YIELD_EVERY_CHUNKS = 32;
 
 export type MusicExportPhase = "checking" | "rendering" | "encoding" | "complete";
 
@@ -27,6 +29,35 @@ type AudioDataConstructor = typeof AudioData;
 
 function throwIfExportAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw new MusicExportCancelledError();
+}
+
+function waitForTimeout(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+/** Wait until the encoder has capacity without flushing — flush finalizes AAC windows. */
+async function waitForEncoderCapacity(
+  encoder: InstanceType<EncoderConstructor>,
+  signal?: AbortSignal,
+): Promise<void> {
+  while (encoder.encodeQueueSize > ENCODER_QUEUE_LIMIT) {
+    throwIfExportAborted(signal);
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        encoder.removeEventListener("dequeue", settle);
+        window.clearTimeout(timer);
+        resolve();
+      };
+      encoder.addEventListener("dequeue", settle);
+      const timer = window.setTimeout(settle, 16);
+    });
+  }
+  throwIfExportAborted(signal);
 }
 
 function getEncoder(): EncoderConstructor | null {
@@ -93,12 +124,11 @@ async function encodeM4a(
     },
     fastStart: "in-memory",
   });
-  const encodedChunks: Array<{ chunk: EncodedAudioChunk; metadata?: EncodedAudioChunkMetadata }> = [];
   let encodeError: Error | null = null;
   let encoder: InstanceType<EncoderConstructor> | null = null;
   try {
     encoder = new Encoder({
-      output: (chunk, metadata) => encodedChunks.push({ chunk, metadata }),
+      output: (chunk, metadata) => muxer.addAudioChunk(chunk, metadata),
       error: (error) => {
         encodeError = error instanceof Error ? error : new Error(String(error));
       },
@@ -112,6 +142,7 @@ async function encodeM4a(
 
     const framesPerChunk = 1024;
     const totalFrames = buffer.length;
+    let chunksSinceYield = 0;
     for (let start = 0; start < totalFrames; start += framesPerChunk) {
       throwIfExportAborted(signal);
       if (encodeError) throw encodeError;
@@ -122,7 +153,7 @@ async function encodeM4a(
         numberOfChannels: 2,
         numberOfFrames: frameCount,
         sampleRate: MUSIC_EXPORT_SAMPLE_RATE,
-        timestamp: Math.round((start / MUSIC_EXPORT_SAMPLE_RATE) * 1_000_000),
+        timestamp: Math.round((start * 1_000_000) / MUSIC_EXPORT_SAMPLE_RATE),
         data,
       });
       try {
@@ -132,16 +163,19 @@ async function encodeM4a(
       }
       const phaseProgress = Math.min(0.99, (start + frameCount) / totalFrames);
       onProgress?.({ phase: "encoding", progress: phaseProgress, phaseProgress });
-      if (encoder.encodeQueueSize > 8) {
-        await encoder.flush();
+      chunksSinceYield += 1;
+      if (encoder.encodeQueueSize > ENCODER_QUEUE_LIMIT) {
+        await waitForEncoderCapacity(encoder, signal);
+        chunksSinceYield = 0;
+      } else if (chunksSinceYield >= ENCODE_YIELD_EVERY_CHUNKS) {
+        await waitForTimeout(0);
         throwIfExportAborted(signal);
+        chunksSinceYield = 0;
       }
     }
     await encoder.flush();
     throwIfExportAborted(signal);
     if (encodeError) throw encodeError;
-    encodedChunks.sort((left, right) => (left.chunk.timestamp ?? 0) - (right.chunk.timestamp ?? 0));
-    for (const { chunk, metadata } of encodedChunks) muxer.addAudioChunk(chunk, metadata);
     muxer.finalize();
     if (!target.buffer) throw new Error("The AAC encoder produced no audio data.");
     return new Blob([target.buffer], { type: "audio/mp4" });
@@ -153,7 +187,6 @@ async function encodeM4a(
         /* The encoder may already be closed after a fatal encode error. */
       }
     }
-    encodedChunks.length = 0;
   }
 }
 

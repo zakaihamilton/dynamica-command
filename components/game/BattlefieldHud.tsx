@@ -35,8 +35,16 @@ export function BattlefieldHud({
         <div className={styles.objective} data-testid="objective">
           {objective}
         </div>
-        {deadline ? <div className={styles.deadline}>{deadline}</div> : null}
-        {stagingWindow ? <div className={styles.stagingWindow}>{stagingWindow}</div> : null}
+        {deadline ? (
+          <div className={styles.deadline} data-tooltip="Operation window: time left to finish the primary objective. The mission fails when it expires.">
+            {deadline}
+          </div>
+        ) : null}
+        {stagingWindow ? (
+          <div className={styles.stagingWindow} data-tooltip="Escort staging: time until the convoy departs and starts moving.">
+            {stagingWindow}
+          </div>
+        ) : null}
         {secondary?.length ? (
           <div className={styles.secondary} data-testid="secondary-objectives">
             {secondary.map((item) => <div key={item}>{item}</div>)}

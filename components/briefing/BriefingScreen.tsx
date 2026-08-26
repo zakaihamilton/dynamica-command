@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, type CSSProperties } from "react";
-import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
@@ -16,7 +15,6 @@ import { BriefingStory } from "./BriefingStory";
 import styles from "./BriefingScreen.module.css";
 import { useCampaignProgress } from "../campaign/useCampaignProgress";
 import { useBriefingController } from "./useBriefingController";
-import { useBriefingSpeech } from "./useBriefingSpeech";
 import { useBriefingTypewriter } from "./useBriefingTypewriter";
 
 export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: number; mission: number; returnToGame?: boolean }) {
@@ -25,7 +23,6 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
   const def = campaign.missions[mission];
   const lines: BriefingLine[] = useMemo(() => def?.briefing ?? [], [def]);
   const typewriter = useBriefingTypewriter(lines);
-  const cancelSpeech = useBriefingSpeech(lines, typewriter.activeLineIndex, typewriter.playId);
   const controller = useBriefingController({
     seed,
     mission,
@@ -33,7 +30,6 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     isComplete: typewriter.isComplete,
     replayTransmission: typewriter.replayTransmission,
     skipToEnd: typewriter.skipToEnd,
-    cancelSpeech,
   });
   const objectives = useMemo(
     () => (def ? missionObjectives(def, campaign) : []),
@@ -77,13 +73,11 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
             returnToGame={returnToGame}
             onReplay={typewriter.replayTransmission}
             onLaunch={controller.launch}
-            onSoundtrack={controller.openSoundtrack}
           />
         </MetalPanel>
 
         <BriefingEnemyPortrait campaign={campaign} liveRole={liveRole} />
       </div>
-      {controller.soundtrackOpen ? <SoundtrackPanel seed={seed} missionIndex={mission} onClose={controller.closeSoundtrack} /> : null}
     </div>
   );
 }

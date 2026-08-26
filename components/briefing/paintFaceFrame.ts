@@ -6,6 +6,8 @@ import {
   PORTRAIT_EYE_CLIPS,
   portraitBlinking,
   portraitSpeechFrame,
+  scalePortraitOffset,
+  PORTRAIT_MEASURE_WIDTH,
   type FaceTone,
 } from "@/lib/render/portraits";
 import type { Character } from "@/lib/types";
@@ -49,7 +51,7 @@ export function paintFaceFrame(
         FACE_CANVAS_WIDTH,
         FACE_CANVAS_HEIGHT,
         [portrait.mouthClipRef.current],
-        portrait.offsetsRef.current.talk,
+        scalePortraitOffset(portrait.offsetsRef.current.talk, PORTRAIT_MEASURE_WIDTH, FACE_CANVAS_WIDTH),
         portrait.overlayRef.current ?? (portrait.overlayRef.current = document.createElement("canvas")),
       );
     }

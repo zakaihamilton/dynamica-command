@@ -1,4 +1,4 @@
-@import "./chromePanel.module.css" layer(base);
+@import "./chromePanel.module.css";
 
 .counter {
   composes: panel from "./chromePanel.module.css";

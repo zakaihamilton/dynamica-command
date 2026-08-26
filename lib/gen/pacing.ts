@@ -13,7 +13,7 @@ export function minutesToTicks(minutes: number): number {
 }
 
 /** Escort missions spend this long staging the convoy before it starts moving. */
-export const CONVOY_STAGING_MINUTES = 3;
+export const CONVOY_STAGING_MINUTES = 5;
 
 export const MIN_MISSION_TICKS = 5 * 60 * TICKS_PER_SECOND;
 export const MAX_MISSION_TICKS = 20 * 60 * TICKS_PER_SECOND;
