@@ -11,6 +11,7 @@ export {
 } from "./portraits/types";
 export {
   portraitClipWindow,
+  portraitRegistrationWindow,
   scalePortraitOffset,
   portraitHasDrift,
   choosePortraitMouthClip,

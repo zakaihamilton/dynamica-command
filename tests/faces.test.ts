@@ -1,4 +1,5 @@
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -10,6 +11,7 @@ import {
   PORTRAIT_MOUTH_CALIBRATIONS,
   portraitMouthCalibration,
 } from "../lib/gen/portraitCalibration";
+import { GENERATED_PORTRAIT_MOUTH_CALIBRATIONS } from "../lib/gen/portraitCalibration.generated";
 import {
   PORTRAIT_EYE_CLIPS,
   PORTRAIT_MOUTH_CLIP,
@@ -22,6 +24,7 @@ import {
   portraitFrameIndex,
   portraitFrameRect,
   portraitHasDrift,
+  portraitRegistrationWindow,
   portraitSpeechFrame,
   resolvePortraitBlinkAlignment,
   resolvePortraitAnimation,
@@ -92,6 +95,15 @@ describe("portrait DNA", () => {
     }
   });
 
+  it("ships a distinct bitmap for every portrait asset", () => {
+    const root = path.dirname(fileURLToPath(import.meta.url));
+    const hashes = PORTRAIT_ASSETS.map((asset) => {
+      const file = path.join(root, "..", "public", asset.src.replace(/^\//, ""));
+      return createHash("sha256").update(readFileSync(file)).digest("hex");
+    });
+    expect(new Set(hashes).size).toBe(PORTRAIT_ASSETS.length);
+  });
+
   it("has destination-space mouth calibration for every shipped portrait", () => {
     expect(Object.keys(PORTRAIT_MOUTH_CALIBRATIONS)).toHaveLength(PORTRAIT_ASSETS.length);
     for (const asset of PORTRAIT_ASSETS) {
@@ -108,15 +120,36 @@ describe("portrait DNA", () => {
     }
   });
 
-  it("keeps upper and lower mouth placements and talk offsets stable", () => {
+  it("keeps generated mouth placements and manual talk offsets stable", () => {
     const lower = getPortraitAsset("commander-01")?.mouthCalibration;
     const upper = getPortraitAsset("commander-02")?.mouthCalibration;
-    const offset = getPortraitAsset("advisor-05")?.mouthCalibration;
+    const generatedUpper = getPortraitAsset("advisor-03")?.mouthCalibration;
+    const generatedLower = getPortraitAsset("advisor-01")?.mouthCalibration;
     expect(lower?.clip.cy).toBeGreaterThan(upper?.clip.cy ?? 1);
     expect(lower?.talkOffset).toEqual({ dx: 9, dy: 0 });
-    expect(getPortraitAsset("enemy-leader-01")?.mouthCalibration.talkOffset).toEqual({ dx: 9, dy: 0 });
-    expect(offset?.talkOffset).toEqual({ dx: 2, dy: 0 });
+    expect(generatedLower?.clip.cy).toBeGreaterThan(generatedUpper?.clip.cy ?? 1);
+    expect(getPortraitAsset("enemy-leader-01")?.mouthCalibration.talkOffset).toEqual({ dx: 6, dy: 0 });
+    expect(generatedLower).not.toBe(generatedUpper);
     expect(portraitMouthCalibration("missing-portrait")).toEqual(DEFAULT_PORTRAIT_MOUTH_CALIBRATION);
+  });
+
+  it("keeps generated calibration values distinct and in bounds", () => {
+    const generated = Object.values(GENERATED_PORTRAIT_MOUTH_CALIBRATIONS);
+    expect(generated).toHaveLength(PORTRAIT_ASSETS.length);
+    expect(new Set(generated.map((entry) => entry.clip.cy)).size).toBeGreaterThan(1);
+    expect(new Set(generated.map((entry) => entry)).size).toBe(generated.length);
+    for (const entry of generated) {
+      expect(entry.clip.cx).toBeGreaterThanOrEqual(0.35);
+      expect(entry.clip.cx).toBeLessThanOrEqual(0.65);
+      expect(entry.clip.cy).toBeGreaterThanOrEqual(0.54);
+      expect(entry.clip.cy).toBeLessThanOrEqual(0.72);
+      expect(entry.clip.cx - entry.clip.rx).toBeGreaterThanOrEqual(0);
+      expect(entry.clip.cx + entry.clip.rx).toBeLessThanOrEqual(1);
+      expect(entry.clip.cy - entry.clip.ry).toBeGreaterThanOrEqual(0);
+      expect(entry.clip.cy + entry.clip.ry).toBeLessThanOrEqual(1);
+      expect(Math.abs(entry.talkOffset.dx)).toBeLessThanOrEqual(10);
+      expect(Math.abs(entry.talkOffset.dy)).toBeLessThanOrEqual(10);
+    }
   });
 
   it("always has portrait candidates for a role and presentation", () => {
@@ -295,6 +328,10 @@ describe("portrait DNA", () => {
       sw: 512,
       sh: 614.4,
     });
+  });
+
+  it("uses the renderer registration window for offline frame analysis", () => {
+    expect(portraitRegistrationWindow(200, 240)).toEqual({ x0: 24, y0: 19, x1: 176, y1: 216 });
   });
 });
 

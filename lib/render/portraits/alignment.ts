@@ -37,6 +37,15 @@ export function scalePortraitOffset(
   return { dx: offset.dx * scale, dy: offset.dy * scale };
 }
 
+export function portraitRegistrationWindow(width: number, height: number): PortraitSearchWindow {
+  return {
+    x0: Math.floor(width * 0.12),
+    y0: Math.floor(height * 0.08),
+    x1: Math.ceil(width * 0.88),
+    y1: Math.ceil(height * 0.9),
+  };
+}
+
 export function portraitHasDrift(offset: PortraitOffset, threshold = PORTRAIT_DRIFT_THRESHOLD): boolean {
   return Math.abs(offset.dx) >= threshold || Math.abs(offset.dy) >= threshold;
 }
@@ -56,12 +65,7 @@ export function resolvePortraitAnimation(
   width: number,
   height: number,
 ): { blink: PortraitOffset; talk: PortraitOffset; mouthClip: PortraitClip } {
-  const faceWindow: PortraitSearchWindow = {
-    x0: Math.floor(width * 0.12),
-    y0: Math.floor(height * 0.08),
-    x1: Math.ceil(width * 0.88),
-    y1: Math.ceil(height * 0.9),
-  };
+  const faceWindow = portraitRegistrationWindow(width, height);
   const blinkDrift = blinkRgba
     ? measurePortraitOffset(idleRgba, blinkRgba, width, height, 16, faceWindow)
     : PORTRAIT_OFFSET_NONE;
@@ -106,12 +110,7 @@ export function resolvePortraitBlinkAlignment(
   height: number,
 ): PortraitOffset {
   if (!blinkRgba) return PORTRAIT_OFFSET_NONE;
-  const faceWindow: PortraitSearchWindow = {
-    x0: Math.floor(width * 0.12),
-    y0: Math.floor(height * 0.08),
-    x1: Math.ceil(width * 0.88),
-    y1: Math.ceil(height * 0.9),
-  };
+  const faceWindow = portraitRegistrationWindow(width, height);
   const blinkDrift = measurePortraitOffset(idleRgba, blinkRgba, width, height, 16, faceWindow);
   if (!portraitHasDrift(blinkDrift)) return PORTRAIT_OFFSET_NONE;
   const eyeWindow = portraitClipWindow(PORTRAIT_EYE_CLIPS, width, height);
