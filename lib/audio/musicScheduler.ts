@@ -79,7 +79,7 @@ function scheduleFastStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPatte
   const stemVoices: Array<[MusicStem, MusicVoiceType]> = [
     ["bass", p.bassType],
     ["pulse", p.arpType],
-    ["counter", "triangle"],
+    ["counter", p.counterType],
     ["melody", p.melodyType],
   ];
   for (const [stem, voice] of stemVoices) {
@@ -126,7 +126,7 @@ export function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPa
   const stemVoices: Array<[MusicStem, MusicVoiceType, number]> = [
     ["bass", p.bassType, Math.min(p.cutoff, 620)],
     ["pulse", p.arpType, Math.min(p.cutoff + 180, 1600)],
-    ["counter", "triangle", p.cutoff],
+    ["counter", p.counterType, p.cutoff],
     ["melody", p.melodyType, p.cutoff + 360],
   ];
   for (const [stem, voice, cutoff] of stemVoices) {

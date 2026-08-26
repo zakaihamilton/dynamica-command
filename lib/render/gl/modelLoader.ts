@@ -13,4 +13,5 @@ export { buildHarvesterModel } from "./modelLoader/harvester";
 export { buildInfantryModel } from "./modelLoader/infantry";
 export { buildAntiArmorModel } from "./modelLoader/antiArmor";
 export { buildTurretHeadModel } from "./modelLoader/turret";
+export { buildConvoyTruckModel } from "./modelLoader/convoyTruck";
 export { buildUnitModel, parseObjModel } from "./modelLoader/index";

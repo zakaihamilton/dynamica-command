@@ -15,6 +15,8 @@ describe("support units", () => {
     expect(canSupportTarget("repairTruck", "infantry")).toBe(false);
     expect(canSupportTarget("medic", "repairTruck")).toBe(false);
     expect(isSupportUnit("medic")).toBe(true);
+    expect(isSupportUnit("convoyTruck")).toBe(false);
+    expect(isUnitAvailable("convoyTruck", 0)).toBe(false);
     expect(UNIT_STATS.medic.supportInterval).toBe(24);
   });
 

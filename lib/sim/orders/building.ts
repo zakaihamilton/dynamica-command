@@ -1,4 +1,4 @@
-import { BUILDING_STATS, sellRefundFor } from "../../catalog";
+import { BUILDING_STATS, buildingLimitReached, sellRefundFor } from "../../catalog";
 import { isBuildingEntity, type BuildingKind, type Entity, type SimEvent, type SimState } from "../../types";
 import { byId, canPlaceBuilding, spawnBuilding } from "../world";
 import { canRepair } from "../repair";
@@ -7,6 +7,7 @@ import { UNIT_STATS } from "../../catalog";
 
 export function startBuild(state: SimState, kind: BuildingKind, x: number, y: number): SimEvent[] {
   if (kind === "constructionYard" || kind === "objective") return [{ type: "commandRejected", reason: "invalid building" }];
+  if (buildingLimitReached(state.entities, 0, kind)) return [{ type: "commandRejected", reason: "building limit reached" }];
   const tx = Math.round(x);
   const ty = Math.round(y);
   if (!canPlaceBuilding(state, kind, tx, ty)) return [{ type: "commandRejected", reason: "invalid placement" }];

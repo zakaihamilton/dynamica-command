@@ -6,6 +6,8 @@ import {
   type MusicGroove,
   type MusicNoteEvent,
   type MusicSectionName,
+  type MusicStyleProfile,
+  type MusicScaleName,
   MUSIC_STEPS,
   TUTORIAL_MUSIC_MISSION,
   NATURAL_MINOR,
@@ -26,60 +28,74 @@ export function musicLabel(cue: MusicCue, missionIndex: number): string {
   return `music:${cue}:${missionIndex}`;
 }
 
-export function bpmFor(cue: MusicCue, roll: number, missionIndex: number): number {
+export function bpmFor(cue: MusicCue, roll: number, missionIndex: number, style?: MusicStyleProfile): number {
   const mission = Math.max(0, missionIndex);
-  if (cue === "menu") return 112 + (roll % 13);
-  if (cue === "briefing") return 104 + (roll % 13);
-  if (cue === "mission") return 118 + ((roll + mission) % 11);
-  if (cue === "victory") return 124 + (roll % 9);
-  return 88 + (roll % 11);
+  const [min, max, base] = cue === "menu"
+    ? [112, 124, 112 + (roll % 13)]
+    : cue === "briefing"
+      ? [104, 116, 104 + (roll % 13)]
+      : cue === "mission"
+        ? [118, 128, 118 + ((roll + mission) % 11)]
+        : cue === "victory"
+          ? [124, 132, 124 + (roll % 9)]
+          : [88, 98, 88 + (roll % 11)];
+  return Math.max(min, Math.min(max, base + (style?.tempoBias ?? 0)));
 }
 
-export function scaleFor(cue: MusicCue, rng: Rng): { notes: readonly number[]; name: string } {
-  if (cue === "victory") {
-    return rng.pick([
-      { notes: MAJOR, name: "major" },
-      { notes: MIXOLYDIAN, name: "mixolydian" },
-      { notes: DORIAN, name: "dorian" },
-    ]);
-  }
-  if (cue === "briefing") {
-    return rng.pick([
-      { notes: DORIAN, name: "dorian" },
-      { notes: NATURAL_MINOR, name: "natural minor" },
-    ]);
-  }
-  if (cue === "defeat") {
-    return rng.pick([
-      { notes: NATURAL_MINOR, name: "natural minor" },
-      { notes: DORIAN, name: "dorian" },
-    ]);
-  }
-  return rng.pick([
-    { notes: NATURAL_MINOR, name: "natural minor" },
-    { notes: DORIAN, name: "dorian" },
-    { notes: MIXOLYDIAN, name: "mixolydian" },
-    { notes: MAJOR, name: "major" },
-  ]);
+const SCALES: Record<MusicScaleName, { notes: readonly number[]; name: MusicScaleName }> = {
+  "natural minor": { notes: NATURAL_MINOR, name: "natural minor" },
+  dorian: { notes: DORIAN, name: "dorian" },
+  mixolydian: { notes: MIXOLYDIAN, name: "mixolydian" },
+  major: { notes: MAJOR, name: "major" },
+};
+
+export function scaleFor(cue: MusicCue, rng: Rng, style?: MusicStyleProfile): { notes: readonly number[]; name: MusicScaleName } {
+  const fallback: readonly MusicScaleName[] = cue === "victory"
+    ? ["major", "mixolydian", "dorian"]
+    : cue === "briefing"
+      ? ["dorian", "natural minor"]
+      : cue === "defeat"
+        ? ["natural minor", "dorian"]
+        : ["natural minor", "dorian", "mixolydian", "major"];
+  const name = rng.pick(style?.scalePool ?? fallback);
+  return SCALES[name];
 }
 
-export function grooveFor(cue: MusicCue, rng: Rng): MusicGroove {
-  if (cue === "defeat") return "march";
-  if (cue === "victory") return rng.pick(["march", "pulse"]);
-  return rng.pick(["pulse", "march"]);
+export function progressionsFor(scaleName: string, variant = 0): readonly number[][] {
+  const progressions = scaleName === "major"
+    ? MAJOR_PROGRESSIONS
+    : scaleName === "mixolydian"
+      ? MIXOLYDIAN_PROGRESSIONS
+      : MINOR_PROGRESSIONS;
+  const offset = ((variant % progressions.length) + progressions.length) % progressions.length;
+  return [...progressions.slice(offset), ...progressions.slice(0, offset)];
 }
 
-export function progressionsFor(scaleName: string): readonly number[][] {
-  if (scaleName === "major") return MAJOR_PROGRESSIONS;
-  if (scaleName === "mixolydian") return MIXOLYDIAN_PROGRESSIONS;
-  return MINOR_PROGRESSIONS;
-}
-
-export function grooveHits(groove: MusicGroove, variation: 0 | 1): { kick: number[]; snare: number[] } {
+export function grooveHits(groove: MusicGroove, variation: 0 | 1, variant: 0 | 1 | 2 = 0): { kick: number[]; snare: number[] } {
   if (groove === "pulse") {
+    if (variant === 1) {
+      return variation === 0
+        ? { kick: [0, 3, 6, 8, 11, 14], snare: [4, 12] }
+        : { kick: [0, 3, 6, 8, 10, 13, 14], snare: [4, 12] };
+    }
+    if (variant === 2) {
+      return variation === 0
+        ? { kick: [0, 4, 7, 10, 12, 15], snare: [3, 11] }
+        : { kick: [0, 4, 7, 10, 12, 14, 15], snare: [3, 11] };
+    }
     return variation === 0
       ? { kick: [0, 4, 8, 12], snare: [4, 12] }
       : { kick: [0, 4, 8, 10, 12], snare: [4, 12] };
+  }
+  if (variant === 1) {
+    return variation === 0
+      ? { kick: [0, 3, 8, 10], snare: [4, 12] }
+      : { kick: [0, 3, 6, 8, 10], snare: [4, 12] };
+  }
+  if (variant === 2) {
+    return variation === 0
+      ? { kick: [0, 6, 8, 14], snare: [4, 12] }
+      : { kick: [0, 4, 6, 8, 14], snare: [4, 12] };
   }
   return variation === 0
     ? { kick: [0, 8], snare: [4, 12] }

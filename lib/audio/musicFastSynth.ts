@@ -22,7 +22,7 @@ export function playFastSynthTone(
   const end = time + Math.max(duration, attack + release + 0.02);
   const peak = Math.max(0.004, velocity * (accent ? 0.18 : voice === "pulse" ? 0.1 : 0.14));
 
-  oscillator.type = voice === "bass" ? "triangle" : type;
+  oscillator.type = type;
   oscillator.frequency.setValueAtTime(frequency, time);
   pan.pan.setValueAtTime(notePan(voice), time);
   envelope.gain.setValueAtTime(0.0001, time);
@@ -67,21 +67,22 @@ export function playFastDrum(
   velocity: number,
   accent: boolean,
 ): void {
+  const drum = g.style.drum;
   if (kind === "kick") {
-    playFastSynthTone(audio, g.rhythmBus, 120, time, 0.2, "sine", velocity * 1.2, "bass", accent);
-    playFastNoise(audio, g.rhythmBus, time, 0.035 * velocity, 0.025);
+    playFastSynthTone(audio, g.rhythmBus, drum.kickStart * 0.64, time, 0.2, "sine", velocity * 1.2, "bass", accent);
+    playFastNoise(audio, g.rhythmBus, time, 0.035 * velocity, 0.025, drum.noisePan);
   } else if (kind === "snare") {
-    playFastNoise(audio, g.rhythmBus, time, (accent ? 0.14 : 0.09) * velocity, accent ? 0.08 : 0.055, 0.04);
-    playFastSynthTone(audio, g.rhythmBus, 190, time, 0.07, "triangle", velocity * 0.34, "counter", accent);
+    playFastNoise(audio, g.rhythmBus, time, (accent ? 0.14 : 0.09) * velocity, accent ? 0.08 : 0.055, drum.noisePan);
+    playFastSynthTone(audio, g.rhythmBus, drum.snareBody, time, 0.07, "triangle", velocity * 0.34, "counter", accent);
   } else if (kind === "clap") {
-    playFastNoise(audio, g.rhythmBus, time, (accent ? 0.1 : 0.065) * velocity, accent ? 0.08 : 0.055, 0.08);
-    playFastNoise(audio, g.rhythmBus, time + 0.014, (accent ? 0.07 : 0.045) * velocity, 0.04, -0.08);
+    playFastNoise(audio, g.rhythmBus, time, (accent ? 0.1 : 0.065) * velocity, accent ? 0.08 : 0.055, drum.noisePan + 0.08);
+    playFastNoise(audio, g.rhythmBus, time + 0.014, (accent ? 0.07 : 0.045) * velocity, 0.04, drum.noisePan - 0.08);
   } else if (kind === "hat" || kind === "openHat") {
-    playFastNoise(audio, g.rhythmBus, time, (kind === "openHat" ? 0.06 : 0.035) * velocity, kind === "openHat" ? 0.16 : 0.03, kind === "openHat" ? 0.12 : -0.08);
+    playFastNoise(audio, g.rhythmBus, time, (kind === "openHat" ? 0.06 : 0.035) * velocity, kind === "openHat" ? 0.16 : 0.03, kind === "openHat" ? drum.noisePan + 0.12 : drum.noisePan - 0.08);
   } else if (kind === "tom") {
-    playFastSynthTone(audio, g.rhythmBus, 150, time, 0.2, "triangle", velocity * 0.5, "counter", accent);
+    playFastSynthTone(audio, g.rhythmBus, drum.tomStart, time, 0.2, "triangle", velocity * 0.5, "counter", accent);
   } else {
-    playFastSynthTone(audio, g.fxBus, 84, time, 0.34, "sawtooth", velocity * 0.7, "bass", accent);
+    playFastSynthTone(audio, g.fxBus, drum.impactStart * 0.78, time, 0.34, "sawtooth", velocity * 0.7, "bass", accent);
     playFastNoise(audio, g.fxBus, time, 0.08 * velocity, 0.18);
   }
 }

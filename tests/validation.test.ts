@@ -43,6 +43,7 @@ describe("isEntity", () => {
 
   it("accepts valid unit and building entities", () => {
     expect(isEntity(validUnit)).toBe(true);
+    expect(isEntity({ ...validUnit, kind: "convoyTruck" })).toBe(true);
     expect(isEntity(validBuilding)).toBe(true);
   });
 

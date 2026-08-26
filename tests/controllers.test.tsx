@@ -192,6 +192,11 @@ describe("game lifecycle hooks", () => {
     expect(result.current.confirmation).toMatchObject({ action: "load" });
     act(() => result.current.confirmAction());
     expect(stateRef.current.tick).toBe(77);
+    expect(props.cmdQRef.current).toEqual([]);
+    expect(props.fxRef.current).toEqual([]);
+    expect(props.clearTools).toHaveBeenCalledOnce();
+    expect(props.resetInput).toHaveBeenCalledOnce();
+    expect(props.resetCamera).toHaveBeenCalledWith(stateRef.current);
 
     const beforeRestart = stateRef.current;
     act(() => result.current.restartMission());

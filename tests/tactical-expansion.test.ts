@@ -72,12 +72,22 @@ describe("tactical expansion", () => {
     expect(neutral?.scenarioRole).toBe(kind === "escort" ? "convoy" : "stranded");
     if (kind === "escort") {
       const convoy = state.entities.filter((entity) => entity.scenarioRole === "convoy");
+      expect(convoy.every((entity) => entity.kind === "convoyTruck")).toBe(true);
+      expect(UNIT_STATS.convoyTruck).toMatchObject({
+        hp: 320,
+        speed: 0.065,
+        sight: 7,
+        armor: "heavy",
+        damage: 0,
+        range: 0,
+        cooldown: 0,
+      });
       const spread = Math.max(...convoy.map((entity) => Math.hypot(entity.x - convoy[0]!.x, entity.y - convoy[0]!.y)));
       expect(spread).toBeLessThan(4);
       expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 20)).toBe(true);
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
-      expect(CONVOY_STAGING_TICKS).toBeGreaterThanOrEqual(5 * 60 * TICKS_PER_SECOND);
+      expect(CONVOY_STAGING_TICKS).toBe(7 * 60 * TICKS_PER_SECOND);
       expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS);
       for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) tick(state);
       expect(state.entities.filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined)).toEqual([]);
@@ -86,6 +96,7 @@ describe("tactical expansion", () => {
       expect(routeEnd).toBeDefined();
       expect(Math.hypot(routeEnd!.x - state.runtime!.zone!.x, routeEnd!.y - state.runtime!.zone!.y)).toBeLessThanOrEqual(6);
     } else {
+      expect(neutral?.kind).toBe("infantry");
       expect(neutral?.path).toEqual([]);
     }
     const hostile = state.entities.find((entity) => entity.owner === 1 && entity.class === "unit");
@@ -257,7 +268,7 @@ describe("tactical expansion", () => {
   it("makes convoy units vulnerable and announces contact", () => {
     const state = makeFixture({ width: 16, height: 12, win: { kind: "escort", targetCount: 1, ticks: 100 } });
     addBuilding(state, 0, "constructionYard", 0, 0);
-    const convoy = addUnit(state, 0, "tank", 6, 4);
+    const convoy = addUnit(state, 0, "convoyTruck", 6, 4);
     convoy.neutral = true;
     convoy.scenarioRole = "convoy";
     const attacker = addUnit(state, 1, "antiArmor", 5, 4);
@@ -267,13 +278,15 @@ describe("tactical expansion", () => {
 
     expect(convoy.hp).toBeLessThan(hp);
     expect(attacker.attackTarget).toBe(convoy.id);
+    expect(convoy.attackTarget).toBeUndefined();
+    expect(events.some((event) => event.type === "combat" && event.owner === 0)).toBe(false);
     expect(events).toContainEqual({ type: "alert", kind: "contact", text: "Convoy under attack" });
   });
 
   it("fails escort when a convoy target is destroyed", () => {
     const state = makeFixture({ win: { kind: "escort", targetCount: 1, ticks: 100 } });
     addBuilding(state, 0, "constructionYard", 0, 0);
-    const convoy = addUnit(state, 0, "tank", 6, 4);
+    const convoy = addUnit(state, 0, "convoyTruck", 6, 4);
     convoy.neutral = true;
     convoy.scenarioRole = "convoy";
     convoy.hp = 0;
@@ -293,6 +306,29 @@ describe("tactical expansion", () => {
     expect(state.result).toBe("lost");
     expect(state.lossReason).toBe("objectiveTargetLost");
     expect(result.events).toContainEqual({ type: "lost" });
+  });
+
+  it("counts a convoy truck after it reaches the escort zone", () => {
+    const state = makeFixture({ width: 16, height: 12, win: { kind: "escort", targetCount: 1, ticks: 100 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const convoy = addUnit(state, 0, "convoyTruck", 10, 4);
+    convoy.neutral = true;
+    convoy.scenarioRole = "convoy";
+    state.runtime = {
+      kind: "escort",
+      phase: "active",
+      targetIds: [convoy.id],
+      zone: { x: convoy.x, y: convoy.y },
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    const result = tick(state);
+
+    expect(state.runtime.rescued).toBe(1);
+    expect(result.events).toContainEqual({ type: "won" });
   });
 
   it("recovers suppression on non-combat units and seeds classic secondary objectives", () => {

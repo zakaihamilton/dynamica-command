@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAntiArmorModel,
+  buildConvoyTruckModel,
   buildHarvesterModel,
   buildInfantryModel,
   buildTankModel,
@@ -65,6 +66,10 @@ describe("modelLoader 3D meshes and parser", () => {
     expect(harvester.kind).toBe("harvester");
     expect(harvester.nodes.map((n) => n.name)).toEqual(["chassis", "scoop"]);
 
+    const convoyTruck = buildConvoyTruckModel();
+    expect(convoyTruck.kind).toBe("convoyTruck");
+    expect(convoyTruck.nodes.map((n) => n.name)).toEqual(["chassis", "cab", "cargo"]);
+
     const infantry = buildInfantryModel();
     expect(infantry.kind).toBe("infantry");
     expect(infantry.nodes.map((n) => n.name)).toEqual(["torso", "legL", "legR"]);
@@ -103,6 +108,7 @@ describe("modelLoader 3D meshes and parser", () => {
     expect(buildUnitModel("harvester").nodes.length).toBeGreaterThan(1);
     expect(buildUnitModel("infantry").nodes.length).toBeGreaterThan(1);
     expect(buildUnitModel("antiArmor").nodes.length).toBeGreaterThan(1);
+    expect(buildUnitModel("convoyTruck").nodes.length).toBeGreaterThan(1);
     expect(buildUnitModel("turret").nodes.length).toBeGreaterThan(1);
   });
 

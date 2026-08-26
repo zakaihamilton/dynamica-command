@@ -3,7 +3,7 @@ import { SURFACE_NONE } from "../../types";
 import type { CampaignProgress, SimState, UnitKind } from "../../types";
 import { generateWorld } from "../../gen/world";
 import { expandFog } from "../../sim/fog";
-import { isSupportUnit, UNIT_KINDS } from "../../catalog";
+import { isSupportUnit, UNIT_KINDS, UNIT_STATS } from "../../catalog";
 import {
   SAVE_CONTENT_VERSION,
   isStateShape,
@@ -174,6 +174,17 @@ function normalizeState(value: unknown): SimState {
     undefined;
   const scenarioTargetIds = new Set(s.runtime?.targetIds ?? []);
   for (const e of s.entities) {
+    const isLegacyEscortTarget = e.class === "unit" && e.kind === "tank" &&
+      (e.scenarioRole === "convoy" || (s.runtime?.kind === "escort" && scenarioTargetIds.has(e.id)));
+    if (isLegacyEscortTarget) {
+      // Escort targets used to be serialized as tanks. Keep their current HP
+      // and armor, but give them the non-combat convoy identity and behavior.
+      e.kind = "convoyTruck";
+      e.cooldown = 0;
+      e.weapon = UNIT_STATS.convoyTruck.weapon;
+      e.armor = UNIT_STATS.convoyTruck.armor;
+      delete e.attackTarget;
+    }
     if (!e.queue) e.queue = [];
     if (e.facing === undefined) e.facing = e.owner === 0 ? 0 : 4;
     if (e.repairing === undefined) e.repairing = false;

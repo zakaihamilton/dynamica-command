@@ -381,6 +381,21 @@ describe("production queue", () => {
 });
 
 describe("cancel production and construction", () => {
+  it("allows only one barracks and one factory per owner in a mission", () => {
+    const s = makeFixture({ width: 20, height: 16, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+
+    expect(issue(s, { type: "build", building: "barracks", x: 4, y: 4 })).toEqual([]);
+    expect(issue(s, { type: "build", building: "barracks", x: 8, y: 4 })).toEqual([
+      { type: "commandRejected", reason: "building limit reached" },
+    ]);
+    expect(issue(s, { type: "build", building: "factory", x: 4, y: 8 })).toEqual([]);
+    expect(issue(s, { type: "build", building: "factory", x: 8, y: 8 })).toEqual([
+      { type: "commandRejected", reason: "building limit reached" },
+    ]);
+  });
+
   it("refunds a queued unit before cancelling the unit in progress", () => {
     const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
     s.credits[0] = 50_000;

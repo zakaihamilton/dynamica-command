@@ -67,7 +67,7 @@ export function configureMissionScenario(
       for (let i = 0; i < count; i++) {
         const desired = kind === "escort" ? convoyStartPoint(map, i) : centerPoint(map, i, count);
         const point = reachableScenarioPoint(state, desired, scenarioReachability);
-        const target = spawnUnit(state, 0, kind === "escort" ? "tank" : "infantry", point.x, point.y);
+        const target = spawnUnit(state, 0, kind === "escort" ? "convoyTruck" : "infantry", point.x, point.y);
         target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
         target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
         if (kind === "extraction") target.marked = true;

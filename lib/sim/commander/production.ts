@@ -141,8 +141,7 @@ export function planBuilding(state: SimState, yard: Entity): Command | undefined
     if (factory) return factory;
   }
 
-  const factoryLimit = OFFENSIVE_KINDS.has(objectiveKind(state)) ? 2 : 1;
-  if (playerBuildings(state, "factory").length < factoryLimit && state.tick < 1800 && !pending) {
+  if (!playerBuildings(state, "factory").length && state.tick < 1800 && !pending) {
     const factory = buildCommand(state, "factory", yard);
     if (factory) return factory;
   }
@@ -202,5 +201,4 @@ export function planProduction(state: SimState): Command[] {
   }
   return commands;
 }
-
 

@@ -3,7 +3,7 @@ import { animClock } from "../../anim";
 import { type Camera } from "../../../iso";
 import { isPerfHudEnabled, type WorldPhaseTimings } from "../../perfHud";
 import { drawCombatEffects, drawFxLayer } from "../../renderCombat";
-import { drawSelectBox } from "../../renderOverlays";
+import { drawCommandMarker, drawSelectBox } from "../../renderOverlays";
 import type { RenderExtras } from "../../renderOverlays";
 import { facingFor as resolveFacing } from "../../renderEntities";
 import { entityById } from "../cache";
@@ -52,6 +52,7 @@ export function renderWorld(
   drawCombatEffects(ctx, state, cam, [], entityById, (st: SimState, ent: Entity) => resolveFacing(st, ent, entityById), clock);
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
   drawSelectBox(ctx, extras.selectBox);
+  drawCommandMarker(ctx, state, cam, extras.commandMarker, timeMs);
 
   renderHoverPhase(ctx, state, cam, hoverTile, w, h, extras);
   lap("combat");

@@ -27,6 +27,15 @@ describe("harvester selection", () => {
     expect(nearEdge?.id).toBe(truck.id);
   });
 
+  it("selects a convoy truck with the vehicle hit radius", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const truck = addUnit(s, 0, "convoyTruck", 5, 5);
+    const cam = createCamera();
+    const pos = tileToScreen(truck.x, truck.y, cam, heightAt(s, 5, 5));
+    const nearEdge = pickEntity(s, pos.x + 36, pos.y - 12, cam);
+    expect(nearEdge?.id).toBe(truck.id);
+  });
+
   it("prefers a harvester overlapping a neighboring refinery over the building", () => {
     const s = makeFixture({ width: 14, height: 12, win: { kind: "annihilate" } });
     const refinery = addBuilding(s, 0, "refinery", 4, 4);

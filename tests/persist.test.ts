@@ -151,7 +151,7 @@ describe("persist", () => {
 
     for (const [kind, role] of cases) {
       const state = makeFixture({ seed: 77, win: { kind, targetCount: 1, ticks: 100 } });
-      const target = addUnit(state, 0, kind === "escort" ? "tank" : "infantry", 6, 6);
+      const target = addUnit(state, 0, kind === "escort" ? "convoyTruck" : "infantry", 6, 6);
       target.neutral = true;
       state.runtime = {
         kind,

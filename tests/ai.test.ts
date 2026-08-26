@@ -5,6 +5,7 @@ import { tickMissionDirector } from "../lib/sim/director";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
 import { powerFor } from "../lib/sim/world";
+import { queueUnit } from "../lib/sim/ai/helpers";
 
 describe("enemy AI", () => {
   it("builds toward a contested resource lane before committing another wave", () => {
@@ -156,7 +157,7 @@ describe("enemy AI", () => {
     addBuilding(s, 0, "constructionYard", 18, 18);
     addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "tank", 8, 8);
-    const convoy = addUnit(s, 0, "tank", 15, 15);
+    const convoy = addUnit(s, 0, "convoyTruck", 15, 15);
     convoy.neutral = true;
     convoy.scenarioRole = "convoy";
     addUnit(s, 0, "harvester", 16, 16);
@@ -175,6 +176,16 @@ describe("enemy AI", () => {
     tickAi(s);
 
     expect(raider.attackTarget).toBe(convoy.id);
+  });
+
+  it("does not let the AI queue scenario-only convoy trucks", () => {
+    const s = makeFixture({ win: { kind: "annihilate" } });
+    const factory = addBuilding(s, 1, "factory", 4, 4);
+    addBuilding(s, 1, "power", 7, 4);
+    s.credits[1] = 5000;
+
+    expect(queueUnit(s, factory, "convoyTruck")).toBe(false);
+    expect(factory.producing).toBeUndefined();
   });
 
   it("stations a guard near marked sabotage targets", () => {

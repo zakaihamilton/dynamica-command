@@ -17,13 +17,18 @@ import {
 } from "./serialize";
 
 export function writeSave(storage: StorageAdapter, state: SimState): boolean {
-  const payload: SaveEnvelope = {
-    version: SAVE_VERSION,
-    contentVersion: SAVE_CONTENT_VERSION,
-    savedAt: Date.now(),
-    state,
-  };
-  return safeSetItem(storage, saveKey(state.seed), JSON.stringify(payload));
+  try {
+    const payload: SaveEnvelope = {
+      version: SAVE_VERSION,
+      contentVersion: SAVE_CONTENT_VERSION,
+      savedAt: Date.now(),
+      state,
+    };
+    return safeSetItem(storage, saveKey(state.seed), JSON.stringify(payload));
+  } catch (err) {
+    console.debug(`[persist] Failed to serialize save for seed ${state.seed}:`, err);
+    return false;
+  }
 }
 
 export function readPendingSaveTransfer(storage: StorageAdapter): ParsedSaveExport | null {

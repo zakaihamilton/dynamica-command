@@ -1,4 +1,4 @@
-import { isSupportUnit } from "../../catalog";
+import { isSupportUnit, UNIT_STATS } from "../../catalog";
 import { isUnitEntity, type BuildingKind, type Command, type Entity, type MissionKind, type SimState, type UnitKind } from "../../types";
 import { living } from "../world";
 
@@ -40,7 +40,7 @@ export function enemyEntities(state: SimState): Entity[] {
 export function combatUnits(state: SimState): Entity[] {
   return playerUnits(
     state,
-    (entity) => isUnitEntity(entity) && entity.kind !== "harvester" && !isSupportUnit(entity.kind),
+    (entity) => isUnitEntity(entity) && UNIT_STATS[entity.kind].damage > 0 && !isSupportUnit(entity.kind),
   );
 }
 
@@ -72,7 +72,7 @@ export function combatValue(entity: Entity): number {
 }
 
 export function isCombatEntity(entity: Entity): boolean {
-  return isUnitEntity(entity) && entity.kind !== "harvester" && !isSupportUnit(entity.kind);
+  return isUnitEntity(entity) && UNIT_STATS[entity.kind].damage > 0 && !isSupportUnit(entity.kind);
 }
 
 export function objectiveKind(state: SimState): MissionKind {

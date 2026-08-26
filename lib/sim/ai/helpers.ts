@@ -1,4 +1,4 @@
-import { UNIT_STATS } from "../../catalog";
+import { isUnitAvailable, UNIT_STATS } from "../../catalog";
 import { TILE_RESOURCE } from "../../types";
 import type { Entity, SimState, UnitKind, Vec2 } from "../../types";
 import { BUILDING_PLACEMENT_RADIUS, canPlaceBuilding, findBuildSite, living, nearest, powerFor } from "../world";
@@ -95,6 +95,7 @@ export function forwardRefinerySite(state: SimState, yard: Entity, point: Vec2):
 }
 
 export function queueUnit(state: SimState, producer: Entity, kind: UnitKind): boolean {
+  if (!isUnitAvailable(kind, state.missionIndex)) return false;
   const cost = UNIT_STATS[kind].cost;
   if (state.credits[1] < cost || powerFor(state, 1) < 0) return false;
   state.credits[1] -= cost;

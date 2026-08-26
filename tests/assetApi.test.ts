@@ -17,6 +17,10 @@ describe("asset API contract", () => {
     expect(unit.render.supportsFacing).toBe(true);
     expect(unit.render.directions).toHaveLength(8);
     expect(unit.render.directions[7]!.previewUrl).toContain("facing=7");
+    const convoy = items.find((item) => item.id === "unit:convoyTruck")!;
+    expect(convoy.label).toBe("Convoy Truck");
+    expect(convoy.render.directions).toHaveLength(8);
+    expect(convoy.details.stats).toMatchObject({ damage: 0, range: 0, cooldown: 0, scenarioOnly: true });
     expect(items.find((item) => item.id === "building:power")!.render.directions).toHaveLength(0);
   });
 

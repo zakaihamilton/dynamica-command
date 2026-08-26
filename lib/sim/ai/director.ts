@@ -156,7 +156,7 @@ export function tickAi(state: SimState): void {
     state,
     yard,
     (e) => e.owner === 0 && isUnitEntity(e) && e.kind !== "harvester" && !isSupportUnit(e.kind) && (
-      !e.neutral || e.scenarioRole === "convoy"
+      UNIT_STATS[e.kind].damage > 0 && (!e.neutral || e.scenarioRole === "convoy")
     ) && !(
       e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined
     ),
@@ -193,5 +193,4 @@ export function tickAi(state: SimState): void {
   }
   state.rngState = rng.state;
 }
-
 

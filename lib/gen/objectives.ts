@@ -3,7 +3,9 @@ import { createRng, type Rng } from "../seed/rng";
 import type { BuildingKind, MissionDef, MissionKind, SecondaryObjective, UnitKind, WinCategory } from "../types";
 import { CONVOY_STAGING_MINUTES, minutesToTicks, missionDurationMinutes } from "./pacing";
 
-const BUILDABLE: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
+// Structure quotas may ask for several copies, so do not generate a quota for
+// the producer buildings that are capped at one per mission.
+const BUILDABLE: BuildingKind[] = ["power", "refinery", "turret"];
 const COMBAT_ROLES: UnitKind[] = ["infantry", "antiArmor", "tank"];
 const SCENARIO_KINDS: MissionKind[] = ["escort", "sabotage", "rescue", "extraction"];
 

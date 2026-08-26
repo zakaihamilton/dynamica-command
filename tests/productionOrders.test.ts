@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
+import { PRODUCIBLE } from "../components/game/hooks/gameActions";
 import { addBuilding, makeFixture } from "../lib/sim/fixtures";
 import { cancelProduce, startProduce } from "../lib/sim/orders/production";
 
@@ -14,6 +15,15 @@ function readyBase() {
 }
 
 describe("startProduce rejection branches", () => {
+  it("rejects scenario-only convoy trucks", () => {
+    const s = readyBase();
+    const factory = s.entities.find((entity) => entity.owner === 0 && entity.kind === "factory")!;
+    expect(PRODUCIBLE).not.toContain("convoyTruck");
+    expect(startProduce(s, factory.id, "convoyTruck")).toEqual([
+      { type: "commandRejected", reason: "unit unavailable" },
+    ]);
+  });
+
   it("rejects when unit is unavailable at current mission index", async () => {
     const catalog = await import("../lib/catalog");
     const spy = vi.spyOn(catalog, "isUnitAvailable").mockReturnValue(false);

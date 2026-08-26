@@ -5,6 +5,7 @@ import {
   type MusicIntensity,
   type MusicNoteEvent,
   type MusicPattern,
+  type MusicStyleProfile,
   type MusicStem,
 } from "./compose";
 
@@ -17,6 +18,7 @@ export type PatternIndex = {
 
 export type MusicGraph = {
   fast: boolean;
+  style: MusicStyleProfile;
   master: GainNode;
   highpass: BiquadFilterNode;
   saturation: WaveShaperNode;

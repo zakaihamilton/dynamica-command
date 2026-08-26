@@ -119,7 +119,7 @@ export function useGameRuntime({
     setSelectionMode,
   });
 
-  const { hoverRef, cursorRef, boxRef, resetInput, onDown, onMove, onLeave, onUp, onCancel } = input;
+  const { hoverRef, cursorRef, boxRef, commandMarkerRef, resetInput, onDown, onMove, onLeave, onUp, onCancel } = input;
 
   const { fxRef, fxSeq, redraw } = useGameRenderer({
     stateRef,
@@ -132,6 +132,7 @@ export function useGameRuntime({
     hoverRef,
     cursorRef,
     boxRef,
+    commandMarkerRef,
     place,
     repair,
     sell,

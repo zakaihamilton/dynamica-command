@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
-import { buildingCameoStatus, isSupportUnit, unitCameoStatus } from "@/lib/catalog";
+import { buildingCameoStatus, buildingLimitReached, isSupportUnit, unitCameoStatus } from "@/lib/catalog";
 import { beep } from "@/lib/audio/synth";
 import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
 import { terrainAccess } from "@/lib/sim/world";
@@ -96,6 +96,7 @@ export function useGameActions({
   }, [cmdQ, selected, selectedIds, stateRef]);
 
   const togglePlace = useCallback((kind: BuildingKind) => {
+    if (place.current !== kind && buildingLimitReached(stateRef.current.entities, 0, kind)) return;
     const next = place.current === kind ? null : kind;
     place.current = next;
     setPlaceKind(next);
@@ -105,7 +106,7 @@ export function useGameActions({
       sell.current = false;
       setSellMode(false);
     }
-  }, []);
+  }, [stateRef]);
 
   const toggleRepair = useCallback(() => {
     const next = !repair.current;

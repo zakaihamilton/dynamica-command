@@ -33,6 +33,27 @@ describe("generated audio", () => {
     expect(composeMusic(421, "mission", 0)).not.toEqual(composeMusic(421, "mission", TUTORIAL_MUSIC_MISSION));
   });
 
+  it("covers every seeded style family and keeps mission fingerprints distinct", () => {
+    const corpus = Array.from({ length: 96 }, (_, seed) => composeMusic(seed, "mission", 0));
+    expect(new Set(corpus.map((pattern) => pattern.style.name)).size).toBe(6);
+
+    const missions = Array.from({ length: 8 }, (_, mission) => composeMusic(421, "mission", mission));
+    expect(new Set(missions.map((pattern) => pattern.style.arrangement.name)).size).toBe(8);
+    const fingerprints = missions.map((pattern) => JSON.stringify({
+      style: pattern.style,
+      bpm: pattern.bpm,
+      rootMidi: pattern.rootMidi,
+      scaleName: pattern.scaleName,
+      progression: pattern.theme.progressionA,
+      motif: pattern.motif,
+      hook: pattern.theme.hook,
+      drums: pattern.drums,
+    }));
+    expect(new Set(fingerprints).size).toBe(missions.length);
+    expect(missions.every((pattern) => pattern.arpType === pattern.style.pulseType)).toBe(true);
+    expect(missions.every((pattern) => pattern.melodyType === pattern.style.melodyType)).toBe(true);
+  });
+
   it("builds a long-form arrangement with contrasting phrases and fills", () => {
     expect(MUSIC_BARS).toBe(64);
     const half = STEPS_PER_BAR * (MUSIC_BARS / 2);
@@ -154,7 +175,7 @@ describe("generated audio", () => {
     }
     expect(pattern.drums.some((event) => event.kind === "clap")).toBe(true);
     expect(pattern.drums.some((event) => event.kind === "impact")).toBe(true);
-    expect(pattern.arpType).toBe("square");
+    expect(pattern.arpType).toBe(pattern.style.pulseType);
     expect(new Set(pattern.padThird).size).toBeGreaterThan(2);
     expect(new Set(pattern.padSeventh).size).toBeGreaterThan(2);
 
@@ -176,6 +197,10 @@ describe("generated audio", () => {
       [0, 4, 3, 5],
       [0, 3, 4, 5],
       [5, 3, 0, 4],
+      [0, 2, 5, 4],
+      [0, 5, 3, 4],
+      [2, 5, 0, 4],
+      [0, 3, 5, 1],
     ];
     const majors = Array.from({ length: 48 }, (_, seed) => composeMusic(seed, "mission", 0)).filter(
       (entry) => entry.scaleName === "major",

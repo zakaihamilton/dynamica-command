@@ -2,6 +2,7 @@ import { useCallback, useRef, type MutableRefObject, type RefObject } from "reac
 import type { Camera } from "@/lib/iso";
 import type { FxBurst } from "@/lib/render/fx";
 import type { RenderExtras } from "@/lib/render/renderer";
+import type { CommandMarker } from "@/lib/render/renderOverlays/types";
 import type { BuildingKind, SimState } from "@/lib/types";
 import { renderGameFrame } from "../renderFrame";
 
@@ -19,6 +20,7 @@ export function useGameRenderer({
   hoverRef,
   cursorRef,
   boxRef,
+  commandMarkerRef,
   place,
   repair,
   sell,
@@ -33,6 +35,7 @@ export function useGameRenderer({
   hoverRef: MutableRefObject<Point | null>;
   cursorRef: MutableRefObject<Point | null>;
   boxRef: MutableRefObject<SelectBox | null>;
+  commandMarkerRef?: MutableRefObject<CommandMarker | null>;
   place: MutableRefObject<BuildingKind | null>;
   repair: MutableRefObject<boolean>;
   sell: MutableRefObject<boolean>;
@@ -54,6 +57,7 @@ export function useGameRenderer({
     const canvas = canvasRef.current;
     const host = hostRef.current;
     if (!s || !canvas || !host) return;
+    extrasRef.current.commandMarker = commandMarkerRef?.current ?? null;
     const frame = renderGameFrame({
       state: s,
       canvas,
@@ -80,7 +84,7 @@ export function useGameRenderer({
     miniCtxRef.current = frame.miniCtx;
     mobileMiniCtxRef.current = frame.secondaryMiniCtx;
     fxRef.current = frame.fx;
-  }, [boxRef, camRef, canvasRef, cursorRef, hostRef, hoverRef, miniRef, mobileMiniRef, place, repair, selected, sell, stateRef]);
+  }, [boxRef, camRef, canvasRef, commandMarkerRef, cursorRef, hostRef, hoverRef, miniRef, mobileMiniRef, place, repair, selected, sell, stateRef]);
 
   return { extrasRef, fxRef, fxSeq, redraw };
 }

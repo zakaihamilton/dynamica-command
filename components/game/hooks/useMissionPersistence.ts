@@ -83,8 +83,26 @@ export function useMissionPersistence({
     terminalSaveRef.current = loaded.result !== "playing";
     setState({ ...loaded, entities: [...loaded.entities] });
     commitSelection([]);
+    cmdQRef.current = [];
+    fxRef.current = [];
+    clearTools();
+    resetInput();
+    resetCamera(loaded);
     setPauseNotice(`Loaded mission at tick ${loaded.tick}.`);
-  }, [campaignRecordedRef, commitSelection, seed, setPauseNotice, setState, stateRef, terminalSaveRef]);
+  }, [
+    campaignRecordedRef,
+    clearTools,
+    cmdQRef,
+    commitSelection,
+    fxRef,
+    resetCamera,
+    resetInput,
+    seed,
+    setPauseNotice,
+    setState,
+    stateRef,
+    terminalSaveRef,
+  ]);
 
   const restartMissionNow = useCallback(() => {
     const world = stateRef.current;

@@ -37,8 +37,8 @@ export function playSynthTone(
   filter.frequency.exponentialRampToValueAtTime(endCut, time + Math.min(0.16, duration * 0.55));
   pan.pan.setValueAtTime(notePan(voice), time);
 
-  oscA.type = bass ? "square" : pulse ? "square" : type;
-  oscB.type = bass || lead ? "sawtooth" : "square";
+  oscA.type = type;
+  oscB.type = type === "sawtooth" ? "square" : type === "square" ? "sawtooth" : "triangle";
   const glide = lead ? Math.min(0.03, duration * 0.22) : pulse ? Math.min(0.012, duration * 0.18) : 0;
   oscA.frequency.setValueAtTime(freq * (glide > 0 ? 0.93 : 1), time);
   if (glide > 0) oscA.frequency.exponentialRampToValueAtTime(freq, time + glide);
@@ -58,7 +58,7 @@ export function playSynthTone(
   if (!pulse) {
     const oscSub = audio.createOscillator();
     const subGain = audio.createGain();
-    oscSub.type = bass ? "sine" : lead ? "square" : "triangle";
+    oscSub.type = bass ? "sine" : lead ? g.style.counterType : "triangle";
     oscSub.frequency.setValueAtTime(freq * (bass || lead ? 0.5 : 0.25), time);
     subGain.gain.setValueAtTime(bass ? 0.55 : 0.22, time);
     oscSub.connect(subGain);

@@ -98,6 +98,17 @@ describe("readSave", () => {
   });
 });
 
+describe("writeSave", () => {
+  it("returns false when the state cannot be serialized", () => {
+    const storage = memoryStorage();
+    const state = makeState(421);
+    (state as unknown as { circular: unknown }).circular = state;
+
+    expect(writeSave(storage, state)).toBe(false);
+    expect(storage.getItem(saveKey(421))).toBeNull();
+  });
+});
+
 describe("removeSave", () => {
   it("removes the local save", () => {
     const storage = memoryStorage();

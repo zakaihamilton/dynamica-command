@@ -1,6 +1,6 @@
 export type Owner = 0 | 1;
 
-export type UnitKind = "harvester" | "infantry" | "antiArmor" | "tank" | "medic" | "repairTruck";
+export type UnitKind = "harvester" | "infantry" | "antiArmor" | "tank" | "medic" | "repairTruck" | "convoyTruck";
 export type UnitDomain = "human" | "vehicle";
 export type SupportRole = "medic" | "repairTruck";
 export type BuildingKind =

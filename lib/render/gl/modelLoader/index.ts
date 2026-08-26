@@ -4,6 +4,7 @@ import { buildHarvesterModel } from "./harvester";
 import { buildInfantryModel } from "./infantry";
 import { buildAntiArmorModel } from "./antiArmor";
 import { buildTurretHeadModel } from "./turret";
+import { buildConvoyTruckModel } from "./convoyTruck";
 import type { ModelKind, UnitModel } from "./types";
 
 export type { MeshData, ModelKind, ModelNode, UnitModel } from "./types";
@@ -22,6 +23,7 @@ export { buildHarvesterModel } from "./harvester";
 export { buildInfantryModel } from "./infantry";
 export { buildAntiArmorModel } from "./antiArmor";
 export { buildTurretHeadModel } from "./turret";
+export { buildConvoyTruckModel } from "./convoyTruck";
 
 export function buildUnitModel(kind: ModelKind): UnitModel {
   switch (kind) {
@@ -31,6 +33,7 @@ export function buildUnitModel(kind: ModelKind): UnitModel {
     case "antiArmor": return buildAntiArmorModel();
     case "medic": return { ...buildInfantryModel(), kind: "medic" };
     case "repairTruck": return { ...buildHarvesterModel(), kind: "repairTruck" };
+    case "convoyTruck": return buildConvoyTruckModel();
     case "turret":
     case "turretHead": return buildTurretHeadModel();
   }

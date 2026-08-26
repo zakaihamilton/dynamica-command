@@ -10,7 +10,7 @@ import {
   SAVE_PREFIX,
   SAVE_VERSION,
 } from "../lib/persist/save/serialize";
-import { makeFixture } from "../lib/sim/fixtures";
+import { addUnit, makeFixture } from "../lib/sim/fixtures";
 import { freshCampaignProgress } from "../lib/persist/campaign";
 
 function baseState(seed = 1000) {
@@ -181,6 +181,37 @@ describe("normalizeState edge cases", () => {
     const raw = serializeState(state);
     const restored = deserializeState(raw);
     expect(restored.unitsProducedByRole).toBeDefined();
+  });
+
+  it("normalizes legacy escort tanks into convoy trucks without changing durability", () => {
+    const state = makeFixture({ seed: 1000, win: { kind: "escort", targetCount: 1, ticks: 100 } });
+    const target = addUnit(state, 0, "tank", 6, 6);
+    target.neutral = true;
+    target.scenarioRole = "convoy";
+    target.hp = 1234;
+    target.maxHp = 1920;
+    target.cooldown = 9;
+    target.armor = "heavy";
+    state.runtime = {
+      kind: "escort",
+      phase: "active",
+      targetIds: [target.id],
+      zone: { x: 8, y: 8 },
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    const restored = deserializeState(serializeState(state));
+    const convoy = restored.entities.find((entity) => entity.id === target.id)!;
+    expect(convoy.kind).toBe("convoyTruck");
+    expect(convoy.hp).toBe(1234);
+    expect(convoy.maxHp).toBe(1920);
+    expect(convoy.armor).toBe("heavy");
+    expect(convoy.cooldown).toBe(0);
+    expect(convoy.attackTarget).toBeUndefined();
+    expect(convoy.scenarioRole).toBe("convoy");
   });
 
   it("fills missing buildingsCompletedByKind", () => {

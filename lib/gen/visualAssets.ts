@@ -94,6 +94,16 @@ export const UNIT_DIRECTION_ART: Record<UnitKind, Record<UnitView, string>> = {
     "back-right": "/art/sprites/sleek-modular/repair-truck-back-right-v1.webp",
     left: "/art/sprites/sleek-modular/repair-truck-left-v1.webp",
   },
+  convoyTruck: {
+    "front-right": "/art/sprites/sleek-modular/convoy-truck-front-right-v1.webp",
+    front: "/art/sprites/sleek-modular/convoy-truck-front-v1.webp",
+    right: "/art/sprites/sleek-modular/convoy-truck-right-v1.webp",
+    "front-left": "/art/sprites/sleek-modular/convoy-truck-front-left-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/convoy-truck-back-left-v1.webp",
+    back: "/art/sprites/sleek-modular/convoy-truck-back-v1.webp",
+    left: "/art/sprites/sleek-modular/convoy-truck-left-v1.webp",
+    "back-right": "/art/sprites/sleek-modular/convoy-truck-back-right-v1.webp",
+  },
 };
 
 /** Generated direction sheets contain a few neighboring partial renders at the edge. */

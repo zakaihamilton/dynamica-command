@@ -1,4 +1,4 @@
-import { isSupportUnit } from "../../catalog";
+import { isSupportUnit, UNIT_STATS } from "../../catalog";
 import { isUnitEntity, type Entity, type SimState, type UnitKind } from "../../types";
 import { tryFindPath } from "../pathBudget";
 import { byId, closestApproach, distToEntity, living, nearest } from "../world";
@@ -6,7 +6,7 @@ import { contestedResourcePoint } from "./helpers";
 import { homeGuardCount } from "./director";
 
 export function enemyCombat(state: SimState): Entity[] {
-  return living(state).filter((e) => e.owner === 1 && isUnitEntity(e) && e.kind !== "harvester" && !isSupportUnit(e.kind));
+  return living(state).filter((e) => e.owner === 1 && isUnitEntity(e) && UNIT_STATS[e.kind].damage > 0 && !isSupportUnit(e.kind));
 }
 
 export function sendHome(state: SimState, unit: Entity, yard: Entity): void {

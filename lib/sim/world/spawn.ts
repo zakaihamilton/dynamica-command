@@ -211,5 +211,5 @@ export function spawnBuildingAt(
 }
 
 export function emptyRoleCounts(): Record<UnitKind, number> {
-  return { harvester: 0, infantry: 0, antiArmor: 0, tank: 0, medic: 0, repairTruck: 0 };
+  return { harvester: 0, infantry: 0, antiArmor: 0, tank: 0, medic: 0, repairTruck: 0, convoyTruck: 0 };
 }

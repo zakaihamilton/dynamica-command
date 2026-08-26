@@ -12,7 +12,7 @@ export function productionQueueSize(entity: {
   return (entity.producing ? 1 : 0) + (entity.queue?.length ?? 0);
 }
 
-export const UNIT_KINDS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank", "medic", "repairTruck"];
+export const UNIT_KINDS: UnitKind[] = ["harvester", "infantry", "antiArmor", "tank", "medic", "repairTruck", "convoyTruck"];
 export const BUILDING_KINDS: BuildingKind[] = [
   "constructionYard",
   "power",
@@ -22,6 +22,9 @@ export const BUILDING_KINDS: BuildingKind[] = [
   "turret",
   "objective",
 ];
+
+/** Buildings that may only have one active instance per owner in a mission. */
+export const SINGLE_BUILDING_KINDS: BuildingKind[] = ["barracks", "factory"];
 
 export type UnitStats = {
   hp: number;
@@ -42,6 +45,7 @@ export type UnitStats = {
   supportRange?: number;
   supportAmount?: number;
   supportInterval?: number;
+  scenarioOnly?: boolean;
 };
 
 export type Footprint = { w: number; h: number };
@@ -162,6 +166,23 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     supportAmount: 20,
     supportInterval: 24,
   },
+  convoyTruck: {
+    hp: 320,
+    speed: 0.065,
+    damage: 0,
+    range: 0,
+    cooldown: 0,
+    cost: 0,
+    buildTicks: 0,
+    sight: 7,
+    carryMax: 0,
+    armor: "heavy",
+    weapon: "smallArms",
+    splashRadius: 0,
+    suppression: 0,
+    domain: "vehicle",
+    scenarioOnly: true,
+  },
 };
 
 export const BUILDING_STATS: Record<BuildingKind, BuildingStats> = {
@@ -181,6 +202,7 @@ export const UNIT_LABELS: Record<UnitKind, string> = {
   tank: "Tank",
   medic: "Field Medic",
   repairTruck: "Repair Truck",
+  convoyTruck: "Convoy Truck",
 };
 
 export const BUILDING_LABELS: Record<BuildingKind, string> = {
@@ -195,6 +217,15 @@ export const BUILDING_LABELS: Record<BuildingKind, string> = {
 
 export function footprintOf(kind: BuildingKind): Footprint {
   return BUILDING_STATS[kind].footprint;
+}
+
+export function buildingLimitReached(
+  entities: ReadonlyArray<Pick<Entity, "hp" | "owner" | "class" | "kind">>,
+  owner: number,
+  kind: BuildingKind,
+): boolean {
+  if (!SINGLE_BUILDING_KINDS.includes(kind)) return false;
+  return entities.some((entity) => entity.hp > 0 && entity.owner === owner && entity.class === "building" && entity.kind === kind);
 }
 
 export function isUnitKind(kind: UnitKind | BuildingKind): kind is UnitKind {
@@ -245,7 +276,7 @@ export function isSupportEntity(e: Entity): boolean {
 }
 
 export function isUnitAvailable(kind: UnitKind, missionIndex: number): boolean {
-  return !isSupportUnit(kind) || missionIndex >= 0;
+  return !UNIT_STATS[kind].scenarioOnly && (!isSupportUnit(kind) || missionIndex >= 0);
 }
 
 export function supportTargetDomain(kind: UnitKind): UnitDomain | undefined {

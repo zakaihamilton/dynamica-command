@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { basename, resolve } from "node:path";
+import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { BUILDING_KINDS, UNIT_KINDS } from "../lib/catalog";
 import {
@@ -152,6 +153,19 @@ describe("tactical procedural assets", () => {
         expect(existsSync(resolve(process.cwd(), "public", source.slice(1)))).toBe(true);
       }
     }
+  });
+
+  it("keeps convoy truck rasters transparent, framed, and complete", async () => {
+    const convoy = UNIT_DIRECTION_ART.convoyTruck;
+    for (const source of Object.values(convoy)) {
+      const metadata = await sharp(resolve(process.cwd(), "public", source.slice(1))).metadata();
+      expect(metadata.width).toBe(384);
+      expect(metadata.height).toBe(512);
+      expect(metadata.hasAlpha).toBe(true);
+      const stats = await sharp(resolve(process.cwd(), "public", source.slice(1))).stats();
+      expect(stats.channels[3]?.min ?? 255).toBeLessThan(255);
+    }
+    expect(new Set(Object.values(convoy)).size).toBe(8);
   });
 
   it("does not keep unused sleek-modular sprites in the asset bay", () => {

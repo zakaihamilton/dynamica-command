@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { BUILDING_STATS, UNIT_STATS, buildingCameoStatus, unitCameoStatus } from "../lib/catalog";
+import { BUILDING_STATS, UNIT_STATS, buildingCameoStatus, buildingLimitReached, unitCameoStatus } from "../lib/catalog";
 import { addBuilding, makeFixture } from "../lib/sim/fixtures";
 
 describe("sidebar cameo progress", () => {
+  it("counts an unfinished unique producer toward its mission limit", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "barracks", 4, 4, BUILDING_STATS.barracks.buildTicks);
+
+    expect(buildingLimitReached(s.entities, 0, "barracks")).toBe(true);
+    expect(buildingLimitReached(s.entities, 0, "factory")).toBe(false);
+  });
+
   it("reports construction fill for a building under construction", () => {
     const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
     const total = BUILDING_STATS.power.buildTicks;

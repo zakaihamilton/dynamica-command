@@ -165,9 +165,9 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   const reverb = audio.createConvolver();
   const reverbSend = audio.createGain();
   const reverbWet = audio.createGain();
-  reverb.buffer = createImpulseResponse(audio, 1.15, 2.45);
-  reverbSend.gain.setValueAtTime(0.2, now);
-  reverbWet.gain.setValueAtTime(0.2, now);
+  reverb.buffer = createImpulseResponse(audio, p.style.reverbSeconds, p.style.reverbDecay);
+  reverbSend.gain.setValueAtTime(p.style.reverbSend, now);
+  reverbWet.gain.setValueAtTime(p.style.reverbWet, now);
   reverbSend.connect(reverb);
   reverb.connect(reverbWet);
   reverbWet.connect(master);
@@ -175,8 +175,8 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   const delay = audio.createDelay(1.5);
   const delayFeedback = audio.createGain();
   const delayWet = audio.createGain();
-  delayFeedback.gain.setValueAtTime(0.28, now);
-  delayWet.gain.setValueAtTime(0.26, now);
+  delayFeedback.gain.setValueAtTime(p.style.delayFeedback, now);
+  delayWet.gain.setValueAtTime(p.style.delayWet, now);
   delay.connect(delayFeedback);
   delayFeedback.connect(delay);
   delay.connect(delayWet);
@@ -197,24 +197,24 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   const padGate = audio.createGain();
   padFilter.type = "lowpass";
   padFilter.frequency.setValueAtTime(Math.min(p.cutoff, 1100), now);
-  padFilter.Q.setValueAtTime(0.85, now);
+  padFilter.Q.setValueAtTime(p.style.padQ, now);
   padGain.gain.setValueAtTime(PAD_GAIN, now);
   padGate.gain.setValueAtTime(1, now);
-  padOscA.type = "sawtooth";
-  padOscB.type = "sawtooth";
-  padOscC.type = "sawtooth";
-  padOscD.type = "sawtooth";
+  padOscA.type = p.style.padType;
+  padOscB.type = p.style.padType;
+  padOscC.type = p.style.padType;
+  padOscD.type = p.style.padType;
   padOscA.frequency.setValueAtTime(p.padRoot[0] ?? p.rootHz, now);
   padOscB.frequency.setValueAtTime((p.padRoot[0] ?? p.rootHz) * 1.002, now);
   padOscC.frequency.setValueAtTime((p.padRoot[0] ?? p.rootHz) * 0.998, now);
   padOscD.frequency.setValueAtTime((p.padFifth[0] ?? p.rootHz * 1.5) * 1.001, now);
-  padOscA.detune.setValueAtTime(-6, now);
-  padOscB.detune.setValueAtTime(-14, now);
-  padOscC.detune.setValueAtTime(12, now);
-  padOscD.detune.setValueAtTime(5, now);
+  padOscA.detune.setValueAtTime(p.style.padDetune[0], now);
+  padOscB.detune.setValueAtTime(p.style.padDetune[1], now);
+  padOscC.detune.setValueAtTime(p.style.padDetune[2], now);
+  padOscD.detune.setValueAtTime(p.style.padDetune[3], now);
   padLfo.type = "sine";
-  padLfo.frequency.setValueAtTime(0.52, now);
-  padLfoGain.gain.setValueAtTime(160, now);
+  padLfo.frequency.setValueAtTime(p.style.padLfoRate, now);
+  padLfoGain.gain.setValueAtTime(p.style.padLfoDepth, now);
   padOscA.connect(padFilter);
   padOscB.connect(padFilter);
   padOscC.connect(padFilter);
@@ -232,6 +232,7 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
 
   return {
     fast,
+    style: p.style,
     master,
     highpass,
     saturation,

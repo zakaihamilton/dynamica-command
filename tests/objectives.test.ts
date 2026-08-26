@@ -127,6 +127,17 @@ describe("generated harvest quotas", () => {
   });
 });
 
+describe("generated structure quotas", () => {
+  it("never asks for multiple copies of a single-instance producer", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      for (let index = 0; index < 8; index++) {
+        const win = generateWinCategory(seed, index, "structureQuota");
+        expect(["barracks", "factory"]).not.toContain(win.building);
+      }
+    }
+  });
+});
+
 describe("mission briefing objectives", () => {
   it("derives real objectives from the campaign win condition and standing orders", () => {
     const campaign = createCampaign(421);

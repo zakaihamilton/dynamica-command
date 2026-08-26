@@ -1,6 +1,7 @@
 import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "react";
 import { beep } from "@/lib/audio/synth";
 import { pickTile } from "@/lib/render/renderer";
+import type { CommandMarker } from "@/lib/render/renderOverlays/types";
 import { panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { type Camera } from "@/lib/iso";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
@@ -54,6 +55,13 @@ export function useGameInput({
   const hoverRef = useRef<{ x: number; y: number } | null>(null);
   const cursorRef = useRef<{ x: number; y: number } | null>(null);
   const boxRef = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const commandMarkerRef = useRef<CommandMarker | null>(null);
+
+  const markUnitCommand = useCallback((s: SimState, p: { x: number; y: number }, commands: Command[]) => {
+    if (!commands.some((command) => command.type === "move" || command.type === "attackMove" || command.type === "attack" || command.type === "support" || command.type === "harvest")) return;
+    const { x, y } = pointerTile(s, p, camRef.current);
+    commandMarkerRef.current = { x, y, bornMs: performance.now() };
+  }, [camRef]);
 
   const issueContextOrder = useCallback((s: SimState, p: { x: number; y: number }, attackMove = false) => {
     const { x: tx, y: ty } = pointerTile(s, p, camRef.current);
@@ -64,11 +72,13 @@ export function useGameInput({
     }
     const ids = [...selectedRef.current];
     const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
-    cmdQRef.current.push(...contextOrders(s, ids, target, tx, ty, attackMove));
+    const commands = contextOrders(s, ids, target, tx, ty, attackMove);
+    cmdQRef.current.push(...commands);
+    markUnitCommand(s, p, commands);
     mobileCommandRef.current = null;
     setMobileCommandState(null);
     beep("ack");
-  }, [camRef, clearTools, cmdQRef, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState]);
+  }, [camRef, clearTools, cmdQRef, markUnitCommand, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState]);
 
   const { beginTouch, moveTouch, endTouch, cancelTouch } = useTouchGestures({
     camRef,
@@ -81,7 +91,10 @@ export function useGameInput({
   const applyPointerUp = useCallback((effect: PointerUpEffect, event: PointerEvent<HTMLCanvasElement>) => {
     if (effect.preventDefault) event.preventDefault();
     if (effect.clearBox) boxRef.current = null;
-    if (effect.commands?.length) cmdQRef.current.push(...effect.commands);
+    if (effect.commands?.length) {
+      cmdQRef.current.push(...effect.commands);
+      markUnitCommand(stateRef.current, canvasPointerPos(event), effect.commands);
+    }
     if (effect.select) commitSelection(effect.select);
     if (effect.endSelectionMode) setSelectionMode(false);
     if (effect.clearMobileCommand) {
@@ -99,7 +112,7 @@ export function useGameInput({
       setSellMode(false);
     }
     if (effect.beep) beep(effect.beep);
-  }, [cmdQRef, commitSelection, mobileCommandRef, placeRef, repairRef, sellRef, setMobileCommandState, setPlaceKind, setRepairMode, setSelectionMode, setSellMode]);
+  }, [cmdQRef, commitSelection, markUnitCommand, mobileCommandRef, placeRef, repairRef, sellRef, setMobileCommandState, setPlaceKind, setRepairMode, setSelectionMode, setSellMode, stateRef]);
 
   const onDown = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     const p = canvasPointerPos(e);
@@ -177,12 +190,14 @@ export function useGameInput({
     hoverRef.current = null;
     cursorRef.current = null;
     boxRef.current = null;
+    commandMarkerRef.current = null;
   }, []);
 
   return {
     hoverRef,
     cursorRef,
     boxRef,
+    commandMarkerRef,
     resetInput,
     onDown,
     onMove,
