@@ -16,9 +16,25 @@ jobs:
           node-version: 22
           cache: yarn
       - run: yarn install --frozen-lockfile
+      - run: yarn tsc --noEmit
+      - run: yarn health:invariants
       - run: yarn health:dead-code
       - run: yarn health:coverage
         continue-on-error: true
-      - run: yarn health:performance
+      - name: Run performance health with timing report
+        run: |
+          mkdir -p artifacts
+          yarn ci:timed-performance
+      - name: Run balance health with timing report
+        run: |
+          mkdir -p artifacts
+          yarn ci:timed-balance
       - run: yarn health:duplication
-      - run: yarn balance --from 0 --to 9 --jobs 8 --check true --progress false
+      - name: Upload nightly timing reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-health-timing-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
