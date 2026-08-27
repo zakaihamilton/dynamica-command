@@ -7,7 +7,7 @@ import { tickAi } from "../lib/sim/ai";
 import { tickCombat } from "../lib/sim/combat";
 import { FOREGROUND_PATHS_PER_ORDER, PATH_BUDGET_PER_TICK, backgroundPathSearches, resetPathBudget, tryFindPath } from "../lib/sim/pathBudget";
 import { groundOrders } from "../lib/sim/orders";
-import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, compactDestroyedEntities, occupies, powerBreakdown, powerFor, terrainAccess, unitAt } from "../lib/sim/world";
+import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, compactDestroyedEntities, occupies, powerBreakdown, powerFor, staticNavigationFor, terrainAccess, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
@@ -378,6 +378,21 @@ describe("pathfinding", () => {
     const blockedField = flowFieldFor(blockedGoal, { x: 6, y: 4 });
     expect(blockedField.goal).not.toEqual({ x: 6, y: 4 });
     expect(flowStep(blockedField, 2, 4)).toBeTruthy();
+  });
+
+  it("invalidates cached navigation immediately when a building is cancelled or sold", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const cancelled = addBuilding(s, 0, "power", 5, 4, 10);
+    const beforeCancel = staticNavigationFor(s);
+    issue(s, { type: "cancelBuild", building: "power" });
+    expect(staticNavigationFor(s)).not.toBe(beforeCancel);
+
+    const sold = addBuilding(s, 0, "turret", 8, 4);
+    const beforeSell = staticNavigationFor(s);
+    issue(s, { type: "sell", buildingId: sold.id });
+    expect(staticNavigationFor(s)).not.toBe(beforeSell);
+    expect(cancelled.hp).toBe(0);
+    expect(sold.hp).toBe(0);
   });
 
   it("invalidates cached fields when a building footprint changes", () => {

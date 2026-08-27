@@ -19,7 +19,7 @@ import {
 } from "../lib/render/camera";
 import { visibleTileRange } from "../lib/render/terrainPaint";
 
-const EXHAUSTIVE_TEST_TIMEOUT = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 60_000 : 30_000;
+const EXHAUSTIVE_TEST_TIMEOUT = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 120_000 : 30_000;
 
 describe("terrain height", () => {
   it("interpolates unit elevation between neighboring tiles", () => {
@@ -94,23 +94,29 @@ function nearestResource(map: ReturnType<typeof generateMap>, start: { x: number
 
 function routeExists(map: ReturnType<typeof generateMap>): boolean {
   const seen = new Uint8Array(map.width * map.height);
-  const queue = [map.playerStart];
-  seen[map.playerStart.y * map.width + map.playerStart.x] = 1;
-  while (queue.length) {
-    const current = queue.shift()!;
-    if (current.x === map.enemyStart.x && current.y === map.enemyStart.y) return true;
+  const queue = new Int32Array(map.width * map.height);
+  let head = 0;
+  let tail = 0;
+  const startKey = map.playerStart.y * map.width + map.playerStart.x;
+  seen[startKey] = 1;
+  queue[tail++] = startKey;
+  while (head < tail) {
+    const currentKey = queue[head++]!;
+    const currentX = currentKey % map.width;
+    const currentY = Math.floor(currentKey / map.width);
+    if (currentX === map.enemyStart.x && currentY === map.enemyStart.y) return true;
+    const currentHeight = map.heights[currentKey] ?? 1;
     for (let oy = -1; oy <= 1; oy++) {
       for (let ox = -1; ox <= 1; ox++) {
         if (!ox && !oy) continue;
-        const x = current.x + ox;
-        const y = current.y + oy;
+        const x = currentX + ox;
+        const y = currentY + oy;
         if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
         const i = y * map.width + x;
         if (seen[i] || map.tiles[i] === TILE_WATER || map.tiles[i] === TILE_BLOCKED) continue;
-        const currentHeight = map.heights[current.y * map.width + current.x] ?? 1;
         if (Math.abs((map.heights[i] ?? 1) - currentHeight) > 1) continue;
         seen[i] = 1;
-        queue.push({ x, y });
+        queue[tail++] = i;
       }
     }
   }

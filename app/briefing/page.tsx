@@ -1,10 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 import { BriefingScreen } from "@/components/briefing/BriefingScreen";
-import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { PageFallback } from "@/components/ui/PageFallback";
+import { RouteBoundary } from "@/components/ui/RouteBoundary";
 import { parseSeed } from "@/lib/seed/rng";
 
 function Inner() {
@@ -17,10 +15,8 @@ function Inner() {
 
 export default function BriefingPage() {
   return (
-    <Suspense fallback={<PageFallback>Loading briefing…</PageFallback>}>
-      <ErrorBoundary eyebrow="Signal lost" title="Briefing unavailable">
-        <Inner />
-      </ErrorBoundary>
-    </Suspense>
+    <RouteBoundary loadingText="Loading briefing…" eyebrow="Signal lost" title="Briefing unavailable">
+      <Inner />
+    </RouteBoundary>
   );
 }

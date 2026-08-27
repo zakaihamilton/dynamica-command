@@ -1,7 +1,7 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../../catalog";
 import { isBuildingEntity, type BuildingKind, type Entity, type Owner, type SimState, type UnitKind, type Vec2 } from "../../types";
 import { living, distToEntity } from "./queries";
-import { isWalkable, canClimb } from "./terrain";
+import { invalidateNavigation, isWalkable, canClimb } from "./terrain";
 import { findBuildSite } from "./building";
 
 export function closestApproach(state: SimState, from: Vec2, e: Entity): Vec2 {
@@ -193,7 +193,7 @@ export function spawnBuilding(
 ): Entity {
   const e = makeBuilding(state, owner, kind, x, y, constructing, marked);
   state.entities.push(e);
-  state.navigationRevision = (state.navigationRevision ?? 0) + 1;
+  invalidateNavigation(state);
   return e;
 }
 

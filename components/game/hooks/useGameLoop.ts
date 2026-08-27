@@ -4,6 +4,7 @@ import { TICKS_PER_SECOND } from "@/lib/catalog";
 import { setMusicCue, setMusicIntensity, type MusicIntensity } from "@/lib/audio/music";
 import { playSfx } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
+import { tick } from "@/lib/sim/api";
 import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { cachedLocalStorage } from "@/lib/persist/save";
 import { SAVE_TRANSFER_KEY, saveKey, type SaveSession } from "@/lib/persist/save";
@@ -114,6 +115,7 @@ export function useGameLoop({
         commandsIssued += commands.length;
         return commands;
       },
+      step: tick,
       isPaused: () => pausedRef.current,
       onTick: (next, events, now) => {
         commandRejections += events.filter((event) => event.type === "commandRejected").length;

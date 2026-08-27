@@ -9,6 +9,11 @@ export type OreVeinSample = {
   intensity: number;
 };
 
+export type OreVeinContext = {
+  salt: number;
+  amount: number;
+};
+
 export type OreVeinPeak = {
   fx: number;
   fy: number;
@@ -37,11 +42,11 @@ export type OreCrystalCluster = {
   bursts: OreBurstOrigin[];
   shards: OreShardPose[];
 };
-export function oreVeinAt(state: AtlasWorld, mapX: number, mapY: number): OreVeinSample {
+export function oreVeinAt(state: AtlasWorld, mapX: number, mapY: number, context?: OreVeinContext): OreVeinSample {
   const x = Math.floor(mapX);
   const y = Math.floor(mapY);
-  const amount = resourceAt(state, x, y);
-  const salt = artSalt(state);
+  const amount = context?.amount ?? resourceAt(state, x, y);
+  const salt = context?.salt ?? artSalt(state);
   const seam = fbm(mapX * 0.72, mapY * 0.28, salt + 91);
   const crack = fbm(mapX * 0.31, mapY * 0.64, salt + 140);
   const ridge = Math.max(

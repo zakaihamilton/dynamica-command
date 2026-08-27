@@ -1,4 +1,3 @@
-import { tick } from "../sim/api";
 import type { Command, SimEvent, SimState } from "../types";
 
 export const TICK_MS = 1000 / 12;
@@ -21,10 +20,13 @@ export type LoopHandle = {
   stop: () => void;
 };
 
+export type SimulationStep = (state: SimState, commands?: Command[]) => { state: SimState; events: SimEvent[] };
+
 export type LoopOptions = {
   getState: () => SimState;
   setState: (s: SimState) => void;
   drainCommands: () => Command[];
+  step: SimulationStep;
   isPaused?: () => boolean;
   onFrame?: (now: number, state: SimState, paused: boolean, subTickAlpha: number) => void;
   onTick?: (state: SimState, events: SimEvent[], now: number) => void;
@@ -35,6 +37,7 @@ export function startLoop({
   getState,
   setState,
   drainCommands,
+  step,
   isPaused,
   onFrame,
   onTick,
@@ -77,7 +80,7 @@ export function startLoop({
     acc = budget.acc;
     for (let i = 0; i < budget.ticks && state.result === "playing"; i++) {
       const cmds = drainCommands();
-      const out = tick(state, cmds.length ? cmds : undefined);
+      const out = step(state, cmds.length ? cmds : undefined);
       state = out.state;
       setState(state);
       onTick?.(state, out.events, now);

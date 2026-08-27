@@ -1,24 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { CampaignCompleteScreen } from "@/components/campaign/CampaignCompleteScreen";
-import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { PageFallback } from "@/components/ui/PageFallback";
-import { parseSeed } from "@/lib/seed/rng";
-
-function Inner() {
-  const sp = useSearchParams();
-  const seed = parseSeed(sp.get("seed") ?? "0000") ?? 0;
-  return <CampaignCompleteScreen key={seed} seed={seed} mode="operations" />;
-}
+import { CampaignRoute } from "@/components/campaign/CampaignRoute";
+import { RouteBoundary } from "@/components/ui/RouteBoundary";
 
 export default function CampaignPage() {
   return (
-    <Suspense fallback={<PageFallback>Loading operations map…</PageFallback>}>
-      <ErrorBoundary eyebrow="Theater link lost" title="Operations map unavailable">
-        <Inner />
-      </ErrorBoundary>
-    </Suspense>
+    <RouteBoundary loadingText="Loading operations map…" eyebrow="Theater link lost" title="Operations map unavailable">
+      <CampaignRoute mode="operations" />
+    </RouteBoundary>
   );
 }

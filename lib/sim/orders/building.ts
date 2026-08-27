@@ -1,6 +1,6 @@
 import { BUILDING_STATS, buildingLimitReached, sellRefundFor } from "../../catalog";
 import { isBuildingEntity, type BuildingKind, type Entity, type SimEvent, type SimState } from "../../types";
-import { byId, canPlaceBuilding, spawnBuilding } from "../world";
+import { byId, canPlaceBuilding, invalidateNavigation, spawnBuilding } from "../world";
 import { canRepair } from "../repair";
 import { canSell } from "../sell";
 import { UNIT_STATS } from "../../catalog";
@@ -33,6 +33,7 @@ export function cancelBuild(state: SimState, kind: BuildingKind): SimEvent[] {
   if (!target) return [];
   target.hp = 0;
   target.constructing = 0;
+  invalidateNavigation(state, target.id);
   state.credits[0] += BUILDING_STATS[kind].cost;
   return [];
 }
@@ -66,6 +67,7 @@ export function sellBuilding(state: SimState, buildingId: number): SimEvent[] {
   state.credits[0] += sellRefundFor(e.kind, e.hp);
   e.hp = 0;
   e.repairing = false;
+  invalidateNavigation(state, e.id);
   state.losses.buildings[0] += 1;
   return [{ type: "sold", id: e.id, kind: e.kind, x: e.x, y: e.y }];
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMission } from "../lib/sim/api";
+import { createMission, tick } from "../lib/sim/api";
 import { MAX_CATCH_UP_TICKS_PER_FRAME, MAX_TICKS_PER_FRAME, TICK_MS, frameTickBudget, startLoop } from "../lib/game/loop";
 
 type Listener = () => void;
@@ -81,6 +81,7 @@ describe("startLoop", () => {
       getState: () => state,
       setState: () => undefined,
       drainCommands: () => [],
+      step: tick,
       onTick: () => undefined,
     });
 
@@ -109,6 +110,7 @@ describe("startLoop", () => {
       getState: () => createMission({ seed: 421, missionIndex: 0 }),
       setState: () => undefined,
       drainCommands: () => [],
+      step: tick,
     });
 
     loop.stop();

@@ -1,4 +1,5 @@
 import type { Entity, SimState } from "../../types";
+import { ensureDeadBuildingInvalidation } from "./terrain";
 
 export function compactDestroyedEntities(state: SimState): number {
   const removedIds = new Set(
@@ -6,8 +7,8 @@ export function compactDestroyedEntities(state: SimState): number {
   );
   if (removedIds.size === 0) return 0;
 
-  if (state.entities.some((entity) => entity.hp <= 0 && entity.class === "building")) {
-    state.navigationRevision = (state.navigationRevision ?? 0) + 1;
+  for (const entity of state.entities) {
+    if (entity.hp <= 0 && entity.class === "building") ensureDeadBuildingInvalidation(state, entity.id);
   }
 
   for (const entity of state.entities) {

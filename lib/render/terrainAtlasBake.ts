@@ -158,6 +158,62 @@ function bakeWaterShoreDist(state: AtlasWorld, cols: number, rows: number): Uint
   return dist;
 }
 
+type AtlasSceneryGrid = {
+  cols: number;
+  rows: number;
+  kind: Uint8Array;
+  waterNeighbors: Uint8Array;
+};
+
+function bakeAtlasSceneryGrid(state: AtlasWorld, cols: number, rows: number): AtlasSceneryGrid {
+  // Include one extra cell around the atlas so every immediate neighbor lookup
+  // used by pixel shading stays on the fast cached path.
+  const cachedCols = cols + 2;
+  const cachedRows = rows + 2;
+  const kind = new Uint8Array(cachedCols * cachedRows);
+  for (let row = 0; row < cachedRows; row++) {
+    for (let col = 0; col < cachedCols; col++) {
+      const sample = sceneryAt(state, col - MAP_SKIRT - 1, row - MAP_SKIRT - 1);
+      kind[row * cachedCols + col] = sample.kind;
+    }
+  }
+
+  const waterNeighbors = new Uint8Array(cols * rows);
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const center = (row + 1) * cachedCols + col + 1;
+      let mask = 0;
+      if (kind[center - cachedCols] === TILE_WATER) mask |= 1;
+      if (kind[center + 1] === TILE_WATER) mask |= 2;
+      if (kind[center + cachedCols] === TILE_WATER) mask |= 4;
+      if (kind[center - 1] === TILE_WATER) mask |= 8;
+      if (kind[center - cachedCols + 1] === TILE_WATER) mask |= 16;
+      if (kind[center + cachedCols - 1] === TILE_WATER) mask |= 32;
+      if (kind[center - cachedCols - 1] === TILE_WATER) mask |= 64;
+      if (kind[center + cachedCols + 1] === TILE_WATER) mask |= 128;
+      waterNeighbors[row * cols + col] = mask;
+    }
+  }
+  return { cols, rows, kind, waterNeighbors };
+}
+
+function atlasKindAt(grid: AtlasSceneryGrid, col: number, row: number): number {
+  return grid.kind[(row + 1) * (grid.cols + 2) + col + 1] ?? TILE_BLOCKED;
+}
+
+function waterPixelDistFromMask(fx: number, fy: number, cellDist: number, mask: number): number {
+  let dist = cellDist;
+  if ((mask & 2) === 0) dist = Math.min(dist, 1 - fx);
+  if ((mask & 8) === 0) dist = Math.min(dist, fx);
+  if ((mask & 4) === 0) dist = Math.min(dist, 1 - fy);
+  if ((mask & 1) === 0) dist = Math.min(dist, fy);
+  if ((mask & 128) === 0) dist = Math.min(dist, Math.max(1 - fx, 1 - fy));
+  if ((mask & 64) === 0) dist = Math.min(dist, Math.max(fx, fy));
+  if ((mask & 16) === 0) dist = Math.min(dist, Math.max(1 - fx, fy));
+  if ((mask & 32) === 0) dist = Math.min(dist, Math.max(fx, 1 - fy));
+  return dist;
+}
+
 export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: number): TerrainSample {
   const x = Math.floor(mapX);
   const y = Math.floor(mapY);
@@ -214,37 +270,38 @@ function cellColor(state: AtlasWorld, gx: number, gy: number): Rgb {
   return { r: sample.r, g: sample.g, b: sample.b };
 }
 
-function cellClass(state: AtlasWorld, x: number, y: number): number {
-  const scenery = sceneryAt(state, x, y);
-  if (scenery.kind === TILE_WATER) return WATER_CELL_CLASS;
-  const surface = surfaceAt(state, x, y);
-  if (surface === SURFACE_ROAD) return 1;
-  if (surface === SURFACE_CONCRETE) return CONCRETE_CELL_CLASS;
-  if (scenery.kind === TILE_RESOURCE) return ORE_CELL_CLASS;
-  return 4;
-}
-
 export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): TerrainAtlasData {
   const { cols, rows, width, height } = atlasSize(state);
   const colors = new Float32Array(cols * rows * 3);
   const classes = new Uint8Array(cols * rows);
   const shoreDist = bakeWaterShoreDist(state, cols, rows);
+  const sceneryGrid = bakeAtlasSceneryGrid(state, cols, rows);
+  const salt = artSalt(state);
+  const mats = materialsFor(state);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const gx = col - MAP_SKIRT;
       const gy = row - MAP_SKIRT;
-      const color = cellColor(state, gx, gy);
+      const kind = atlasKindAt(sceneryGrid, col, row);
+      const color = kind === TILE_WATER ? { r: 0, g: 0, b: 0 } : cellColor(state, gx, gy);
       const i = (row * cols + col) * 3;
       colors[i] = color.r;
       colors[i + 1] = color.g;
       colors[i + 2] = color.b;
-      classes[row * cols + col] = cellClass(state, gx, gy);
+      const surface = surfaceAt(state, gx, gy);
+      classes[row * cols + col] = kind === TILE_WATER
+        ? WATER_CELL_CLASS
+        : surface === SURFACE_ROAD
+          ? 1
+          : surface === SURFACE_CONCRETE
+            ? CONCRETE_CELL_CLASS
+            : kind === TILE_RESOURCE
+              ? ORE_CELL_CLASS
+              : 4;
     }
   }
 
   const data = new Uint8ClampedArray(width * height * 4);
-  const salt = artSalt(state);
-  const mats = materialsFor(state);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const gx = col - MAP_SKIRT;
@@ -265,6 +322,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
       const southG = blendS ? colors[southI + 1]! : baseG;
       const southB = blendS ? colors[southI + 2]! : baseB;
       const cellDist = shoreDist[row * cols + col] ?? WATER_SHORE_MAX;
+      const resourceAmount = same === ORE_CELL_CLASS ? resourceAt(state, gx, gy) : 0;
       for (let ly = 0; ly < ATLAS_CELL; ly++) {
         const fy = ly / ATLAS_CELL;
         const py = row * ATLAS_CELL + ly;
@@ -276,7 +334,18 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
           if (same === WATER_CELL_CLASS) {
             const mapX = gx + (lx + 0.5) / ATLAS_CELL;
             const mapY = gy + (ly + 0.5) / ATLAS_CELL;
-            const wet = tintWater(mats, waterPixelDist(state, mapX, mapY, cellDist), mapX, mapY, salt);
+            const wet = tintWater(
+              mats,
+              waterPixelDistFromMask(
+                (lx + 0.5) / ATLAS_CELL,
+                (ly + 0.5) / ATLAS_CELL,
+                cellDist,
+                sceneryGrid.waterNeighbors[row * cols + col] ?? 0,
+              ),
+              mapX,
+              mapY,
+              salt,
+            );
             r = wet.r;
             g = wet.g;
             b = wet.b;
@@ -286,7 +355,12 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
             b = baseB + (eastB - baseB) * fx * 0.28 + (southB - baseB) * fy * 0.28;
           }
           if (same === ORE_CELL_CLASS) {
-            const vein = oreVeinAt(state, gx + (lx + 0.5) / ATLAS_CELL, gy + (ly + 0.5) / ATLAS_CELL);
+            const vein = oreVeinAt(
+              state,
+              gx + (lx + 0.5) / ATLAS_CELL,
+              gy + (ly + 0.5) / ATLAS_CELL,
+              { salt, amount: resourceAmount },
+            );
             const metal = mixRgb(mats.ore, mats.light, 0.28 + vein.ridge * 0.45);
             const t = Math.min(1, vein.intensity);
             r += (metal.r - r) * t;

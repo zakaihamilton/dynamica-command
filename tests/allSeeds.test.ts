@@ -8,7 +8,7 @@ import { diagonalCornerBlocked, PATH_DIRS } from "../lib/sim/pathfinding";
 import type { Entity, MissionKind, SimState, Vec2 } from "../lib/types";
 
 const SEED_COUNT = 10_000;
-const EXHAUSTIVE_TEST_TIMEOUT = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 60_000 : 30_000;
+const EXHAUSTIVE_TEST_TIMEOUT = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 120_000 : 30_000;
 const REPRESENTATIVE_SEEDS = [
   ...Array.from({ length: 64 }, (_, index) => index * 157),
   421,
@@ -17,37 +17,41 @@ const REPRESENTATIVE_SEEDS = [
 const SCENARIO_KINDS = new Set<MissionKind>(["escort", "sabotage", "rescue", "extraction"]);
 
 function reachableCells(state: SimState, from: Vec2): Uint8Array {
-  const start = { x: Math.round(from.x), y: Math.round(from.y) };
+  const startX = Math.round(from.x);
+  const startY = Math.round(from.y);
   const seen = new Uint8Array(state.width * state.height);
-  const queue: Vec2[] = [start];
-  seen[start.y * state.width + start.x] = 1;
+  const queue = new Int32Array(state.width * state.height);
+  let head = 0;
+  let tail = 0;
+  const startKey = startY * state.width + startX;
+  seen[startKey] = 1;
+  queue[tail++] = startKey;
 
-  while (queue.length) {
-    const current = queue.shift()!;
+  while (head < tail) {
+    const currentKey = queue[head++]!;
+    const currentX = currentKey % state.width;
+    const currentY = Math.floor(currentKey / state.width);
     for (const dir of PATH_DIRS) {
-      const next = { x: current.x + dir.x, y: current.y + dir.y };
-      if (!inBounds(state, next.x, next.y)) continue;
-      const index = next.y * state.width + next.x;
-      if (seen[index] || !isStaticWalkable(state, next.x, next.y)) continue;
-      if (!canClimb(state, current.x, current.y, next.x, next.y)) continue;
-      if (diagonalCornerBlocked(state, current.x, current.y, next.x, next.y)) continue;
+      const nextX = currentX + dir.x;
+      const nextY = currentY + dir.y;
+      if (!inBounds(state, nextX, nextY)) continue;
+      const index = nextY * state.width + nextX;
+      if (seen[index] || !isStaticWalkable(state, nextX, nextY)) continue;
+      if (!canClimb(state, currentX, currentY, nextX, nextY)) continue;
+      if (diagonalCornerBlocked(state, currentX, currentY, nextX, nextY)) continue;
       seen[index] = 1;
-      queue.push(next);
+      queue[tail++] = index;
     }
   }
   return seen;
 }
 
-function reachable(state: SimState, from: Vec2, to: Vec2): boolean {
-  const seen = reachableCells(state, from);
-  const x = Math.round(to.x);
-  const y = Math.round(to.y);
-  return inBounds(state, x, y) && seen[y * state.width + x] === 1;
-}
-
-function reachableTarget(state: SimState, from: Vec2, target: Entity): boolean {
-  if (target.class !== "building") return reachable(state, from, target);
-  const seen = reachableCells(state, from);
+function reachableTarget(state: SimState, seen: Uint8Array, target: Entity): boolean {
+  if (target.class !== "building") {
+    const x = Math.round(target.x);
+    const y = Math.round(target.y);
+    return inBounds(state, x, y) && seen[y * state.width + x] === 1;
+  }
   const footprint = footprintOf(target.kind as Parameters<typeof footprintOf>[0]);
   for (let y = target.y - 1; y <= target.y + footprint.h; y++) {
     for (let x = target.x - 1; x <= target.x + footprint.w; x++) {
@@ -105,6 +109,7 @@ describe("all-seed invariants", () => {
 
         const playerUnit = state.entities.find((entity) => entity.owner === 0 && entity.class === "unit" && !entity.neutral);
         if (!playerUnit) throw new Error(`Seed ${seed} mission ${mission.index} has no player unit`);
+        const reachableFromPlayer = reachableCells(state, playerUnit);
         for (const id of targetIds) {
           const target = livingEntity(state, id);
           if (!target) throw new Error(`Seed ${seed} mission ${mission.index} has missing target ${id}`);
@@ -124,7 +129,7 @@ describe("all-seed invariants", () => {
           if (!validSpawn) {
             throw new Error(`Seed ${seed} mission ${mission.index} placed target ${id} on invalid terrain`);
           }
-          if (!reachableTarget(state, playerUnit, target)) {
+          if (!reachableTarget(state, reachableFromPlayer, target)) {
             throw new Error(`Seed ${seed} mission ${mission.index} placed unreachable target ${id}`);
           }
         }

@@ -1,6 +1,5 @@
-import { footprintOf } from "../catalog";
-import { isBuildingEntity, type SimState, type Vec2 } from "../types";
-import { canClimb, inBounds, terrainAccess } from "./world";
+import type { SimState, Vec2 } from "../types";
+import { inBounds, staticNavigationFor } from "./world";
 import { PATH_DIRS } from "./pathfinding";
 
 const UNREACHABLE = -1;
@@ -67,8 +66,10 @@ function buildFlowField(state: SimState, requestedGoal: Vec2, revision: number):
   const height = state.height;
   const distance = new Int32Array(width * height);
   distance.fill(UNREACHABLE);
-  const blocked = staticBuildingGrid(state);
-  const passable = (x: number, y: number) => inBounds(state, x, y) && terrainAccess(state, x, y).traversable && blocked[y * width + x] === 0;
+  const navigation = staticNavigationFor(state);
+  const passable = (x: number, y: number) => inBounds(state, x, y) && navigation.walkable[y * width + x] === 1;
+  const canClimbLocal = (x0: number, y0: number, x1: number, y1: number) =>
+    Math.abs(navigation.heights[y1 * width + x1]! - navigation.heights[y0 * width + x0]!) <= 1;
   const origin = flowOrigin(state, requestedGoal, passable);
   if (!origin) return { goal: requestedGoal, revision, width, height, distance };
 
@@ -88,8 +89,8 @@ function buildFlowField(state: SimState, requestedGoal: Vec2, revision: number):
       const nx = currentX + direction.x;
       const ny = currentY + direction.y;
       if (!passable(nx, ny)) continue;
-      if (!canClimb(state, nx, ny, currentX, currentY)) continue;
-      if (diagonalCornerBlockedLocal(state, passable, nx, ny, currentX, currentY)) continue;
+      if (!canClimbLocal(nx, ny, currentX, currentY)) continue;
+      if (diagonalCornerBlockedLocal(navigation, passable, nx, ny, currentX, currentY)) continue;
       const nextKey = ny * width + nx;
       if ((distance[nextKey] ?? UNREACHABLE) !== UNREACHABLE) continue;
       distance[nextKey] = nextDistance;
@@ -116,7 +117,7 @@ function flowOrigin(state: SimState, requestedGoal: Vec2, passable: (x: number, 
 }
 
 function diagonalCornerBlockedLocal(
-  state: SimState,
+  navigation: ReturnType<typeof staticNavigationFor>,
   passable: (x: number, y: number) => boolean,
   x0: number,
   y0: number,
@@ -126,21 +127,8 @@ function diagonalCornerBlockedLocal(
   const dx = x1 - x0;
   const dy = y1 - y0;
   if (dx === 0 || dy === 0) return false;
-  if (!passable(x0 + dx, y0) || !canClimb(state, x0, y0, x0 + dx, y0)) return true;
-  if (!passable(x0, y0 + dy) || !canClimb(state, x0, y0, x0, y0 + dy)) return true;
+  const width = navigation.width;
+  if (!passable(x0 + dx, y0) || Math.abs(navigation.heights[y0 * width + (x0 + dx)]! - navigation.heights[y0 * width + x0]!) > 1) return true;
+  if (!passable(x0, y0 + dy) || Math.abs(navigation.heights[(y0 + dy) * width + x0]! - navigation.heights[y0 * width + x0]!) > 1) return true;
   return false;
-}
-
-function staticBuildingGrid(state: SimState): Uint8Array {
-  const blocked = new Uint8Array(state.width * state.height);
-  for (const entity of state.entities) {
-    if (entity.hp <= 0 || !isBuildingEntity(entity)) continue;
-    const footprint = footprintOf(entity.kind);
-    for (let y = entity.y; y < entity.y + footprint.h; y++) {
-      for (let x = entity.x; x < entity.x + footprint.w; x++) {
-        if (inBounds(state, x, y)) blocked[y * state.width + x] = 1;
-      }
-    }
-  }
-  return blocked;
 }
