@@ -19,7 +19,7 @@ function holdDurationLabel(ticks: number): string {
 }
 
 function scenarioTimeLimitLabel(win: WinCategory): string {
-  return missionTimeLimitClock(win) ?? formatMissionClockFromTicks(3600);
+  return missionTimeLimitClock({ kind: win.kind, ticks: win.ticks ?? 3600 })!;
 }
 
 function objectivePhrase(win: WinCategory): string {

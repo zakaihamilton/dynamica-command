@@ -116,6 +116,9 @@ describe("win categories", () => {
     expect(missionTimeLimitTicks({ kind: "sabotage", ticks: activeWindow })).toBe(activeWindow);
     expect(missionTimeLimitTicks({ kind: "escort", ticks: activeWindow })).toBe(activeWindow + CONVOY_STAGING_TICKS);
     expect(missionTimeLimitClock({ kind: "escort", ticks: activeWindow })).toBe("15:00");
+
+    const secondary = secondaryObjectivesForMissionSeed(421, { index: 2, win: { kind: "escort", ticks: activeWindow } });
+    expect(secondary[1]?.label).toBe("Speed bonus: complete the operation within 08:00 total");
   });
 
   it("losing the construction yard fails the mission", () => {
@@ -189,6 +192,11 @@ describe("mission briefing objectives", () => {
     const hold = campaign.missions.find((mission) => mission.win.kind === "holdTheLine");
     expect(hold).toBeDefined();
     expect(missionObjectives(hold!, campaign)[0]?.text).toContain("for 10:30");
+
+    const fallbackEscort = { index: 2, win: { kind: "escort" as const } };
+    expect(missionObjectives(fallbackEscort, campaign)[0]?.text).toContain("within 12:00");
+    expect(secondaryObjectivesForMissionSeed(421, fallbackEscort)[1]?.label)
+      .toBe("Speed bonus: complete the operation within 05:00 total");
   });
 });
 

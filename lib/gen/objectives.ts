@@ -45,13 +45,16 @@ export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, 
     label: "Keep the construction yard standing",
   };
   if (SCENARIO_KINDS.includes(mission.win.kind)) {
-    const timeLimit = mission.win.ticks === undefined ? undefined : formatMissionClockFromTicks(mission.win.ticks);
+    const timeLimit = formatMissionClockFromTicks(mission.win.ticks ?? 3600);
+    const label = mission.win.kind === "escort"
+      ? `Speed bonus: complete the operation within ${timeLimit} total`
+      : `Complete the operation within ${timeLimit}`;
     return [
       yard,
       {
         id: "time",
         kind: "completeBefore",
-        label: timeLimit ? `Complete the operation within ${timeLimit}` : "Complete the operation before the deadline",
+        label,
         target: mission.win.ticks ?? 3600,
       },
     ];
