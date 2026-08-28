@@ -2,7 +2,10 @@ import { expect, test } from "@playwright/test";
 import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "../../components/game/hooks/useGameCamera";
 import { cameraPanBounds, clampCamera } from "../../lib/render/camera";
 import { TILE_H, tileToScreen } from "../../lib/iso";
+import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/save";
+import { SETTINGS_KEY, SETTINGS_VERSION, defaultSettings } from "../../lib/persist/settings";
 import { createMission } from "../../lib/sim/api";
+import { addUnit, setHeight } from "../../lib/sim/fixtures";
 import { heightAt } from "../../lib/sim/world";
 import type { Entity, SimState } from "../../lib/types";
 
@@ -289,6 +292,61 @@ test.describe("selected unit actions", () => {
     await expect(wedge).toHaveAttribute("aria-pressed", "false");
     await wedge.click();
     await expect(wedge).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+test.describe("desktop marquee selection", () => {
+  test("keeps units selected across an edge-scrolled drag", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
+    setHeight(state, 12, 12, 0);
+    setHeight(state, 24, 0, 0);
+    const anchorUnit = addUnit(state, 0, "infantry", 12, 12);
+    const revealedUnit = addUnit(state, 0, "tank", 24, 0);
+    const save = JSON.stringify({
+      version: SAVE_VERSION,
+      contentVersion: SAVE_CONTENT_VERSION,
+      savedAt: Date.now(),
+      state,
+    });
+    await page.addInitScript(({ saveStorageKey, saveRaw, settingsKey, settingsRaw }) => {
+      localStorage.setItem(saveStorageKey, saveRaw);
+      localStorage.setItem(settingsKey, settingsRaw);
+    }, {
+      saveStorageKey: saveKey(TEST_SEED),
+      saveRaw: save,
+      settingsKey: SETTINGS_KEY,
+      settingsRaw: JSON.stringify({
+        version: SETTINGS_VERSION,
+        savedAt: Date.now(),
+        settings: { ...defaultSettings(), tacticalRosterEnabled: true },
+      }),
+    });
+    await page.goto(`/play?seed=${String(TEST_SEED).padStart(4, "0")}&mission=0&resume=1`);
+    await waitForBattlefield(page);
+
+    const { dimensions, bounds, camera } = await pageCamera(page, state);
+    const anchorPoint = tileToScreen(anchorUnit.x, anchorUnit.y, camera, heightAt(state, anchorUnit.x, anchorUnit.y));
+    const start = canvasCssPoint({
+      x: anchorPoint.x - 18,
+      y: anchorPoint.y + (TILE_H / 2) * camera.zoom - 12 * camera.zoom - 24,
+    }, bounds, dimensions);
+    const end = {
+      x: bounds.x + bounds.width - 4,
+      y: start.y + 48,
+    };
+
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 8 });
+    await page.waitForTimeout(1_100);
+    await page.mouse.up();
+
+    const roster = page.getByTestId("tactical-roster");
+    const anchorRow = roster.locator('[role="listitem"]').filter({ hasText: `Coords ${anchorUnit.x}, ${anchorUnit.y}` });
+    const revealedRow = roster.locator('[role="listitem"]').filter({ hasText: `Coords ${revealedUnit.x}, ${revealedUnit.y}` });
+    await expect.poll(() => anchorRow.getAttribute("data-selected")).toBe("true");
+    await expect.poll(() => revealedRow.getAttribute("data-selected")).toBe("true");
   });
 });
 

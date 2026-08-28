@@ -9,6 +9,7 @@ import type { MobileCommand } from "../mobileCommandTypes";
 import { canvasPointerPos } from "./canvasPointer";
 import { contextOrders, pickSelectableEntity, pointerTile } from "./gameInputOrders";
 import { resolvePointerUp, type PointerUpEffect } from "./gamePointerUp";
+import { selectionProjectionPoint, type SelectionBox } from "./selectionBox";
 import { useTouchGestures } from "./useTouchGestures";
 
 export function useGameInput({
@@ -54,7 +55,7 @@ export function useGameInput({
 }) {
   const hoverRef = useRef<{ x: number; y: number } | null>(null);
   const cursorRef = useRef<{ x: number; y: number } | null>(null);
-  const boxRef = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const boxRef = useRef<SelectionBox | null>(null);
   const commandMarkerRef = useRef<CommandMarker | null>(null);
 
   const markUnitCommand = useCallback((s: SimState, p: { x: number; y: number }, commands: Command[]) => {
@@ -121,8 +122,19 @@ export function useGameInput({
       return;
     }
     if (e.button !== 0) return;
-    boxRef.current = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
-  }, [beginTouch]);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Synthetic pointer events used by accessibility and browser tests may not support capture.
+    }
+    boxRef.current = {
+      x0: p.x,
+      y0: p.y,
+      x1: p.x,
+      y1: p.y,
+      anchor: selectionProjectionPoint(p, camRef.current),
+    };
+  }, [beginTouch, camRef]);
 
   const onMove = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     const p = canvasPointerPos(e);
@@ -149,6 +161,14 @@ export function useGameInput({
   }, [applyEdgePan]);
 
   const onUp = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
+    applyEdgePan(null);
+    if (e.pointerType !== "touch") {
+      try {
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Synthetic pointer events used by accessibility and browser tests may not support capture.
+      }
+    }
     const s = stateRef.current;
     if (!s) return;
     if (e.pointerType === "touch" && endTouch(e)) return;
@@ -175,9 +195,14 @@ export function useGameInput({
       return;
     }
     applyPointerUp(effect, e);
-  }, [applyPointerUp, camRef, endTouch, issueContextOrder, mobileCommandRef, placeRef, repairRef, selectedRef, selectionModeRef, sellRef, stateRef]);
+  }, [applyEdgePan, applyPointerUp, camRef, endTouch, issueContextOrder, mobileCommandRef, placeRef, repairRef, selectedRef, selectionModeRef, sellRef, stateRef]);
 
-  const onCancel = useCallback(() => {
+  const onCancel = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // Synthetic pointer events used by accessibility and browser tests may not support capture.
+    }
     cancelTouch();
     boxRef.current = null;
     mobileCommandRef.current = null;

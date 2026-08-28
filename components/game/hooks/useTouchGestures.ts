@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, type MutableRefObject, type PointerEvent 
 import { cameraPanBounds, panCamera } from "@/lib/render/camera";
 import type { Camera } from "@/lib/iso";
 import type { SimState } from "@/lib/types";
+import type { SelectionBox } from "./selectionBox";
 
 export function useTouchGestures({
   camRef,
@@ -13,7 +14,7 @@ export function useTouchGestures({
   camRef: MutableRefObject<Camera>;
   stateRef: MutableRefObject<SimState>;
   selectionModeRef: MutableRefObject<boolean>;
-  boxRef: MutableRefObject<{ x0: number; y0: number; x1: number; y1: number } | null>;
+  boxRef: MutableRefObject<SelectionBox | null>;
   issueContextOrder: (s: SimState, p: { x: number; y: number }) => void;
 }) {
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());

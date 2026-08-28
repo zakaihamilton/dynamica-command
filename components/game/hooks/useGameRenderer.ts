@@ -5,10 +5,9 @@ import type { RenderExtras } from "@/lib/render/renderer";
 import type { CommandMarker } from "@/lib/render/renderOverlays/types";
 import type { BuildingKind, SimState } from "@/lib/types";
 import { renderGameFrame } from "../renderFrame";
+import type { SelectionBox } from "./selectionBox";
 
 type Point = { x: number; y: number };
-type SelectBox = { x0: number; y0: number; x1: number; y1: number };
-
 export function useGameRenderer({
   stateRef,
   hostRef,
@@ -34,7 +33,7 @@ export function useGameRenderer({
   selected: MutableRefObject<Set<number>>;
   hoverRef: MutableRefObject<Point | null>;
   cursorRef: MutableRefObject<Point | null>;
-  boxRef: MutableRefObject<SelectBox | null>;
+  boxRef: MutableRefObject<SelectionBox | null>;
   commandMarkerRef?: MutableRefObject<CommandMarker | null>;
   place: MutableRefObject<BuildingKind | null>;
   repair: MutableRefObject<boolean>;

@@ -5,10 +5,9 @@ import { drawPerfHud, isPerfHudEnabled } from "@/lib/render/perfHud";
 import { cullFx, type FxBurst } from "@/lib/render/fx";
 import type { BuildingKind, SimState } from "@/lib/types";
 import { renderDimensions } from "./hooks/useGameCamera";
+import { selectionBoxScreen, type SelectionBox } from "./hooks/selectionBox";
 
 type Point = { x: number; y: number };
-type SelectBox = { x0: number; y0: number; x1: number; y1: number };
-
 export type RenderFrameOptions = {
   state: SimState;
   canvas: HTMLCanvasElement;
@@ -25,7 +24,7 @@ export type RenderFrameOptions = {
   placeKind: BuildingKind | null;
   repairMode: boolean;
   sellMode: boolean;
-  selectBox: SelectBox | null;
+  selectBox: SelectionBox | null;
   extras: RenderExtras;
   fx: FxBurst[];
   nowMs?: number;
@@ -83,7 +82,7 @@ export function renderGameFrame(options: RenderFrameOptions): RenderFrameResult 
   extras.sellMode = sellMode;
   const now = nowMs ?? performance.now();
   extras.clockMs = now;
-  extras.selectBox = selectBox;
+  extras.selectBox = selectBox ? selectionBoxScreen(selectBox, cam) : null;
   extras.subTickAlpha = subTickAlpha;
   const fx = cullFx(options.fx, now);
   extras.fx = fx;

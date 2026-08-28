@@ -6,6 +6,7 @@ import { canSupportEntity } from "@/lib/sim/support";
 import { heightAt } from "@/lib/sim/world";
 import type { Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
+import { selectionBoxProjection, type SelectionBox } from "./selectionBox";
 
 export function isContactTarget(s: SimState, entity: SimState["entities"][number]): boolean {
   return (
@@ -72,17 +73,19 @@ export function mobileCommandOrders(
   return [];
 }
 
-export function selectionIdsInBox(s: SimState, cam: Camera, box: { x0: number; y0: number; x1: number; y1: number }, finalize: boolean) {
+export function selectionIdsInBox(s: SimState, cam: Camera, box: SelectionBox, finalize: boolean) {
   const ids: number[] = [];
-  const x0 = Math.min(box.x0, box.x1);
-  const y0 = Math.min(box.y0, box.y1);
-  const x1 = Math.max(box.x0, box.x1);
-  const y1 = Math.max(box.y0, box.y1);
+  const projectedBox = selectionBoxProjection(box, cam);
+  const x0 = Math.min(projectedBox.x0, projectedBox.x1);
+  const y0 = Math.min(projectedBox.y0, projectedBox.y1);
+  const x1 = Math.max(projectedBox.x0, projectedBox.x1);
+  const y1 = Math.max(projectedBox.y0, projectedBox.y1);
   for (const en of s.entities) {
     if (en.hp <= 0 || en.owner !== 0 || en.class !== "unit" || (en.neutral && !isContactTarget(s, en))) continue;
     const elev = heightAt(s, Math.round(en.x), Math.round(en.y));
-    const sp = tileToScreen(en.x, en.y, cam, elev);
-    if (sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) ids.push(en.id);
+    const sp = tileToScreen(en.x, en.y, { x: 0, y: 0, zoom: cam.zoom }, elev);
+    const projected = { x: sp.x / cam.zoom, y: sp.y / cam.zoom };
+    if (projected.x >= x0 && projected.x <= x1 && projected.y >= y0 && projected.y <= y1) ids.push(en.id);
   }
   return finalize ? finalizeMultiSelect(s.entities, ids) : ids;
 }

@@ -6,6 +6,8 @@ import { issue, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { heightAt } from "../lib/sim/world";
 import { setHeight } from "../lib/sim/fixtures";
+import { selectionProjectionPoint } from "../components/game/hooks/selectionBox";
+import { selectionIdsInBox } from "../components/game/hooks/gameInputOrders";
 
 describe("harvester selection", () => {
   it("selects a harvester from a click on its sprite body", () => {
@@ -112,5 +114,47 @@ describe("harvester selection", () => {
     const cam = createCamera();
     const top = tileToScreen(6, 6, cam, heightAt(s, 6, 6));
     expect(pickTile(s, top.x, top.y + TILE_H / 2, cam)).toEqual({ x: 6, y: 6 });
+  });
+
+  it("keeps the marquee anchor attached while horizontal edge-pan reveals another unit", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    setHeight(s, 5, 5, 0);
+    setHeight(s, 9, 1, 0);
+    const first = addUnit(s, 0, "infantry", 5, 5);
+    const revealed = addUnit(s, 0, "infantry", 9, 1);
+    const cam = { x: 300, y: 200, zoom: 1 };
+    const firstPoint = tileToScreen(first.x, first.y, cam, 0);
+    const box = {
+      x0: firstPoint.x - 10,
+      y0: firstPoint.y - 20,
+      x1: firstPoint.x + 50,
+      y1: firstPoint.y + 20,
+      anchor: selectionProjectionPoint({ x: firstPoint.x - 10, y: firstPoint.y - 20 }, cam),
+    };
+
+    cam.x -= 250;
+
+    expect(selectionIdsInBox(s, cam, box, false)).toEqual([first.id, revealed.id]);
+  });
+
+  it("keeps the marquee anchor attached while vertical edge-pan reveals another unit", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    setHeight(s, 5, 5, 0);
+    setHeight(s, 5, 9, 0);
+    const first = addUnit(s, 0, "infantry", 5, 5);
+    const revealed = addUnit(s, 0, "infantry", 5, 9);
+    const cam = { x: 300, y: 200, zoom: 1 };
+    const firstPoint = tileToScreen(first.x, first.y, cam, 0);
+    const box = {
+      x0: firstPoint.x - 150,
+      y0: firstPoint.y - 20,
+      x1: firstPoint.x + 20,
+      y1: firstPoint.y + 40,
+      anchor: selectionProjectionPoint({ x: firstPoint.x - 150, y: firstPoint.y - 20 }, cam),
+    };
+
+    cam.y -= 100;
+
+    expect(selectionIdsInBox(s, cam, box, false)).toEqual([first.id, revealed.id]);
   });
 });

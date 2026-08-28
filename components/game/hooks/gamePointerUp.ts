@@ -10,6 +10,7 @@ import {
   pointerTile,
   selectionIdsInBox,
 } from "./gameInputOrders";
+import { selectionBoxDistance, type SelectionBox } from "./selectionBox";
 
 export type PointerUpInput = {
   pointerType: string;
@@ -20,7 +21,7 @@ export type PointerUpInput = {
   state: SimState;
   cam: Camera;
   selectedIds: number[];
-  box: { x0: number; y0: number; x1: number; y1: number } | null;
+  box: SelectionBox | null;
   selectionMode: boolean;
   mobileCommand: MobileCommand | null;
   placeKind: BuildingKind | null;
@@ -68,7 +69,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
   const { x: tx, y: ty } = pointerTile(state, p, cam);
 
   if (pointerType === "touch" && selectionMode) {
-    const drag = box && Math.hypot(box.x1 - box.x0, box.y1 - box.y0) > DRAG_THRESHOLD;
+    const drag = box && selectionBoxDistance(box, cam) > DRAG_THRESHOLD;
     if (drag && box) {
       return {
         clearBox: true,
@@ -132,7 +133,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
     return { clearBox: true };
   }
 
-  const drag = box && Math.hypot(box.x1 - box.x0, box.y1 - box.y0) > DRAG_THRESHOLD;
+  const drag = box && selectionBoxDistance(box, cam) > DRAG_THRESHOLD;
   if (drag && box) {
     return { clearBox: true, select: selectionIdsInBox(state, cam, box, true) };
   }
