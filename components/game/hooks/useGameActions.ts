@@ -3,7 +3,7 @@ import { buildingCameoStatus, buildingLimitReached, isSupportUnit, unitCameoStat
 import { beep } from "@/lib/audio/synth";
 import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
 import { terrainAccess } from "@/lib/sim/world";
-import type { MobileCommand } from "../MobileCommandTray";
+import type { MobileCommand } from "../mobileCommandTypes";
 import { PLACEABLE, PRODUCIBLE, leastLoadedProducer } from "./gameActions";
 
 export { PLACEABLE, PRODUCIBLE } from "./gameActions";
@@ -50,6 +50,11 @@ export function useGameActions({
     clearTools();
     beep("select");
   }, [clearTools]);
+
+  const resetMobileCommand = useCallback(() => {
+    mobileCommand.current = null;
+    setMobileCommandState(null);
+  }, []);
 
   const issueSelectedCommand = useCallback((command: "stop" | "stance" | "formation", value?: Stance | Formation) => {
     const unitIds = [...(selectedIds.length > 0 ? selectedIds : selected.current)];
@@ -193,6 +198,7 @@ export function useGameActions({
     clearTools,
     chooseMobileCommand,
     cancelMobileCommand,
+    resetMobileCommand,
     issueSelectedCommand,
     issueCoordinateCommand,
     issueTargetCommand,

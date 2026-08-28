@@ -32,6 +32,9 @@ export function useGameKeyboard({
   onNavigateHome,
   confirmationOpen = false,
   cancelConfirmation = () => {},
+  mobilePanelOpen = false,
+  closeMobilePanel = () => {},
+  mobileToolActive = false,
 }: GameKeyboardParams) {
   const keys = useRef<Record<string, boolean>>({});
 
@@ -43,6 +46,11 @@ export function useGameKeyboard({
           e.preventDefault();
           cancelConfirmation();
         }
+        return;
+      }
+      if (e.key === "Escape" && mobilePanelOpen && !pausedRef.current && stateRef.current.result === "playing") {
+        e.preventDefault();
+        closeMobilePanel();
         return;
       }
       if (
@@ -59,7 +67,7 @@ export function useGameKeyboard({
         paused: pausedRef.current,
         pauseView: pauseViewRef.current,
         result: stateRef.current.result,
-        toolActive: !!(place.current || repair.current || sell.current),
+        toolActive: !!(place.current || repair.current || sell.current || mobileToolActive),
       });
       if (!command) return;
       e.preventDefault();
@@ -102,6 +110,7 @@ export function useGameKeyboard({
     activateCameo,
     activeTabRef,
     cancelConfirmation,
+    closeMobilePanel,
     centerSelection,
     confirmationOpen,
     clearTools,
@@ -128,6 +137,8 @@ export function useGameKeyboard({
     toggleSound,
     toggleMusic,
     viewMissionBriefing,
+    mobilePanelOpen,
+    mobileToolActive,
   ]);
 
   return { keys };

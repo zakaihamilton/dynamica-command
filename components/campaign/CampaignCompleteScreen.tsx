@@ -11,6 +11,7 @@ import { missionObjectives, objectiveHeadline } from "@/lib/gen/story";
 import { biomeLabel } from "@/lib/gen/names";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
+import { briefingPath, tutorialPath } from "../game/hooks/missionRoutes";
 import styles from "./CampaignCompleteScreen.module.css";
 import { campaignSummary, missionMedalDisplay, missionUnlocks } from "./campaignSummary";
 import { useCampaignProgress } from "./useCampaignProgress";
@@ -38,8 +39,8 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
 
   const launchMission = (missionIndex: number) => {
     const path = missionIndex === 0 && !progress.tutorialComplete
-      ? `/tutorial?seed=${formatSeed(seed)}`
-      : `/briefing?seed=${formatSeed(seed)}&mission=${missionIndex}`;
+      ? tutorialPath(seed, "campaign")
+      : briefingPath(seed, missionIndex, false, "campaign");
     router.push(path);
   };
   const selectedMission = campaign.missions[selectedMissionIndex];

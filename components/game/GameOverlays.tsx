@@ -4,10 +4,11 @@ import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { Campaign, FactionVisualProfile, SimState } from "@/lib/types";
 import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
+import type { MobileCommand } from "./mobileCommandTypes";
 import { gameOverlayModel, powerSignature } from "./gameOverlayModel";
-import { GameMobileSurface } from "./GameMobileSurface";
 import { GamePauseSurface } from "./GamePauseSurface";
 import { GameSidebarSurface } from "./GameSidebarSurface";
+import { MobileCommandLauncher } from "./MobileCommandLauncher";
 import { MissionConfirmation } from "./MissionConfirmation";
 import { TacticalRoster } from "./TacticalRoster";
 import type { GameActions } from "./hooks/useGameActions";
@@ -21,9 +22,8 @@ export function GameOverlays({
   selectedIds,
   tutorial,
   selectionMode,
-  mobileSheetOpen,
+  mobilePanelOpen,
   miniRef,
-  mobileMiniRef,
   activeTab,
   onTab,
   paused,
@@ -35,8 +35,10 @@ export function GameOverlays({
   setPauseView,
   setPauseNotice,
   onSelectionMode,
-  onOpenMobileSheet,
-  onCloseMobileSheet,
+  onToggleMobilePanel,
+  onCloseMobilePanel,
+  onPause,
+  onTouchCommand,
   onSelect = () => undefined,
   onAnnounce = () => undefined,
   actions,
@@ -48,9 +50,8 @@ export function GameOverlays({
   selectedIds: number[];
   tutorial: boolean;
   selectionMode: boolean;
-  mobileSheetOpen: boolean;
+  mobilePanelOpen: boolean;
   miniRef: Ref<HTMLCanvasElement>;
-  mobileMiniRef: Ref<HTMLCanvasElement>;
   activeTab: CommandTab;
   onTab: (tab: CommandTab) => void;
   paused: boolean;
@@ -62,17 +63,19 @@ export function GameOverlays({
   setPauseView: (view: PauseView) => void;
   setPauseNotice: (notice: string) => void;
   onSelectionMode: (active: boolean) => void;
-  onOpenMobileSheet: () => void;
-  onCloseMobileSheet: () => void;
+  onToggleMobilePanel: () => void;
+  onCloseMobilePanel: () => void;
+  onPause: () => void;
+  onTouchCommand: (command: MobileCommand) => void;
   onSelect?: (ids: number[]) => void;
   onAnnounce?: (message: string) => void;
   actions: GameActions;
   session: GameSession;
 }) {
   // Memoized so the selected-entity snapshot is not rebuilt on unrelated re-renders.
-  const { palette, selected, mobilePlaying, sheetContext } = useMemo(
-    () => gameOverlayModel({ state, selectedIds, tutorial, paused }),
-    [state, selectedIds, tutorial, paused],
+  const { palette, selected } = useMemo(
+    () => gameOverlayModel({ state, selectedIds }),
+    [state, selectedIds],
   );
   // The power grid only changes when an owner-0 building finishes, starts
   // construction, or dies; keying on the signature skips the full entity
@@ -83,36 +86,11 @@ export function GameOverlays({
 
   return (
     <>
-      {!tutorial ? (
-        <GameMobileSurface
-          surface={{
-            dockVisible: mobilePlaying,
-            sheetOpen: mobilePlaying && mobileSheetOpen,
-            sheetContext,
-            activeCommand: actions.mobileCommandState,
-            selectionMode,
-            selectedCount: selectedIds.length,
-          }}
-          state={state}
-          palette={palette}
-          profile={playerVisualProfile}
-          selected={selected}
-          mobileMiniRef={mobileMiniRef}
-          activeTab={activeTab}
-          power={grid.surplus}
-          produced={grid.produced}
-          used={grid.used}
-          onTab={onTab}
-          onSelectionMode={onSelectionMode}
-          onOpenSheet={onOpenMobileSheet}
-          onCloseSheet={onCloseMobileSheet}
-          actions={actions}
-          camera={camera}
-          session={session}
-        />
+      {!tutorial && !paused && state.result === "playing" ? (
+        <MobileCommandLauncher open={mobilePanelOpen} onToggle={onToggleMobilePanel} onPause={onPause} />
       ) : null}
 
-      {shouldShowCommandSidebar(state.result) ? (
+      {!tutorial && shouldShowCommandSidebar(state.result) ? (
         <GameSidebarSurface
           factionName={campaign.factions[0].name}
           state={state}
@@ -127,10 +105,17 @@ export function GameOverlays({
           produced={grid.produced}
           used={grid.used}
           miniRef={miniRef}
-          onPause={session.openPauseMenu}
+          onPause={onPause}
           camera={camera}
           onTab={onTab}
           actions={actions}
+          selectedCount={selectedIds.length}
+          selectionMode={selectionMode}
+          activeCommand={actions.mobileCommandState}
+          onTouchCommand={onTouchCommand}
+          onSelectionMode={onSelectionMode}
+          mobilePanelOpen={mobilePanelOpen}
+          onCloseMobilePanel={onCloseMobilePanel}
         />
       ) : null}
 

@@ -178,8 +178,8 @@ test("keeps the tactical radar readable and usable across breakpoints", async ({
   })).toBe("none");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByTestId("mobile-command-more").click();
-  const mobileRadar = page.getByTestId("mobile-base-controls").getByTestId("tactical-radar");
+  await page.getByTestId("mobile-command-toggle").click();
+  const mobileRadar = page.getByTestId("command-sidebar").getByTestId("tactical-radar");
   await expect(mobileRadar).toBeVisible();
   expect(await mobileRadar.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(0);
   await expect.poll(() => mobileRadar.evaluate((element) => {
@@ -412,7 +412,7 @@ test("shows a mission result overlay from a finished save", async ({ page }) => 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/play?seed=0421&resume=1");
   await expect(page.getByTestId("mission-result")).toBeVisible();
-  await expect(page.getByTestId("mobile-command-dock")).toHaveCount(0);
+  await expect(page.getByTestId("mobile-command-launcher")).toHaveCount(0);
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   await expect(page.getByRole("heading", { name: "Mission complete" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Next briefing" })).toBeVisible();

@@ -53,7 +53,7 @@ describe("MenuScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "NEW GAME" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("newGame");
     fireEvent.click(screen.getByRole("button", { name: "Launch" }));
-    expect(router.push).toHaveBeenCalledWith("/tutorial?seed=0421");
+    expect(router.push).toHaveBeenCalledWith("/tutorial?seed=0421&from=menu");
     vi.restoreAllMocks();
   });
 });
@@ -108,7 +108,7 @@ describe("CampaignCompleteScreen", () => {
     expect(screen.getByTestId("mission-detail")).toHaveTextContent(/Expected duration/i);
     fireEvent.click(screen.getByTestId("mission-card-1"));
     fireEvent.click(screen.getByTestId("launch-selected-mission"));
-    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=1");
+    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=1&from=campaign");
   });
 
   it("returns to the menu when Escape is pressed on the operations map", () => {

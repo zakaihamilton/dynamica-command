@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 const chromePath = process.env.PLAYWRIGHT_CHROME_PATH;
 
@@ -12,6 +12,11 @@ export default defineConfig({
     headless: true,
     ...(chromePath ? { launchOptions: { executablePath: chromePath } } : {}),
   },
+  projects: [
+    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    { name: "iphone-touch", testMatch: /responsive\.spec\.ts/, use: { ...devices["iPhone 13"] } },
+    { name: "android-touch", testMatch: /responsive\.spec\.ts/, use: { ...devices["Pixel 5"] } },
+  ],
   webServer: {
     command: "yarn build && PORT=3100 HOSTNAME=127.0.0.1 yarn start",
     url: "http://127.0.0.1:3100",

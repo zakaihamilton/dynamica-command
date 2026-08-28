@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, type CSSProperties } from "react";
+import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
@@ -16,8 +17,9 @@ import styles from "./BriefingScreen.module.css";
 import { useCampaignProgress } from "../campaign/useCampaignProgress";
 import { useBriefingController } from "./useBriefingController";
 import { useBriefingTypewriter } from "./useBriefingTypewriter";
+import type { NavigationOrigin } from "../game/hooks/missionRoutes";
 
-export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: number; mission: number; returnToGame?: boolean }) {
+export function BriefingScreen({ seed, mission, returnToGame = false, origin = "menu" }: { seed: number; mission: number; returnToGame?: boolean; origin?: NavigationOrigin }) {
   const campaign = useMemo(() => createCampaign(seed), [seed]);
   const progress = useCampaignProgress(seed);
   const def = campaign.missions[mission];
@@ -27,6 +29,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     seed,
     mission,
     returnToGame,
+    origin,
     isComplete: typewriter.isComplete,
     replayTransmission: typewriter.replayTransmission,
     skipToEnd: typewriter.skipToEnd,
@@ -35,10 +38,23 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
     () => (def ? missionObjectives(def, campaign) : []),
     [def, campaign],
   );
+  const backLabel = returnToGame ? "Back to mission" : origin === "campaign" ? "Back to operations" : origin === "result" ? "Back to result" : "Back to menu";
 
-  if (!def) return <div className={styles.missing}>Mission missing.</div>;
+  if (!def) {
+    return (
+      <div className={styles.missing}>
+        <p>Mission missing.</p>
+        <ConsoleButton muted onClick={controller.back}>{backLabel}</ConsoleButton>
+      </div>
+    );
+  }
   if (!returnToGame && mission > progress.unlockedMission) {
-    return <div className={styles.missing}>Mission locked. Complete the previous operation first.</div>;
+    return (
+      <div className={styles.missing}>
+        <p>Mission locked. Complete the previous operation first.</p>
+        <ConsoleButton muted onClick={controller.back}>{backLabel}</ConsoleButton>
+      </div>
+    );
   }
 
   const liveRole = typewriter.isTalking ? typewriter.revealedLines.find((line) => line.started && !line.complete)?.speaker : undefined;
@@ -73,6 +89,8 @@ export function BriefingScreen({ seed, mission, returnToGame = false }: { seed: 
             returnToGame={returnToGame}
             onReplay={typewriter.replayTransmission}
             onLaunch={controller.launch}
+            onBack={controller.back}
+            backLabel={backLabel}
           />
         </MetalPanel>
 

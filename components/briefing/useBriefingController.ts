@@ -2,11 +2,13 @@ import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { formatSeed } from "@/lib/seed/rng";
 import { briefingCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
+import { briefingBackPath, type NavigationOrigin } from "../game/hooks/missionRoutes";
 
 export function useBriefingController({
   seed,
   mission,
   returnToGame,
+  origin = "menu",
   isComplete,
   replayTransmission,
   skipToEnd,
@@ -14,6 +16,7 @@ export function useBriefingController({
   seed: number;
   mission: number;
   returnToGame: boolean;
+  origin?: NavigationOrigin;
   isComplete: boolean;
   replayTransmission: () => void;
   skipToEnd: () => void;
@@ -23,6 +26,10 @@ export function useBriefingController({
   const launch = useCallback(() => {
     router.push(`/play?seed=${formatSeed(seed)}&mission=${mission}${returnToGame ? "&resume=1" : "&fresh=1"}`);
   }, [mission, returnToGame, router, seed]);
+
+  const back = useCallback(() => {
+    router.push(briefingBackPath(seed, mission, returnToGame, origin));
+  }, [mission, origin, returnToGame, router, seed]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -49,5 +56,6 @@ export function useBriefingController({
 
   return {
     launch,
+    back,
   };
 }

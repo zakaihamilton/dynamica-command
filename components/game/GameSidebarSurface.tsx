@@ -2,6 +2,7 @@ import type { PointerEventHandler, Ref } from "react";
 import type { Entity, FactionVisualProfile, Palette, SimState } from "@/lib/types";
 import type { CommandTab } from "@/lib/ui/shortcuts";
 import { CommandSidebar } from "./CommandSidebar";
+import type { MobileCommand } from "./mobileCommandTypes";
 import type { GameActions } from "./hooks/useGameActions";
 import type { GameCamera } from "./hooks/useGameCamera";
 import type { GameSession } from "./hooks/useGameSession";
@@ -24,6 +25,13 @@ export function GameSidebarSurface({
   camera,
   onTab,
   actions,
+  selectedCount,
+  selectionMode,
+  activeCommand,
+  onTouchCommand,
+  onSelectionMode,
+  mobilePanelOpen,
+  onCloseMobilePanel,
 }: {
   factionName: string;
   state: SimState;
@@ -42,6 +50,13 @@ export function GameSidebarSurface({
   camera: GameCamera;
   onTab: (tab: CommandTab) => void;
   actions: GameActions;
+  selectedCount: number;
+  selectionMode: boolean;
+  activeCommand: MobileCommand | null;
+  onTouchCommand: (command: MobileCommand) => void;
+  onSelectionMode: (active: boolean) => void;
+  mobilePanelOpen: boolean;
+  onCloseMobilePanel: () => void;
 }) {
   const onMinimapPointerDown: PointerEventHandler<HTMLCanvasElement> = camera.onMinimapPointerDown;
   const onMinimapPointerMove: PointerEventHandler<HTMLCanvasElement> = camera.onMinimapPointerMove;
@@ -67,6 +82,13 @@ export function GameSidebarSurface({
       onMinimapPointerMove={onMinimapPointerMove}
       onMinimapPointerUp={onMinimapPointerUp}
       isMinimapDragging={camera.isMinimapDragging}
+      selectedCount={selectedCount}
+      selectionMode={selectionMode}
+      activeCommand={activeCommand}
+      onTouchCommand={onTouchCommand}
+      onSelectionMode={onSelectionMode}
+      mobilePanelOpen={mobilePanelOpen}
+      onCloseMobilePanel={onCloseMobilePanel}
       onTab={onTab}
       onRepair={actions.toggleRepair}
       onSell={actions.toggleSell}

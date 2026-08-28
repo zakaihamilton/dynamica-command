@@ -5,7 +5,7 @@ import { leastLoadedProducer } from "../components/game/hooks/gameActions";
 import { resolvePointerUp } from "../components/game/hooks/gamePointerUp";
 import { alertSfx, desiredMusicIntensity, warningAlert } from "../components/game/hooks/gameLoopEffects";
 import { missionConfirmationFor } from "../components/game/hooks/missionConfirmation";
-import { briefingPath, campaignCompletePath, menuPath, resultPrimaryPath } from "../components/game/hooks/missionRoutes";
+import { briefingBackPath, briefingPath, campaignCompletePath, menuPath, resultPrimaryPath, tutorialPath } from "../components/game/hooks/missionRoutes";
 import { gameOverlayModel } from "../components/game/gameOverlayModel";
 import { playFieldStatus } from "../components/game/playFieldStatus";
 import { createCamera, tileToScreen } from "../lib/iso";
@@ -221,11 +221,14 @@ describe("mission confirmation and routes", () => {
       confirmLabel: "Restart mission",
     });
     expect(briefingPath(421, 2, true)).toBe("/briefing?seed=0421&mission=2&return=game");
+    expect(tutorialPath(421, "campaign")).toBe("/tutorial?seed=0421&from=campaign");
+    expect(briefingBackPath(421, 2, false, "campaign")).toBe("/campaign?seed=0421");
+    expect(briefingBackPath(421, 2, false, "result")).toBe("/play?seed=0421&mission=2&resume=1");
     expect(campaignCompletePath(7)).toBe("/campaign-complete?seed=0007");
     expect(menuPath()).toBe("/");
-    expect(resultPrimaryPath({ result: "won", seed: 421, missionIndex: 3 })).toBe("/briefing?seed=0421&mission=4");
+    expect(resultPrimaryPath({ result: "won", seed: 421, missionIndex: 3 })).toBe("/briefing?seed=0421&mission=4&from=result");
     expect(resultPrimaryPath({ result: "won", seed: 421, missionIndex: 7 })).toBe("/");
-    expect(resultPrimaryPath({ result: "lost", seed: 421, missionIndex: 3 })).toBe("/briefing?seed=0421&mission=3");
+    expect(resultPrimaryPath({ result: "lost", seed: 421, missionIndex: 3 })).toBe("/briefing?seed=0421&mission=3&from=result");
   });
 });
 
@@ -247,11 +250,9 @@ describe("production and overlay helpers", () => {
       objective: "Hostiles left 1",
       secondary: [],
     });
-    const overlay = gameOverlayModel({ state, selectedIds: [unit.id], tutorial: false, paused: false });
-    expect(overlay.mobilePlaying).toBe(true);
-    expect(overlay.sheetContext).toBe("unit");
+    const overlay = gameOverlayModel({ state, selectedIds: [unit.id] });
     expect(overlay.selected?.id).toBe(unit.id);
-    expect(gameOverlayModel({ state, selectedIds: [], tutorial: true, paused: false }).mobilePlaying).toBe(false);
+    expect(gameOverlayModel({ state, selectedIds: [] }).selected).toBeUndefined();
   });
 
   it("does not show a duplicate operation window for hold missions", () => {

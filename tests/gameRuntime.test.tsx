@@ -196,17 +196,36 @@ describe("useGameRuntime", () => {
     expect(result.current.palette.primary).toBeTruthy();
 
     act(() => {
-      result.current.overlays.onOpenMobileSheet();
+      result.current.overlays.onToggleMobilePanel();
     });
-    expect(result.current.overlays.mobileSheetOpen).toBe(true);
+    expect(result.current.overlays.mobilePanelOpen).toBe(true);
     expect(result.current.overlays.selectionMode).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(result.current.overlays.paused).toBe(false);
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(result.current.overlays.paused).toBe(true);
+
+    act(() => result.current.overlays.session.resumeMission());
+    act(() => result.current.overlays.onTouchCommand("move"));
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(result.current.overlays.actions.mobileCommandState).toBe("move");
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(result.current.overlays.actions.mobileCommandState).toBeNull();
+    expect(result.current.overlays.paused).toBe(false);
+    act(() => result.current.overlays.onTouchCommand("attack"));
+    act(() => window.dispatchEvent(new Event("orientationchange")));
+    expect(result.current.overlays.actions.mobileCommandState).toBeNull();
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
 
     act(() => {
       result.current.overlays.onSelectionMode(true);
     });
     expect(result.current.overlays.selectionMode).toBe(true);
-    expect(result.current.overlays.mobileSheetOpen).toBe(false);
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
   });
 

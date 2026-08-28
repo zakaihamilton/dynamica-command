@@ -205,18 +205,23 @@ export function useGameInput({
     }
     cancelTouch();
     boxRef.current = null;
+    hoverRef.current = null;
+    cursorRef.current = null;
+    commandMarkerRef.current = null;
     mobileCommandRef.current = null;
     setMobileCommandState(null);
+    clearTools();
     setSelectionMode(false);
     applyEdgePan(null);
-  }, [applyEdgePan, cancelTouch, mobileCommandRef, setMobileCommandState, setSelectionMode]);
+  }, [applyEdgePan, cancelTouch, clearTools, mobileCommandRef, setMobileCommandState, setSelectionMode]);
 
   const resetInput = useCallback(() => {
+    cancelTouch();
     hoverRef.current = null;
     cursorRef.current = null;
     boxRef.current = null;
     commandMarkerRef.current = null;
-  }, []);
+  }, [cancelTouch]);
 
   return {
     hoverRef,

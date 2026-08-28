@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission } from "@/lib/sim/tutorial";
@@ -9,6 +9,8 @@ import type { SimState } from "@/lib/types";
 import { useMissionConfirmation } from "./useMissionConfirmation";
 import { useMissionPersistence, type MissionPersistenceParams } from "./useMissionPersistence";
 import { useMissionRoutes } from "./useMissionRoutes";
+import type { NavigationOrigin } from "./missionRoutes";
+import { useMissionBackGuard } from "./useMissionBackGuard";
 
 export type { MissionConfirmation, MissionConfirmationAction } from "./missionConfirmation";
 
@@ -46,13 +48,28 @@ export function useGameSession({
   settings,
   setSettings,
   saveSession,
+  tutorialOrigin = "menu",
+  browserBackGuardEnabled = false,
 }: MissionPersistenceParams & {
   settings: GameSettings;
   setSettings: Dispatch<SetStateAction<GameSettings>>;
   saveSession: SaveSession;
+  tutorialOrigin?: NavigationOrigin;
+  browserBackGuardEnabled?: boolean;
 }) {
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
-  const routes = useMissionRoutes({ seed, stateRef, saveSession });
+  const routes = useMissionRoutes({ seed, stateRef, saveSession, tutorialOrigin });
+  const { goHomeNow } = routes;
+  const browserBackRef = useRef(false);
+  const leaveBackRef = useRef<() => void>(() => undefined);
+  const confirmGoHome = useCallback(() => {
+    if (browserBackRef.current) {
+      browserBackRef.current = false;
+      leaveBackRef.current();
+      return;
+    }
+    goHomeNow();
+  }, [goHomeNow]);
   const persistence = useMissionPersistence({
     seed,
     stateRef,
@@ -77,8 +94,21 @@ export function useGameSession({
     saveNow: persistence.saveMissionNow,
     loadNow: persistence.loadMissionNow,
     restartNow: persistence.restartMissionNow,
-    goHomeNow: routes.goHomeNow,
+    goHomeNow: confirmGoHome,
   });
+  const { goHome: requestConfirmationLeave, cancelConfirmation: cancelConfirmationState } = confirmation;
+  const requestBrowserLeave = useCallback(() => {
+    browserBackRef.current = true;
+    requestConfirmationLeave();
+  }, [requestConfirmationLeave]);
+  const backGuard = useMissionBackGuard({ enabled: browserBackGuardEnabled, onRequestLeave: requestBrowserLeave });
+
+  useEffect(() => {
+    leaveBackRef.current = backGuard.leave;
+    return () => {
+      leaveBackRef.current = () => undefined;
+    };
+  }, [backGuard.leave]);
 
   const openPauseMenu = useCallback(() => {
     pausedRef.current = true;
@@ -94,11 +124,16 @@ export function useGameSession({
     setPauseNotice("");
   }, [pausedRef, setPaused, setPauseNotice, setPauseView]);
 
+  const cancelConfirmation = useCallback(() => {
+    browserBackRef.current = false;
+    cancelConfirmationState();
+  }, [cancelConfirmationState]);
+
   return {
     router: routes.router,
     confirmation: confirmation.confirmation,
     confirmAction: confirmation.confirmAction,
-    cancelConfirmation: confirmation.cancelConfirmation,
+    cancelConfirmation,
     openPauseMenu,
     resumeMission,
     saveMission: confirmation.saveMission,
@@ -112,6 +147,7 @@ export function useGameSession({
     updateVolume,
     advanceTutorial: persistence.advanceTutorial,
     exitTutorial: routes.exitTutorial,
+    backTutorial: routes.backTutorial,
     resultPrimary: routes.resultPrimary,
     goHome: confirmation.goHome,
     goMenu: confirmation.goHome,
