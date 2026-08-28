@@ -141,15 +141,20 @@ export function planBuilding(state: SimState, yard: Entity): Command | undefined
     if (factory) return factory;
   }
 
-  if (!playerBuildings(state, "factory").length && state.tick < 1800 && !pending) {
-    const factory = buildCommand(state, "factory", yard);
-    if (factory) return factory;
-  }
-
-  const defensiveTurretNeeded = power.surplus >= 15 && (threat !== undefined || OFFENSIVE_KINDS.has(objectiveKind(state)));
+  const defensiveObjective = objectiveKind(state) === "rescue" || objectiveKind(state) === "holdTheLine";
+  const defensiveTurretNeeded = power.surplus >= 15 && (
+    threat !== undefined ||
+    OFFENSIVE_KINDS.has(objectiveKind(state)) ||
+    defensiveObjective
+  );
   if (defensiveTurretNeeded && turretCount < 1 + Math.floor(state.missionIndex / 3) && !pending) {
     const turret = buildCommand(state, "turret", yard);
     if (turret) return turret;
+  }
+
+  if (!playerBuildings(state, "factory").length && state.tick < 1800 && !pending) {
+    const factory = buildCommand(state, "factory", yard);
+    if (factory) return factory;
   }
   return undefined;
 }
@@ -201,4 +206,3 @@ export function planProduction(state: SimState): Command[] {
   }
   return commands;
 }
-

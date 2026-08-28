@@ -4,7 +4,11 @@ import { MAX_MISSION_TICKS } from "../lib/gen/pacing";
 import { BUILDING_STATS } from "../lib/catalog";
 import { createMission, inspect, tick } from "../lib/sim/api";
 import { CompetentCommander } from "../lib/sim/commander";
+import { planBuilding } from "../lib/sim/commander/production";
+import { missionDifficulty } from "../lib/sim/difficulty";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
+
+const IS_COVERAGE = Boolean(process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE);
 
 function runGeneratedMission(seed: number, missionIndex: number) {
   const state = createMission({ seed, missionIndex });
@@ -77,7 +81,7 @@ describe("competent commander", () => {
     }
   });
 
-  it.each([
+  it.skipIf(IS_COVERAGE).each([
     [2, 7, "structureQuota"],
     [1, 7, "escort"],
     [3, 1, "extraction"],
@@ -130,6 +134,85 @@ describe("competent commander", () => {
     const orders = commander.plan(state);
 
     expect(orders).toContainEqual(expect.objectContaining({ type: "move", unitIds: [infantry.id], x: target.x, y: target.y }));
+  });
+
+  it("keeps three combat units at the yard during a rescue operation", () => {
+    const state = makeFixture({ width: 28, height: 28, win: { kind: "rescue", targetCount: 1, ticks: 5000 } });
+    state.missionIndex = 4;
+    const yard = addBuilding(state, 0, "constructionYard", 2, 2);
+    addBuilding(state, 0, "power", 5, 2);
+    addBuilding(state, 0, "barracks", 2, 5);
+    addBuilding(state, 0, "factory", 2, 8);
+    const combat = Array.from({ length: 5 }, (_, index) => addUnit(state, 0, "infantry", 5 + index, 5));
+    const target = addUnit(state, 0, "infantry", 20, 20);
+    target.neutral = true;
+    target.scenarioRole = "stranded";
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [target.id],
+      zone: { x: yard.x, y: yard.y },
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    const orders = new CompetentCommander().plan(state);
+    const guard = orders.find((order) => order.type === "move" && order.x === yard.x && order.y === yard.y);
+    const rescue = orders.find((order) => order.type === "move" && order.x === target.x && order.y === target.y);
+
+    expect(guard && "unitIds" in guard ? guard.unitIds : []).toHaveLength(3);
+    expect(rescue && "unitIds" in rescue ? rescue.unitIds : []).toHaveLength(combat.length - 3);
+  });
+
+  it("keeps the rescue guard separate from the rescue force when threatened", () => {
+    const state = makeFixture({ width: 28, height: 28, win: { kind: "rescue", targetCount: 1, ticks: 5000 } });
+    state.missionIndex = 4;
+    const yard = addBuilding(state, 0, "constructionYard", 2, 2);
+    addBuilding(state, 0, "power", 5, 2);
+    addBuilding(state, 0, "barracks", 2, 5);
+    addBuilding(state, 0, "factory", 2, 8);
+    const combat = Array.from({ length: 5 }, (_, index) => addUnit(state, 0, "infantry", 5 + index, 5));
+    const target = addUnit(state, 0, "infantry", 20, 20);
+    target.neutral = true;
+    target.scenarioRole = "stranded";
+    const threat = addUnit(state, 1, "infantry", 4, 4);
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [target.id],
+      zone: { x: yard.x, y: yard.y },
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    const orders = new CompetentCommander().plan(state);
+    const guard = orders.find((order) => order.type === "attack" && order.targetId === threat.id && "unitIds" in order && order.unitIds.length === 3);
+    const response = orders.find((order) => order.type === "attack" && order.targetId === threat.id && "unitIds" in order && order.unitIds.length === combat.length - 3);
+    const guardIds = guard && "unitIds" in guard ? guard.unitIds : [];
+    const responseIds = response && "unitIds" in response ? response.unitIds : [];
+
+    expect(guardIds).toHaveLength(3);
+    expect(responseIds).toHaveLength(combat.length - 3);
+    expect(new Set([...guardIds, ...responseIds])).toHaveLength(combat.length);
+  });
+
+  it.each(["rescue", "holdTheLine"] as const)("prioritizes an early defensive turret for %s missions", (kind) => {
+    const win = kind === "rescue"
+      ? { kind, targetCount: 1, ticks: 5000 }
+      : { kind, ticks: 5000 };
+    const state = makeFixture({ width: 24, height: 24, win });
+    state.missionIndex = 0;
+    const yard = addBuilding(state, 0, "constructionYard", 2, 2);
+    addBuilding(state, 0, "power", 5, 2);
+    addBuilding(state, 0, "barracks", 2, 5);
+
+    expect(planBuilding(state, yard)).toMatchObject({ type: "build", building: "turret" });
+  });
+
+  it("keeps the exact hold-the-line reinforcement curve", () => {
+    expect(Array.from({ length: 8 }, (_, index) => missionDifficulty(index).holdLineReinforcements)).toEqual([2, 3, 3, 4, 4, 4, 5, 4]);
   });
 
   it("keeps contacted extraction cargo on its return route", () => {

@@ -8,7 +8,8 @@ import { diagonalCornerBlocked, PATH_DIRS } from "../lib/sim/pathfinding";
 import type { Entity, MissionKind, SimState, Vec2 } from "../lib/types";
 
 const SEED_COUNT = 10_000;
-const EXHAUSTIVE_TEST_TIMEOUT = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 120_000 : 30_000;
+const EXHAUSTIVE_TEST_TIMEOUT = 60_000;
+const IS_COVERAGE = Boolean(process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE);
 const REPRESENTATIVE_SEEDS = [
   ...Array.from({ length: 64 }, (_, index) => index * 157),
   421,
@@ -95,7 +96,7 @@ describe("all-seed invariants", () => {
     }
   }, 15_000);
 
-  it("keeps scenario targets spawned, valid, and reachable across representative maps", () => {
+  it.skipIf(IS_COVERAGE)("keeps scenario targets spawned, valid, and reachable across representative maps", () => {
     for (const seed of REPRESENTATIVE_SEEDS) {
       const campaign = createCampaign(seed);
       for (const mission of campaign.missions) {

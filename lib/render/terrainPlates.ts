@@ -8,18 +8,10 @@ import {
   fogTerrainGain,
   tileVariant,
 } from "./terrainAtlas";
+import { isoDiamondPath } from "./isoDiamond";
 
 const SLAB_RUST = { r: 117, g: 81, b: 59 };
 const SLAB_RUST_LIGHT = { r: 189, g: 130, b: 88 };
-
-function isoDiamondPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + w / 2, y + h / 2);
-  ctx.lineTo(x, y + h);
-  ctx.lineTo(x - w / 2, y + h / 2);
-  ctx.closePath();
-}
 
 function mixTone(
   a: { r: number; g: number; b: number },

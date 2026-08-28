@@ -27,6 +27,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Pr
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
 | `yarn balance --from 0 --to 9 --jobs 4 --check true` | Run the competent commander through the full mission horizon with bounded worker parallelism and enforce balance thresholds. `--jobs 1` is the serial reference; omit it for a bounded CPU-based default. Nightly CI samples seeds `0000`–`0009` (80 scenarios) with 8 workers. |
 | `yarn health:invariants` | Validate generated campaign topology and scenario reachability across representative seeds |
+| `yarn health:coverage` | Run focused V8 coverage; long generated-map and commander sweeps run in `health:invariants` |
 | `yarn health:performance` | Enforce terrain atlas, simulation, combat, and routing performance budgets |
 | `yarn health:balance` | Run the strict 80-scenario competent-commander acceptance sweep used by CI |
 | `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |

@@ -66,6 +66,7 @@ export type BalanceThresholds = {
   maxPowerDeficitRate: number;
   maxCommandRejectionRate: number;
   maxAverageCasualties: number;
+  targetedKindWinRates?: Record<string, number>;
 };
 
 export type BalanceCheck = {
@@ -85,6 +86,10 @@ export const DEFAULT_BALANCE_THRESHOLDS: BalanceThresholds = {
   maxPowerDeficitRate: 0,
   maxCommandRejectionRate: 0,
   maxAverageCasualties: 40,
+  targetedKindWinRates: {
+    rescue: 0.70,
+    holdTheLine: 0.70,
+  },
 };
 
 function average(records: BalanceRecord[], value: (record: BalanceRecord) => number): number {
@@ -187,6 +192,13 @@ export function checkBalance(summary: BalanceSummary, thresholds: BalanceThresho
     }
     if (kindSummary.timeouts / kindSummary.samples > thresholds.maxKindTimeoutRate) {
       failures.push(`${kind} timeout rate ${((kindSummary.timeouts / kindSummary.samples) * 100).toFixed(1)}% exceeds ${(thresholds.maxKindTimeoutRate * 100).toFixed(1)}%`);
+    }
+  }
+  for (const [kind, minimum] of Object.entries(thresholds.targetedKindWinRates ?? {})) {
+    const kindSummary = summary.byMissionKind[kind];
+    if (!kindSummary || kindSummary.samples < thresholds.minKindSamples) continue;
+    if (kindSummary.winRate < minimum) {
+      failures.push(`${kind} targeted win rate ${(kindSummary.winRate * 100).toFixed(1)}% is below ${(minimum * 100).toFixed(1)}%`);
     }
   }
   for (const [mission, missionSummary] of Object.entries(summary.byMission)) {

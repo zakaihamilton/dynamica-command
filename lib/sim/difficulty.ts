@@ -57,7 +57,7 @@ const DIFFICULTY_CURVE: MissionDifficulty[] = [
     startingTank: true,
     startingTurret: true,
     assaultSupport: true,
-    holdLineReinforcements: 5,
+    holdLineReinforcements: 4,
     startingGuards: 4,
   },
   {
@@ -67,7 +67,7 @@ const DIFFICULTY_CURVE: MissionDifficulty[] = [
     startingTank: true,
     startingTurret: true,
     assaultSupport: true,
-    holdLineReinforcements: 5,
+    holdLineReinforcements: 4,
     startingGuards: 4,
   },
   {
@@ -77,7 +77,7 @@ const DIFFICULTY_CURVE: MissionDifficulty[] = [
     startingTank: true,
     startingTurret: true,
     assaultSupport: true,
-    holdLineReinforcements: 6,
+    holdLineReinforcements: 5,
     startingGuards: 5,
   },
   {

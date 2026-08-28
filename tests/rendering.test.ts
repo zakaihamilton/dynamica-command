@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { addUnit, makeFixture, setTile } from "../lib/sim/fixtures";
 import { minimapRegionForCell, terrainColors } from "../lib/render/minimap";
 import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../lib/types";
@@ -36,6 +36,9 @@ import {
 } from "../lib/render/terrainWeather";
 import { spriteCacheKey, terrainContentKey } from "../lib/render/renderer";
 import { minimapCacheKeys, MINIMAP_OVERLAY_TICK_SHIFT } from "../lib/render/minimap";
+import { hash2 } from "../lib/render/terrainMaterials";
+import { hashNoise, valueNoise } from "../lib/gen/map/noise";
+import { isoDiamondPath } from "../lib/render/isoDiamond";
 
 function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
   const rect = atlasRectForTile(tileX, tileY, atlas.mapWidth);
@@ -53,6 +56,27 @@ function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: numb
 }
 
 describe("seeded terrain atlas", () => {
+  it("shares deterministic noise and preserves the isometric diamond path", () => {
+    expect(hash2(7, -3, 41)).toBe(hashNoise(7, -3, 41));
+    const noise = valueNoise(2.25, -1.5, 41);
+    expect(noise).toBe(valueNoise(2.25, -1.5, 41));
+    expect(noise).not.toBe(valueNoise(2.25, -1.5, 42));
+
+    const ctx = {
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+    isoDiamondPath(ctx, 10, 20, 8, 4);
+
+    expect(ctx.moveTo).toHaveBeenCalledWith(10, 20);
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(1, 14, 22);
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(2, 10, 24);
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(3, 6, 22);
+    expect(ctx.closePath).toHaveBeenCalledOnce();
+  });
+
   it("scopes raster fallback cache keys to the active mission session", () => {
     const state = makeFixture({ win: { kind: "annihilate" }, seed: 832 });
     const unit = addUnit(state, 0, "infantry", 3, 3);

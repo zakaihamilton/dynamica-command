@@ -20,7 +20,6 @@ jobs:
       - run: yarn health:invariants
       - run: yarn health:dead-code
       - run: yarn health:coverage
-        continue-on-error: true
       - name: Run performance health with timing report
         run: |
           mkdir -p artifacts

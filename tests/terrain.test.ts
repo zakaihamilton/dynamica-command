@@ -19,7 +19,8 @@ import {
 } from "../lib/render/camera";
 import { visibleTileRange } from "../lib/render/terrainPaint";
 
-const EXHAUSTIVE_TEST_TIMEOUT = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 120_000 : 30_000;
+const EXHAUSTIVE_TEST_TIMEOUT = 60_000;
+const IS_COVERAGE = Boolean(process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE);
 
 describe("terrain height", () => {
   it("interpolates unit elevation between neighboring tiles", () => {
@@ -55,7 +56,7 @@ describe("terrain height", () => {
     }
   });
 
-  it("generates deterministic, funded, traversable theaters across campaigns", () => {
+  it.skipIf(IS_COVERAGE)("generates deterministic, funded, traversable theaters across campaigns", () => {
     for (let seed = 0; seed < 32; seed++) {
       const campaign = createCampaign(seed);
       for (const mission of campaign.missions) {

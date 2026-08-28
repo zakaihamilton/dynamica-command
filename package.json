@@ -20,7 +20,7 @@
     "health:dead-code": "knip",
     "health:duplication": "jscpd app components lib scripts",
     "health:coverage": "VITEST_COVERAGE=1 vitest run --coverage",
-    "health:invariants": "vitest run tests/allSeeds.test.ts",
+    "health:invariants": "vitest run tests/allSeeds.test.ts tests/terrain.test.ts tests/commander.test.ts",
     "health:performance": "tsx scripts/perf.ts",
     "health:balance": "tsx scripts/balance.ts --from 0 --to 9 --jobs 8 --check true --progress false",
     "ci:timed-tests": "vitest run --reporter=dot --reporter=json --outputFile=artifacts/test-timing.json",

@@ -8,7 +8,8 @@ import { fogAt } from "../../sim/fog";
 import { biomeMaterials, fogTerrainGain, getTerrainAtlas, tileVariant, type TerrainAtlas } from "../terrainAtlas";
 import { SceneryMemo } from "../sceneryMemo";
 import { drawConcreteSlab } from "../terrainPlates";
-import { isoDiamondPath, paintShroudOverlay, paintShroudMaskTile, drawAtlasDiamond } from "./tile";
+import { isoDiamondPath } from "../isoDiamond";
+import { paintShroudOverlay, paintShroudMaskTile, drawAtlasDiamond } from "./tile";
 import { smoothFogGain, drawBlockerProp, drawOreCrystals } from "./details";
 import { SHROUD_FILL, TERRAIN_COVER } from "./constants";
 

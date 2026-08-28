@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const instrumentedTimeout = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 120_000 : 30_000;
+const instrumentedTimeout = process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE ? 60_000 : 30_000;
 
 export default defineConfig({
   test: {
@@ -11,9 +11,8 @@ export default defineConfig({
     pool: "threads",
     include: ["tests/**/*.test.{ts,tsx}"],
     setupFiles: ["tests/setup.ts"],
-    // V8 instrumentation makes the exhaustive deterministic simulations much
-    // slower; keep the normal suite strict while allowing the coverage gate to
-    // finish the same tests reliably.
+    // Keep focused coverage tolerant of V8 overhead; exhaustive checks run in
+    // the dedicated invariant gate instead of consuming this budget.
     testTimeout: instrumentedTimeout,
     hookTimeout: instrumentedTimeout,
     coverage: {

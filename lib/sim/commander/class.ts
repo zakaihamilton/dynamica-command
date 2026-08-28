@@ -80,7 +80,7 @@ export class CompetentCommander {
       }
       const assaultCommitted = offensiveObjective && this.assaultTargetId !== undefined;
       const defenderLimit = Math.min(4, Math.max(2, Math.floor(combat.length / 3)));
-      const scenarioDefenderLimit = objectiveKind(state) === "rescue" ? 2 : 1;
+      const scenarioDefenderLimit = objectiveKind(state) === "rescue" ? 3 : 1;
       const reservedDefenders = scenarioObjective
         ? Math.min(scenarioDefenderLimit, Math.max(0, objectiveCombat.length - 1))
         : offensiveObjective
@@ -120,7 +120,15 @@ export class CompetentCommander {
           const escortTarget = objectiveKind(state) === "extraction" ? extractionEscortTarget ?? objective : objective;
           combatCommands.push({ type: "attackMove", unitIds: objectiveCombat.map((entity) => entity.id), x: escortTarget.x, y: escortTarget.y, formation: "wedge" });
         } else {
-          combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: threat.id });
+          // Keep the rescue guard assigned to local defense instead of sending it with the rescue force.
+          const rescueDefense = objectiveKind(state) === "rescue" && scenarioObjective;
+          if (rescueDefense && defenders.length) {
+            combatCommands.push({ type: "attack", unitIds: defenders.map((entity) => entity.id), targetId: threat.id });
+          }
+          const responseForce = rescueDefense ? assaultForce : combat;
+          if (responseForce.length) {
+            combatCommands.push({ type: "attack", unitIds: responseForce.map((entity) => entity.id), targetId: threat.id });
+          }
         }
       } else {
         const force = scenarioObjective ? assaultForce : combat;

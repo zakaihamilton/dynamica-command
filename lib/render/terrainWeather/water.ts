@@ -4,6 +4,7 @@ import { fogAt } from "../../sim/fog";
 import { TILE_H, TILE_W, expandIsoDiamond, tileToScreen, type Camera } from "../../iso";
 import { fogTerrainGain, biomeMaterials } from "../terrainAtlas";
 import { visibleTileRange, WATER_COVER } from "../terrainPaint";
+import { isoDiamondPath } from "../isoDiamond";
 import type { WaterCaustic } from "./types";
 import { ensureFxTileIndex, forVisibleIndexedTiles } from "./core";
 
@@ -41,21 +42,6 @@ export function visibleFxTileCoords(
   return out;
 }
 
-function isoDiamond(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-): void {
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + w / 2, y + h / 2);
-  ctx.lineTo(x, y + h);
-  ctx.lineTo(x - w / 2, y + h / 2);
-  ctx.closePath();
-}
-
 function rgbCss(color: { r: number; g: number; b: number }): string {
   return `rgb(${color.r | 0},${color.g | 0},${color.b | 0})`;
 }
@@ -91,12 +77,12 @@ export function paintWaterFx(
     const needsClip = bank !== 0;
     if (needsClip) {
       ctx.save();
-      isoDiamond(ctx, cover.x, cover.y, cover.w, cover.h);
+      isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
       ctx.clip();
     }
     ctx.fillStyle = highlight;
     ctx.globalAlpha = (0.045 + (Math.sin(clockMs * 0.0009 + (s.x + s.y) * 0.012) + 1) * 0.035) * gain;
-    isoDiamond(ctx, cover.x, cover.y, cover.w, cover.h);
+    isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
     ctx.fill();
     if (needsClip) ctx.restore();
     else ctx.globalAlpha = 1;

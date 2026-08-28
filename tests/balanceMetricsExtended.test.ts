@@ -57,6 +57,29 @@ describe("summarizeBalance", () => {
 });
 
 describe("checkBalance", () => {
+  it("enforces targeted mission-kind win-rate floors", () => {
+    const records = Array.from({ length: 4 }, (_, index) => makeRecord({
+      kind: "rescue",
+      result: index < 2 ? "won" : "lost",
+    }));
+    const result = checkBalance(summarizeBalance(records), {
+      minWinRate: 0,
+      maxTimeoutRate: 1,
+      minKindSamples: 4,
+      minKindWinRate: 0,
+      maxKindTimeoutRate: 1,
+      maxTruncatedRate: 1,
+      maxMapFailureRate: 1,
+      maxPowerDeficitRate: 1,
+      maxCommandRejectionRate: 1,
+      maxAverageCasualties: 40,
+      targetedKindWinRates: { rescue: 0.7 },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.failures.join(" ")).toContain("rescue targeted win rate");
+  });
+
   it("passes with reasonable thresholds", () => {
     const records = Array.from({ length: 10 }, (_, i) => makeRecord({ result: i < 8 ? "won" : "lost" }));
     const result = checkBalance(summarizeBalance(records), {

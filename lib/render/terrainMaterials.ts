@@ -1,8 +1,13 @@
 import { generateCampaignVisualProfile } from "../gen/visualProfile";
+import { hashNoise, valueNoise } from "../gen/map/noise";
 import { mixSeed } from "../seed/rng";
 import type { BiomeName, CampaignVisualProfile, SurfaceKind } from "../types";
 import { SURFACE_NONE } from "../types";
 import type { SceneryWorld } from "../gen/map";
+
+// Preserve the renderer-facing name while sharing the canonical implementation
+// with deterministic map generation.
+export const hash2 = hashNoise;
 
 export const ATLAS_CELL = 8;
 export const TERRAIN_ATLAS_REV = "world-atlas-v6";
@@ -185,28 +190,6 @@ export function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
 
 export function scaleRgb(color: Rgb, amount: number): Rgb {
   return { r: color.r * amount, g: color.g * amount, b: color.b * amount };
-}
-
-export function hash2(x: number, y: number, salt: number): number {
-  let n = Math.imul(x + 374761393, 668265263) ^ Math.imul(y + salt, 1274126177);
-  n = Math.imul(n ^ (n >>> 13), 1274126177);
-  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
-}
-
-function fade(t: number): number {
-  return t * t * (3 - 2 * t);
-}
-
-function valueNoise(x: number, y: number, salt: number): number {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const fx = fade(x - x0);
-  const fy = fade(y - y0);
-  const v00 = hash2(x0, y0, salt);
-  const v10 = hash2(x0 + 1, y0, salt);
-  const v01 = hash2(x0, y0 + 1, salt);
-  const v11 = hash2(x0 + 1, y0 + 1, salt);
-  return v00 + (v10 - v00) * fx + (v01 + (v11 - v01) * fx - (v00 + (v10 - v00) * fx)) * fy;
 }
 
 export function fbm(x: number, y: number, salt: number): number {
