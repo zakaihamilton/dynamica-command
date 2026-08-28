@@ -66,8 +66,8 @@ export function GamePlayField({
       levelCount={campaign.missions.length}
       missionName={state.missionName}
       objective={status.objective}
-      deadline={status.deadline}
-      stagingWindow={status.stagingWindow}
+      timeRemaining={status.timeRemaining}
+      convoyDeparture={status.convoyDeparture}
       secondary={status.secondary}
       biome={state.biome}
       onPointerDown={onPointerDown}

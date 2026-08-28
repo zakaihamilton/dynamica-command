@@ -1,6 +1,8 @@
-import { labelFor, TICKS_PER_SECOND } from "../catalog";
+import { labelFor } from "../catalog";
 import type { BriefingLine, BuildingKind, Campaign, MissionDef, UnitKind, WinCategory } from "../types";
 import { biomeLabel, characterLabel } from "./names";
+import { missionTimeLimitClock } from "./objectives";
+import { formatMissionClockFromTicks } from "./pacing";
 
 function countedLabel(kind: UnitKind | BuildingKind, count: number): string {
   const label = labelFor(kind).toLowerCase();
@@ -13,10 +15,11 @@ function countedLabel(kind: UnitKind | BuildingKind, count: number): string {
 }
 
 function holdDurationLabel(ticks: number): string {
-  const seconds = Math.max(1, Math.round(ticks / TICKS_PER_SECOND));
-  if (seconds < 90) return `${seconds} seconds`;
-  const minutes = Math.max(1, Math.round(seconds / 60));
-  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  return formatMissionClockFromTicks(ticks);
+}
+
+function scenarioTimeLimitLabel(win: WinCategory): string {
+  return missionTimeLimitClock(win) ?? formatMissionClockFromTicks(3600);
 }
 
 function objectivePhrase(win: WinCategory): string {
@@ -42,13 +45,13 @@ function objectivePhrase(win: WinCategory): string {
     case "holdTheLine":
       return `hold this ground for ${holdDurationLabel(win.ticks ?? 0)}`;
     case "escort":
-      return `escort ${win.targetCount ?? 1} convoy units to extraction`;
+      return `escort ${win.targetCount ?? 1} convoy units to extraction within ${scenarioTimeLimitLabel(win)}`;
     case "sabotage":
-      return `sabotage ${win.targetCount ?? 1} enemy systems before the deadline`;
+      return `sabotage ${win.targetCount ?? 1} enemy systems within ${scenarioTimeLimitLabel(win)}`;
     case "rescue":
-      return `rescue ${win.targetCount ?? 1} stranded units before the deadline`;
+      return `rescue ${win.targetCount ?? 1} stranded units within ${scenarioTimeLimitLabel(win)}`;
     case "extraction":
-      return `extract ${win.targetCount ?? 1} assets before the deadline`;
+      return `extract ${win.targetCount ?? 1} assets within ${scenarioTimeLimitLabel(win)}`;
     default:
       return "complete the assigned objective";
   }
@@ -94,13 +97,13 @@ export function missionObjectives(
       case "holdTheLine":
         return `Hold ${place} for ${holdDurationLabel(win.ticks ?? 0)}`;
       case "escort":
-        return `Escort the convoy through ${place}`;
+        return `Escort the convoy through ${place} within ${scenarioTimeLimitLabel(win)}`;
       case "sabotage":
-        return `Sabotage ${win.targetCount ?? 1} enemy systems`;
+        return `Sabotage ${win.targetCount ?? 1} enemy systems within ${scenarioTimeLimitLabel(win)}`;
       case "rescue":
-        return `Rescue ${win.targetCount ?? 1} stranded units before the deadline`;
+        return `Rescue ${win.targetCount ?? 1} stranded units within ${scenarioTimeLimitLabel(win)}`;
       case "extraction":
-        return `Extract ${win.targetCount ?? 1} assets from ${place}`;
+        return `Extract ${win.targetCount ?? 1} assets from ${place} within ${scenarioTimeLimitLabel(win)}`;
       default:
         return "Complete the assigned objective";
     }

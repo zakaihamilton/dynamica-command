@@ -6,7 +6,7 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
-import { missionDurationMinutesFor, secondaryObjectivesForMissionSeed } from "@/lib/gen/objectives";
+import { missionDurationMinutesFor, missionTimeLimitClock, secondaryObjectivesForMissionSeed } from "@/lib/gen/objectives";
 import { missionObjectives, objectiveHeadline } from "@/lib/gen/story";
 import { biomeLabel } from "@/lib/gen/names";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
@@ -52,6 +52,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
   const selectedObjectives = selectedMission ? missionObjectives(selectedMission, campaign) : [];
   const selectedSecondaryObjectives = selectedMission ? secondaryObjectivesForMissionSeed(seed, selectedMission) : [];
   const selectedUnlocks = selectedMission ? missionUnlocks(selectedMission.index, campaign.missions.length) : [];
+  const selectedTimeLimit = selectedMission ? missionTimeLimitClock(selectedMission.win) : undefined;
   const selectedLaunchLabel = selectedMissionComplete
     ? `Replay mission ${selectedMissionIndex + 1}`
     : selectedMissionIndex === 0 && !progress.tutorialComplete
@@ -129,8 +130,8 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           </ul>
         </div>
         <div className={styles.detailBlock}>
-          <span>Expected duration</span>
-          <strong>~{Math.max(1, Math.round(missionDurationMinutesFor(seed, selectedMission.index, selectedMission.win.kind)))} min</strong>
+          <span>{selectedTimeLimit ? "Time limit" : "Expected duration"}</span>
+          <strong>{selectedTimeLimit ?? `~${Math.max(1, Math.round(missionDurationMinutesFor(seed, selectedMission.index, selectedMission.win.kind)))} min`}</strong>
         </div>
         <div className={styles.detailBlock}>
           <span>Theater</span>

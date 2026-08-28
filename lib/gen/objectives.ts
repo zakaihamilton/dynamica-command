@@ -1,7 +1,7 @@
 import { NEW_MISSION_KINDS, WIN_KIND_ORDER } from "../catalog";
 import { createRng, type Rng } from "../seed/rng";
 import type { BuildingKind, MissionDef, MissionKind, SecondaryObjective, UnitKind, WinCategory } from "../types";
-import { CONVOY_STAGING_MINUTES, minutesToTicks, missionDurationMinutes } from "./pacing";
+import { CONVOY_STAGING_MINUTES, CONVOY_STAGING_TICKS, formatMissionClockFromTicks, minutesToTicks, missionDurationMinutes } from "./pacing";
 
 // Structure quotas may ask for several copies, so do not generate a quota for
 // the producer buildings that are capped at one per mission.
@@ -27,6 +27,17 @@ export function missionDurationMinutesFor(
   return minutes;
 }
 
+/** Returns the full player-facing time limit, including escort staging. */
+export function missionTimeLimitTicks(win: Pick<WinCategory, "kind" | "ticks">): number | undefined {
+  if (win.ticks === undefined) return undefined;
+  return win.ticks + (win.kind === "escort" ? CONVOY_STAGING_TICKS : 0);
+}
+
+export function missionTimeLimitClock(win: Pick<WinCategory, "kind" | "ticks">): string | undefined {
+  const ticks = missionTimeLimitTicks(win);
+  return ticks === undefined ? undefined : formatMissionClockFromTicks(ticks);
+}
+
 export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, rng: Rng): SecondaryObjective[] {
   const yard: SecondaryObjective = {
     id: "yard",
@@ -34,12 +45,13 @@ export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, 
     label: "Keep the construction yard standing",
   };
   if (SCENARIO_KINDS.includes(mission.win.kind)) {
+    const timeLimit = mission.win.ticks === undefined ? undefined : formatMissionClockFromTicks(mission.win.ticks);
     return [
       yard,
       {
         id: "time",
         kind: "completeBefore",
-        label: "Complete the operation before the deadline",
+        label: timeLimit ? `Complete the operation within ${timeLimit}` : "Complete the operation before the deadline",
         target: mission.win.ticks ?? 3600,
       },
     ];

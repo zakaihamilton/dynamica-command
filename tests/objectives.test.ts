@@ -4,8 +4,8 @@ import { CONVOY_STAGING_TICKS, createMission, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { formatHoldClock, inspect, objectiveProgress } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
-import { generateWinCategory, missionDurationMinutesFor, secondaryObjectivesForMissionSeed } from "../lib/gen/objectives";
-import { minutesToTicks } from "../lib/gen/pacing";
+import { generateWinCategory, missionDurationMinutesFor, missionTimeLimitClock, missionTimeLimitTicks, secondaryObjectivesForMissionSeed } from "../lib/gen/objectives";
+import { formatMissionClock, formatMissionClockFromTicks, minutesToTicks } from "../lib/gen/pacing";
 import { missionObjectives } from "../lib/gen/story";
 
 describe("win categories", () => {
@@ -94,16 +94,28 @@ describe("win categories", () => {
     expect(inspect(s).result).toBe("won");
   });
 
-  it("formats hold remaining time as minutes and seconds", () => {
-    expect(formatHoldClock(187)).toBe("3:07");
-    expect(formatHoldClock(7)).toBe("0:07");
-    expect(formatHoldClock(60)).toBe("1:00");
+  it("formats mission clocks with explicit minutes and seconds", () => {
+    expect(formatMissionClock(0)).toBe("00:00");
+    expect(formatMissionClock(5)).toBe("00:05");
+    expect(formatMissionClock(305)).toBe("05:05");
+    expect(formatMissionClockFromTicks(5 * TICKS_PER_SECOND + 1)).toBe("00:06");
+
+    expect(formatHoldClock(187)).toBe("03:07");
+    expect(formatHoldClock(7)).toBe("00:07");
+    expect(formatHoldClock(60)).toBe("01:00");
 
     const s = makeFixture({ win: { kind: "holdTheLine", ticks: 187 * TICKS_PER_SECOND } });
     addBuilding(s, 0, "constructionYard", 0, 0);
-    expect(objectiveProgress(s).label).toBe("Hold 3:07");
+    expect(objectiveProgress(s).label).toBe("Hold 03:07 remaining");
     s.tick = 187 * TICKS_PER_SECOND;
     expect(objectiveProgress(s).label).toBe("Held");
+  });
+
+  it("calculates the full escort limit while preserving the active objective limit", () => {
+    const activeWindow = minutesToTicks(8);
+    expect(missionTimeLimitTicks({ kind: "sabotage", ticks: activeWindow })).toBe(activeWindow);
+    expect(missionTimeLimitTicks({ kind: "escort", ticks: activeWindow })).toBe(activeWindow + CONVOY_STAGING_TICKS);
+    expect(missionTimeLimitClock({ kind: "escort", ticks: activeWindow })).toBe("15:00");
   });
 
   it("losing the construction yard fails the mission", () => {
@@ -166,6 +178,17 @@ describe("mission briefing objectives", () => {
         expect(mission.win.ticks + staging).toBe(minutesToTicks(missionDurationMinutesFor(421, mission.index, mission.win.kind)));
       }
     }
+  });
+
+  it("puts exact time limits in briefing objectives", () => {
+    const campaign = createCampaign(421);
+    const sabotage = campaign.missions.find((mission) => mission.win.kind === "sabotage");
+    expect(sabotage).toBeDefined();
+    expect(missionObjectives(sabotage!, campaign)[0]?.text).toContain("within 05:00");
+
+    const hold = campaign.missions.find((mission) => mission.win.kind === "holdTheLine");
+    expect(hold).toBeDefined();
+    expect(missionObjectives(hold!, campaign)[0]?.text).toContain("for 10:30");
   });
 });
 

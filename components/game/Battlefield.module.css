@@ -83,7 +83,7 @@
   text-align: right;
 }
 
-.deadline {
+.timeRemaining {
   margin-top: 0.18rem;
   color: var(--chrome-gold);
   font-size: 0.68rem;

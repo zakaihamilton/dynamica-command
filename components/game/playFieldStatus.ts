@@ -1,19 +1,19 @@
-import { TICKS_PER_SECOND } from "@/lib/catalog";
-import { formatHoldClock, objectiveProgress, secondaryProgress } from "@/lib/sim/objectives";
+import { formatMissionClockFromTicks } from "@/lib/gen/pacing";
+import { objectiveProgress, secondaryProgress } from "@/lib/sim/objectives";
 import type { SimState } from "@/lib/types";
 
 export function playFieldStatus(state: SimState) {
   const objective = objectiveProgress(state);
-  const deadline = state.runtime?.deadline === undefined || objective.deadlineTicks === undefined
+  const timeRemaining = state.runtime?.deadline === undefined || objective.timeRemainingTicks === undefined
     ? undefined
-    : `Window ${formatHoldClock(Math.ceil(objective.deadlineTicks / TICKS_PER_SECOND))}`;
-  const stagingWindow = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined
-    ? `Staging ${formatHoldClock(Math.ceil(Math.max(0, state.runtime.convoyStartTick - state.tick) / TICKS_PER_SECOND))}`
+    : `Time remaining ${formatMissionClockFromTicks(objective.timeRemainingTicks)}`;
+  const convoyDeparture = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined
+    ? `Convoy departs in ${formatMissionClockFromTicks(Math.max(0, state.runtime.convoyStartTick - state.tick))}`
     : undefined;
   return {
     objective: objective.label,
     secondary: secondaryProgress(state).map((item) => `${item.completed ? "✓" : "○"} ${item.label}`),
-    deadline,
-    stagingWindow,
+    timeRemaining,
+    convoyDeparture,
   };
 }

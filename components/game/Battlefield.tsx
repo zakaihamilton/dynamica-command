@@ -18,8 +18,8 @@ export function Battlefield({
   levelCount,
   missionName,
   objective,
-  deadline,
-  stagingWindow,
+  timeRemaining,
+  convoyDeparture,
   secondary,
   biome,
   children,
@@ -40,8 +40,8 @@ export function Battlefield({
   levelCount: number;
   missionName: string;
   objective: string;
-  deadline?: string;
-  stagingWindow?: string;
+  timeRemaining?: string;
+  convoyDeparture?: string;
   secondary?: string[];
   biome: BiomeName;
   children?: ReactNode;
@@ -79,8 +79,8 @@ export function Battlefield({
         levelCount={levelCount}
         missionName={missionName}
         objective={objective}
-        deadline={deadline}
-        stagingWindow={stagingWindow}
+        timeRemaining={timeRemaining}
+        convoyDeparture={convoyDeparture}
         secondary={secondary}
       />
       {children}

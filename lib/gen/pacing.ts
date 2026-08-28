@@ -14,6 +14,18 @@ export function minutesToTicks(minutes: number): number {
 
 /** Escort missions spend this long staging the convoy before it starts moving. */
 export const CONVOY_STAGING_MINUTES = 7;
+export const CONVOY_STAGING_TICKS = minutesToTicks(CONVOY_STAGING_MINUTES);
+
+/** Formats a player-facing mission clock with a stable two-digit minute field. */
+export function formatMissionClock(seconds: number): string {
+  const safe = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
+}
+
+/** Converts simulation ticks to a player-facing countdown, rounding up to the next second. */
+export function formatMissionClockFromTicks(ticks: number): string {
+  return formatMissionClock(Math.ceil(Math.max(0, ticks) / TICKS_PER_SECOND));
+}
 
 export const MIN_MISSION_TICKS = 5 * 60 * TICKS_PER_SECOND;
 export const MAX_MISSION_TICKS = 20 * 60 * TICKS_PER_SECOND;

@@ -7,8 +7,8 @@ export function BattlefieldHud({
   levelCount,
   missionName,
   objective,
-  deadline,
-  stagingWindow,
+  timeRemaining,
+  convoyDeparture,
   secondary,
 }: {
   seed: number;
@@ -16,8 +16,8 @@ export function BattlefieldHud({
   levelCount: number;
   missionName: string;
   objective: string;
-  deadline?: string;
-  stagingWindow?: string;
+  timeRemaining?: string;
+  convoyDeparture?: string;
   secondary?: string[];
 }) {
   return (
@@ -35,14 +35,14 @@ export function BattlefieldHud({
         <div className={styles.objective} data-testid="objective">
           {objective}
         </div>
-        {deadline ? (
-          <div className={styles.deadline} data-tooltip="Operation window: time left to finish the primary objective. The mission fails when it expires.">
-            {deadline}
+        {timeRemaining ? (
+          <div className={styles.timeRemaining} data-testid="time-remaining" data-tooltip="Time remaining: the total time left to complete the primary objective. The mission fails when it reaches 00:00.">
+            {timeRemaining}
           </div>
         ) : null}
-        {stagingWindow ? (
-          <div className={styles.stagingWindow} data-tooltip="Escort staging: time until the convoy departs and starts moving.">
-            {stagingWindow}
+        {convoyDeparture ? (
+          <div className={styles.stagingWindow} data-testid="convoy-departure" data-tooltip="Convoy departure: the convoy begins moving at 00:00. This staging time is included in the total mission time.">
+            {convoyDeparture}
           </div>
         ) : null}
         {secondary?.length ? (

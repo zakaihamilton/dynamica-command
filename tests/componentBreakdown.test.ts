@@ -10,6 +10,7 @@ import { gameOverlayModel } from "../components/game/gameOverlayModel";
 import { playFieldStatus } from "../components/game/playFieldStatus";
 import { createCamera, tileToScreen } from "../lib/iso";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
+import { createMission } from "../lib/sim/api";
 import { heightAt } from "../lib/sim/world";
 import type { GameCommandHandlers } from "../components/game/hooks/gameKeyboard";
 
@@ -256,8 +257,8 @@ describe("production and overlay helpers", () => {
   it("does not show a duplicate operation window for hold missions", () => {
     const hold = makeFixture({ win: { kind: "holdTheLine", ticks: 120 } });
     expect(playFieldStatus(hold)).toMatchObject({
-      objective: "Hold 0:10",
-      deadline: undefined,
+      objective: "Hold 00:10 remaining",
+      timeRemaining: undefined,
     });
 
     const timed = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 120 } });
@@ -270,7 +271,15 @@ describe("production and overlay helpers", () => {
       required: 1,
       secondary: [],
     };
-    expect(playFieldStatus(timed).deadline).toBe("Window 0:10");
+    expect(playFieldStatus(timed).timeRemaining).toBe("Time remaining 00:10");
+  });
+
+  it("shows the escort total limit separately from convoy departure", () => {
+    const escort = createMission({ seed: 421, missionIndex: 2 });
+    expect(playFieldStatus(escort)).toMatchObject({
+      timeRemaining: "Time remaining 15:09",
+      convoyDeparture: "Convoy departs in 07:00",
+    });
   });
 });
 

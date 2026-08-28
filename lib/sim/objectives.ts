@@ -1,18 +1,18 @@
-import { labelFor, TICKS_PER_SECOND } from "../catalog";
+import { labelFor } from "../catalog";
 import type { InspectReport, MissionRuntime, SimEvent, SimState } from "../types";
 import { formatSeed } from "../seed/rng";
+import { formatMissionClock, formatMissionClockFromTicks } from "../gen/pacing";
 import { living } from "./world";
 
 export function formatHoldClock(seconds: number): string {
-  const safe = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
+  return formatMissionClock(seconds);
 }
 
 export type ObjectiveProgress = {
   current: number;
   target: number;
   label: string;
-  deadlineTicks?: number;
+  timeRemainingTicks?: number;
   phase?: MissionRuntime["phase"];
 };
 
@@ -22,7 +22,7 @@ export type SecondaryProgress = {
   completed: boolean;
 };
 
-function deadlineTicks(state: SimState): number | undefined {
+function timeRemainingTicks(state: SimState): number | undefined {
   if (state.runtime?.deadline !== undefined) return Math.max(0, state.runtime.deadline - state.tick);
   if (["escort", "sabotage", "rescue", "extraction"].includes(state.win.kind) && state.win.ticks !== undefined) {
     return Math.max(0, state.win.ticks - state.tick);
@@ -99,11 +99,10 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
     case "holdTheLine": {
       const t = w.ticks ?? 0;
       const left = Math.max(0, t - state.tick);
-      const seconds = Math.ceil(left / TICKS_PER_SECOND);
       progress = {
         current: Math.min(state.tick, t),
         target: t,
-        label: left <= 0 ? "Held" : `Hold ${formatHoldClock(seconds)}`,
+        label: left <= 0 ? "Held" : `Hold ${formatMissionClockFromTicks(left)} remaining`,
       };
       break;
     }
@@ -126,7 +125,7 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
     default:
       progress = { current: 0, target: 1, label: "Unknown" };
   }
-  return { ...progress, deadlineTicks: deadlineTicks(state), phase: state.runtime?.phase };
+  return { ...progress, timeRemainingTicks: timeRemainingTicks(state), phase: state.runtime?.phase };
 }
 
 export function evaluateObjectives(state: SimState): SimEvent[] {

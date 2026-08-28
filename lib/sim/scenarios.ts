@@ -9,12 +9,12 @@ import type {
 } from "../types";
 import { secondaryObjectivesForMission } from "../gen/objectives";
 import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
-import { CONVOY_STAGING_MINUTES, minutesToTicks } from "../gen/pacing";
+import { CONVOY_STAGING_TICKS } from "../gen/pacing";
 import { PATH_DIRS, diagonalCornerBlocked, routePendingFor } from "./pathfinding";
 import { tryFindPathDetailed } from "./pathBudget";
 import { canClimb, inBounds, isStaticWalkable, isWalkable, spawnBuildingAt, spawnUnit } from "./world";
 
-export const CONVOY_STAGING_TICKS = minutesToTicks(CONVOY_STAGING_MINUTES);
+export { CONVOY_STAGING_TICKS };
 
 /** Adds scenario targets and common runtime metadata to a freshly spawned mission. */
 export function configureMissionScenario(
