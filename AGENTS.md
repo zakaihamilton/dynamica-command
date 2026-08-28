@@ -29,3 +29,4 @@ Non-obvious caveats:
 - `yarn lint` is clean on a checkout.
 - First deploy of a seed routes to `/tutorial`. Briefing/play smoke tests in `tests/e2e/smoke.spec.ts` mark that seed's tutorial complete in `localStorage` so they can open `/briefing` directly; a separate smoke case covers menu → `/tutorial` → Skip training → `/briefing`.
 - To manually reach the battlefield: New Game → enter a seed (or use ROLL) → Launch → advance through the first-deploy tutorial (Spacebar / Skip) → briefing → Launch. The seed field is split into individual digit inputs, so ROLL is the most reliable way to seed it in automated/browser testing.
+- Open the Cloud Agent browser at `http://localhost:3000` (not `http://127.0.0.1:3000`). Next.js HMR origin checks can leave 127.0.0.1 unhydrated.
