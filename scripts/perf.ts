@@ -193,6 +193,14 @@ function routingSample(seed: number, scenario: string, destinations: { x: number
 // existing simulation benchmark's warm-up treatment.
 const routingWarmup = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
 flowFieldFor(routingWarmup, { x: 8, y: 8 });
+// The small warm-up does not exercise the 96x96 queue and navigation buffers
+// used by the routing budget. Warm the same-size workload as well so the
+// measured sample reflects routing cost rather than first-use compilation.
+const fullRoutingWarmup = makeFixture({ width: 96, height: 96, win: { kind: "harvestQuota", target: 99999 } });
+addBuilding(fullRoutingWarmup, 0, "constructionYard", 0, 0);
+for (const destination of [{ x: 80, y: 80 }, { x: 72, y: 72 }, { x: 80, y: 24 }, { x: 24, y: 80 }, { x: 48, y: 48 }]) {
+  flowFieldFor(fullRoutingWarmup, destination);
+}
 
 const routingSamples = [
   routingSample(0, "one flow field serves 48-unit formation", [{ x: 80, y: 80 }]),
