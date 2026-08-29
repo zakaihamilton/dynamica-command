@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "../../components/game/hooks/useGameCamera";
 import { cameraPanBounds, clampCamera } from "../../lib/render/camera";
 import { TILE_H, tileToScreen } from "../../lib/iso";
+import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/save";
 import { SETTINGS_KEY, SETTINGS_VERSION, defaultSettings } from "../../lib/persist/settings";
 import { createMission } from "../../lib/sim/api";
@@ -10,6 +11,25 @@ import { heightAt } from "../../lib/sim/world";
 import type { Entity, SimState } from "../../lib/types";
 
 const TEST_SEED = 421;
+
+async function openBriefingSkippingTutorial(page: import("@playwright/test").Page) {
+  const progress = { ...freshCampaignProgress(TEST_SEED), tutorialComplete: true };
+  await page.addInitScript(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, {
+    key: campaignKey(TEST_SEED),
+    raw: JSON.stringify({
+      version: CAMPAIGN_PROGRESS_VERSION,
+      savedAt: Date.now(),
+      progress,
+    }),
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await page.getByLabel("Four digit theater seed").fill("0421");
+  await page.getByRole("button", { name: "Launch" }).click();
+  await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
+}
 
 function playerUnits(state: SimState): Entity[] {
   return state.entities.filter(
@@ -332,13 +352,14 @@ test.describe("desktop marquee selection", () => {
     }, bounds, dimensions);
     const end = {
       x: bounds.x + bounds.width - 4,
-      y: start.y + 48,
+      y: start.y + 96,
     };
 
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(end.x, end.y, { steps: 8 });
     await page.waitForTimeout(1_100);
+    await page.mouse.move(end.x, end.y);
     await page.mouse.up();
 
     const roster = page.getByTestId("tactical-roster");
@@ -465,7 +486,7 @@ test.describe("mobile-first layouts", () => {
     const infantry = await pointForEntity(page, infantryEntity);
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
-    await expect(page.getByTestId("mobile-touch-controls")).toContainText("1 selected");
+    await waitForStableSelection(page, "1 selected");
 
     await page.getByTestId("mobile-command-toggle").click();
     await page.getByTestId("command-sidebar").getByTestId("mobile-select-mode").click();
@@ -561,10 +582,10 @@ test.describe("mobile-first layouts", () => {
 
   test("guards browser Back in a live mission and preserves briefing Back destinations", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/");
-    await page.goto("/briefing?seed=0421&mission=0&from=menu");
+    await openBriefingSkippingTutorial(page);
     await page.getByRole("button", { name: "Launch" }).click();
     await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
+    await waitForBattlefield(page);
 
     await page.evaluate(() => window.history.back());
     const confirmation = page.getByRole("dialog", { name: "Leave mission?" });
