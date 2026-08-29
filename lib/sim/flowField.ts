@@ -67,9 +67,9 @@ function buildFlowField(state: SimState, requestedGoal: Vec2, revision: number):
   const distance = new Int32Array(width * height);
   distance.fill(UNREACHABLE);
   const navigation = staticNavigationFor(state);
+  const walkable = navigation.walkable;
+  const heights = navigation.heights;
   const passable = (x: number, y: number) => inBounds(state, x, y) && navigation.walkable[y * width + x] === 1;
-  const canClimbLocal = (x0: number, y0: number, x1: number, y1: number) =>
-    Math.abs(navigation.heights[y1 * width + x1]! - navigation.heights[y0 * width + x0]!) <= 1;
   const origin = flowOrigin(state, requestedGoal, passable);
   if (!origin) return { goal: requestedGoal, revision, width, height, distance };
 
@@ -84,14 +84,21 @@ function buildFlowField(state: SimState, requestedGoal: Vec2, revision: number):
     const currentKey = queue[head++]!;
     const currentX = currentKey % width;
     const currentY = Math.floor(currentKey / width);
+    const currentHeight = heights[currentKey]!;
     const nextDistance = (distance[currentKey] ?? 0) + 1;
     for (const direction of PATH_DIRS) {
       const nx = currentX + direction.x;
       const ny = currentY + direction.y;
-      if (!passable(nx, ny)) continue;
-      if (!canClimbLocal(nx, ny, currentX, currentY)) continue;
-      if (diagonalCornerBlockedLocal(navigation, passable, nx, ny, currentX, currentY)) continue;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
       const nextKey = ny * width + nx;
+      if (walkable[nextKey] !== 1) continue;
+      if (Math.abs(heights[nextKey]! - currentHeight) > 1) continue;
+      if (direction.x !== 0 && direction.y !== 0) {
+        const sideXKey = currentY * width + (currentX + direction.x);
+        const sideYKey = (currentY + direction.y) * width + currentX;
+        if (walkable[sideXKey] !== 1 || Math.abs(heights[sideXKey]! - currentHeight) > 1) continue;
+        if (walkable[sideYKey] !== 1 || Math.abs(heights[sideYKey]! - currentHeight) > 1) continue;
+      }
       if ((distance[nextKey] ?? UNREACHABLE) !== UNREACHABLE) continue;
       distance[nextKey] = nextDistance;
       queue[tail++] = nextKey;
@@ -114,21 +121,4 @@ function flowOrigin(state: SimState, requestedGoal: Vec2, passable: (x: number, 
     if (passable(nx, ny)) return { x: nx, y: ny };
   }
   return undefined;
-}
-
-function diagonalCornerBlockedLocal(
-  navigation: ReturnType<typeof staticNavigationFor>,
-  passable: (x: number, y: number) => boolean,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-): boolean {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  if (dx === 0 || dy === 0) return false;
-  const width = navigation.width;
-  if (!passable(x0 + dx, y0) || Math.abs(navigation.heights[y0 * width + (x0 + dx)]! - navigation.heights[y0 * width + x0]!) > 1) return true;
-  if (!passable(x0, y0 + dy) || Math.abs(navigation.heights[(y0 + dy) * width + x0]! - navigation.heights[y0 * width + x0]!) > 1) return true;
-  return false;
 }

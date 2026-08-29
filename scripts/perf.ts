@@ -5,6 +5,7 @@ import { addBuilding, addUnit, makeFixture, setHeight } from "../lib/sim/fixture
 import { resetPathBudget } from "../lib/sim/pathBudget";
 import { bakeTerrainAtlasData } from "../lib/render/terrainAtlas";
 import { flowFieldCacheSize, flowFieldFor } from "../lib/sim/flowField";
+import { staticNavigationFor } from "../lib/sim/world";
 
 const MAX_ATLAS_MS = 1_000;
 const MAX_ATLAS_BYTES = 4 * 1024 * 1024;
@@ -154,6 +155,10 @@ function routingSample(seed: number, scenario: string, destinations: { x: number
       formation: "line",
     });
   });
+  // Static occupancy is cached independently from flow fields in a live
+  // mission. Warm it here so this metric measures flow-field construction,
+  // while the invalidation scenario below still measures a rebuild.
+  staticNavigationFor(state);
   const timings: number[] = [];
   const measureFields = () => {
     const started = performance.now();
