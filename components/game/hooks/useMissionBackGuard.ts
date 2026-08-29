@@ -1,9 +1,11 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
 
+const MISSION_BACK_SENTINEL = "__genesisMissionBackSentinel";
+
 /**
  * Keeps browser Back inside an active mission long enough to show the same
- * confirmation used by the pause menu. Once confirmed, the original history
- * entry is restored and the browser performs the pending Back navigation.
+ * confirmation used by the pause menu. A same-URL sentinel means the router
+ * never traverses to the previous screen while the confirmation is open.
  */
 export function useMissionBackGuard({
   enabled,
@@ -15,12 +17,13 @@ export function useMissionBackGuard({
   const activeRef = useRef(false);
   const allowBackRef = useRef(false);
   const currentUrlRef = useRef("");
-  const currentHistoryStateRef = useRef<unknown>(null);
 
   const leave = useCallback(() => {
     if (!activeRef.current || typeof window === "undefined") return;
     allowBackRef.current = true;
-    window.history.back();
+    // Skip the sentinel and the original mission entry to reach the route
+    // that was underneath the mission.
+    window.history.go(-2);
   }, []);
 
   useLayoutEffect(() => {
@@ -31,20 +34,29 @@ export function useMissionBackGuard({
 
     activeRef.current = true;
     currentUrlRef.current = window.location.href;
-    currentHistoryStateRef.current = window.history.state;
+    const currentHistoryState = window.history.state;
+    const sentinelState = {
+      ...(currentHistoryState && typeof currentHistoryState === "object" ? currentHistoryState : {}),
+      [MISSION_BACK_SENTINEL]: true,
+    };
+    // Keep one same-URL entry ahead of the mission so a native Back event
+    // lands on another mission entry instead of the previous route.
+    window.history.pushState(sentinelState, "", currentUrlRef.current);
     const onPopState = (event: PopStateEvent) => {
       if (allowBackRef.current) {
         allowBackRef.current = false;
         return;
       }
 
-      // Register in a layout effect and stop the router's popstate listener
-      // before it can unmount the mission. Confirmed Back navigations are
-      // allowed through on the next history event.
+      // Forward returns to the sentinel. It is still the active mission and
+      // must not open a leave confirmation.
+      if (event.state && typeof event.state === "object" && MISSION_BACK_SENTINEL in event.state) return;
+
+      // The browser has traversed from the sentinel to the original mission
+      // entry. Re-add the sentinel so cancelling leaves the user in the
+      // mission and the next Back is guarded in the same way.
       event.stopImmediatePropagation();
-      // The browser has already moved to the previous route. Re-add the
-      // mission URL so cancelling the dialog leaves the user in the mission.
-      window.history.pushState(currentHistoryStateRef.current, "", currentUrlRef.current);
+      window.history.pushState(sentinelState, "", currentUrlRef.current);
       onRequestLeave();
     };
 

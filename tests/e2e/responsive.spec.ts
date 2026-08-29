@@ -103,6 +103,7 @@ async function waitForBattlefield(page: import("@playwright/test").Page) {
 async function waitForStableSelection(page: import("@playwright/test").Page, text: string) {
   const controls = page.getByTestId("mobile-touch-controls");
   await expect.poll(async () => (await controls.textContent())?.includes(text) ?? false).toBe(true);
+  await page.waitForTimeout(100);
   await page.evaluate(() => new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
@@ -358,7 +359,7 @@ test.describe("desktop marquee selection", () => {
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(end.x, end.y, { steps: 8 });
-    await page.waitForTimeout(1_100);
+    await page.waitForTimeout(2_500);
     await page.mouse.move(end.x, end.y);
     await page.mouse.up();
 

@@ -156,14 +156,14 @@ describe("game lifecycle hooks", () => {
     window.history.replaceState({}, "", "/briefing?seed=0421&mission=0");
     window.history.pushState({}, "", "/play?seed=0421&mission=0&fresh=1");
     const requestLeave = vi.fn();
-    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
+    const back = vi.spyOn(window.history, "go").mockImplementation(() => undefined);
     const { result, unmount } = renderHook(() => useMissionBackGuard({ enabled: true, onRequestLeave: requestLeave }));
 
     act(() => window.dispatchEvent(new PopStateEvent("popstate")));
     expect(window.location.pathname).toBe("/play");
     expect(requestLeave).toHaveBeenCalledOnce();
     act(() => result.current.leave());
-    expect(back).toHaveBeenCalledOnce();
+    expect(back).toHaveBeenCalledWith(-2);
 
     unmount();
     back.mockRestore();
