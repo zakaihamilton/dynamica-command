@@ -14,7 +14,11 @@ export default defineConfig({
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "iphone-touch", testMatch: /responsive\.spec\.ts/, use: { ...devices["iPhone 13"] } },
+    {
+      name: "iphone-touch",
+      testMatch: /responsive\.spec\.ts/,
+      use: { ...devices["iPhone 13"], browserName: "chromium" },
+    },
     { name: "android-touch", testMatch: /responsive\.spec\.ts/, use: { ...devices["Pixel 5"] } },
   ],
   webServer: {

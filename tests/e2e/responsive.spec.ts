@@ -275,7 +275,7 @@ test.describe("selected unit actions", () => {
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
 
-    await waitForStableSelection(page, "1 unit");
+    await waitForStableSelection(page, "1 selected");
     await page.getByTestId("mobile-command-toggle").click();
     const sidebar = page.getByTestId("command-sidebar");
     await sidebar.getByRole("tab", { name: "Selected" }).click();
@@ -420,7 +420,7 @@ test.describe("mobile-first layouts", () => {
 
     await launcher.getByTestId("mobile-command-toggle").click();
     await expect(panel).toBeVisible();
-    await page.getByTestId("mobile-command-scrim").click();
+    await page.getByTestId("mobile-command-scrim").click({ position: { x: 12, y: 420 } });
     await expect(panel).not.toBeVisible();
   });
 
@@ -465,7 +465,7 @@ test.describe("mobile-first layouts", () => {
     const infantry = await pointForEntity(page, infantryEntity);
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
-    await expect(page.getByTestId("mobile-touch-controls")).toContainText("1 unit");
+    await expect(page.getByTestId("mobile-touch-controls")).toContainText("1 selected");
 
     await page.getByTestId("mobile-command-toggle").click();
     await page.getByTestId("command-sidebar").getByTestId("mobile-select-mode").click();
@@ -473,13 +473,13 @@ test.describe("mobile-first layouts", () => {
     await dispatchTouch(page, "pointerdown", marquee.start);
     await dispatchTouch(page, "pointermove", marquee.end);
     await dispatchTouch(page, "pointerup", marquee.end);
-    await waitForStableSelection(page, `${units.length} units`);
+    await waitForStableSelection(page, `${units.length} selected`);
 
     const dragStart = { x: 90, y: 650 };
     await dispatchTouch(page, "pointerdown", dragStart);
     await dispatchTouch(page, "pointermove", { x: 155, y: 650 });
     await dispatchTouch(page, "pointerup", { x: 155, y: 650 });
-    await waitForStableSelection(page, `${units.length} units`);
+    await waitForStableSelection(page, `${units.length} selected`);
 
     await page.getByTestId("mobile-command-toggle").click();
     await page.getByTestId("command-sidebar").getByTestId("mobile-command-move").click();
@@ -545,7 +545,7 @@ test.describe("mobile-first layouts", () => {
     const infantry = await pointForEntity(page, infantryEntity);
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
-    await waitForStableSelection(page, "1 unit");
+    await waitForStableSelection(page, "1 selected");
 
     await page.getByTestId("mobile-command-toggle").click();
     await expect(page.getByTestId("command-sidebar")).toBeVisible();
@@ -553,7 +553,7 @@ test.describe("mobile-first layouts", () => {
     await page.setViewportSize({ width: 844, height: 390 });
     await expect(page.getByTestId("mobile-command-launcher")).not.toBeVisible();
     await expect(page.getByTestId("command-sidebar")).toBeVisible();
-    await expect(page.getByTestId("mobile-touch-controls")).toContainText("1 unit");
+    await expect(page.getByTestId("mobile-touch-controls")).toContainText("1 selected");
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
     await expect(page.getByTestId("command-sidebar")).not.toBeVisible();

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { AudioRoot } from "@/components/audio/AudioRoot";
 import { TooltipLayer } from "@/components/TooltipLayer";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
@@ -14,7 +15,7 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={styles.html}>
       <body className={styles.body}>

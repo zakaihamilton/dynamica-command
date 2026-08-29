@@ -48,10 +48,10 @@ export function useMissionBackGuard({
       onRequestLeave();
     };
 
-    window.addEventListener("popstate", onPopState);
+    window.addEventListener("popstate", onPopState, true);
     return () => {
       activeRef.current = false;
-      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("popstate", onPopState, true);
     };
   }, [enabled, onRequestLeave]);
 

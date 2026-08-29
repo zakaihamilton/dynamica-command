@@ -290,6 +290,7 @@ test("downloads a valid deterministic M4A when native AAC is supported", async (
   await deployToBattlefield(page);
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await page.keyboard.press("Escape");
+  test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
   await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
   const downloadPromise = page.waitForEvent("download", { timeout: 180_000 });
