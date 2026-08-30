@@ -170,6 +170,35 @@ describe("game lifecycle hooks", () => {
     window.history.replaceState({}, "", "/");
   });
 
+  it("cleans up stale same-URL sentinels when the mission guard is disabled", () => {
+    const sentinelKey = "__genesisMissionBackSentinel";
+    window.history.replaceState({ [sentinelKey]: true, route: "mission" }, "", "/play?seed=0421&mission=0");
+    const missionUrl = window.location.href;
+    const replaceState = vi.spyOn(window.history, "replaceState");
+    const pushState = vi.spyOn(window.history, "pushState");
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
+    const onRequestLeave = vi.fn();
+    const { rerender, unmount } = renderHook(
+      ({ enabled }) => useMissionBackGuard({ enabled, onRequestLeave }),
+      { initialProps: { enabled: true } },
+    );
+
+    expect(replaceState).toHaveBeenCalledWith({ route: "mission" }, "", missionUrl);
+    expect(pushState).toHaveBeenCalledWith(
+      { route: "mission", [sentinelKey]: true },
+      "",
+      missionUrl,
+    );
+
+    act(() => rerender({ enabled: false }));
+    expect(back).toHaveBeenCalledOnce();
+    unmount();
+    replaceState.mockRestore();
+    pushState.mockRestore();
+    back.mockRestore();
+    window.history.replaceState({}, "", "/");
+  });
+
   it("does not overwrite a newer save during a briefing transition", () => {
     const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
     const storage = localStorageAdapter();

@@ -23,6 +23,7 @@ export function GameOverlays({
   tutorial,
   selectionMode,
   mobilePanelOpen,
+  mobileLauncherRef,
   miniRef,
   activeTab,
   onTab,
@@ -51,6 +52,7 @@ export function GameOverlays({
   tutorial: boolean;
   selectionMode: boolean;
   mobilePanelOpen: boolean;
+  mobileLauncherRef: Ref<HTMLButtonElement>;
   miniRef: Ref<HTMLCanvasElement>;
   activeTab: CommandTab;
   onTab: (tab: CommandTab) => void;
@@ -86,8 +88,13 @@ export function GameOverlays({
 
   return (
     <>
-      {!tutorial && !paused && state.result === "playing" ? (
-        <MobileCommandLauncher open={mobilePanelOpen} onToggle={onToggleMobilePanel} onPause={onPause} />
+      {!tutorial && !paused && state.result === "playing" && !session.confirmation ? (
+        <MobileCommandLauncher
+          open={mobilePanelOpen}
+          onToggle={onToggleMobilePanel}
+          onPause={onPause}
+          buttonRef={mobileLauncherRef}
+        />
       ) : null}
 
       {!tutorial && shouldShowCommandSidebar(state.result) ? (

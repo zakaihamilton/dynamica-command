@@ -50,12 +50,14 @@ export function useGameSession({
   saveSession,
   tutorialOrigin = "menu",
   browserBackGuardEnabled = false,
+  onBrowserBackLeave,
 }: MissionPersistenceParams & {
   settings: GameSettings;
   setSettings: Dispatch<SetStateAction<GameSettings>>;
   saveSession: SaveSession;
   tutorialOrigin?: NavigationOrigin;
   browserBackGuardEnabled?: boolean;
+  onBrowserBackLeave?: () => void;
 }) {
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
   const routes = useMissionRoutes({ seed, stateRef, saveSession, tutorialOrigin });
@@ -98,9 +100,10 @@ export function useGameSession({
   });
   const { goHome: requestConfirmationLeave, cancelConfirmation: cancelConfirmationState } = confirmation;
   const requestBrowserLeave = useCallback(() => {
+    onBrowserBackLeave?.();
     browserBackRef.current = true;
     requestConfirmationLeave();
-  }, [requestConfirmationLeave]);
+  }, [onBrowserBackLeave, requestConfirmationLeave]);
   const backGuard = useMissionBackGuard({ enabled: browserBackGuardEnabled, onRequestLeave: requestBrowserLeave });
 
   useEffect(() => {

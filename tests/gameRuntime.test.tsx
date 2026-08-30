@@ -229,6 +229,33 @@ describe("useGameRuntime", () => {
     expect(startLoop).toHaveBeenCalledOnce();
   });
 
+  it("returns focus to the launcher when a mobile panel action closes it", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const launcher = document.createElement("button");
+    document.body.append(launcher);
+    (result.current.overlays.mobileLauncherRef as { current: HTMLButtonElement | null }).current = launcher;
+
+    act(() => result.current.overlays.onToggleMobilePanel());
+    expect(result.current.overlays.mobilePanelOpen).toBe(true);
+
+    const sidebarControl = document.createElement("button");
+    document.body.append(sidebarControl);
+    sidebarControl.focus();
+    act(() => result.current.overlays.onToggleMobilePanel());
+
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(document.activeElement).toBe(launcher);
+
+    act(() => result.current.overlays.onToggleMobilePanel());
+    sidebarControl.focus();
+    act(() => result.current.overlays.onSelectionMode(true));
+
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(document.activeElement).toBe(launcher);
+    launcher.remove();
+    sidebarControl.remove();
+  });
+
   it("does not record telemetry again when resuming a terminal save", () => {
     const terminalState = makeFixture({ seed: 421, win: { kind: "annihilate" } });
     terminalState.result = "won";

@@ -88,6 +88,9 @@ function testActions(): GameActions {
 function testSession(): GameSession {
   const noop = vi.fn();
   return {
+    confirmation: null,
+    confirmAction: noop,
+    cancelConfirmation: noop,
     openPauseMenu: noop,
     resumeMission: noop,
     saveMission: noop,
@@ -126,6 +129,7 @@ describe("game overlay surfaces", () => {
       tutorial: false,
       selectionMode: false,
       mobilePanelOpen: true,
+      mobileLauncherRef: createRef<HTMLButtonElement>(),
       miniRef: createRef<HTMLCanvasElement>(),
       activeTab: "construction" as const,
       onTab: vi.fn(),
@@ -148,6 +152,23 @@ describe("game overlay surfaces", () => {
 
     expect(screen.getByTestId("surface-mobile-launcher")).toBeVisible();
     expect(screen.getByTestId("surface-sidebar")).toBeVisible();
+
+    rerender(
+      <GameOverlays
+        {...props}
+        session={{
+          ...props.session,
+          confirmation: {
+            action: "menu",
+            title: "Leave mission?",
+            message: "Return to the main menu?",
+            confirmLabel: "Leave mission",
+          },
+        }}
+      />,
+    );
+    expect(screen.queryByTestId("surface-mobile-launcher")).toBeNull();
+    expect(screen.getByTestId("mission-confirmation")).toBeVisible();
 
     rerender(<GameOverlays {...props} paused />);
     expect(screen.queryByTestId("surface-mobile-launcher")).toBeNull();

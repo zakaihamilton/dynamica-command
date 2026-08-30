@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useCombatAlert } from "./useCombatAlert";
 import { useGameActions } from "./useGameActions";
 import { useGameAudioLifecycle } from "./useGameAudioLifecycle";
@@ -105,6 +105,7 @@ export function useGameRuntime({
     toggleSell,
     activateCameo,
   } = actions;
+  const mobileLauncherRef = useRef<HTMLButtonElement>(null);
 
   const input = useGameInput({
     stateRef,
@@ -147,6 +148,14 @@ export function useGameRuntime({
     sell,
   });
 
+  const resetTransientMobileUi = useCallback(() => {
+    resetMobileCommand();
+    clearTools();
+    resetInput();
+    setSelectionMode(false);
+    setMobilePanelOpen(false);
+  }, [clearTools, resetInput, resetMobileCommand, setMobilePanelOpen, setSelectionMode]);
+
   const session = useGameSession({
     seed,
     stateRef,
@@ -168,27 +177,27 @@ export function useGameRuntime({
     saveSession,
     tutorialOrigin,
     browserBackGuardEnabled: !tutorial && state.result === "playing",
+    onBrowserBackLeave: resetTransientMobileUi,
   });
   const { openPauseMenu: openMissionPause } = session;
-
-  const resetTransientMobileUi = useCallback(() => {
-    resetMobileCommand();
-    clearTools();
-    resetInput();
-    setSelectionMode(false);
-    setMobilePanelOpen(false);
-  }, [clearTools, resetInput, resetMobileCommand, setMobilePanelOpen, setSelectionMode]);
 
   const openPauseMenu = useCallback(() => {
     resetTransientMobileUi();
     openMissionPause();
   }, [openMissionPause, resetTransientMobileUi]);
 
-  const closeMobilePanel = useCallback(() => setMobilePanelOpen(false), [setMobilePanelOpen]);
+  const closeMobilePanel = useCallback(() => {
+    setMobilePanelOpen(false);
+    mobileLauncherRef.current?.focus();
+  }, [setMobilePanelOpen]);
   const toggleMobilePanel = useCallback(() => {
     setSelectionMode(false);
-    setMobilePanelOpen((open) => !open);
-  }, [setMobilePanelOpen, setSelectionMode]);
+    if (mobilePanelOpen) {
+      closeMobilePanel();
+      return;
+    }
+    setMobilePanelOpen(true);
+  }, [closeMobilePanel, mobilePanelOpen, setMobilePanelOpen, setSelectionMode]);
   const onTouchCommand = useCallback((command: MobileCommand) => {
     chooseMobileCommand(command);
     closeMobilePanel();
@@ -310,6 +319,7 @@ export function useGameRuntime({
       tutorial,
       selectionMode,
       mobilePanelOpen,
+      mobileLauncherRef,
       miniRef,
       activeTab,
       onTab: setActiveTab,
