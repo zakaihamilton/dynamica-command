@@ -51,12 +51,20 @@ describe("GET /api/assets", () => {
     expect(await unknown.json()).toEqual({ error: "Unknown asset category: spaceship" });
   });
 
-  it("answers OPTIONS with the allowed methods", () => {
-    const response = OPTIONS();
+  it("answers OPTIONS with CORS preflight headers", () => {
+    const response = OPTIONS(request("/api/assets", {
+      method: "OPTIONS",
+      headers: {
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "X-Asset-Client",
+      },
+    }));
     expect(response.status).toBe(200);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(response.headers.get("Cache-Control")).toContain("max-age=3600");
     expect(response.headers.get("Allow")).toBe("GET, OPTIONS");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toBe("GET, OPTIONS");
+    expect(response.headers.get("Access-Control-Allow-Headers")).toBe("X-Asset-Client");
   });
 });
 
@@ -82,6 +90,10 @@ describe("GET /api/assets/:id", () => {
     const missing = await getAsset(request("/api/assets/unit:nope"), assetContext("unit:nope"));
     expect(missing.status).toBe(404);
     expect(await missing.json()).toEqual({ error: "Asset not found" });
+
+    const malformed = await getAsset(request("/api/assets/%"), assetContext("%"));
+    expect(malformed.status).toBe(400);
+    expect(await malformed.json()).toEqual({ error: "Asset id is not valid URL encoding" });
   });
 });
 

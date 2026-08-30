@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeMission, freshCampaignProgress, readCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
+import { campaignKey, completeMission, freshCampaignProgress, readCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
 import { memoryStorage } from "../lib/persist/save";
 
 describe("campaign progress", () => {
@@ -21,6 +21,28 @@ describe("campaign progress", () => {
     expect(replay.unlockedMission).toBe(1);
     expect(replay.medals["0"]).toBe(3);
     expect(replay.bestScores["0"]).toBe(700);
+  });
+
+  it("normalizes duplicate and invalid records from local storage", () => {
+    const storage = memoryStorage();
+    storage.setItem(campaignKey(42), JSON.stringify({
+      version: 1,
+      progress: {
+        ...freshCampaignProgress(42),
+        unlockedMission: 1,
+        completedMissions: [0, 0, 2, 8, -1],
+        medals: { "0": 2, "8": 3, invalid: 99, "1": -1 },
+        bestScores: { "0": 500, "9": 900, invalid: 1000 },
+      },
+    }));
+
+    expect(readCampaignProgress(storage, 42)).toEqual({
+      ...freshCampaignProgress(42),
+      unlockedMission: 1,
+      completedMissions: [0],
+      medals: { "0": 2 },
+      bestScores: { "0": 500 },
+    });
   });
 
   it("returns false when campaign progress cannot be written", () => {

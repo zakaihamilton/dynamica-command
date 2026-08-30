@@ -45,7 +45,8 @@ export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, 
     label: "Keep the construction yard standing",
   };
   if (SCENARIO_KINDS.includes(mission.win.kind)) {
-    const timeLimit = formatMissionClockFromTicks(mission.win.ticks ?? 3600);
+    const timeLimitTicks = missionTimeLimitTicks(mission.win) ?? 3600;
+    const timeLimit = formatMissionClockFromTicks(timeLimitTicks);
     const label = mission.win.kind === "escort"
       ? `Speed bonus: complete the operation within ${timeLimit} total`
       : `Complete the operation within ${timeLimit}`;
@@ -55,7 +56,7 @@ export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, 
         id: "time",
         kind: "completeBefore",
         label,
-        target: mission.win.ticks ?? 3600,
+        target: timeLimitTicks,
       },
     ];
   }

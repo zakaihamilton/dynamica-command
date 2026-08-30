@@ -20,11 +20,14 @@ export function GET(request: Request) {
   }, { headers: ASSET_API_HEADERS });
 }
 
-export function OPTIONS() {
+export function OPTIONS(request: Request) {
+  const requestedHeaders = request.headers.get("Access-Control-Request-Headers");
   return new Response(null, {
     headers: {
       ...ASSET_API_HEADERS,
       Allow: "GET, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": requestedHeaders ?? "Content-Type",
     },
   });
 }

@@ -18,7 +18,18 @@ const DEFAULT_PROFILE = { ...generateVisualProfile(DEFAULT_SEED, 0), designFamil
 export const ASSET_FACINGS: Facing[] = [0, 1, 2, 3, 4, 5, 6, 7];
 
 export function resolveAssetParam(id: string) {
-  const asset = assetById(decodeURIComponent(id));
+  let decodedId: string;
+  try {
+    decodedId = decodeURIComponent(id);
+  } catch {
+    return {
+      errorResponse: Response.json(
+        { error: "Asset id is not valid URL encoding" },
+        { status: 400, headers: ASSET_API_HEADERS },
+      ),
+    };
+  }
+  const asset = assetById(decodedId);
   if (!asset) {
     return {
       errorResponse: Response.json({ error: "Asset not found" }, { status: 404, headers: ASSET_API_HEADERS }),

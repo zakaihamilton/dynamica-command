@@ -111,14 +111,26 @@ describe("win categories", () => {
     expect(objectiveProgress(s).label).toBe("Held");
   });
 
-  it("calculates the full escort limit while preserving the active objective limit", () => {
+  it("uses the full escort limit for the speed secondary objective", () => {
     const activeWindow = minutesToTicks(8);
     expect(missionTimeLimitTicks({ kind: "sabotage", ticks: activeWindow })).toBe(activeWindow);
     expect(missionTimeLimitTicks({ kind: "escort", ticks: activeWindow })).toBe(activeWindow + CONVOY_STAGING_TICKS);
     expect(missionTimeLimitClock({ kind: "escort", ticks: activeWindow })).toBe("15:00");
 
     const secondary = secondaryObjectivesForMissionSeed(421, { index: 2, win: { kind: "escort", ticks: activeWindow } });
-    expect(secondary[1]?.label).toBe("Speed bonus: complete the operation within 08:00 total");
+    expect(secondary[1]).toMatchObject({
+      label: "Speed bonus: complete the operation within 15:00 total",
+      target: activeWindow + CONVOY_STAGING_TICKS,
+    });
+  });
+
+  it("keeps the escort speed objective available through convoy staging", () => {
+    const state = createMission({ seed: 10, missionIndex: 1 });
+    const timed = state.runtime?.secondary.find((objective) => objective.id === "time");
+    expect(timed?.target).toBe(state.runtime?.deadline);
+    state.tick = CONVOY_STAGING_TICKS - 1;
+    tick(state);
+    expect(timed?.completed).toBe(true);
   });
 
   it("losing the construction yard fails the mission", () => {

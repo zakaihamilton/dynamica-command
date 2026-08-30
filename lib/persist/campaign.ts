@@ -26,16 +26,30 @@ export function normalizeCampaignProgress(value: unknown, seed: number): Campaig
   const base = freshCampaignProgress(seed);
   if (!value || typeof value !== "object") return base;
   const raw = value as Partial<CampaignProgress>;
+  const unlockedMission = Math.max(0, Math.min(7, Number.isInteger(raw.unlockedMission) ? raw.unlockedMission! : 0));
+  const completedMissions = Array.isArray(raw.completedMissions)
+    ? [...new Set(raw.completedMissions.filter((n): n is number => (
+      Number.isInteger(n) && n >= 0 && n < 8 && n <= unlockedMission
+    )))].sort((a, b) => a - b)
+    : [];
+  const normalizeStats = (stats: unknown): Record<string, number> => {
+    if (!isRecord(stats) || Array.isArray(stats)) return {};
+    const normalized: Record<string, number> = {};
+    for (const [key, score] of Object.entries(stats)) {
+      if (/^[0-7]$/.test(key) && typeof score === "number" && Number.isFinite(score) && score >= 0) {
+        normalized[key] = score;
+      }
+    }
+    return normalized;
+  };
   return {
     ...base,
     seed,
     tutorialComplete: raw.tutorialComplete === true,
-    unlockedMission: Math.max(0, Math.min(7, Number.isInteger(raw.unlockedMission) ? raw.unlockedMission! : 0)),
-    completedMissions: Array.isArray(raw.completedMissions)
-      ? raw.completedMissions.filter((n): n is number => Number.isInteger(n) && n >= 0 && n < 8)
-      : [],
-    medals: raw.medals && typeof raw.medals === "object" ? { ...raw.medals } : {},
-    bestScores: raw.bestScores && typeof raw.bestScores === "object" ? { ...raw.bestScores } : {},
+    unlockedMission,
+    completedMissions,
+    medals: normalizeStats(raw.medals),
+    bestScores: normalizeStats(raw.bestScores),
   };
 }
 
