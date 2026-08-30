@@ -6,7 +6,7 @@ import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
 import { useAnnouncement } from "@/components/ui/useAnnouncement";
 
 export function useGameChrome(initialResult: SimState["result"] = "playing") {
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<CommandTab>("construction");
   const activeTabRef = useRef(activeTab);
   const [paused, setPaused] = useState(false);
@@ -29,8 +29,8 @@ export function useGameChrome(initialResult: SimState["result"] = "playing") {
   }, [pauseView]);
 
   return {
-    mobileSheetOpen,
-    setMobileSheetOpen,
+    mobilePanelOpen,
+    setMobilePanelOpen,
     activeTab,
     setActiveTab,
     activeTabRef,

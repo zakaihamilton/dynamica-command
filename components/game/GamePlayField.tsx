@@ -24,6 +24,7 @@ export function GamePlayField({
   onPointerCancel,
   onAdvanceTutorial,
   onExitTutorial,
+  onBackTutorial,
   onNextBriefing,
   onCampaignVictory,
   onCampaignMap,
@@ -45,6 +46,7 @@ export function GamePlayField({
   onPointerCancel: PointerEventHandler<HTMLCanvasElement>;
   onAdvanceTutorial: () => void;
   onExitTutorial: () => void;
+  onBackTutorial: () => void;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
   onCampaignMap: () => void;
@@ -91,6 +93,7 @@ export function GamePlayField({
           complete={state.tutorialStage === "complete"}
           onAdvance={state.tutorialStage === "complete" ? onExitTutorial : onAdvanceTutorial}
           onSkip={onExitTutorial}
+          onBack={onBackTutorial}
         />
       ) : null}
     </Battlefield>

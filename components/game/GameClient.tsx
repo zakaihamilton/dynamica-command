@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { GameOverlays } from "./GameOverlays";
 import { GamePlayField } from "./GamePlayField";
 import { useGameRuntime } from "./hooks/useGameRuntime";
+import type { NavigationOrigin } from "./hooks/missionRoutes";
 import styles from "./GameClient.module.css";
 
 export function GameClient({
@@ -12,14 +13,16 @@ export function GameClient({
   resume,
   fresh = false,
   tutorial = false,
+  tutorialOrigin = "menu",
 }: {
   seed: number;
   mission: number;
   resume: boolean;
   fresh?: boolean;
   tutorial?: boolean;
+  tutorialOrigin?: NavigationOrigin;
 }) {
-  const { palette, playField, overlays } = useGameRuntime({ seed, mission, resume, fresh, tutorial });
+  const { palette, playField, overlays } = useGameRuntime({ seed, mission, resume, fresh, tutorial, tutorialOrigin });
 
   return (
     <div

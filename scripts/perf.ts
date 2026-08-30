@@ -5,6 +5,7 @@ import { addBuilding, addUnit, makeFixture, setHeight } from "../lib/sim/fixture
 import { resetPathBudget } from "../lib/sim/pathBudget";
 import { bakeTerrainAtlasData } from "../lib/render/terrainAtlas";
 import { flowFieldCacheSize, flowFieldFor } from "../lib/sim/flowField";
+import { staticNavigationFor } from "../lib/sim/world";
 
 const MAX_ATLAS_MS = 1_000;
 const MAX_ATLAS_BYTES = 4 * 1024 * 1024;
@@ -154,6 +155,10 @@ function routingSample(seed: number, scenario: string, destinations: { x: number
       formation: "line",
     });
   });
+  // Static occupancy is cached independently from flow fields in a live
+  // mission. Warm it here so this metric measures flow-field construction,
+  // while the invalidation scenario below still measures a rebuild.
+  staticNavigationFor(state);
   const timings: number[] = [];
   const measureFields = () => {
     const started = performance.now();
@@ -193,6 +198,14 @@ function routingSample(seed: number, scenario: string, destinations: { x: number
 // existing simulation benchmark's warm-up treatment.
 const routingWarmup = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
 flowFieldFor(routingWarmup, { x: 8, y: 8 });
+// The small warm-up does not exercise the 96x96 queue and navigation buffers
+// used by the routing budget. Warm the same-size workload as well so the
+// measured sample reflects routing cost rather than first-use compilation.
+const fullRoutingWarmup = makeFixture({ width: 96, height: 96, win: { kind: "harvestQuota", target: 99999 } });
+addBuilding(fullRoutingWarmup, 0, "constructionYard", 0, 0);
+for (const destination of [{ x: 80, y: 80 }, { x: 72, y: 72 }, { x: 80, y: 24 }, { x: 24, y: 80 }, { x: 48, y: 48 }]) {
+  flowFieldFor(fullRoutingWarmup, destination);
+}
 
 const routingSamples = [
   routingSample(0, "one flow field serves 48-unit formation", [{ x: 80, y: 80 }]),

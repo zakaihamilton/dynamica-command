@@ -5,8 +5,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MobileCommandDock } from "../components/game/MobileCommandDock";
-import { MobileCommandSheet } from "../components/game/MobileCommandSheet";
+import { MobileCommandLauncher } from "../components/game/MobileCommandLauncher";
+import { MobileTouchControls } from "../components/game/MobileTouchControls";
 import { SelectionOrders } from "../components/game/SelectionOrders";
 import { CommandCatalogContent } from "../components/game/CommandCatalogContent";
 import { MenuOverlay } from "../components/menu/MenuOverlay";
@@ -17,7 +17,7 @@ import { MissionConfirmation } from "../components/game/MissionConfirmation";
 import { defaultSettings } from "../lib/persist/settings";
 import type { Palette } from "../lib/types";
 import { generateVisualProfile } from "../lib/gen/visualProfile";
-import { addUnit, makeFixture } from "../lib/sim/fixtures";
+import { makeFixture } from "../lib/sim/fixtures";
 
 const palette: Palette = {
   primary: "#4a7",
@@ -41,107 +41,80 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-describe("MobileCommandDock", () => {
-  it("describes selection mode and exposes move only for a unit selection", () => {
+describe("mobile command controls", () => {
+  it("describes selection mode and exposes map commands only for a unit selection", () => {
     const onCommand = vi.fn();
     const onSelectionMode = vi.fn();
-    const onOpenSheet = vi.fn();
-    const onPause = vi.fn();
     const { rerender } = render(
-      <MobileCommandDock
-        surface={{ dockVisible: true, sheetOpen: false, sheetContext: "base", activeCommand: null, selectionMode: false, selectedCount: 0 }}
+      <MobileTouchControls
+        selectedCount={0}
+        hasUnitSelection={false}
+        selectionMode={false}
+        activeCommand={null}
         onCommand={onCommand}
         onSelectionMode={onSelectionMode}
-        onOpenSheet={onOpenSheet}
-        onPause={onPause}
+        onStop={vi.fn()}
       />,
     );
 
-    expect(screen.getByTestId("mobile-command-dock")).toHaveTextContent("No selection");
+    expect(screen.getByTestId("mobile-touch-controls")).toHaveTextContent("No selection");
     expect(screen.queryByTestId("mobile-command-move")).toBeNull();
     fireEvent.click(screen.getByTestId("mobile-select-mode"));
     expect(onSelectionMode).toHaveBeenCalledWith(true);
 
     rerender(
-      <MobileCommandDock
-        surface={{ dockVisible: true, sheetOpen: false, sheetContext: "unit", activeCommand: "move", selectionMode: true, selectedCount: 1 }}
+      <MobileTouchControls
+        selectedCount={1}
+        hasUnitSelection
+        selectionMode
+        activeCommand="move"
         onCommand={onCommand}
         onSelectionMode={onSelectionMode}
-        onOpenSheet={onOpenSheet}
-        onPause={onPause}
+        onStop={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("mobile-marquee")).toBeVisible();
     expect(screen.getByTestId("mobile-command-move")).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByTestId("mobile-command-move"));
     expect(onCommand).toHaveBeenCalledWith("move");
   });
 
-  it("does not render when the battlefield is not mobile-playing", () => {
+  it("keeps select available without a unit selection", () => {
     render(
-      <MobileCommandDock
-        surface={{ dockVisible: false, sheetOpen: false, sheetContext: "base", activeCommand: null, selectionMode: false, selectedCount: 0 }}
+      <MobileTouchControls
+        selectedCount={0}
+        hasUnitSelection={false}
+        selectionMode={false}
+        activeCommand={null}
         onCommand={vi.fn()}
         onSelectionMode={vi.fn()}
-        onOpenSheet={vi.fn()}
-        onPause={vi.fn()}
+        onStop={vi.fn()}
       />,
     );
-    expect(screen.queryByTestId("mobile-command-dock")).toBeNull();
+    expect(screen.getByTestId("mobile-select-mode")).toBeVisible();
+    expect(screen.queryByTestId("mobile-command-move")).toBeNull();
   });
 });
 
-describe("MobileCommandSheet", () => {
-  it("renders unit orders, catalog controls, and closes", () => {
-    const state = makeFixture({ win: { kind: "annihilate" } });
-    const selected = addUnit(state, 0, "infantry", 2, 2);
-    const onClose = vi.fn();
-    const onCommand = vi.fn();
-    const props = {
-      open: true,
-      state,
-      palette,
-      profile: generateVisualProfile(421, 0),
-      selected,
-      selectedCount: 1,
-      activeTab: "selected" as const,
-      command: null,
-      placeKind: null,
-      repairMode: false,
-      sellMode: false,
-      power: 10,
-      produced: 20,
-      used: 10,
-      miniRef: createRef<HTMLCanvasElement>(),
-      onClose,
-      onTab: vi.fn(),
-      onCommand,
-      onStop: vi.fn(),
-      onRepair: vi.fn(),
-      onSell: vi.fn(),
-      onStance: vi.fn(),
-      onFormation: vi.fn(),
-      onPlace: vi.fn(),
-      onCancelBuilding: vi.fn(),
-      onQueueUnit: vi.fn(),
-      onCancelUnit: vi.fn(),
-      availableProducer: vi.fn(),
-      onMinimapPointerDown: vi.fn(),
-      onMinimapPointerMove: vi.fn(),
-      onMinimapPointerUp: vi.fn(),
-      isMinimapDragging: false,
-    };
-    const { rerender } = render(<MobileCommandSheet {...props} />);
+describe("MobileCommandLauncher", () => {
+  it("opens and closes the portrait command panel from the compact rail", () => {
+    const onToggle = vi.fn();
+    const onPause = vi.fn();
+    const buttonRef = createRef<HTMLButtonElement>();
+    const { rerender } = render(
+      <MobileCommandLauncher open={false} onToggle={onToggle} onPause={onPause} buttonRef={buttonRef} />,
+    );
 
-    expect(screen.getByTestId("mobile-unit-commands")).toBeVisible();
-    expect(screen.getByTestId("mobile-build-controls")).toBeVisible();
-    fireEvent.click(screen.getByTestId("mobile-command-move"));
-    expect(onCommand).toHaveBeenCalledWith("move");
-    fireEvent.click(screen.getByTestId("mobile-command-close"));
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("mobile-command-toggle")).toHaveTextContent("Commands");
+    expect(screen.queryByTestId("mobile-command-scrim")).toBeNull();
+    fireEvent.click(screen.getByTestId("mobile-command-toggle"));
+    expect(onToggle).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByTestId("mobile-pause"));
+    expect(onPause).toHaveBeenCalledOnce();
 
-    rerender(<MobileCommandSheet {...props} open={false} />);
-    expect(screen.queryByTestId("mobile-command-sheet")).toBeNull();
+    rerender(<MobileCommandLauncher open onToggle={onToggle} onPause={onPause} buttonRef={buttonRef} />);
+    expect(screen.getByTestId("mobile-command-toggle")).toHaveTextContent("Close");
+    fireEvent.click(screen.getByTestId("mobile-command-scrim"));
+    expect(onToggle).toHaveBeenCalledTimes(2);
   });
 });
 

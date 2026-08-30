@@ -1,4 +1,5 @@
 .sidebar {
+  box-sizing: border-box;
   position: relative;
   z-index: 20;
   display: flex;
@@ -85,9 +86,134 @@
   background: transparent;
 }
 
+.mobilePanelBar,
+.touchControls {
+  display: none;
+}
+
+.touchStatus {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.touchStatus strong,
+.touchStatus span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.touchStatus strong {
+  color: var(--chrome-text);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.touchStatus span {
+  color: var(--chrome-muted);
+  font-size: 0.58rem;
+  letter-spacing: 0.03em;
+}
+
+.touchActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  min-width: 0;
+  margin-top: 0.4rem;
+}
+
+.touchButton {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+}
+
+.touchButton[aria-pressed="true"] {
+  color: var(--chrome-text);
+  border-color: var(--a, var(--chrome-cyan));
+  background: linear-gradient(var(--chrome-steel-hi), var(--chrome-steel));
+  box-shadow: inset 1px 1px var(--chrome-bevel), inset -1px -1px var(--chrome-inset), 0 0 0 1px var(--a, var(--chrome-cyan));
+}
+
 @media (max-width: 799px) and (orientation: portrait) {
   .sidebar {
+    position: absolute;
+    z-index: 55;
+    top: 0;
+    right: max(2.75rem, env(safe-area-inset-right));
+    bottom: 0;
     display: none;
+    width: min(20rem, calc(100vw - 2.75rem));
+    height: 100%;
+    min-height: 0;
+    flex: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-top: 0;
+    border-left: 3px solid color-mix(in srgb, var(--p, var(--chrome-steel-hi)) 40%, var(--chrome-inset));
+    padding: max(0.5rem, env(safe-area-inset-top)) 0.5rem max(0.5rem, env(safe-area-inset-bottom)) 0.75rem;
+    box-shadow: -10px 0 26px rgba(0, 0, 0, 0.62);
+  }
+
+  .sidebar[data-mobile-open="true"] {
+    display: flex;
+  }
+
+  .sidebar > *:not(.rail) {
+    flex: 0 0 auto;
+    margin-top: 0.5rem;
+  }
+
+  .sidebar > .header {
+    margin-top: 0;
+  }
+
+  .mobilePanelBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: var(--chrome-muted);
+    font-size: 0.55rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobilePanelClose {
+    min-height: 44px;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid var(--chrome-inset);
+    color: var(--chrome-cyan);
+    background: var(--chrome-steel);
+    font: inherit;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .touchControls {
+    display: block;
+    min-width: 0;
+    padding: 0.55rem;
+    border: 1px solid var(--chrome-inset);
+    background: color-mix(in srgb, var(--chrome-steel-lo) 88%, transparent);
+    box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -1px -1px var(--chrome-void);
+  }
+
+  .radarSlot :global(canvas) {
+    height: 118px;
+  }
+
+  .rail {
+    display: block;
+  }
+
+  .sidebar button {
+    min-height: 44px;
   }
 }
 
@@ -149,6 +275,25 @@
   .header,
   .sidebar button {
     min-height: 44px;
+  }
+
+  .touchControls {
+    display: block;
+    padding: 0.35rem;
+    border: 1px solid var(--chrome-inset);
+    background: color-mix(in srgb, var(--chrome-steel-lo) 88%, transparent);
+  }
+
+  .touchStatus strong {
+    font-size: 0.58rem;
+  }
+
+  .touchStatus span {
+    font-size: 0.5rem;
+  }
+
+  .touchActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

@@ -37,6 +37,9 @@ export type GameKeyboardParams = Omit<GameCommandHandlers, "activeTab"> & {
   sell: MutableRefObject<boolean>;
   confirmationOpen?: boolean;
   cancelConfirmation?: () => void;
+  mobilePanelOpen?: boolean;
+  closeMobilePanel?: () => void;
+  mobileToolActive?: boolean;
 };
 
 export function applyGameCommand(command: GameCommand, handlers: GameCommandHandlers): void {

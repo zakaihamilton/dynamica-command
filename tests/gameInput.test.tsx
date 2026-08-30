@@ -7,6 +7,7 @@ import { createCamera } from "../lib/iso";
 import { makeFixture } from "../lib/sim/fixtures";
 import type { BuildingKind, Command } from "../lib/types";
 import { useGameInput } from "../components/game/hooks/useGameInput";
+import { useTouchGestures } from "../components/game/hooks/useTouchGestures";
 
 vi.mock("@/lib/audio/synth", () => ({ beep: vi.fn() }));
 
@@ -42,6 +43,7 @@ function renderInput(canvas: HTMLCanvasElement) {
   const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
   const commitSelection = vi.fn();
   const applyEdgePan = vi.fn();
+  const clearTools = vi.fn();
   const { result } = renderHook(() => useGameInput({
     stateRef: useRef(state),
     camRef: useRef(createCamera()),
@@ -54,7 +56,7 @@ function renderInput(canvas: HTMLCanvasElement) {
     setRepairMode: vi.fn(),
     sellRef: useRef(false),
     setSellMode: vi.fn(),
-    clearTools: vi.fn(),
+    clearTools,
     mobileCommandRef: useRef(null),
     setMobileCommandState: vi.fn(),
     pausedRef: useRef(false),
@@ -63,7 +65,7 @@ function renderInput(canvas: HTMLCanvasElement) {
     selectionModeRef: useRef(false),
     setSelectionMode: vi.fn(),
   }));
-  return { result, canvas, commitSelection, applyEdgePan };
+  return { result, canvas, commitSelection, applyEdgePan, clearTools };
 }
 
 describe("desktop marquee pointer lifecycle", () => {
@@ -86,7 +88,7 @@ describe("desktop marquee pointer lifecycle", () => {
 
   it("releases capture and clears the marquee on pointer-cancel", () => {
     const canvas = testCanvas();
-    const { result, applyEdgePan } = renderInput(canvas);
+    const { result, applyEdgePan, clearTools } = renderInput(canvas);
 
     act(() => {
       result.current.onDown(pointerEvent(canvas));
@@ -97,5 +99,43 @@ describe("desktop marquee pointer lifecycle", () => {
     expect(canvas.releasePointerCapture).toHaveBeenCalledWith(7);
     expect(result.current.boxRef.current).toBeNull();
     expect(applyEdgePan).toHaveBeenLastCalledWith(null);
+    expect(clearTools).toHaveBeenCalledOnce();
+  });
+});
+
+describe("touch gesture lifecycle", () => {
+  it("distinguishes a tap from a drag and fires long press once", () => {
+    vi.useFakeTimers();
+    try {
+      const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+      const cam = createCamera();
+      const selectionModeRef = { current: false };
+      const boxRef = { current: null };
+      const issueContextOrder = vi.fn();
+      const { result } = renderHook(() => useTouchGestures({
+        camRef: { current: cam },
+        stateRef: { current: state },
+        selectionModeRef,
+        boxRef,
+        issueContextOrder,
+      }));
+      const canvas = testCanvas();
+      const touch = (overrides: Partial<PointerEvent<HTMLCanvasElement>> = {}) => pointerEvent(canvas, { pointerType: "touch", ...overrides });
+
+      act(() => result.current.beginTouch(touch(), { x: 100, y: 100 }));
+      expect(result.current.endTouch(touch({ buttons: 0 }))).toBe(false);
+
+      act(() => result.current.beginTouch(touch(), { x: 100, y: 100 }));
+      act(() => result.current.moveTouch(touch({ clientX: 130, clientY: 100 }), { x: 130, y: 100 }));
+      expect(result.current.endTouch(touch({ clientX: 130, clientY: 100, buttons: 0 }))).toBe(true);
+      expect(issueContextOrder).not.toHaveBeenCalled();
+
+      act(() => result.current.beginTouch(touch(), { x: 100, y: 100 }));
+      act(() => vi.advanceTimersByTime(500));
+      expect(issueContextOrder).toHaveBeenCalledOnce();
+      expect(result.current.endTouch(touch({ buttons: 0 }))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

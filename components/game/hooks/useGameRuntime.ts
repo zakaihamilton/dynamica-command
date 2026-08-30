@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef } from "react";
 import { useCombatAlert } from "./useCombatAlert";
 import { useGameActions } from "./useGameActions";
 import { useGameAudioLifecycle } from "./useGameAudioLifecycle";
@@ -12,6 +13,8 @@ import { useGameRenderer } from "./useGameRenderer";
 import { useGameSession } from "./useGameSession";
 import { useGameSelection } from "./useGameSelection";
 import { useGameRuntimeState } from "./useGameRuntimeState";
+import type { NavigationOrigin } from "./missionRoutes";
+import type { MobileCommand } from "../mobileCommandTypes";
 
 export function useGameRuntime({
   seed,
@@ -19,12 +22,14 @@ export function useGameRuntime({
   resume,
   fresh = false,
   tutorial = false,
+  tutorialOrigin = "menu",
 }: {
   seed: number;
   mission: number;
   resume: boolean;
   fresh?: boolean;
   tutorial?: boolean;
+  tutorialOrigin?: NavigationOrigin;
 }) {
   const {
     campaign,
@@ -40,8 +45,8 @@ export function useGameRuntime({
   } = useGameRuntimeState({ seed, mission, resume, fresh, tutorial });
   const chrome = useGameChrome(state.result);
   const {
-    mobileSheetOpen,
-    setMobileSheetOpen,
+    mobilePanelOpen,
+    setMobilePanelOpen,
     activeTab,
     setActiveTab,
     activeTabRef,
@@ -91,12 +96,16 @@ export function useGameRuntime({
     setSellMode,
     mobileCommand,
     setMobileCommandState,
+    resetMobileCommand,
+    cancelMobileCommand,
+    chooseMobileCommand,
     clearTools,
     issueSelectedCommand,
     toggleRepair,
     toggleSell,
     activateCameo,
   } = actions;
+  const mobileLauncherRef = useRef<HTMLButtonElement>(null);
 
   const input = useGameInput({
     stateRef,
@@ -139,6 +148,14 @@ export function useGameRuntime({
     sell,
   });
 
+  const resetTransientMobileUi = useCallback(() => {
+    resetMobileCommand();
+    clearTools();
+    resetInput();
+    setSelectionMode(false);
+    setMobilePanelOpen(false);
+  }, [clearTools, resetInput, resetMobileCommand, setMobilePanelOpen, setSelectionMode]);
+
   const session = useGameSession({
     seed,
     stateRef,
@@ -158,7 +175,54 @@ export function useGameRuntime({
     settings: audioSettings,
     setSettings: setAudioSettings,
     saveSession,
+    tutorialOrigin,
+    browserBackGuardEnabled: !tutorial && state.result === "playing",
+    onBrowserBackLeave: resetTransientMobileUi,
   });
+  const { openPauseMenu: openMissionPause } = session;
+
+  const openPauseMenu = useCallback(() => {
+    resetTransientMobileUi();
+    openMissionPause();
+  }, [openMissionPause, resetTransientMobileUi]);
+
+  const closeMobilePanel = useCallback(() => {
+    setMobilePanelOpen(false);
+    mobileLauncherRef.current?.focus();
+  }, [setMobilePanelOpen]);
+  const toggleMobilePanel = useCallback(() => {
+    setSelectionMode(false);
+    if (mobilePanelOpen) {
+      closeMobilePanel();
+      return;
+    }
+    setMobilePanelOpen(true);
+  }, [closeMobilePanel, mobilePanelOpen, setMobilePanelOpen, setSelectionMode]);
+  const onTouchCommand = useCallback((command: MobileCommand) => {
+    chooseMobileCommand(command);
+    closeMobilePanel();
+  }, [chooseMobileCommand, closeMobilePanel]);
+  const onSelectionMode = useCallback((active: boolean) => {
+    cancelMobileCommand();
+    setSelectionMode(active);
+    if (active) closeMobilePanel();
+  }, [cancelMobileCommand, closeMobilePanel, setSelectionMode]);
+
+  const cancelKeyboardTool = useCallback(() => {
+    cancelMobileCommand();
+    resetInput();
+    setSelectionMode(false);
+  }, [cancelMobileCommand, resetInput, setSelectionMode]);
+
+  useEffect(() => {
+    const onOrientationChange = () => resetTransientMobileUi();
+    window.addEventListener("orientationchange", onOrientationChange);
+    return () => window.removeEventListener("orientationchange", onOrientationChange);
+  }, [resetTransientMobileUi]);
+
+  useEffect(() => {
+    if (tutorial || paused || state.result !== "playing") resetTransientMobileUi();
+  }, [paused, resetTransientMobileUi, state.result, tutorial]);
 
   const { keys } = useGameKeyboard({
     stateRef,
@@ -168,7 +232,7 @@ export function useGameRuntime({
     place,
     repair,
     sell,
-    openPauseMenu: session.openPauseMenu,
+    openPauseMenu,
     resumeMission: session.resumeMission,
     setPauseView,
     setPauseNotice,
@@ -179,7 +243,7 @@ export function useGameRuntime({
     toggleRepair,
     toggleSell,
     stopSelected: () => issueSelectedCommand("stop"),
-    clearTools,
+    clearTools: cancelKeyboardTool,
     saveMission: session.saveMission,
     loadMission: session.loadMission,
     viewMissionBriefing: session.viewMissionBriefing,
@@ -190,6 +254,9 @@ export function useGameRuntime({
     onNavigateHome: session.goHome,
     confirmationOpen: session.confirmation !== null,
     cancelConfirmation: session.cancelConfirmation,
+    mobilePanelOpen,
+    closeMobilePanel,
+    mobileToolActive: selectionMode || actions.mobileCommandState !== null,
   });
 
   useGameLoop({
@@ -236,6 +303,7 @@ export function useGameRuntime({
       onPointerCancel: onCancel,
       onAdvanceTutorial: session.advanceTutorial,
       onExitTutorial: session.exitTutorial,
+      onBackTutorial: session.backTutorial,
       onNextBriefing: session.goNextBriefing,
       onCampaignVictory: session.goCampaignVictory,
       onCampaignMap: session.goCampaignMap,
@@ -250,9 +318,9 @@ export function useGameRuntime({
       selectedIds,
       tutorial,
       selectionMode,
-      mobileSheetOpen,
+      mobilePanelOpen,
+      mobileLauncherRef,
       miniRef,
-      mobileMiniRef,
       activeTab,
       onTab: setActiveTab,
       paused,
@@ -263,18 +331,13 @@ export function useGameRuntime({
       camera,
       setPauseView,
       setPauseNotice,
-      onSelectionMode: (active: boolean) => {
-        actions.cancelMobileCommand();
-        setSelectionMode(active);
-        if (active) setMobileSheetOpen(false);
-      },
+      onSelectionMode,
       onSelect: commitSelection,
       onAnnounce: announceTactical,
-      onOpenMobileSheet: () => {
-        setSelectionMode(false);
-        setMobileSheetOpen(true);
-      },
-      onCloseMobileSheet: () => setMobileSheetOpen(false),
+      onToggleMobilePanel: toggleMobilePanel,
+      onCloseMobilePanel: closeMobilePanel,
+      onPause: openPauseMenu,
+      onTouchCommand,
       actions,
       session,
     },

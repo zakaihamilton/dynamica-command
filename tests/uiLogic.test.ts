@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { campaignSummary, missionMedalDisplay } from "../components/campaign/campaignSummary";
-import { mobileCommandLabel } from "../components/game/MobileCommandDock";
+import { mobileCommandLabel } from "../components/game/MobileTouchControls";
 import { contextOrders, isContactTarget, mobileCommandOrders } from "../components/game/hooks/gameInputOrders";
 import { menuLaunchPath } from "../components/menu/menuLaunch";
 import { createCampaign } from "../lib/gen/campaign";
@@ -10,8 +10,8 @@ import { addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixture
 describe("menu navigation policy", () => {
   it("rejects incomplete seeds and routes first deployments through training", () => {
     expect(menuLaunchPath("42", false)).toBeNull();
-    expect(menuLaunchPath("0421", false)).toBe("/tutorial?seed=0421");
-    expect(menuLaunchPath("0421", true)).toBe("/briefing?seed=0421&mission=0");
+    expect(menuLaunchPath("0421", false)).toBe("/tutorial?seed=0421&from=menu");
+    expect(menuLaunchPath("0421", true)).toBe("/briefing?seed=0421&mission=0&from=menu");
   });
 });
 

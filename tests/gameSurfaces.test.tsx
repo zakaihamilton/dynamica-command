@@ -13,27 +13,8 @@ import type { GameCamera } from "../components/game/hooks/useGameCamera";
 import type { GameSession } from "../components/game/hooks/useGameSession";
 import { GameOverlays } from "../components/game/GameOverlays";
 
-vi.mock("../components/game/MobileCommandDock", () => ({
-  MobileCommandDock: ({ surface }: { surface: { dockVisible: boolean } }) => surface.dockVisible ? <div data-testid="surface-mobile-dock" /> : null,
-}));
-vi.mock("../components/game/MobileCommandSheet", () => ({
-  MobileCommandSheet: ({
-    open,
-    onStop,
-    onStance,
-    onFormation,
-  }: {
-    open: boolean;
-    onStop: () => void;
-    onStance: (stance: "aggressive") => void;
-    onFormation: (formation: "line") => void;
-  }) => {
-    if (!open) return null;
-    onStop();
-    onStance("aggressive");
-    onFormation("line");
-    return <div data-testid="surface-mobile-sheet" />;
-  },
+vi.mock("../components/game/MobileCommandLauncher", () => ({
+  MobileCommandLauncher: ({ open }: { open: boolean }) => <div data-testid="surface-mobile-launcher" data-open={open ? "true" : "false"} />,
 }));
 vi.mock("../components/game/CommandSidebar", () => ({
   CommandSidebar: ({
@@ -107,6 +88,9 @@ function testActions(): GameActions {
 function testSession(): GameSession {
   const noop = vi.fn();
   return {
+    confirmation: null,
+    confirmAction: noop,
+    cancelConfirmation: noop,
     openPauseMenu: noop,
     resumeMission: noop,
     saveMission: noop,
@@ -144,9 +128,9 @@ describe("game overlay surfaces", () => {
       selectedIds: [unit.id],
       tutorial: false,
       selectionMode: false,
-      mobileSheetOpen: true,
+      mobilePanelOpen: true,
+      mobileLauncherRef: createRef<HTMLButtonElement>(),
       miniRef: createRef<HTMLCanvasElement>(),
-      mobileMiniRef: createRef<HTMLCanvasElement>(),
       activeTab: "construction" as const,
       onTab: vi.fn(),
       paused: false,
@@ -157,24 +141,41 @@ describe("game overlay surfaces", () => {
       setPauseView: vi.fn(),
       setPauseNotice: vi.fn(),
       onSelectionMode: vi.fn(),
-      onOpenMobileSheet: vi.fn(),
-      onCloseMobileSheet: vi.fn(),
+      onToggleMobilePanel: vi.fn(),
+      onCloseMobilePanel: vi.fn(),
+      onPause: vi.fn(),
+      onTouchCommand: vi.fn(),
       actions: testActions(),
       session: testSession(),
     };
     const { rerender } = render(<GameOverlays {...props} />);
 
-    expect(screen.getByTestId("surface-mobile-dock")).toBeVisible();
-    expect(screen.getByTestId("surface-mobile-sheet")).toBeVisible();
+    expect(screen.getByTestId("surface-mobile-launcher")).toBeVisible();
     expect(screen.getByTestId("surface-sidebar")).toBeVisible();
 
+    rerender(
+      <GameOverlays
+        {...props}
+        session={{
+          ...props.session,
+          confirmation: {
+            action: "menu",
+            title: "Leave mission?",
+            message: "Return to the main menu?",
+            confirmLabel: "Leave mission",
+          },
+        }}
+      />,
+    );
+    expect(screen.queryByTestId("surface-mobile-launcher")).toBeNull();
+    expect(screen.getByTestId("mission-confirmation")).toBeVisible();
+
     rerender(<GameOverlays {...props} paused />);
-    expect(screen.queryByTestId("surface-mobile-dock")).toBeNull();
-    expect(screen.queryByTestId("surface-mobile-sheet")).toBeNull();
+    expect(screen.queryByTestId("surface-mobile-launcher")).toBeNull();
     expect(screen.getByTestId("surface-pause")).toBeVisible();
 
     rerender(<GameOverlays {...props} tutorial state={{ ...state, result: "won" }} paused={false} />);
-    expect(screen.queryByTestId("surface-mobile-dock")).toBeNull();
+    expect(screen.queryByTestId("surface-mobile-launcher")).toBeNull();
     expect(screen.queryByTestId("surface-sidebar")).toBeNull();
     expect(screen.queryByTestId("surface-pause")).toBeNull();
   });

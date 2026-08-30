@@ -90,7 +90,7 @@ test("keeps mobile battlefield frames within budget with a dense late-game state
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/play?seed=0421&mission=7&resume=1&perf=1");
   await expect(page.getByTestId("battlefield-canvas")).toBeVisible();
-  await expect(page.getByTestId("mobile-command-dock")).toBeVisible();
+  await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
   await page.keyboard.press("Escape");
 
   const canvas = page.getByTestId("battlefield-canvas");

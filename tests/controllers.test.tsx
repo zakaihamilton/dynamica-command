@@ -12,6 +12,7 @@ import { useGameKeyboard } from "../components/game/hooks/useGameKeyboard";
 import { useGameSession } from "../components/game/hooks/useGameSession";
 import { useGameSelection } from "../components/game/hooks/useGameSelection";
 import { useMissionRoutes } from "../components/game/hooks/useMissionRoutes";
+import { useMissionBackGuard } from "../components/game/hooks/useMissionBackGuard";
 import { useMenuController } from "../components/menu/useMenuController";
 import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
 import { createSaveSession, localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
@@ -46,7 +47,7 @@ describe("useMenuController", () => {
     act(() => result.current.launch());
 
     expect(result.current.previewLine).toContain("·");
-    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0");
+    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&from=menu");
   });
 
   it("reports invalid launch input and handles keyboard navigation", () => {
@@ -151,6 +152,53 @@ describe("useGameActions", () => {
 });
 
 describe("game lifecycle hooks", () => {
+  it("restores an active mission after browser Back until leave is confirmed", () => {
+    window.history.replaceState({}, "", "/briefing?seed=0421&mission=0");
+    window.history.pushState({}, "", "/play?seed=0421&mission=0&fresh=1");
+    const requestLeave = vi.fn();
+    const back = vi.spyOn(window.history, "go").mockImplementation(() => undefined);
+    const { result, unmount } = renderHook(() => useMissionBackGuard({ enabled: true, onRequestLeave: requestLeave }));
+
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    expect(window.location.pathname).toBe("/play");
+    expect(requestLeave).toHaveBeenCalledOnce();
+    act(() => result.current.leave());
+    expect(back).toHaveBeenCalledWith(-2);
+
+    unmount();
+    back.mockRestore();
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("cleans up stale same-URL sentinels when the mission guard is disabled", () => {
+    const sentinelKey = "__genesisMissionBackSentinel";
+    window.history.replaceState({ [sentinelKey]: true, route: "mission" }, "", "/play?seed=0421&mission=0");
+    const missionUrl = window.location.href;
+    const replaceState = vi.spyOn(window.history, "replaceState");
+    const pushState = vi.spyOn(window.history, "pushState");
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
+    const onRequestLeave = vi.fn();
+    const { rerender, unmount } = renderHook(
+      ({ enabled }) => useMissionBackGuard({ enabled, onRequestLeave }),
+      { initialProps: { enabled: true } },
+    );
+
+    expect(replaceState).toHaveBeenCalledWith({ route: "mission" }, "", missionUrl);
+    expect(pushState).toHaveBeenCalledWith(
+      { route: "mission", [sentinelKey]: true },
+      "",
+      missionUrl,
+    );
+
+    act(() => rerender({ enabled: false }));
+    expect(back).toHaveBeenCalledOnce();
+    unmount();
+    replaceState.mockRestore();
+    pushState.mockRestore();
+    back.mockRestore();
+    window.history.replaceState({}, "", "/");
+  });
+
   it("does not overwrite a newer save during a briefing transition", () => {
     const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
     const storage = localStorageAdapter();
@@ -167,7 +215,7 @@ describe("game lifecycle hooks", () => {
     act(() => result.current.viewMissionBriefing());
 
     expect(readSave(storage, 421)?.tick).toBe(77);
-    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&return=game");
+    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&return=game&from=result");
   });
 
   it("requires confirmation before saving, loading, restarting, or leaving a mission", () => {

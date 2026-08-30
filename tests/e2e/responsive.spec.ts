@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "../../components/game/hooks/useGameCamera";
 import { cameraPanBounds, clampCamera } from "../../lib/render/camera";
 import { TILE_H, tileToScreen } from "../../lib/iso";
+import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/save";
 import { SETTINGS_KEY, SETTINGS_VERSION, defaultSettings } from "../../lib/persist/settings";
 import { createMission } from "../../lib/sim/api";
@@ -10,6 +11,25 @@ import { heightAt } from "../../lib/sim/world";
 import type { Entity, SimState } from "../../lib/types";
 
 const TEST_SEED = 421;
+
+async function openBriefingSkippingTutorial(page: import("@playwright/test").Page) {
+  const progress = { ...freshCampaignProgress(TEST_SEED), tutorialComplete: true };
+  await page.addInitScript(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, {
+    key: campaignKey(TEST_SEED),
+    raw: JSON.stringify({
+      version: CAMPAIGN_PROGRESS_VERSION,
+      savedAt: Date.now(),
+      progress,
+    }),
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await page.getByLabel("Four digit theater seed").fill("0421");
+  await page.getByRole("button", { name: "Launch" }).click();
+  await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
+}
 
 function playerUnits(state: SimState): Entity[] {
   return state.entities.filter(
@@ -81,8 +101,9 @@ async function waitForBattlefield(page: import("@playwright/test").Page) {
 }
 
 async function waitForStableSelection(page: import("@playwright/test").Page, text: string) {
-  const dock = page.getByTestId("mobile-command-dock");
-  await expect.poll(async () => (await dock.textContent())?.includes(text) ?? false).toBe(true);
+  const controls = page.getByTestId("mobile-touch-controls");
+  await expect.poll(async () => (await controls.textContent())?.includes(text) ?? false).toBe(true);
+  await page.waitForTimeout(100);
   await page.evaluate(() => new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
@@ -275,18 +296,17 @@ test.describe("selected unit actions", () => {
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
 
-    const dock = page.getByTestId("mobile-command-dock");
-    await waitForStableSelection(page, "1 unit");
-    await dock.getByTestId("mobile-command-more").click();
-    const sheet = page.getByTestId("mobile-command-sheet");
-    await sheet.getByRole("tab", { name: "Selected" }).click();
+    await waitForStableSelection(page, "1 selected");
+    await page.getByTestId("mobile-command-toggle").click();
+    const sidebar = page.getByTestId("command-sidebar");
+    await sidebar.getByRole("tab", { name: "Selected" }).click();
 
-    const unitOrders = sheet.getByTestId("mobile-unit-commands");
+    const unitOrders = sidebar;
     const hold = unitOrders.getByTestId("selected-action-stance-hold");
     await expect(hold).toHaveAttribute("aria-pressed", "false");
     await hold.click();
     await expect(hold).toHaveAttribute("aria-pressed", "true");
-    await expect(sheet.getByText("Stance hold", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("Stance hold", { exact: true })).toBeVisible();
 
     const wedge = unitOrders.getByTestId("selected-action-formation-wedge");
     await expect(wedge).toHaveAttribute("aria-pressed", "false");
@@ -333,13 +353,14 @@ test.describe("desktop marquee selection", () => {
     }, bounds, dimensions);
     const end = {
       x: bounds.x + bounds.width - 4,
-      y: start.y + 48,
+      y: start.y + 96,
     };
 
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(end.x, end.y, { steps: 8 });
-    await page.waitForTimeout(1_100);
+    await page.waitForTimeout(2_500);
+    await page.mouse.move(end.x, end.y);
     await page.mouse.up();
 
     const roster = page.getByTestId("tactical-roster");
@@ -372,12 +393,15 @@ test.describe("mobile-first layouts", () => {
       expect(canvasBounds!.y + canvasBounds!.height).toBeLessThanOrEqual(viewport.height);
 
       if (viewport.height > viewport.width) {
-        const dock = page.getByTestId("mobile-command-dock");
-        await expect(dock).toBeVisible();
-        const dockBounds = await dock.boundingBox();
-        expect(dockBounds).not.toBeNull();
-        expect(dockBounds!.y + dockBounds!.height).toBeLessThanOrEqual(viewport.height);
-        await expect(page.getByTestId("mobile-command-sheet")).toHaveCount(0);
+        const launcher = page.getByTestId("mobile-command-launcher");
+        await expect(launcher).toBeVisible();
+        const launcherBounds = await launcher.boundingBox();
+        expect(launcherBounds).not.toBeNull();
+        expect(launcherBounds!.y + launcherBounds!.height).toBeLessThanOrEqual(viewport.height);
+        const sidebar = page.getByTestId("command-sidebar");
+        await expect(sidebar).not.toBeVisible();
+        await expect(sidebar).toHaveAttribute("aria-hidden", "true");
+        await expect(sidebar).toHaveAttribute("inert", "");
       } else {
         await expect(page.getByTestId("command-sidebar")).toBeVisible();
         const sidebarBounds = await page.getByTestId("command-sidebar").boundingBox();
@@ -387,36 +411,47 @@ test.describe("mobile-first layouts", () => {
     });
   }
 
-  test("opens the contextual command sheet and selection mode without covering the map", async ({ page }) => {
+  test("opens the collapsible command panel and selection mode without reserving map space", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/play?seed=0421&mission=0");
 
-    const select = page.getByTestId("mobile-select-mode");
+    const launcher = page.getByTestId("mobile-command-launcher");
+    const canvas = page.getByTestId("battlefield-canvas");
+    const closedCanvasBounds = await canvas.boundingBox();
+    expect(closedCanvasBounds).not.toBeNull();
+    expect(closedCanvasBounds!.width).toBe(390);
+    expect(closedCanvasBounds!.height).toBe(844);
+
+    await launcher.getByTestId("mobile-command-toggle").click();
+    const panel = page.getByTestId("command-sidebar");
+    await expect(panel).toBeVisible();
+    await expect(panel).not.toHaveAttribute("aria-hidden");
+    await expect(panel).not.toHaveAttribute("inert");
+    await expect(page.getByTestId("mobile-command-scrim")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    const panelBounds = await panel.boundingBox();
+    expect(panelBounds).not.toBeNull();
+    expect(panelBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(panelBounds!.x + panelBounds!.width).toBeLessThanOrEqual(390);
+
+    const select = panel.getByTestId("mobile-select-mode");
     await expect(select).toHaveAttribute("aria-pressed", "false");
     await select.click();
     await expect(select).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByTestId("mobile-command-dock")).toContainText("Drag a box around friendly units");
+    await expect(panel).not.toBeVisible();
 
-    await select.click();
-    await page.getByTestId("mobile-command-more").click();
-    const sheet = page.getByTestId("mobile-command-sheet");
-    await expect(sheet).toBeVisible();
-    await expect(sheet).toContainText("Command catalog");
-
-    const sheetBounds = await sheet.boundingBox();
-    expect(sheetBounds).not.toBeNull();
-    expect(sheetBounds!.y).toBeGreaterThanOrEqual(0);
-    expect(sheetBounds!.y + sheetBounds!.height).toBeLessThanOrEqual(844);
-    await sheet.getByRole("button", { name: "Close commands" }).click();
-    await expect(sheet).toHaveCount(0);
+    await launcher.getByTestId("mobile-command-toggle").click();
+    await expect(panel).toBeVisible();
+    await page.getByTestId("mobile-command-scrim").click({ position: { x: 12, y: 420 } });
+    await expect(panel).not.toBeVisible();
   });
 
-  test("keeps the pause actions above the mobile command dock", async ({ page }) => {
+  test("keeps the pause actions above the compact mobile launcher", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/play?seed=0421&mission=0");
 
     await page.getByTestId("mobile-pause").click();
-    await expect(page.getByTestId("mobile-command-dock")).toHaveCount(0);
+    await expect(page.getByTestId("mobile-command-launcher")).not.toBeVisible();
     const pause = page.getByTestId("pause-menu");
     await expect(pause).toBeVisible();
     const resume = pause.getByRole("button", { name: "Resume Mission" });
@@ -425,7 +460,7 @@ test.describe("mobile-first layouts", () => {
     expect(bounds).not.toBeNull();
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(844);
     await resume.click();
-    await expect(page.getByTestId("mobile-command-dock")).toBeVisible();
+    await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
   });
 
   test("does not expose unit movement for a selected base", async ({ page }) => {
@@ -436,7 +471,8 @@ test.describe("mobile-first layouts", () => {
     const yard = await pointForTile(page, 8, 7);
     await dispatchTouch(page, "pointerdown", yard);
     await dispatchTouch(page, "pointerup", yard);
-    await expect(page.getByTestId("mobile-command-dock").getByTestId("mobile-command-move")).toHaveCount(0);
+    await page.getByTestId("mobile-command-toggle").click();
+    await expect(page.getByTestId("command-sidebar").getByTestId("mobile-command-move")).toHaveCount(0);
   });
 
   test("supports touch selection, marquee selection, panning, commands, and long press", async ({ page }) => {
@@ -451,35 +487,36 @@ test.describe("mobile-first layouts", () => {
     const infantry = await pointForEntity(page, infantryEntity);
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
-    await expect(page.getByTestId("mobile-command-dock")).toContainText("1 unit");
+    await waitForStableSelection(page, "1 selected");
 
-    await page.getByTestId("mobile-select-mode").click();
-    await expect(page.getByTestId("mobile-marquee")).toBeVisible();
+    await page.getByTestId("mobile-command-toggle").click();
+    await page.getByTestId("command-sidebar").getByTestId("mobile-select-mode").click();
     const marquee = await marqueeForEntities(page, units);
     await dispatchTouch(page, "pointerdown", marquee.start);
     await dispatchTouch(page, "pointermove", marquee.end);
     await dispatchTouch(page, "pointerup", marquee.end);
-    await expect(page.getByTestId("mobile-marquee")).toHaveCount(0);
-    await waitForStableSelection(page, `${units.length} units`);
+    await waitForStableSelection(page, `${units.length} selected`);
 
     const dragStart = { x: 90, y: 650 };
     await dispatchTouch(page, "pointerdown", dragStart);
     await dispatchTouch(page, "pointermove", { x: 155, y: 650 });
     await dispatchTouch(page, "pointerup", { x: 155, y: 650 });
-    await waitForStableSelection(page, `${units.length} units`);
+    await waitForStableSelection(page, `${units.length} selected`);
 
-    await page.getByTestId("mobile-command-move").click();
-    await expect(page.getByTestId("mobile-command-dock")).toContainText("Move active");
+    await page.getByTestId("mobile-command-toggle").click();
+    await page.getByTestId("command-sidebar").getByTestId("mobile-command-move").click();
+    await expect(page.getByTestId("mobile-touch-controls")).toContainText("Move armed");
     const orderPoint = { x: 300, y: 600 };
     await dispatchTouch(page, "pointerdown", orderPoint);
     await dispatchTouch(page, "pointerup", orderPoint);
-    await expect(page.getByTestId("mobile-command-dock")).not.toContainText("Move active");
+    await expect(page.getByTestId("mobile-touch-controls")).not.toContainText("Move armed");
 
-    await page.getByTestId("mobile-command-move").click();
+    await page.getByTestId("mobile-command-toggle").click();
+    await page.getByTestId("command-sidebar").getByTestId("mobile-command-move").click();
     await dispatchTouch(page, "pointerdown", { x: 300, y: 600 });
     await page.waitForTimeout(520);
     await dispatchTouch(page, "pointerup", { x: 300, y: 600 });
-    await expect(page.getByTestId("mobile-command-dock")).not.toContainText("Move active");
+    await expect(page.getByTestId("mobile-touch-controls")).not.toContainText("Move armed");
   });
 
   test("keeps tutorial controls above the battlefield and reachable on small phones", async ({ page }) => {
@@ -487,7 +524,7 @@ test.describe("mobile-first layouts", () => {
     await page.goto("/tutorial?seed=0421");
     const tutorial = page.getByTestId("tutorial-overlay");
     await expect(tutorial).toBeVisible();
-    await expect(page.getByTestId("mobile-command-dock")).toHaveCount(0);
+    await expect(page.getByTestId("mobile-command-launcher")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
 
     const bounds = await tutorial.boundingBox();
@@ -497,6 +534,7 @@ test.describe("mobile-first layouts", () => {
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(568);
     await expect(tutorial.getByRole("button", { name: "Continue" })).toBeVisible();
+    await expect(tutorial.getByRole("button", { name: "Back" })).toBeVisible();
   });
 
   test("keeps menu and briefing actions reachable on small phones", async ({ page }) => {
@@ -515,5 +553,55 @@ test.describe("mobile-first layouts", () => {
     expect(launchBounds).not.toBeNull();
     expect(launchBounds!.x).toBeGreaterThanOrEqual(0);
     expect(launchBounds!.x + launchBounds!.width).toBeLessThanOrEqual(320);
+    await expect(page.getByRole("button", { name: "Back to menu" })).toBeVisible();
+  });
+
+  test("preserves selection through rotation and cancels the open portrait panel", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/play?seed=${String(TEST_SEED).padStart(4, "0")}&mission=0`);
+    await waitForBattlefield(page);
+
+    const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
+    const infantryEntity = playerUnits(state).find((entity) => entity.kind === "infantry");
+    if (!infantryEntity) throw new Error("Mission has no player infantry");
+    const infantry = await pointForEntity(page, infantryEntity);
+    await dispatchTouch(page, "pointerdown", infantry);
+    await dispatchTouch(page, "pointerup", infantry);
+    await waitForStableSelection(page, "1 selected");
+
+    await page.getByTestId("mobile-command-toggle").click();
+    await expect(page.getByTestId("command-sidebar")).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new Event("orientationchange")));
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect(page.getByTestId("mobile-command-launcher")).not.toBeVisible();
+    await expect(page.getByTestId("command-sidebar")).toBeVisible();
+    await expect(page.getByTestId("mobile-touch-controls")).toContainText("1 selected");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
+    await expect(page.getByTestId("command-sidebar")).not.toBeVisible();
+  });
+
+  test("guards browser Back in a live mission and preserves briefing Back destinations", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openBriefingSkippingTutorial(page);
+    await page.getByRole("button", { name: "Launch" }).click();
+    await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
+    await waitForBattlefield(page);
+
+    await page.evaluate(() => window.history.back());
+    const confirmation = page.getByRole("dialog", { name: "Leave mission?" });
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole("button", { name: "Cancel" }).click();
+    await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
+
+    await page.evaluate(() => window.history.back());
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole("button", { name: "Leave mission" }).click();
+    await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0&from=menu/);
+
+    await page.goto("/briefing?seed=0421&mission=0&from=campaign");
+    await expect(page.getByRole("button", { name: "Back to operations" })).toBeVisible();
+    await page.getByRole("button", { name: "Back to operations" }).click();
+    await expect(page).toHaveURL(/\/campaign\?seed=0421/);
   });
 });

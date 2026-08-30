@@ -196,18 +196,64 @@ describe("useGameRuntime", () => {
     expect(result.current.palette.primary).toBeTruthy();
 
     act(() => {
-      result.current.overlays.onOpenMobileSheet();
+      result.current.overlays.onToggleMobilePanel();
     });
-    expect(result.current.overlays.mobileSheetOpen).toBe(true);
+    expect(result.current.overlays.mobilePanelOpen).toBe(true);
     expect(result.current.overlays.selectionMode).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(result.current.overlays.paused).toBe(false);
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(result.current.overlays.paused).toBe(true);
+
+    act(() => result.current.overlays.session.resumeMission());
+    act(() => result.current.overlays.onTouchCommand("move"));
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(result.current.overlays.actions.mobileCommandState).toBe("move");
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(result.current.overlays.actions.mobileCommandState).toBeNull();
+    expect(result.current.overlays.paused).toBe(false);
+    act(() => result.current.overlays.onTouchCommand("attack"));
+    act(() => window.dispatchEvent(new Event("orientationchange")));
+    expect(result.current.overlays.actions.mobileCommandState).toBeNull();
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
 
     act(() => {
       result.current.overlays.onSelectionMode(true);
     });
     expect(result.current.overlays.selectionMode).toBe(true);
-    expect(result.current.overlays.mobileSheetOpen).toBe(false);
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
+  });
+
+  it("returns focus to the launcher when a mobile panel action closes it", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const launcher = document.createElement("button");
+    document.body.append(launcher);
+    (result.current.overlays.mobileLauncherRef as { current: HTMLButtonElement | null }).current = launcher;
+
+    act(() => result.current.overlays.onToggleMobilePanel());
+    expect(result.current.overlays.mobilePanelOpen).toBe(true);
+
+    const sidebarControl = document.createElement("button");
+    document.body.append(sidebarControl);
+    sidebarControl.focus();
+    act(() => result.current.overlays.onToggleMobilePanel());
+
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(document.activeElement).toBe(launcher);
+
+    act(() => result.current.overlays.onToggleMobilePanel());
+    sidebarControl.focus();
+    act(() => result.current.overlays.onSelectionMode(true));
+
+    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(document.activeElement).toBe(launcher);
+    launcher.remove();
+    sidebarControl.remove();
   });
 
   it("does not record telemetry again when resuming a terminal save", () => {

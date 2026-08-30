@@ -8,14 +8,25 @@ export function BriefingActions({
   returnToGame,
   onReplay,
   onLaunch,
+  onBack,
+  backLabel,
 }: {
   campaign: Campaign;
   returnToGame: boolean;
   onReplay: () => void;
   onLaunch: () => void;
+  onBack: () => void;
+  backLabel: string;
 }) {
   return (
     <div className={styles.actions} data-testid="briefing-actions">
+      <ConsoleButton
+        muted
+        tooltip={backLabel}
+        onClick={onBack}
+      >
+        {backLabel}
+      </ConsoleButton>
       <ConsoleButton
         tooltip="Replay the incoming transmission"
         shortcut={SHORTCUT.replay}
