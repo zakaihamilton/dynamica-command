@@ -1,8 +1,8 @@
 import { labelFor } from "../catalog";
 import type { BriefingLine, BuildingKind, Campaign, MissionDef, UnitKind, WinCategory } from "../types";
 import { biomeLabel, characterLabel } from "./names";
-import { missionTimeLimitClock } from "./objectives";
-import { formatMissionClockFromTicks } from "./pacing";
+import { missionTimeLimitLabel } from "./objectives";
+import { formatMissionMinutesFromTicks } from "./pacing";
 
 function countedLabel(kind: UnitKind | BuildingKind, count: number): string {
   const label = labelFor(kind).toLowerCase();
@@ -15,11 +15,11 @@ function countedLabel(kind: UnitKind | BuildingKind, count: number): string {
 }
 
 function holdDurationLabel(ticks: number): string {
-  return formatMissionClockFromTicks(ticks);
+  return formatMissionMinutesFromTicks(ticks);
 }
 
 function scenarioTimeLimitLabel(win: WinCategory): string {
-  return missionTimeLimitClock({ kind: win.kind, ticks: win.ticks ?? 3600 })!;
+  return missionTimeLimitLabel({ kind: win.kind, ticks: win.ticks ?? 3600 })!;
 }
 
 function objectivePhrase(win: WinCategory): string {

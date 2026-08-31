@@ -6,10 +6,10 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
-import { missionDurationMinutesFor, missionTimeLimitClock, secondaryObjectivesForMissionSeed } from "@/lib/gen/objectives";
+import { missionDurationMinutesFor, missionTimeLimitLabel, secondaryObjectivesForMissionSeed } from "@/lib/gen/objectives";
 import { missionObjectives, objectiveHeadline } from "@/lib/gen/story";
 import { biomeLabel } from "@/lib/gen/names";
-import { RASTER_ART } from "@/lib/gen/visualAssets";
+import { biomeArt, RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
 import { briefingPath, tutorialPath } from "../game/hooks/missionRoutes";
 import styles from "./CampaignCompleteScreen.module.css";
@@ -53,7 +53,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
   const selectedObjectives = selectedMission ? missionObjectives(selectedMission, campaign) : [];
   const selectedSecondaryObjectives = selectedMission ? secondaryObjectivesForMissionSeed(seed, selectedMission) : [];
   const selectedUnlocks = selectedMission ? missionUnlocks(selectedMission.index, campaign.missions.length) : [];
-  const selectedTimeLimit = selectedMission ? missionTimeLimitClock(selectedMission.win) : undefined;
+  const selectedTimeLimit = selectedMission ? missionTimeLimitLabel(selectedMission.win) : undefined;
   const selectedLaunchLabel = selectedMissionComplete
     ? `Replay mission ${selectedMissionIndex + 1}`
     : selectedMissionIndex === 0 && !progress.tutorialComplete
@@ -110,7 +110,13 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
   );
 
   const missionDetail = selectedMission ? (
-    <section className={styles.detail} aria-labelledby="mission-detail-title" data-testid="mission-detail">
+    <section
+      className={styles.detail}
+      aria-labelledby="mission-detail-title"
+      data-testid="mission-detail"
+      style={{ "--mission-art": `url("${biomeArt(selectedMission.biome)}")` } as React.CSSProperties}
+    >
+      <div className={styles.detailArt} aria-hidden="true" />
       <div className={styles.detailHeader}>
         <div>
           <ConsoleLabel>Mission detail</ConsoleLabel>
@@ -132,7 +138,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
         </div>
         <div className={styles.detailBlock}>
           <span>{selectedTimeLimit ? "Time limit" : "Expected duration"}</span>
-          <strong>{selectedTimeLimit ?? `~${Math.max(1, Math.round(missionDurationMinutesFor(seed, selectedMission.index, selectedMission.win.kind)))} min`}</strong>
+          <strong>{selectedTimeLimit ?? `~${Math.max(1, missionDurationMinutesFor(seed, selectedMission.index, selectedMission.win.kind))} min`}</strong>
         </div>
         <div className={styles.detailBlock}>
           <span>Theater</span>

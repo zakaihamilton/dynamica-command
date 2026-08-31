@@ -13,6 +13,7 @@
   box-shadow: inset 1px 1px var(--chrome-void), inset -1px -1px var(--chrome-steel-hi);
   margin-top: 0.75rem;
   padding: 0.75rem 0.85rem;
+  scrollbar-gutter: stable;
 }
 
 .empty {
@@ -40,6 +41,11 @@
   border-left-width: 3px;
   background: color-mix(in srgb, var(--chrome-void) 35%, transparent);
   padding: 0.7rem 0.85rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.line:has(.caret) {
+  background: color-mix(in srgb, var(--chrome-cyan) 7%, var(--chrome-void));
 }
 
 .line[data-role="advisor"] {
@@ -75,7 +81,8 @@
   font-size: 15px;
   line-height: 2rem;
   color: var(--chrome-body);
-  white-space: nowrap;
+  max-width: 60rem;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 639px) {

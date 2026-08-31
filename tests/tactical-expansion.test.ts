@@ -57,6 +57,10 @@ describe("tactical expansion", () => {
     expect(missionDifficulty(0).enemyAssaultEvery).toBeGreaterThan(missionDifficulty(7).enemyAssaultEvery);
   });
 
+  it("keeps offensive starting defenses in the mission difficulty data", () => {
+    expect(Array.from({ length: 8 }, (_, index) => missionDifficulty(index).offensiveStartingTurrets)).toEqual([0, 0, 0, 0, 1, 0, 0, 0]);
+  });
+
   it("gates tutorial orders until the matching stage", () => {
     const state = createTutorialMission(42);
     const unit = state.entities.find((entity) => entity.owner === 0 && entity.class === "unit")!;

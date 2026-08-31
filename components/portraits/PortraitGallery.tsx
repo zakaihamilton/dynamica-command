@@ -15,6 +15,9 @@ const GROUPS: readonly { role: CharacterRole; label: string; tone: FaceTone }[] 
 ];
 
 export function PortraitGallery() {
+  const [activeRole, setActiveRole] = useState<CharacterRole | "all">("all");
+  const visibleGroups = activeRole === "all" ? GROUPS : GROUPS.filter((group) => group.role === activeRole);
+
   return (
     <main className={styles.page} data-testid="portrait-gallery">
       <header className={styles.header}>
@@ -24,6 +27,14 @@ export function PortraitGallery() {
           <p className={styles.description}>
             Inspect every shipped character crop. Toggle a card to preview the production talking-mouth composite.
           </p>
+          <div className={styles.filters} role="toolbar" aria-label="Filter portrait roles">
+            <button type="button" className={activeRole === "all" ? styles.filterActive : styles.filter} aria-pressed={activeRole === "all"} onClick={() => setActiveRole("all")}>All roles</button>
+            {GROUPS.map((group) => (
+              <button key={group.role} type="button" className={activeRole === group.role ? styles.filterActive : styles.filter} aria-pressed={activeRole === group.role} onClick={() => setActiveRole(group.role)}>
+                {group.label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className={styles.counter}>
           <span className={styles.counterValue}>{PORTRAIT_ASSETS.length}</span>
@@ -31,7 +42,7 @@ export function PortraitGallery() {
         </div>
       </header>
 
-      {GROUPS.map((group) => {
+      {visibleGroups.map((group) => {
         const assets = PORTRAIT_ASSETS.filter((asset) => asset.role === group.role);
         return (
           <section key={group.role} className={styles.section} aria-labelledby={`${group.role}-heading`}>

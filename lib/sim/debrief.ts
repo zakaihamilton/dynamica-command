@@ -1,4 +1,5 @@
 import { TICKS_PER_SECOND } from "../catalog";
+import { formatMissionMinutesFromTicks } from "../gen/pacing";
 import { objectiveHeadline } from "../gen/story";
 import type { Owner, SimState } from "../types";
 import { objectiveProgress, secondaryProgress } from "./objectives";
@@ -22,9 +23,7 @@ function forceDebrief(state: SimState, owner: Owner): ForceDebrief {
 }
 
 export function formatMissionDuration(ticks: number): string {
-  const seconds = Math.floor(ticks / TICKS_PER_SECOND);
-  const minutes = Math.floor(seconds / 60);
-  return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  return formatMissionMinutesFromTicks(ticks);
 }
 
 export function shouldShowCommandSidebar(result: SimState["result"]): boolean {

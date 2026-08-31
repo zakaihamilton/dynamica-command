@@ -1,7 +1,15 @@
 import { NEW_MISSION_KINDS, WIN_KIND_ORDER } from "../catalog";
 import { createRng, type Rng } from "../seed/rng";
 import type { BuildingKind, MissionDef, MissionKind, SecondaryObjective, UnitKind, WinCategory } from "../types";
-import { CONVOY_STAGING_MINUTES, CONVOY_STAGING_TICKS, formatMissionClockFromTicks, minutesToTicks, missionDurationMinutes } from "./pacing";
+import {
+  CONVOY_STAGING_MINUTES,
+  CONVOY_STAGING_TICKS,
+  formatMissionClockFromTicks,
+  formatMissionMinutesFromTicks,
+  MAX_MISSION_MINUTES,
+  minutesToTicks,
+  missionDurationMinutes,
+} from "./pacing";
 
 // Structure quotas may ask for several copies, so do not generate a quota for
 // the producer buildings that are capped at one per mission.
@@ -14,6 +22,13 @@ function baseMissionDurationMinutes(seed: number, missionIndex: number, kind: Mi
   return missionDurationMinutes(missionIndex, rng.fork("duration"));
 }
 
+function activeMissionDurationMinutes(kind: MissionKind, minutes: number): number {
+  if (kind === "escort" || kind === "rescue") return Math.max(6, minutes - 1);
+  if (kind === "sabotage") return Math.min(MAX_MISSION_MINUTES, Math.max(8, minutes + 3));
+  if (kind === "extraction") return Math.max(6, minutes);
+  return minutes;
+}
+
 /** Returns the expected operation window in minutes, including escort staging. */
 export function missionDurationMinutesFor(
   seed: number,
@@ -21,10 +36,8 @@ export function missionDurationMinutesFor(
   kind: MissionKind,
 ): number {
   const minutes = baseMissionDurationMinutes(seed, missionIndex, kind);
-  if (kind === "escort") return Math.max(6, minutes - 1) + CONVOY_STAGING_MINUTES;
-  if (kind === "rescue") return Math.max(6, minutes - 1);
-  if (kind === "sabotage" || kind === "extraction") return Math.max(5, minutes - 1);
-  return minutes;
+  const activeMinutes = activeMissionDurationMinutes(kind, minutes);
+  return kind === "escort" ? activeMinutes + CONVOY_STAGING_MINUTES : activeMinutes;
 }
 
 /** Returns the full player-facing time limit, including escort staging. */
@@ -38,6 +51,11 @@ export function missionTimeLimitClock(win: Pick<WinCategory, "kind" | "ticks">):
   return ticks === undefined ? undefined : formatMissionClockFromTicks(ticks);
 }
 
+export function missionTimeLimitLabel(win: Pick<WinCategory, "kind" | "ticks">): string | undefined {
+  const ticks = missionTimeLimitTicks(win);
+  return ticks === undefined ? undefined : formatMissionMinutesFromTicks(ticks);
+}
+
 export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, rng: Rng): SecondaryObjective[] {
   const yard: SecondaryObjective = {
     id: "yard",
@@ -46,7 +64,7 @@ export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, 
   };
   if (SCENARIO_KINDS.includes(mission.win.kind)) {
     const timeLimitTicks = missionTimeLimitTicks(mission.win) ?? 3600;
-    const timeLimit = formatMissionClockFromTicks(timeLimitTicks);
+    const timeLimit = formatMissionMinutesFromTicks(timeLimitTicks);
     const label = mission.win.kind === "escort"
       ? `Speed bonus: complete the operation within ${timeLimit} total`
       : `Complete the operation within ${timeLimit}`;
@@ -86,6 +104,7 @@ export function generateWinCategory(
 ): WinCategory {
   const rng = createRng(seed, `win:${missionIndex}:${kind}`);
   const minutes = baseMissionDurationMinutes(seed, missionIndex, kind);
+  const activeMinutes = activeMissionDurationMinutes(kind, minutes);
   switch (kind) {
     case "harvestQuota":
       return {
@@ -124,13 +143,13 @@ export function generateWinCategory(
     case "holdTheLine":
       return { kind, ticks: minutesToTicks(minutes) };
     case "escort":
-      return { kind, targetCount: 2 + rng.int(2), ticks: minutesToTicks(Math.max(6, minutes - 1)) };
+      return { kind, targetCount: 2 + rng.int(2), ticks: minutesToTicks(activeMinutes) };
     case "sabotage":
-      return { kind, targetCount: 2 + (missionIndex >= 4 ? 1 : 0), ticks: minutesToTicks(Math.max(5, minutes - 1)) };
+      return { kind, targetCount: 2 + (missionIndex >= 4 ? 1 : 0), ticks: minutesToTicks(activeMinutes) };
     case "rescue":
-      return { kind, targetCount: 2 + rng.int(2), ticks: minutesToTicks(Math.max(6, minutes - 1)) };
+      return { kind, targetCount: 2 + rng.int(2), ticks: minutesToTicks(activeMinutes) };
     case "extraction":
-      return { kind, targetCount: 2 + rng.int(3), ticks: minutesToTicks(Math.max(5, minutes - 1)) };
+      return { kind, targetCount: 2 + rng.int(3), ticks: minutesToTicks(activeMinutes) };
     default:
       return { kind: "decapitate" };
   }

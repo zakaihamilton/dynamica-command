@@ -4,7 +4,7 @@ import { CONVOY_STAGING_TICKS, createMission, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { formatHoldClock, inspect, objectiveProgress } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
-import { generateWinCategory, missionDurationMinutesFor, missionTimeLimitClock, missionTimeLimitTicks, secondaryObjectivesForMissionSeed } from "../lib/gen/objectives";
+import { generateWinCategory, missionDurationMinutesFor, missionTimeLimitClock, missionTimeLimitLabel, missionTimeLimitTicks, secondaryObjectivesForMissionSeed } from "../lib/gen/objectives";
 import { formatMissionClock, formatMissionClockFromTicks, minutesToTicks } from "../lib/gen/pacing";
 import { missionObjectives } from "../lib/gen/story";
 
@@ -116,10 +116,11 @@ describe("win categories", () => {
     expect(missionTimeLimitTicks({ kind: "sabotage", ticks: activeWindow })).toBe(activeWindow);
     expect(missionTimeLimitTicks({ kind: "escort", ticks: activeWindow })).toBe(activeWindow + CONVOY_STAGING_TICKS);
     expect(missionTimeLimitClock({ kind: "escort", ticks: activeWindow })).toBe("15:00");
+    expect(missionTimeLimitLabel({ kind: "escort", ticks: activeWindow })).toBe("15 min");
 
     const secondary = secondaryObjectivesForMissionSeed(421, { index: 2, win: { kind: "escort", ticks: activeWindow } });
     expect(secondary[1]).toMatchObject({
-      label: "Speed bonus: complete the operation within 15:00 total",
+      label: "Speed bonus: complete the operation within 15 min total",
       target: activeWindow + CONVOY_STAGING_TICKS,
     });
   });
@@ -151,6 +152,45 @@ describe("generated harvest quotas", () => {
         expect(win.target! % 500).toBe(0);
       }
     }
+  });
+});
+
+describe("generated mission pacing", () => {
+  it("uses whole-minute durations and deadlines", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const campaign = createCampaign(seed);
+      for (const mission of campaign.missions) {
+        const duration = missionDurationMinutesFor(seed, mission.index, mission.win.kind);
+        expect(Number.isInteger(duration)).toBe(true);
+        if (mission.win.ticks === undefined) continue;
+
+        const minute = minutesToTicks(1);
+        expect(mission.win.ticks % minute).toBe(0);
+        expect((missionTimeLimitTicks(mission.win) ?? 0) % minute).toBe(0);
+        expect(duration).toBe((missionTimeLimitTicks(mission.win) ?? 0) / minute);
+      }
+    }
+  });
+
+  it("gives sabotage missions an eight-to-twenty-minute operation window", () => {
+    const minute = minutesToTicks(1);
+    for (let seed = 0; seed < 40; seed++) {
+      for (let missionIndex = 0; missionIndex < 8; missionIndex++) {
+        const win = generateWinCategory(seed, missionIndex, "sabotage");
+        expect(win.ticks! / minute).toBeGreaterThanOrEqual(8);
+        expect(win.ticks! / minute).toBeLessThanOrEqual(20);
+      }
+    }
+
+    expect(generateWinCategory(421, 0, "sabotage").ticks).toBe(minutesToTicks(9));
+  });
+
+  it("gives extraction missions a full rounded operation window", () => {
+    const campaign = createCampaign(5);
+    const extraction = campaign.missions[6]!;
+    expect(extraction.win.kind).toBe("extraction");
+    expect(extraction.win.ticks).toBe(minutesToTicks(18));
+    expect(missionDurationMinutesFor(5, 6, "extraction")).toBe(18);
   });
 });
 
@@ -199,16 +239,16 @@ describe("mission briefing objectives", () => {
     const campaign = createCampaign(421);
     const sabotage = campaign.missions.find((mission) => mission.win.kind === "sabotage");
     expect(sabotage).toBeDefined();
-    expect(missionObjectives(sabotage!, campaign)[0]?.text).toContain("within 05:00");
+    expect(missionObjectives(sabotage!, campaign)[0]?.text).toContain("within 9 min");
 
     const hold = campaign.missions.find((mission) => mission.win.kind === "holdTheLine");
     expect(hold).toBeDefined();
-    expect(missionObjectives(hold!, campaign)[0]?.text).toContain("for 10:30");
+    expect(missionObjectives(hold!, campaign)[0]?.text).toContain("for 10 min");
 
     const fallbackEscort = { index: 2, win: { kind: "escort" as const } };
-    expect(missionObjectives(fallbackEscort, campaign)[0]?.text).toContain("within 12:00");
+    expect(missionObjectives(fallbackEscort, campaign)[0]?.text).toContain("within 12 min");
     expect(secondaryObjectivesForMissionSeed(421, fallbackEscort)[1]?.label)
-      .toBe("Speed bonus: complete the operation within 05:00 total");
+      .toBe("Speed bonus: complete the operation within 5 min total");
   });
 });
 

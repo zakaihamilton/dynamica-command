@@ -71,7 +71,7 @@ export function configureMissionScenario(
         target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
         if (kind === "extraction") target.marked = true;
         if (kind === "escort" || kind === "extraction") {
-          target.maxHp *= kind === "escort" ? 6 : 9;
+          target.maxHp *= 12;
           target.hp = target.maxHp;
         }
         targetIds.push(target.id);

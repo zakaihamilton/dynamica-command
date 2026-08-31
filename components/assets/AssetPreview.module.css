@@ -18,6 +18,7 @@
     repeating-linear-gradient(to bottom, transparent 0 2px, color-mix(in srgb, var(--chrome-cyan) 6%, transparent) 2px 3px),
     var(--chrome-void);
   box-shadow: inset 1px 1px var(--chrome-void), inset -1px -1px var(--chrome-steel-hi);
+  background-color: var(--chrome-void);
 }
 
 .canvas {
@@ -33,6 +34,7 @@
   flex-shrink: 0;
   min-width: 0;
   padding-bottom: 0.15rem;
+  padding-top: 0.15rem;
 }
 
 .meta {
@@ -41,6 +43,7 @@
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--chrome-muted);
+  font-family: var(--font-geist-mono), monospace;
 }
 
 .group {

@@ -7,6 +7,15 @@ export type CatalogAsset = {
   kind: string;
 };
 
+export type AssetCategoryFilter = CatalogAsset["category"] | "all";
+
+export function filterGeneratedAssets(
+  assets: readonly CatalogAsset[],
+  filter: AssetCategoryFilter,
+): readonly CatalogAsset[] {
+  return filter === "all" ? assets : assets.filter((asset) => asset.category === filter);
+}
+
 export function listGeneratedAssets(): CatalogAsset[] {
   const assets: CatalogAsset[] = [];
   for (const kind of UNIT_KINDS) {

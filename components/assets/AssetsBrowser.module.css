@@ -5,9 +5,11 @@
   max-height: min(42rem, calc(100dvh - 2rem));
   overflow: hidden;
   padding: 1rem;
+  border-top: 2px solid var(--chrome-cyan-dim);
 }
 
 .header {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -17,6 +19,7 @@
 .title {
   margin: 0.25rem 0 0;
   font-size: 1.5rem;
+  font-family: var(--font-display);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -34,7 +37,33 @@
   margin-top: 1rem;
 }
 
+.header::after {
+  content: "PROCEDURAL VISUAL LIBRARY / LIVE PREVIEW";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  color: var(--chrome-muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.12em;
+}
+
 @media (max-width: 799px) {
+  .browser {
+    max-height: calc(100dvh - 1rem);
+    padding: 0.75rem;
+  }
+
+  .header {
+    flex-wrap: wrap;
+    padding-bottom: 1.5rem;
+  }
+
+  .header::after {
+    right: auto;
+    left: 0;
+  }
+
   .body {
     grid-template-columns: 1fr;
   }

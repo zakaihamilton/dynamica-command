@@ -80,6 +80,9 @@ export function createMissionFromData(opts: {
   if (mission.index >= 4 || offensiveMission) {
     spawnUnit(state, 0, "tank", p.x + 6, p.y + 4);
   }
+  for (let turretIndex = 0; turretIndex < difficulty.offensiveStartingTurrets && offensiveMission; turretIndex += 1) {
+    spawnBuildingAt(state, 0, "turret", p.x - 3 - turretIndex * 2, p.y);
+  }
   if (mission.index >= 3 || offensiveMission) {
     spawnBuildingAt(state, 0, "factory", p.x, p.y - 5);
   }

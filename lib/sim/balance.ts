@@ -76,7 +76,9 @@ export type BalanceCheck = {
 
 export const DEFAULT_BALANCE_THRESHOLDS: BalanceThresholds = {
   minWinRate: 0.60,
-  maxWinRate: 0.90,
+  // The 80-scenario CI sweep must still contain at least two losses; this
+  // keeps the softened campaign from silently becoming an automatic win.
+  maxWinRate: 0.975,
   maxTimeoutRate: 0.20,
   minKindSamples: 4,
   minKindWinRate: 0.40,

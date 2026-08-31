@@ -4,6 +4,7 @@
   border: 1px solid var(--chrome-inset);
   background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
   box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -1px -1px var(--chrome-void);
+  border-top: 2px solid var(--chrome-gold-dim);
 }
 
 .list {
@@ -26,6 +27,7 @@
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  line-height: 1.45;
 }
 
 .index {

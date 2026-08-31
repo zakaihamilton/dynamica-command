@@ -1,6 +1,8 @@
 .html {
   height: 100%;
-  --font-geist-sans: Arial, Helvetica, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-ui: Arial, Helvetica, sans-serif;
+  --font-geist-sans: var(--font-ui);
   --font-geist-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono",
     "Courier New", monospace;
   --chrome-void: #05080e;
@@ -22,6 +24,13 @@
   --chrome-raised: #2c3a47;
   --chrome-line: rgba(126, 172, 190, 0.2);
   --chrome-bloom: rgba(92, 225, 230, 0.18);
+  --chrome-surface: rgba(20, 29, 39, 0.92);
+  --chrome-surface-deep: rgba(5, 9, 15, 0.92);
+  --chrome-focus: #b9fbff;
+  --chrome-success: #9ee7bd;
+  --chrome-warning: #ffcf72;
+  --chrome-radius: 2px;
+  --chrome-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
   --texture-brushed: url("/art/textures/brushed-gunmetal.webp");
   --texture-worn: url("/art/textures/worn-panel.webp");
   --texture-crt: url("/art/textures/crt-glass.webp");
@@ -39,9 +48,9 @@
   min-height: 100%;
   background: var(--chrome-bg);
   color: var(--chrome-text);
-  font-family: var(--font-geist-mono), "Arial Narrow", Tahoma, sans-serif;
-  letter-spacing: 0.015em;
-  text-rendering: geometricPrecision;
+  font-family: var(--font-ui);
+  letter-spacing: 0.01em;
+  text-rendering: optimizeLegibility;
 }
 
 .body :global(button) {
@@ -50,6 +59,14 @@
 
 .body :global(button:disabled) {
   cursor: not-allowed;
+}
+
+.body :global(button:focus-visible),
+.body :global(a:focus-visible),
+.body :global(input:focus-visible),
+.body :global([role="option"]:focus-visible) {
+  outline: 2px solid var(--chrome-focus);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

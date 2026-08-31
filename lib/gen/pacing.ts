@@ -1,15 +1,19 @@
 import { TICKS_PER_SECOND } from "../catalog";
 import type { Rng } from "../seed/rng";
 
+export const MIN_MISSION_MINUTES = 5;
+export const MAX_MISSION_MINUTES = 20;
+export const TICKS_PER_MINUTE = 60 * TICKS_PER_SECOND;
+
 /** Mission 0 ≈ 5.5 min, mission 7 ≈ 19 min, with ±1 min jitter, clamped to 5–20. */
 export function missionDurationMinutes(missionIndex: number, rng: Rng): number {
   const base = 5.5 + missionIndex * (13.5 / 7);
   const jitter = (rng.next() - 0.5) * 2;
-  return Math.max(5, Math.min(20, base + jitter));
+  return Math.max(MIN_MISSION_MINUTES, Math.min(MAX_MISSION_MINUTES, Math.round(base + jitter)));
 }
 
 export function minutesToTicks(minutes: number): number {
-  return Math.round(minutes * 60 * TICKS_PER_SECOND);
+  return Math.round(minutes * TICKS_PER_MINUTE);
 }
 
 /** Escort missions spend this long staging the convoy before it starts moving. */
@@ -27,5 +31,16 @@ export function formatMissionClockFromTicks(ticks: number): string {
   return formatMissionClock(Math.ceil(Math.max(0, ticks) / TICKS_PER_SECOND));
 }
 
-export const MIN_MISSION_TICKS = 5 * 60 * TICKS_PER_SECOND;
-export const MAX_MISSION_TICKS = 20 * 60 * TICKS_PER_SECOND;
+/** Formats a generated mission duration as a whole-minute player-facing label. */
+export function formatMissionMinutes(minutes: number): string {
+  return `${Math.max(0, Math.round(minutes))} min`;
+}
+
+/** Converts a generated mission deadline to a whole-minute player-facing label. */
+export function formatMissionMinutesFromTicks(ticks: number): string {
+  const safeTicks = Math.max(0, ticks);
+  return formatMissionMinutes(safeTicks === 0 ? 0 : Math.max(1, Math.round(safeTicks / TICKS_PER_MINUTE)));
+}
+
+export const MIN_MISSION_TICKS = minutesToTicks(MIN_MISSION_MINUTES);
+export const MAX_MISSION_TICKS = minutesToTicks(MAX_MISSION_MINUTES);

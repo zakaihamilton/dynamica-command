@@ -212,7 +212,7 @@ describe("competent commander", () => {
   });
 
   it("keeps the exact hold-the-line reinforcement curve", () => {
-    expect(Array.from({ length: 8 }, (_, index) => missionDifficulty(index).holdLineReinforcements)).toEqual([2, 3, 3, 4, 4, 4, 5, 4]);
+    expect(Array.from({ length: 8 }, (_, index) => missionDifficulty(index).holdLineReinforcements)).toEqual([1, 2, 2, 3, 3, 3, 4, 3]);
   });
 
   it("keeps contacted extraction cargo on its return route", () => {

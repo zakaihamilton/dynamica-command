@@ -42,6 +42,7 @@
 
 .title {
   margin: 0.4rem 0 0;
+  font-family: var(--font-display);
   color: var(--chrome-text);
   font-size: clamp(1.8rem, 5vw, 3.25rem);
   line-height: 1;
@@ -102,6 +103,7 @@
 
 .sectionTitle {
   margin: 0.2rem 0 0.5rem;
+  font-family: var(--font-display);
   color: var(--chrome-text);
   font-size: 1rem;
   letter-spacing: 0.1em;
@@ -120,6 +122,7 @@
   padding: 0.55rem;
   border: 1px solid var(--chrome-inset);
   background: var(--chrome-steel-lo);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .missionButton {
@@ -135,6 +138,7 @@
 .missionButton:hover {
   border-color: color-mix(in srgb, var(--chrome-cyan) 72%, var(--chrome-inset));
   background: color-mix(in srgb, var(--chrome-cyan) 10%, var(--chrome-steel-lo));
+  transform: translateY(-1px);
 }
 
 .missionButton:focus-visible {
@@ -210,13 +214,32 @@
 }
 
 .detail {
+  position: relative;
   margin-top: 0.75rem;
   padding: 0.85rem;
   border: 1px solid color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-inset));
   background: linear-gradient(145deg, color-mix(in srgb, var(--chrome-cyan) 8%, var(--chrome-steel)), color-mix(in srgb, var(--chrome-steel-lo) 92%, transparent));
+  overflow: hidden;
+}
+
+.detailArt {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(52%, 25rem);
+  height: 11rem;
+  background:
+    linear-gradient(90deg, var(--chrome-surface-deep), transparent 70%),
+    linear-gradient(180deg, rgba(5, 8, 14, 0.15), var(--chrome-surface-deep)),
+    var(--mission-art) center / cover no-repeat;
+  opacity: 0.48;
+  mix-blend-mode: screen;
 }
 
 .detailHeader {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -226,6 +249,7 @@
 .detailTitle {
   margin: 0.25rem 0 0;
   color: var(--chrome-text);
+  font-family: var(--font-display);
   font-size: 1.05rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -240,6 +264,8 @@
 }
 
 .detailGrid {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
@@ -277,6 +303,8 @@
 }
 
 .detailActions {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: flex-end;

@@ -27,10 +27,13 @@
 .status {
   pointer-events: none;
   position: absolute;
+  z-index: 2;
   inset: 0 0 auto 0;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.72fr);
+  gap: 1.25rem;
   padding: 0.75rem;
+  font-family: var(--font-geist-mono), monospace;
   font-size: 0.75rem;
   text-transform: uppercase;
   background: linear-gradient(to bottom, rgba(5, 8, 14, 0.9), rgba(5, 8, 14, 0));
@@ -41,6 +44,7 @@
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  min-width: 0;
 }
 
 .seed,
@@ -69,6 +73,9 @@
 
 .mission {
   margin-top: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--chrome-body);
 }
 
@@ -79,7 +86,8 @@
 }
 
 .objectiveStack {
-  max-width: 48%;
+  min-width: 0;
+  max-width: none;
   text-align: right;
 }
 
@@ -116,8 +124,9 @@
     font-size: 0.62rem;
   }
 
-  .objectiveStack {
-    max-width: 56%;
+  .status {
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.85fr);
+    gap: 0.75rem;
   }
 }
 
@@ -129,6 +138,22 @@
 
   .missionMeta {
     gap: 0.45rem;
+  }
+
+  .status {
+    display: block;
+  }
+
+  .objectiveStack {
+    max-width: none;
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid color-mix(in srgb, var(--chrome-cyan) 20%, transparent);
+    text-align: left;
+  }
+
+  .objective {
+    text-align: left;
   }
 
   .seed,

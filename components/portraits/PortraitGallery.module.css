@@ -38,6 +38,7 @@
 
 .header h1 {
   margin: 0;
+  font-family: var(--font-display);
   color: var(--chrome-text);
   font-size: clamp(2rem, 5vw, 4.25rem);
   letter-spacing: 0.12em;
@@ -51,6 +52,39 @@
   color: var(--chrome-body);
   line-height: 1.6;
   text-transform: none;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 1.15rem;
+}
+
+.filter,
+.filterActive {
+  border: 1px solid var(--chrome-line);
+  padding: 0.55rem 0.7rem;
+  background: var(--chrome-glass);
+  color: var(--chrome-body);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.filter:hover,
+.filterActive {
+  border-color: var(--chrome-cyan-dim);
+  background: color-mix(in srgb, var(--chrome-cyan) 12%, var(--chrome-glass));
+  color: var(--chrome-text);
+}
+
+.filter:focus-visible,
+.filterActive:focus-visible {
+  outline: 2px solid var(--chrome-focus);
+  outline-offset: 2px;
 }
 
 .counter {
@@ -104,6 +138,12 @@
   border: 1px solid var(--chrome-line);
   background: rgba(5, 8, 14, 0.92);
   box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.35);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--chrome-cyan-dim);
+  transform: translateY(-2px);
 }
 
 .card[data-tone="enemy"] {

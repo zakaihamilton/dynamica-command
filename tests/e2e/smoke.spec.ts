@@ -93,14 +93,14 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
   await openBriefingSkippingTutorial(page);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();
   await expect(page.getByTestId("mission-objectives")).toContainText(/construction yard/i);
-  await expect(page.getByTestId("mission-objectives")).toContainText("05:00");
+  await expect(page.getByTestId("mission-objectives")).toContainText("9 min");
 
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
   await expect(page.getByTestId("seed")).toHaveText("Seed 0421");
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await expect(page.getByTestId("credits")).toBeVisible();
-  await expect(page.getByTestId("time-remaining")).toHaveText(/Time remaining 05:\d{2}/);
+  await expect(page.getByTestId("time-remaining")).toHaveText(/Time remaining 08:\d{2}/);
 });
 
 test("opens the operations map and launches an available mission", async ({ page }) => {
@@ -114,7 +114,7 @@ test("opens the operations map and launches an available mission", async ({ page
   await page.getByTestId("mission-card-0").click();
   await expect(page.getByTestId("mission-detail")).toContainText("Secondary objectives");
   await expect(page.getByTestId("mission-detail")).toContainText("Time limit");
-  await expect(page.getByTestId("mission-detail")).toContainText("05:00");
+  await expect(page.getByTestId("mission-detail")).toContainText("9 min");
   await page.getByTestId("launch-selected-mission").click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
 });
@@ -127,6 +127,94 @@ test("returns from the operations map with Escape", async ({ page }) => {
   await page.keyboard.press("Escape");
 
   await expect(page).toHaveURL(/\/$/);
+});
+
+test("keeps redesigned menu and operations chrome inside the desktop viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "GENESIS" })).toBeVisible();
+
+  const menuOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(menuOverflow).toBe(false);
+
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await page.getByRole("button", { name: "Operations map" }).click();
+  await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
+
+  const operationsOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(operationsOverflow).toBe(false);
+  await expect(page.getByTestId("mission-detail")).toBeVisible();
+});
+
+test("keeps briefing dialogue and battlefield status readable on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/briefing?seed=0421&mission=0");
+  await expect(page.getByTestId("briefing-dialogue")).toBeVisible();
+
+  const briefingGeometry = await page.getByTestId("briefing-dialogue").evaluate((element) => ({
+    bodyOverflow: document.documentElement.scrollWidth > window.innerWidth,
+    storyOverflow: element.scrollWidth > element.clientWidth,
+  }));
+  expect(briefingGeometry.bodyOverflow).toBe(false);
+  expect(briefingGeometry.storyOverflow).toBe(false);
+
+  await page.addInitScript(({ key, raw }) => localStorage.setItem(key, raw), {
+    key: campaignKey(421),
+    raw: JSON.stringify({
+      version: CAMPAIGN_PROGRESS_VERSION,
+      savedAt: Date.now(),
+      progress: { ...freshCampaignProgress(421), tutorialComplete: true },
+    }),
+  });
+  await page.goto("/play?seed=0421&mission=0&fresh=1");
+  await expect(page.getByTestId("time-remaining")).toBeVisible();
+
+  const statusGeometry = await page.locator('[class*="status"]').evaluate((element) => {
+    const first = element.children[0]?.getBoundingClientRect();
+    const second = element.children[1]?.getBoundingClientRect();
+    return {
+      bodyOverflow: document.documentElement.scrollWidth > window.innerWidth,
+      stacked: Boolean(first && second && second.top >= first.bottom - 1),
+    };
+  });
+  expect(statusGeometry.bodyOverflow).toBe(false);
+  expect(statusGeometry.stacked).toBe(true);
+});
+
+test("keeps Asset Bay selection synchronized with category filters", async ({ page }) => {
+  await page.goto("/assets");
+
+  const browser = page.getByTestId("assets-browser");
+  const list = browser.getByRole("listbox");
+  await expect(list.getByRole("option")).toHaveCount(28);
+
+  await browser.getByRole("button", { name: "Buildings" }).click();
+  await expect(browser.getByRole("button", { name: "Buildings" })).toHaveAttribute("aria-pressed", "true");
+  await expect(list.getByRole("option")).toHaveCount(7);
+  await expect(list.locator('[aria-selected="true"]')).toHaveCount(1);
+  await expect(page.getByLabel("Construction Yard preview")).toBeVisible();
+
+  await page.keyboard.press("ArrowDown");
+  await expect(list.locator('[aria-selected="true"]')).toHaveCount(1);
+  await expect(page.getByLabel("Power Plant preview")).toBeVisible();
+});
+
+test("filters Portrait Lab groups without changing their accessible state", async ({ page }) => {
+  await page.goto("/portraits");
+
+  await expect(page.getByRole("heading", { name: "Commanders" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Advisors" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Enemy leaders" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Commanders" }).click();
+  await expect(page.getByRole("button", { name: "Commanders" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "All roles" })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("heading", { name: "Commanders" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Advisors" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Enemy leaders" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "All roles" }).click();
+  await expect(page.getByRole("heading", { name: "Advisors" })).toBeVisible();
 });
 
 test("exposes Field Medic production on the first mission", async ({ page }) => {

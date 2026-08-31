@@ -1,5 +1,6 @@
 .panel {
   position: relative;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-bevel) 46%, var(--chrome-inset));
   background:
     linear-gradient(135deg, rgba(255,255,255,0.07), transparent 22%, rgba(0,0,0,0.35)),
@@ -9,6 +10,6 @@
   box-shadow:
     inset 1px 1px color-mix(in srgb, var(--chrome-bevel) 70%, transparent),
     inset -1px -1px var(--chrome-void),
-    0 18px 50px rgba(0,0,0,0.34),
+    var(--chrome-shadow),
     2px 2px 0 var(--chrome-inset);
 }

@@ -16,6 +16,7 @@ describe("enemy AI", () => {
     addBuilding(s, 0, "constructionYard", 30, 30);
     setTile(s, 18, 4, TILE_RESOURCE, 1200);
     s.credits[1] = 5000;
+    const difficulty = missionDifficulty(0);
     s.runtime = {
       kind: "annihilate",
       phase: "active",
@@ -26,11 +27,11 @@ describe("enemy AI", () => {
       director: { phase: "pressure", pressureStart: 100, finaleStart: 1000, eventCount: 1 },
     };
 
-    s.tick = 180;
+    s.tick = difficulty.enemyProductionStart;
     tickAi(s);
     expect(s.entities.some((e) => e.owner === 1 && e.kind === "power" && e.constructing > 0 && e.x > 8)).toBe(true);
 
-    s.tick = 324;
+    s.tick = difficulty.enemyProductionStart + difficulty.enemyProductionEvery;
     tickAi(s);
     expect(s.entities.some((e) => e.owner === 1 && e.kind === "refinery" && e.constructing > 0 && e.x > 10)).toBe(true);
   });
@@ -123,7 +124,7 @@ describe("enemy AI", () => {
     const extra = addUnit(s, 1, "tank", 9, 9);
     const harvester = addUnit(s, 0, "harvester", 16, 16);
     const playerYard = s.entities.find((e) => e.owner === 0 && e.kind === "constructionYard")!;
-    s.tick = 720;
+    s.tick = missionDifficulty(0).enemyAssaultEvery;
 
     tickAi(s);
 
@@ -142,7 +143,7 @@ describe("enemy AI", () => {
     const even = addUnit(s, 1, "infantry", 8, 8);
     const odd = addUnit(s, 1, "infantry", 9, 9);
     const harvester = addUnit(s, 0, "harvester", 16, 16);
-    s.tick = 720;
+    s.tick = missionDifficulty(0).enemyAssaultEvery;
 
     tickAi(s);
 
@@ -171,7 +172,7 @@ describe("enemy AI", () => {
       required: 1,
       secondary: [],
     };
-    s.tick = 720;
+    s.tick = missionDifficulty(0).enemyAssaultEvery;
 
     tickAi(s);
 
@@ -274,7 +275,7 @@ describe("enemy AI", () => {
     const guard = addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "infantry", 8, 8);
     const harvester = addUnit(s, 0, "harvester", 16, 16);
-    s.tick = 721;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + 1;
 
     tickAi(s);
 
@@ -291,7 +292,7 @@ describe("enemy AI", () => {
     const guard = addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "tank", 9, 9);
     const harvester = addUnit(s, 0, "harvester", 16, 16);
-    s.tick = 720;
+    s.tick = missionDifficulty(0).enemyAssaultEvery;
     raider.hp = 10;
     guard.hp = 10;
 
@@ -301,7 +302,7 @@ describe("enemy AI", () => {
     guard.hp = guard.maxHp;
     raider.hp = raider.maxHp;
     expect(raider.hp / raider.maxHp).toBeGreaterThanOrEqual(RETREAT_RECOVER_HEALTH);
-    s.tick = 721;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + 1;
     tickAi(s);
 
     expect(s.aiState).toBe("assault");
@@ -319,11 +320,11 @@ describe("enemy AI", () => {
     const harvester = addUnit(s, 0, "harvester", 16, 16);
     raider.hp = 10;
     guard.hp = 10;
-    s.tick = 720;
+    s.tick = missionDifficulty(0).enemyAssaultEvery;
     tickAi(s);
     expect(s.aiState).toBe("retreat");
 
-    s.tick = 720 + RETREAT_MAX_TICKS;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + RETREAT_MAX_TICKS;
     tickAi(s);
 
     expect(s.aiState).toBe("assault");
@@ -333,7 +334,7 @@ describe("enemy AI", () => {
 
   it("produces and assigns an attack during a short headless mission", () => {
     const state = createMission({ seed: 421, missionIndex: 0 });
-    for (let i = 0; i < 800 && state.result === "playing"; i++) {
+    for (let i = 0; i < missionDifficulty(state.missionIndex).enemyAssaultEvery + 120 && state.result === "playing"; i++) {
       tick(state);
     }
     expect(state.unitsProduced[1]).toBeGreaterThan(0);
@@ -353,7 +354,7 @@ describe("enemy AI", () => {
     addUnit(s, 0, "tank", 2, 2);
     addUnit(s, 0, "tank", 3, 2);
     s.credits[1] = 5000;
-    s.tick = 180;
+    s.tick = missionDifficulty(0).enemyProductionStart;
 
     tickAi(s);
 
@@ -397,7 +398,7 @@ describe("enemy AI", () => {
     addBuilding(s, 1, "factory", 12, 8);
     addBuilding(s, 1, "refinery", 8, 16);
     s.credits[1] = 5000;
-    s.tick = 180;
+    s.tick = missionDifficulty(0).enemyProductionStart;
 
     tickAi(s);
 
@@ -410,7 +411,7 @@ describe("enemy AI", () => {
     addBuilding(s, 1, "constructionYard", 12, 12);
     addBuilding(s, 1, "power", 16, 12);
     s.credits[1] = 5000;
-    s.tick = 180;
+    s.tick = missionDifficulty(0).enemyProductionStart;
 
     tickAi(s);
 

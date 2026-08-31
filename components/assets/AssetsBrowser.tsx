@@ -24,9 +24,11 @@ export function AssetsBrowser({
     construction,
     damage,
     designFamily,
+    assetFilter,
     canvasRef,
     profile,
     selectAsset,
+    setAssetFilter,
     setFacing,
     setPlaying,
     setConstruction,
@@ -52,7 +54,13 @@ export function AssetsBrowser({
       <AssetsBayHeader onClose={onClose} />
 
       <div className={styles.body}>
-        <AssetList assets={assets} selectedId={selected.id} onSelect={selectAsset} />
+        <AssetList
+          assets={assets}
+          selectedId={selected.id}
+          onSelect={selectAsset}
+          filter={assetFilter}
+          onFilterChange={setAssetFilter}
+        />
         <AssetPreview
           selected={selected}
           canvasRef={canvasRef}

@@ -19,7 +19,7 @@ describe("mission debrief", () => {
     expect(missionDebrief(state)).toMatchObject({
       outcome: "Primary objective achieved.",
       objective: { headline: "Extract 900 credits from the field", progress: "Extracted 900 / 900" },
-      battle: { duration: "00:12", creditsGathered: 900, unitsTrained: 5, structuresCompleted: 2 },
+      battle: { duration: "1 min", creditsGathered: 900, unitsTrained: 5, structuresCompleted: 2 },
       forces: {
         friendly: { unitsRemaining: 1, buildingsRemaining: 1, unitsLost: 1, buildingsLost: 0 },
         enemy: { unitsRemaining: 1, buildingsRemaining: 0, unitsLost: 3, buildingsLost: 2 },
@@ -34,12 +34,12 @@ describe("mission debrief", () => {
 
     expect(missionDebrief(state)).toMatchObject({
       outcome: "Construction yard destroyed.",
-      objective: { headline: "Hold this ground for 00:10", progress: "Hold 00:07 remaining" },
+      objective: { headline: "Hold this ground for 1 min", progress: "Hold 00:07 remaining" },
     });
   });
 
-  it("formats elapsed time and hides the sidebar after a result", () => {
-    expect(formatMissionDuration(12 * 125 + 7)).toBe("02:05");
+  it("formats elapsed time as whole minutes and hides the sidebar after a result", () => {
+    expect(formatMissionDuration(12 * 125 + 7)).toBe("2 min");
     expect(shouldShowCommandSidebar("playing")).toBe(true);
     expect(shouldShowCommandSidebar("won")).toBe(false);
     expect(shouldShowCommandSidebar("lost")).toBe(false);

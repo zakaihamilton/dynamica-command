@@ -6,6 +6,14 @@
   overflow: hidden;
 }
 
+.headingRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
 .list {
   flex: 1;
   min-height: 0;
@@ -16,7 +24,26 @@
 }
 
 .heading {
+  margin: 0;
+}
+
+.count {
+  color: var(--chrome-cyan);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
   margin-bottom: 0.5rem;
+}
+
+.filters :global(button) {
+  padding: 0.3rem 0.4rem;
+  font-size: 0.52rem;
 }
 
 @media (max-width: 799px) {

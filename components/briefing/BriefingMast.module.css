@@ -7,6 +7,7 @@
   box-sizing: border-box;
   width: 100%;
   margin: 0;
+  position: relative;
   padding: 0.85rem 1.25rem;
   border: 1px solid var(--chrome-inset);
   background:
@@ -18,6 +19,7 @@
 .title {
   margin: 0.5rem 0 0;
   font-size: 1.875rem;
+  font-family: var(--font-display);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -26,7 +28,8 @@
 
 .world {
   margin: 0.5rem 0 0;
-  font-size: 0.75rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: var(--chrome-cyan);

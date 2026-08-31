@@ -16,6 +16,7 @@ export function AssetChip({
     <button
       type="button"
       className={cx(styles.chip, active && styles.active)}
+      aria-pressed={active}
       data-tooltip={tooltip}
       onClick={onClick}
     >

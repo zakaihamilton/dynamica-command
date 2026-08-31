@@ -4,6 +4,14 @@
   max-width: 32rem;
   padding: 1.5rem;
   backdrop-filter: blur(4px);
+  box-shadow: var(--chrome-shadow), inset 0 1px rgba(255,255,255,0.06);
+}
+
+@media (min-width: 960px) {
+  .panel {
+    margin-top: 0;
+    justify-self: end;
+  }
 }
 
 .actions {

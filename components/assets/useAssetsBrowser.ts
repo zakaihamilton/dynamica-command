@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { listGeneratedAssets } from "@/lib/gen/assetCatalog";
+import { filterGeneratedAssets, listGeneratedAssets, type AssetCategoryFilter } from "@/lib/gen/assetCatalog";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { assetsCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
 import type { Facing, FactionVisualProfile } from "@/lib/types";
@@ -7,7 +7,9 @@ import type { Facing, FactionVisualProfile } from "@/lib/types";
 export function useAssetsBrowser(onClose: () => void) {
   const assets = useMemo(() => listGeneratedAssets(), []);
   const [selectedId, setSelectedId] = useState(assets[0]?.id ?? "");
+  const [assetFilter, setAssetFilterState] = useState<AssetCategoryFilter>("all");
   const selected = assets.find((asset) => asset.id === selectedId) ?? assets[0];
+  const visibleAssets = useMemo(() => filterGeneratedAssets(assets, assetFilter), [assets, assetFilter]);
   const [facing, setFacing] = useState<Facing>(0);
   const [playing, setPlaying] = useState(true);
   const [construction, setConstruction] = useState<0 | 1 | 2 | 3>(3);
@@ -24,6 +26,14 @@ export function useAssetsBrowser(onClose: () => void) {
     setPlaying(true);
   };
 
+  const setAssetFilter = (nextFilter: AssetCategoryFilter) => {
+    setAssetFilterState(nextFilter);
+    const nextAssets = filterGeneratedAssets(assets, nextFilter);
+    if (nextAssets.some((asset) => asset.id === selectedId)) return;
+    const nextAsset = nextAssets[0];
+    if (nextAsset) selectAsset(nextAsset.id);
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const command = assetsCommandFromKey(e, { typing: isEditableTarget(e.target) });
@@ -37,10 +47,10 @@ export function useAssetsBrowser(onClose: () => void) {
         setPlaying((value) => !value);
         return;
       }
-      const index = assets.findIndex((asset) => asset.id === selectedId);
+      const index = visibleAssets.findIndex((asset) => asset.id === selectedId);
       const from = index < 0 ? 0 : index;
       const next = from + (command.type === "nextAsset" ? 1 : -1);
-      const nextId = assets[Math.min(assets.length - 1, Math.max(0, next))]?.id;
+      const nextId = visibleAssets[Math.min(visibleAssets.length - 1, Math.max(0, next))]?.id;
       if (!nextId || nextId === selectedId) return;
       setSelectedId(nextId);
       setFacing(0);
@@ -50,11 +60,12 @@ export function useAssetsBrowser(onClose: () => void) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [assets, onClose, selectedId]);
+  }, [assets, onClose, selectedId, visibleAssets]);
 
   return {
     assets,
     selected,
+    assetFilter,
     facing,
     playing,
     construction,
@@ -63,6 +74,7 @@ export function useAssetsBrowser(onClose: () => void) {
     canvasRef,
     profile,
     selectAsset,
+    setAssetFilter,
     setFacing,
     setPlaying,
     setConstruction,

@@ -4,6 +4,7 @@ import { tickAi } from "../lib/sim/ai";
 import { issue } from "../lib/sim/orders";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { holdSupport, tickSupport } from "../lib/sim/support";
+import { missionDifficulty } from "../lib/sim/difficulty";
 
 describe("support units", () => {
   it("classifies support targets by reusable domain", () => {
@@ -112,7 +113,7 @@ describe("support units", () => {
     const barracks = addBuilding(state, 1, "barracks", 7, 8);
     const infantry = addUnit(state, 1, "infantry", 9, 8);
     infantry.hp -= 20;
-    state.tick = 132;
+    state.tick = missionDifficulty(2).enemyProductionStart;
 
     tickAi(state);
 
