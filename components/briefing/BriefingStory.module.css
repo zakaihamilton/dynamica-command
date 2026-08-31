@@ -62,6 +62,7 @@
 
 .speaker {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.75rem;
   margin: 0 0 0.45rem;
@@ -70,6 +71,11 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.speaker span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .speaker span:last-child {

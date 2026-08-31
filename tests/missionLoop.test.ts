@@ -55,9 +55,9 @@ describe("scripted mission loops", () => {
   it("wins a structureQuota by issuing a turret build and ticking", () => {
     const s = makeFixture({ width: 16, height: 12, win: { kind: "structureQuota", target: 1 } });
     addBuilding(s, 0, "constructionYard", 0, 0);
-    expect(canPlaceBuilding(s, "turret", 2, 0)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 3, 0)).toBe(true);
 
-    expect(issue(s, { type: "build", building: "turret", x: 2, y: 0 })).toEqual([]);
+    expect(issue(s, { type: "build", building: "turret", x: 3, y: 0 })).toEqual([]);
     playUntilWon(s);
   });
 

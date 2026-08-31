@@ -283,6 +283,58 @@ test.describe("short-height layouts", () => {
   });
 });
 
+test.describe("mission briefing responsive layout", () => {
+  for (const viewport of [
+    { width: 390, height: 844, name: "phone portrait" },
+    { width: 375, height: 667, name: "short phone portrait" },
+    { width: 320, height: 568, name: "small phone portrait" },
+    { width: 844, height: 390, name: "phone landscape" },
+    { width: 1280, height: 720, name: "desktop" },
+  ]) {
+    test(`keeps allies, briefing, and enemy in desktop order at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/briefing?seed=0421&mission=0");
+      const screen = page.getByTestId("briefing-screen");
+      await expect(screen).toBeVisible();
+
+      const layout = await screen.evaluate((element) => {
+        const inner = element.firstElementChild;
+        if (!inner) throw new Error("Briefing layout wrapper is missing");
+        const [mast, allies, panel, enemy] = Array.from(inner.children);
+        const rect = (node: Element | undefined) => {
+          const bounds = node?.getBoundingClientRect();
+          return bounds ? { x: bounds.x, y: bounds.y, right: bounds.right, bottom: bounds.bottom, width: bounds.width } : null;
+        };
+        const cards = Array.from(element.querySelectorAll('[data-testid="briefing-portrait"]'))
+          .map((canvas) => rect(canvas.parentElement ?? undefined)?.width ?? 0);
+        const allyRect = rect(allies);
+        const panelRect = rect(panel);
+        const enemyRect = rect(enemy);
+        return {
+          bodyOverflow: document.documentElement.scrollWidth > window.innerWidth,
+          mast: rect(mast),
+          allies: allyRect,
+          panel: panelRect,
+          enemy: enemyRect,
+          desktopOrder: Boolean(
+            allyRect && panelRect && enemyRect
+              && allyRect.x < panelRect.x
+              && panelRect.x < enemyRect.x
+              && Math.abs(allyRect.y - panelRect.y) <= 1
+              && Math.abs(panelRect.y - enemyRect.y) <= 1,
+          ),
+          cards,
+        };
+      });
+
+      expect(layout.bodyOverflow).toBe(false);
+      expect(layout.desktopOrder).toBe(true);
+      expect(layout.cards).toHaveLength(3);
+      expect(Math.max(...layout.cards) - Math.min(...layout.cards)).toBeLessThanOrEqual(1);
+    });
+  }
+});
+
 test.describe("selected unit actions", () => {
   test("refreshes stance and formation after clicking selected actions", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });

@@ -430,6 +430,23 @@ describe("building footprints", () => {
     expect(canPlaceBuilding(s, "power", 5, 5)).toBe(true);
   });
 
+  it("leaves one walkable tile between buildings from either faction", () => {
+    const s = makeFixture({ width: 16, height: 16, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 1, "power", 4, 4, 50);
+
+    expect(canPlaceBuilding(s, "turret", 6, 4, 0, false)).toBe(false);
+    expect(canPlaceBuilding(s, "turret", 7, 4, 0, false)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 4, 6, 0, false)).toBe(false);
+    expect(canPlaceBuilding(s, "turret", 4, 7, 0, false)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 6, 6, 0, false)).toBe(false);
+    expect(canPlaceBuilding(s, "turret", 7, 7, 0, false)).toBe(true);
+
+    expect(issue(s, { type: "build", building: "turret", x: 6, y: 4 })).toEqual([
+      { type: "commandRejected", reason: "invalid placement" },
+    ]);
+  });
+
   it("rejects turrets and buildings on ore fields while leaving them walkable", () => {
     const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
     s.credits[0] = 50_000;

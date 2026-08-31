@@ -15,6 +15,26 @@ export function footprintFlat(state: SimState, x: number, y: number, w: number, 
 }
 
 export const BUILDING_PLACEMENT_RADIUS = 8;
+const BUILDING_CLEARANCE = 1;
+
+function hasBuildingClearance(state: SimState, x: number, y: number, w: number, h: number): boolean {
+  const left = x - BUILDING_CLEARANCE;
+  const top = y - BUILDING_CLEARANCE;
+  const right = x + w + BUILDING_CLEARANCE;
+  const bottom = y + h + BUILDING_CLEARANCE;
+
+  for (const building of state.entities) {
+    if (building.hp <= 0 || !isBuildingEntity(building)) continue;
+    const fp = footprintOf(building.kind);
+    const separated =
+      building.x >= right ||
+      building.x + fp.w <= left ||
+      building.y >= bottom ||
+      building.y + fp.h <= top;
+    if (!separated) return false;
+  }
+  return true;
+}
 
 function buildingNetworkDistance(
   state: SimState,
@@ -44,6 +64,7 @@ export function canPlaceBuilding(
   requireNetwork = true,
 ): boolean {
   const fp = footprintOf(kind);
+  if (!hasBuildingClearance(state, x, y, fp.w, fp.h)) return false;
   if (requireNetwork && buildingNetworkDistance(state, owner, x, y, fp.w, fp.h) > BUILDING_PLACEMENT_RADIUS) return false;
   for (let oy = 0; oy < fp.h; oy++) {
     for (let ox = 0; ox < fp.w; ox++) {

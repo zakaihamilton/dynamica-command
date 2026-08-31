@@ -17,7 +17,7 @@
 
 .item {
   display: grid;
-  grid-template-columns: 2.2rem 1fr;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
   gap: 0.7rem;
   align-items: start;
   border: 1px solid var(--chrome-steel);
@@ -28,6 +28,20 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   line-height: 1.45;
+}
+
+@media (max-width: 1023px) {
+  .section {
+    padding: 0.6rem;
+  }
+
+  .item {
+    grid-template-columns: 1.35rem minmax(0, 1fr);
+    gap: 0.35rem;
+    padding: 0.4rem;
+    overflow-wrap: anywhere;
+    font-size: 0.65rem;
+  }
 }
 
 .index {

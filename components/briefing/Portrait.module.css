@@ -62,3 +62,17 @@
   letter-spacing: 0.05em;
   color: var(--chrome-muted);
 }
+
+@media (max-width: 1023px) {
+  .meta {
+    flex-wrap: wrap;
+    gap: 0.15rem 0.25rem;
+    letter-spacing: 0.08em;
+    overflow-wrap: anywhere;
+  }
+
+  .name,
+  .faction {
+    overflow-wrap: anywhere;
+  }
+}
