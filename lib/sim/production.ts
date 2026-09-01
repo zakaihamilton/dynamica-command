@@ -2,6 +2,8 @@ import { UNIT_STATS, footprintOf } from "../catalog";
 import { isBuildingEntity, type SimEvent, type SimState } from "../types";
 import { frontTileNear, openTileNear, powerFor, trySpawnUnit } from "./world";
 
+const playerPowerOk = new WeakMap<SimState, boolean>();
+
 function isUnitProducer(kind: string): kind is "barracks" | "factory" {
   return kind === "barracks" || kind === "factory";
 }
@@ -81,5 +83,13 @@ export function tickProduction(state: SimState): SimEvent[] {
       }
     }
   }
+  notePlayerPowerShortage(state, events);
   return events;
+}
+
+function notePlayerPowerShortage(state: SimState, events: SimEvent[]): void {
+  const ok = powerFor(state, 0) >= 0;
+  const wasOk = playerPowerOk.get(state) ?? true;
+  if (wasOk && !ok) events.push({ type: "powerShortage", owner: 0 });
+  playerPowerOk.set(state, ok);
 }

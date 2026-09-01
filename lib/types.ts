@@ -439,7 +439,9 @@ export type SimEvent =
   | { type: "objectiveExpired"; kind: MissionKind }
   | { type: "commandRejected"; reason: string }
   | { type: "alert"; kind: "warning" | "objective" | "contact"; text: string }
-  | { type: "suppressed"; id: number };
+  | { type: "suppressed"; id: number }
+  | { type: "powerShortage"; owner: Owner }
+  | { type: "deadlineWarning"; remainingTicks: number };
 
 export type InspectReport = {
   seed: string;

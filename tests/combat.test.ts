@@ -395,4 +395,31 @@ describe("combat alerts", () => {
     attacker.cooldown = 0;
     expect(tickCombat(s).filter((event) => event.type === "alert")).toHaveLength(0);
   });
+
+  it("emits a contact alert when an enemy strikes a generic player unit", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, "tank", 5, 4);
+    addUnit(s, 1, "infantry", 4, 4);
+
+    expect(tickCombat(s)).toContainEqual({ type: "alert", kind: "contact", text: "Unit under attack" });
+  });
+
+  it("emits a contact alert when an enemy strikes a non-yard building", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "power", 5, 4);
+    addUnit(s, 1, "infantry", 4, 4);
+
+    expect(tickCombat(s)).toContainEqual({ type: "alert", kind: "contact", text: "Base under attack" });
+  });
+
+  it("keeps the construction-yard warning when infantry is also hit", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 5, 4);
+    addUnit(s, 0, "infantry", 8, 8);
+    addUnit(s, 1, "infantry", 4, 4);
+    addUnit(s, 1, "infantry", 7, 8);
+
+    const alerts = tickCombat(s).filter((event) => event.type === "alert");
+    expect(alerts).toEqual([{ type: "alert", kind: "warning", text: "Construction yard under attack" }]);
+  });
 });

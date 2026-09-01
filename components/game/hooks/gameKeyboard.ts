@@ -56,7 +56,7 @@ export function applyGameCommand(command: GameCommand, handlers: GameCommandHand
   else if (command.type === "stop") handlers.stopSelected();
   else if (command.type === "cancelTool") {
     handlers.clearTools();
-    beep("select");
+    beep("cancel");
   } else if (command.type === "save") handlers.saveMission();
   else if (command.type === "load") handlers.loadMission();
   else if (command.type === "briefing") handlers.viewMissionBriefing();

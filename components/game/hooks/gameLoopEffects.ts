@@ -1,4 +1,5 @@
 import type { MusicIntensity } from "@/lib/audio/music";
+import type { SfxKind } from "@/lib/audio/synth";
 import type { MissionDirectorPhase, SimEvent } from "@/lib/types";
 
 export function desiredMusicIntensity(
@@ -22,6 +23,12 @@ export function warningAlert(events: SimEvent[]): boolean {
   return firstAlert(events)?.kind === "warning";
 }
 
-export function alertSfx(kind: "warning" | "objective" | "contact") {
+export function alertSfx(kind: "warning" | "objective" | "contact"): SfxKind {
   return kind === "warning" ? "warning" : kind === "objective" ? "objective" : "contact";
+}
+
+export function rejectionSfx(reason: string): SfxKind {
+  if (reason === "insufficient credits") return "insufficientFunds";
+  if (reason === "power shortage") return "powerShortage";
+  return "uiError";
 }

@@ -1,3 +1,4 @@
+import { BUILDING_KINDS } from "../catalog";
 import type { Camera } from "../iso";
 import type { SimEvent } from "../types";
 import { spatialAudioForWorld } from "./spatial";
@@ -11,6 +12,7 @@ export function dispatchBattlefieldAudio(
 ): void {
   let built = false;
   let produced = false;
+  let credits = false;
 
   for (const event of events) {
     if (event.type === "combat") {
@@ -27,7 +29,14 @@ export function dispatchBattlefieldAudio(
       }
     } else if (event.type === "destroyed") {
       const impact = spatialAudioForWorld(event.x, event.y, camera, screenWidth, screenHeight);
-      if (impact.audible) playSfx("destruction", { pan: impact.pan, gain: impact.gain });
+      if (impact.audible) {
+        const building = (BUILDING_KINDS as string[]).includes(event.kind);
+        playSfx("destruction", {
+          pan: impact.pan,
+          gain: impact.gain * (building ? 1.2 : 1),
+          heavy: building,
+        });
+      }
     } else if (event.type === "sold") {
       playSfx("sell", { force: true });
     } else if (event.type === "repairStarted") {
@@ -39,9 +48,16 @@ export function dispatchBattlefieldAudio(
       built = true;
     } else if (event.type === "produced" && event.owner === 0) {
       produced = true;
+    } else if (event.type === "credits" && event.owner === 0) {
+      credits = true;
+    } else if (event.type === "powerShortage" && event.owner === 0) {
+      playSfx("powerShortage");
+    } else if (event.type === "deadlineWarning") {
+      playSfx("deadline", { force: true });
     }
   }
 
   if (built) playSfx("buildComplete", { force: true });
   if (produced) playSfx("productionComplete", { force: true });
+  if (credits) playSfx("credits");
 }
