@@ -1,7 +1,7 @@
 import { describe, it } from "vitest";
 import { footprintOf, NEW_MISSION_KINDS } from "../lib/catalog";
 import { createCampaign } from "../lib/gen/campaign";
-import { mapSizeForMission } from "../lib/gen/map";
+import { generateMap, mapSizeForMission } from "../lib/gen/map";
 import { createMission } from "../lib/sim/api";
 import { canClimb, footprintFlat, inBounds, isStaticWalkable, terrainAccess } from "../lib/sim/world";
 import { diagonalCornerBlocked, PATH_DIRS } from "../lib/sim/pathfinding";
@@ -102,6 +102,7 @@ describe("all-seed invariants", () => {
       for (const mission of campaign.missions) {
         if (!SCENARIO_KINDS.has(mission.win.kind)) continue;
         const state = createMission({ seed, missionIndex: mission.index });
+        const rescueMap = mission.win.kind === "rescue" ? generateMap(seed, mission) : undefined;
         const targetIds = state.runtime?.targetIds ?? [];
         const expected = mission.win.targetCount ?? 0;
         if (targetIds.length !== expected || state.runtime?.required !== expected) {
@@ -132,6 +133,21 @@ describe("all-seed invariants", () => {
           }
           if (!reachableTarget(state, reachableFromPlayer, target)) {
             throw new Error(`Seed ${seed} mission ${mission.index} placed unreachable target ${id}`);
+          }
+          if (mission.win.kind === "rescue") {
+            const route = rescueMap && Math.hypot(
+              rescueMap.enemyStart.x - rescueMap.playerStart.x,
+              rescueMap.enemyStart.y - rescueMap.playerStart.y,
+            );
+            if (rescueMap && route) {
+              const distanceFromPlayer = Math.hypot(
+                target.x - rescueMap.playerStart.x,
+                target.y - rescueMap.playerStart.y,
+              );
+              if (distanceFromPlayer < route * 0.55 || distanceFromPlayer > route * 0.8) {
+                throw new Error(`Seed ${seed} mission ${mission.index} staged rescue target ${id} outside route band`);
+              }
+            }
           }
         }
       }

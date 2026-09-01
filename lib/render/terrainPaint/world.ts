@@ -16,6 +16,10 @@ import { drawElevationFaces } from "./cliffs";
 
 const sceneryMemo = new SceneryMemo();
 
+export function clearTerrainPaintCache(): void {
+  sceneryMemo.clear();
+}
+
 function memoScenery(state: SimState, x: number, y: number) {
   return sceneryMemo.sample(state, x, y);
 }

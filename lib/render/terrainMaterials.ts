@@ -236,6 +236,10 @@ export function tileVariant(seed: number, x: number, y: number): number {
 
 const materialMemo = new Map<string, BiomeMaterials>();
 
+export function clearTerrainMaterialCache(): void {
+  materialMemo.clear();
+}
+
 export function materialsFor(state: AtlasWorld): BiomeMaterials {
   const key = `${state.seed}:${state.biome}`;
   const cached = materialMemo.get(key);

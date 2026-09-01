@@ -15,6 +15,12 @@ export class SceneryMemo {
   private tick = -1;
   private readonly samples = new Map<number, ScenerySample>();
 
+  clear(): void {
+    this.state = null;
+    this.tick = -1;
+    this.samples.clear();
+  }
+
   sample(state: SimState, x: number, y: number): ScenerySample {
     if (this.state !== state || this.tick !== state.tick) {
       this.state = state;

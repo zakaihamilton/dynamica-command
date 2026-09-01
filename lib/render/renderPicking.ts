@@ -57,6 +57,14 @@ export function entityVisible(state: SimState, e: Entity): boolean {
 
 const entityVisibility = new Map<number, { alpha: number; target: number; timeMs: number }>();
 
+export function clearEntityVisibilityCache(): void {
+  entityVisibility.clear();
+}
+
+export function entityVisibilityCacheSize(): number {
+  return entityVisibility.size;
+}
+
 export function renderEntityOpacity(state: SimState, e: Entity, timeMs: number): number {
   if (e.owner === 0 || e.class !== "unit") return entityVisible(state, e) ? 1 : 0;
   const fog = fogAt(state, Math.round(e.x), Math.round(e.y));

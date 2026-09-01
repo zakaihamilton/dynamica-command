@@ -3,6 +3,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearVisualProfileCache, generateCampaignVisualProfile, generateVisualProfile, visualProfileCacheSize } from "../lib/gen/visualProfile";
 import { clearRenderSessionCaches } from "../lib/render/sessionCache";
+import { entityVisibilityCacheSize, renderEntityOpacity } from "../lib/render/renderPicking";
+import { turretAimMap } from "../lib/render/renderStructures/turret";
+import { addUnit, makeFixture } from "../lib/sim/fixtures";
 import { cachedSprite, rasterize, spriteCacheSize } from "../lib/render/sprites";
 import type { SpriteSpec } from "../lib/types";
 
@@ -72,5 +75,20 @@ describe("render session caches", () => {
 
     expect(spriteCacheSize()).toBe(0);
     expect(visualProfileCacheSize()).toEqual({ campaigns: 0, profiles: 0 });
+  });
+
+  it("clears transient renderer state through the session cleanup entrypoint", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const enemy = addUnit(state, 1, "infantry", 4, 4);
+    renderEntityOpacity(state, enemy, 0);
+    turretAimMap.set(enemy.id, { angle: 0, lastMs: 0 });
+
+    expect(entityVisibilityCacheSize()).toBe(1);
+    expect(turretAimMap.size).toBe(1);
+
+    clearRenderSessionCaches();
+
+    expect(entityVisibilityCacheSize()).toBe(0);
+    expect(turretAimMap.size).toBe(0);
   });
 });

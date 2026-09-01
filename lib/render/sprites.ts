@@ -49,6 +49,7 @@ const cache = new Map<string, HTMLCanvasElement>();
 const readyKeys = new Set<string>();
 const imageCache = new Map<string, HTMLImageElement>();
 const imageReadyCallbacks = new Map<string, Set<() => void>>();
+let rasterGeneration = 0;
 const SVG_RASTER_SCALE = 2;
 
 const CONTENT_ALPHA_MIN = 12;
@@ -101,7 +102,8 @@ function rasterCacheKey(spec: SpriteSpec): string {
   return `image:${spec.imageSrc}:${spec.imageTint ?? ""}:${crop}:${spec.w}x${spec.h}:${spec.imageReveal ?? 1}:${shapes}:${texture}`;
 }
 
-function notifyImageReady(key: string): void {
+function notifyImageReady(key: string, generation: number): void {
+  if (generation !== rasterGeneration || !cache.has(key)) return;
   readyKeys.add(key);
   const callbacks = imageReadyCallbacks.get(key);
   if (!callbacks) return;
@@ -130,10 +132,16 @@ export function preloadRasterSources(srcs: readonly string[]): void {
   for (const src of srcs) cachedImage(src);
 }
 
-function paintTexture(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, spec: SpriteSpec): void {
+function paintTexture(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  spec: SpriteSpec,
+  generation: number,
+): void {
   if (!spec.imageTextureSrc) return;
   const image = cachedImage(spec.imageTextureSrc);
   const draw = () => {
+    if (generation !== rasterGeneration) return;
     const overscan = 1.4;
     const dw = canvas.width * overscan;
     const dh = canvas.height * overscan;
@@ -168,6 +176,8 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
     return hit;
   }
   const c = document.createElement("canvas");
+  const generation = rasterGeneration;
+  retainRaster(key, c);
   if (spec.imageSrc) {
     // Keep a high-resolution working canvas: the source sprites are raster art
     // and must remain crisp when the battlefield camera zooms in.
@@ -177,6 +187,7 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
     const image = imageCache.get(spec.imageSrc) ?? new Image();
     image.decoding = "async";
     const paintImage = () => {
+      if (generation !== rasterGeneration || cache.get(key) !== c) return;
       const inset = Math.max(1, Math.round(Math.min(c.width, c.height) * 0.025));
       const crop = spec.imageCrop ?? { x: 0, y: 0, w: image.naturalWidth, h: image.naturalHeight };
       const scale = Math.min((c.width - inset * 2) / crop.w, (c.height - inset * 2) / crop.h);
@@ -213,14 +224,14 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
         ctx.fillRect(0, 0, c.width, c.height);
         ctx.globalCompositeOperation = "source-over";
       }
-      paintTexture(ctx, c, spec);
+      paintTexture(ctx, c, spec, generation);
       if (spec.shapes.length) {
         ctx.save();
         ctx.scale(c.width / spec.w, c.height / spec.h);
         paintShapes(ctx, spec.shapes);
         ctx.restore();
       }
-      notifyImageReady(key);
+      notifyImageReady(key, generation);
     };
     if (!imageCache.has(spec.imageSrc)) {
       imageCache.set(spec.imageSrc, image);
@@ -244,11 +255,10 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
     paintShapes(ctx, spec.shapes);
     if (spec.imageTextureSrc) {
       ctx.scale(1 / scale, 1 / scale);
-      paintTexture(ctx, c, spec);
+      paintTexture(ctx, c, spec, generation);
     }
     readyKeys.add(key);
   }
-  retainRaster(key, c);
   return c;
 }
 
@@ -302,6 +312,7 @@ export function spriteCacheSize(): number {
 }
 
 export function clearSpriteCache(): void {
+  rasterGeneration += 1;
   cache.clear();
   readyKeys.clear();
   imageCache.clear();

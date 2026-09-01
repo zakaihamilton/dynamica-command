@@ -118,7 +118,7 @@ describe("tactical expansion", () => {
     expect(hostile?.attackTarget).not.toBe(neutral?.id);
   });
 
-  it("stages rescue targets in the far half of the route", () => {
+  it("stages rescue targets in the 55%-80% portion of the route", () => {
     let sample: { state: ReturnType<typeof createMission>; map: ReturnType<typeof generateMap> } | undefined;
     for (let seed = 0; seed < 200 && !sample; seed++) {
       const campaign = createCampaign(seed);
@@ -133,7 +133,8 @@ describe("tactical expansion", () => {
     for (const id of state.runtime?.targetIds ?? []) {
       const target = state.entities.find((entity) => entity.id === id)!;
       const distanceFromPlayer = Math.hypot(target.x - map.playerStart.x, target.y - map.playerStart.y);
-      expect(distanceFromPlayer).toBeGreaterThan(routeDistance * 0.5 - 2);
+      expect(distanceFromPlayer).toBeGreaterThanOrEqual(routeDistance * 0.55);
+      expect(distanceFromPlayer).toBeLessThanOrEqual(routeDistance * 0.8);
     }
   });
 
