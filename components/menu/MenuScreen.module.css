@@ -89,7 +89,6 @@
   box-shadow: 0 0 12px color-mix(in srgb, var(--chrome-cyan) 18%, transparent);
 }
 
-.topbarDivider,
 .topbarMuted,
 .footerVersion {
   color: var(--chrome-muted);
@@ -125,12 +124,6 @@
 .hero {
   width: min(100%, 42rem);
   text-align: center;
-}
-
-.eyebrow {
-  margin: 0 0 1rem;
-  color: var(--chrome-cyan);
-  text-align: inherit;
 }
 
 .title {
@@ -259,10 +252,6 @@
     gap: clamp(1rem, 2.5vh, 1.75rem);
   }
 
-  .eyebrow {
-    margin-bottom: 0.55rem;
-  }
-
   .title {
     font-size: clamp(3.1rem, 5vw, 4.4rem);
   }
@@ -320,12 +309,6 @@
 
   .hero {
     width: 100%;
-  }
-
-  .eyebrow {
-    margin-bottom: 0.8rem;
-    text-align: center;
-    font-size: 0.58rem;
   }
 
   .title {

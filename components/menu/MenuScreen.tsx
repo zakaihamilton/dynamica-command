@@ -25,8 +25,6 @@ export function MenuScreen() {
         <header className={styles.topbar} aria-label="Dynamica command status">
           <div className={styles.topbarBrand}>
             <span className={styles.brandMark}>DC</span>
-            <span>DYNAMICA COMMAND</span>
-            <span className={styles.topbarDivider}>/</span>
             <span className={styles.topbarMuted}>COMMAND DESK</span>
           </div>
           <div className={styles.topbarStatus}>
