@@ -4,7 +4,6 @@ import { shouldShowCommandSidebar } from "@/lib/sim/debrief";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { Campaign, FactionVisualProfile, SimState } from "@/lib/types";
 import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
-import type { MobileCommand } from "./mobileCommandTypes";
 import { gameOverlayModel, powerSignature } from "./gameOverlayModel";
 import { GamePauseSurface } from "./GamePauseSurface";
 import { GameSidebarSurface } from "./GameSidebarSurface";
@@ -21,7 +20,6 @@ export function GameOverlays({
   playerVisualProfile,
   selectedIds,
   tutorial,
-  selectionMode,
   mobilePanelOpen,
   mobileLauncherRef,
   miniRef,
@@ -35,11 +33,8 @@ export function GameOverlays({
   camera,
   setPauseView,
   setPauseNotice,
-  onSelectionMode,
   onToggleMobilePanel,
-  onCloseMobilePanel,
   onPause,
-  onTouchCommand,
   onSelect = () => undefined,
   onAnnounce = () => undefined,
   actions,
@@ -50,7 +45,6 @@ export function GameOverlays({
   playerVisualProfile: FactionVisualProfile;
   selectedIds: number[];
   tutorial: boolean;
-  selectionMode: boolean;
   mobilePanelOpen: boolean;
   mobileLauncherRef: Ref<HTMLButtonElement>;
   miniRef: Ref<HTMLCanvasElement>;
@@ -64,11 +58,8 @@ export function GameOverlays({
   camera: GameCamera;
   setPauseView: (view: PauseView) => void;
   setPauseNotice: (notice: string) => void;
-  onSelectionMode: (active: boolean) => void;
   onToggleMobilePanel: () => void;
-  onCloseMobilePanel: () => void;
   onPause: () => void;
-  onTouchCommand: (command: MobileCommand) => void;
   onSelect?: (ids: number[]) => void;
   onAnnounce?: (message: string) => void;
   actions: GameActions;
@@ -92,7 +83,6 @@ export function GameOverlays({
         <MobileCommandLauncher
           open={mobilePanelOpen}
           onToggle={onToggleMobilePanel}
-          onPause={onPause}
           buttonRef={mobileLauncherRef}
         />
       ) : null}
@@ -116,13 +106,7 @@ export function GameOverlays({
           camera={camera}
           onTab={onTab}
           actions={actions}
-          selectedCount={selectedIds.length}
-          selectionMode={selectionMode}
-          activeCommand={actions.mobileCommandState}
-          onTouchCommand={onTouchCommand}
-          onSelectionMode={onSelectionMode}
           mobilePanelOpen={mobilePanelOpen}
-          onCloseMobilePanel={onCloseMobilePanel}
         />
       ) : null}
 

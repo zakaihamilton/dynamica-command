@@ -1,4 +1,5 @@
 import { formatSeed } from "@/lib/seed/rng";
+import type { MissionObjective } from "@/lib/gen/story";
 import styles from "./Battlefield.module.css";
 
 export function BattlefieldHud({
@@ -9,7 +10,7 @@ export function BattlefieldHud({
   objective,
   timeRemaining,
   convoyDeparture,
-  secondary,
+  briefingObjectives,
 }: {
   seed: number;
   levelNumber: number;
@@ -18,7 +19,7 @@ export function BattlefieldHud({
   objective: string;
   timeRemaining?: string;
   convoyDeparture?: string;
-  secondary?: string[];
+  briefingObjectives?: MissionObjective[];
 }) {
   return (
     <div className={styles.status}>
@@ -45,10 +46,16 @@ export function BattlefieldHud({
             {convoyDeparture}
           </div>
         ) : null}
-        {secondary?.length ? (
-          <div className={styles.secondary} data-testid="secondary-objectives">
-            {secondary.map((item) => <div key={item}>{item}</div>)}
-          </div>
+        {briefingObjectives?.length ? (
+          <section className={styles.briefingObjectives} aria-label="Mission objectives" data-testid="battlefield-objectives">
+            <div className={styles.briefingLabel}>Mission objectives</div>
+            {briefingObjectives.map((item, index) => (
+              <div className={styles.briefingObjective} key={item.id}>
+                <span className={styles.briefingIndex}>{String(index + 1).padStart(2, "0")}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </section>
         ) : null}
       </div>
     </div>

@@ -11,7 +11,7 @@ import {
 import { fogAt } from "../sim/fog";
 import { atlasPixelAtTile, fogTerrainGain, getTerrainAtlas, terrainColors } from "./terrainAtlas";
 
-const MINIMAP_RENDER_REV = "world-atlas-v3";
+const MINIMAP_RENDER_REV = "world-atlas-v4";
 export const MINIMAP_OVERLAY_TICK_SHIFT = 1;
 const MINIMAP_FOG_COLOR = { r: 7, g: 15, b: 21 };
 
@@ -79,7 +79,7 @@ function paintMinimapTerrain(ctx: CanvasRenderingContext2D, state: SimState, w: 
         ctx.fillStyle = fog === 0
           ? `rgb(${MINIMAP_FOG_COLOR.r},${MINIMAP_FOG_COLOR.g},${MINIMAP_FOG_COLOR.b})`
           : `rgba(${MINIMAP_FOG_COLOR.r},${MINIMAP_FOG_COLOR.g},${MINIMAP_FOG_COLOR.b},${1 - gain})`;
-        ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+        ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
       }
     }
   } else {
@@ -92,13 +92,13 @@ function paintMinimapTerrain(ctx: CanvasRenderingContext2D, state: SimState, w: 
         const fogState = fogAt(state, x, y);
         if (fogState === 0) {
           ctx.fillStyle = `rgb(${MINIMAP_FOG_COLOR.r},${MINIMAP_FOG_COLOR.g},${MINIMAP_FOG_COLOR.b})`;
-          ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+          ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
           continue;
         }
         const gain = fogTerrainGain(fogState);
         const fog = 1 - gain;
         ctx.fillStyle = `rgb(${Math.round(r * gain + MINIMAP_FOG_COLOR.r * fog)},${Math.round(g * gain + MINIMAP_FOG_COLOR.g * fog)},${Math.round(b * gain + MINIMAP_FOG_COLOR.b * fog)})`;
-        ctx.fillRect(x * cellW, y * cellH, cellW + 0.6, cellH + 0.6);
+        ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
       }
     }
   }

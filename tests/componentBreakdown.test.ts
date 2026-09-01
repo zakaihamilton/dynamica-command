@@ -12,6 +12,8 @@ import { createCamera, tileToScreen } from "../lib/iso";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { createMission } from "../lib/sim/api";
 import { heightAt } from "../lib/sim/world";
+import { createCampaign } from "../lib/gen/campaign";
+import { missionObjectives } from "../lib/gen/story";
 import type { GameCommandHandlers } from "../components/game/hooks/gameKeyboard";
 
 vi.mock("@/lib/audio/synth", () => ({ beep: vi.fn() }));
@@ -281,6 +283,14 @@ describe("production and overlay helpers", () => {
       timeRemaining: "Time remaining 15:00",
       convoyDeparture: "Convoy departs in 07:00",
     });
+  });
+
+  it("passes the briefing objectives through to the battlefield status", () => {
+    const campaign = createCampaign(421);
+    const mission = campaign.missions[0]!;
+    const state = createMission({ seed: 421, missionIndex: mission.index });
+
+    expect(playFieldStatus(state, campaign).briefingObjectives).toEqual(missionObjectives(mission, campaign));
   });
 });
 

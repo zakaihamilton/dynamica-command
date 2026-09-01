@@ -28,6 +28,7 @@ export function useMissionBackGuard({
   const activeRef = useRef(false);
   const allowBackRef = useRef(false);
   const currentUrlRef = useRef("");
+  const pendingCleanupRef = useRef<(() => void) | null>(null);
 
   const leave = useCallback(() => {
     if (!activeRef.current || typeof window === "undefined") return;
@@ -43,6 +44,11 @@ export function useMissionBackGuard({
       return;
     }
 
+    // React Strict Mode re-runs effects during development. If the first
+    // cleanup consumed the sentinel synchronously, the remounted guard could
+    // see that traversal and mistake it for a real browser Back event.
+    pendingCleanupRef.current?.();
+    pendingCleanupRef.current = null;
     allowBackRef.current = false;
     activeRef.current = true;
     currentUrlRef.current = window.location.href;
@@ -88,13 +94,22 @@ export function useMissionBackGuard({
       // Otherwise the next Back traverses to a visually identical entry and
       // the user has to press Back twice. The allowed leave path already
       // traverses away from this URL, so it is left untouched.
-      if (
-        !allowBackRef.current &&
-        window.location.href === currentUrlRef.current &&
-        isMissionBackSentinel(window.history.state)
-      ) {
-        window.history.back();
-      }
+      let canceled = false;
+      const cancel = () => {
+        canceled = true;
+      };
+      pendingCleanupRef.current = cancel;
+      queueMicrotask(() => {
+        if (canceled) return;
+        if (pendingCleanupRef.current === cancel) pendingCleanupRef.current = null;
+        if (
+          !allowBackRef.current &&
+          window.location.href === currentUrlRef.current &&
+          isMissionBackSentinel(window.history.state)
+        ) {
+          window.history.back();
+        }
+      });
     };
   }, [enabled, onRequestLeave]);
 

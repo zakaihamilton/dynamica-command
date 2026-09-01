@@ -87,6 +87,10 @@ test("first deploy routes through tutorial to briefing", async ({ page }) => {
   await page.getByRole("button", { name: "Skip training" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();
+
+  await page.getByRole("button", { name: "Launch" }).click();
+  await expect(page).toHaveURL(/\/play\?seed=0421&mission=0&fresh=1/);
+  await expect(page.getByRole("dialog", { name: "Leave mission?" })).toHaveCount(0);
 });
 
 test("launches a seeded campaign from menu to battlefield", async ({ page }) => {

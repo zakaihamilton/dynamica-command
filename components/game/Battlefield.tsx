@@ -1,6 +1,7 @@
 import type { CSSProperties, PointerEventHandler, ReactNode, Ref } from "react";
 import type { PanAvailability, PanDir } from "@/lib/render/camera";
 import { biomeArt } from "@/lib/gen/visualAssets";
+import type { MissionObjective } from "@/lib/gen/story";
 import type { BiomeName } from "@/lib/types";
 import { BattlefieldHud } from "./BattlefieldHud";
 import { ScrollArrow } from "./ScrollArrow";
@@ -20,7 +21,7 @@ export function Battlefield({
   objective,
   timeRemaining,
   convoyDeparture,
-  secondary,
+  briefingObjectives,
   biome,
   children,
   onPointerDown,
@@ -42,7 +43,7 @@ export function Battlefield({
   objective: string;
   timeRemaining?: string;
   convoyDeparture?: string;
-  secondary?: string[];
+  briefingObjectives?: MissionObjective[];
   biome: BiomeName;
   children?: ReactNode;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
@@ -81,7 +82,7 @@ export function Battlefield({
         objective={objective}
         timeRemaining={timeRemaining}
         convoyDeparture={convoyDeparture}
-        secondary={secondary}
+        briefingObjectives={briefingObjectives}
       />
       {children}
     </div>

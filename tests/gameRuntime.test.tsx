@@ -199,7 +199,6 @@ describe("useGameRuntime", () => {
       result.current.overlays.onToggleMobilePanel();
     });
     expect(result.current.overlays.mobilePanelOpen).toBe(true);
-    expect(result.current.overlays.selectionMode).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
 
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
@@ -210,21 +209,8 @@ describe("useGameRuntime", () => {
     expect(result.current.overlays.paused).toBe(true);
 
     act(() => result.current.overlays.session.resumeMission());
-    act(() => result.current.overlays.onTouchCommand("move"));
-    expect(result.current.overlays.mobilePanelOpen).toBe(false);
-    expect(result.current.overlays.actions.mobileCommandState).toBe("move");
-    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
-    expect(result.current.overlays.actions.mobileCommandState).toBeNull();
-    expect(result.current.overlays.paused).toBe(false);
-    act(() => result.current.overlays.onTouchCommand("attack"));
     act(() => window.dispatchEvent(new Event("orientationchange")));
     expect(result.current.overlays.actions.mobileCommandState).toBeNull();
-    expect(result.current.overlays.mobilePanelOpen).toBe(false);
-
-    act(() => {
-      result.current.overlays.onSelectionMode(true);
-    });
-    expect(result.current.overlays.selectionMode).toBe(true);
     expect(result.current.overlays.mobilePanelOpen).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
   });
@@ -246,12 +232,6 @@ describe("useGameRuntime", () => {
     expect(result.current.overlays.mobilePanelOpen).toBe(false);
     expect(document.activeElement).toBe(launcher);
 
-    act(() => result.current.overlays.onToggleMobilePanel());
-    sidebarControl.focus();
-    act(() => result.current.overlays.onSelectionMode(true));
-
-    expect(result.current.overlays.mobilePanelOpen).toBe(false);
-    expect(document.activeElement).toBe(launcher);
     launcher.remove();
     sidebarControl.remove();
   });

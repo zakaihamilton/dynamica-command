@@ -100,9 +100,7 @@ async function waitForBattlefield(page: import("@playwright/test").Page) {
   }));
 }
 
-async function waitForStableSelection(page: import("@playwright/test").Page, text: string) {
-  const controls = page.getByTestId("mobile-touch-controls");
-  await expect.poll(async () => (await controls.textContent())?.includes(text) ?? false).toBe(true);
+async function waitForStableSelection(page: import("@playwright/test").Page) {
   await page.waitForTimeout(100);
   await page.evaluate(() => new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
@@ -351,13 +349,13 @@ test.describe("selected unit actions", () => {
     const infantryEntity = playerUnits(state).find((entity) => entity.kind === "infantry");
     if (!infantryEntity) throw new Error("Mission has no player infantry");
     const infantry = await pointForEntity(page, infantryEntity);
-    await dispatchTouch(page, "pointerdown", infantry);
-    await dispatchTouch(page, "pointerup", infantry);
+    await page.mouse.click(infantry.x, infantry.y);
 
-    await waitForStableSelection(page, "1 selected");
+    await waitForStableSelection(page);
     await page.getByTestId("mobile-command-toggle").click();
     const sidebar = page.getByTestId("command-sidebar");
     await sidebar.getByRole("tab", { name: "Selected" }).click();
+    await expect(sidebar.getByTestId("selected-kind")).toBeVisible();
 
     const unitOrders = sidebar;
     const hold = unitOrders.getByTestId("selected-action-stance-hold");
@@ -468,7 +466,7 @@ test.describe("mobile-first layouts", () => {
         expect(sidebarBounds).not.toBeNull();
         expect(sidebarBounds!.x + sidebarBounds!.width).toBeLessThanOrEqual(viewport.width);
       }
-      await expect(page.getByTestId("mobile-touch-controls")).not.toBeVisible();
+      await expect(page.getByTestId("mobile-touch-controls")).toHaveCount(0);
     });
   }
 
@@ -494,7 +492,7 @@ test.describe("mobile-first layouts", () => {
     expect(panelBounds).not.toBeNull();
     expect(panelBounds!.x).toBeGreaterThanOrEqual(0);
     expect(panelBounds!.x + panelBounds!.width).toBeLessThanOrEqual(390);
-    await expect(panel.getByTestId("mobile-touch-controls")).not.toBeVisible();
+    await expect(panel.getByTestId("mobile-touch-controls")).toHaveCount(0);
     await expect(panel.getByRole("tab", { name: "Construction" })).toBeVisible();
 
     await launcher.getByTestId("mobile-command-toggle").click();
@@ -505,20 +503,63 @@ test.describe("mobile-first layouts", () => {
     await expect(panel).not.toBeVisible();
   });
 
-  test("keeps the pause actions above the compact mobile launcher", async ({ page }) => {
+  test("caps the portrait command sidebar and keeps its items proportional", async ({ page }) => {
+    for (const viewport of [
+      { width: 320, height: 568 },
+      { width: 390, height: 844 },
+      { width: 730, height: 909 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/play?seed=0421&mission=0&fresh=1");
+
+      const launcher = page.getByTestId("mobile-command-toggle");
+      await expect(launcher).toBeVisible();
+      await launcher.click();
+
+      const sidebar = page.getByTestId("command-sidebar");
+      await expect(sidebar).toBeVisible();
+      const layout = await sidebar.evaluate((element) => {
+        const bounds = (node: Element) => {
+          const rect = node.getBoundingClientRect();
+          return { right: rect.right, width: rect.width, height: rect.height };
+        };
+        const cards = Array.from(element.querySelectorAll("[data-testid='build-progress'] button[aria-label*='credits']"));
+        const tabs = element.querySelector("[role='toolbar']");
+        return {
+          sidebar: bounds(element),
+          tabs: tabs ? Array.from(tabs.children).map(bounds) : [],
+          cards: cards.map((card) => ({
+            card: bounds(card),
+            art: card.firstElementChild ? bounds(card.firstElementChild) : null,
+          })),
+          documentWidth: document.documentElement.scrollWidth,
+        };
+      });
+
+      expect(layout.sidebar.width).toBeLessThanOrEqual(320);
+      expect(layout.sidebar.width).toBeGreaterThan(0);
+      expect(layout.sidebar.right).toBeLessThanOrEqual(viewport.width);
+      expect(layout.documentWidth).toBeLessThanOrEqual(viewport.width);
+      expect(layout.cards).toHaveLength(5);
+
+      const cardWidths = layout.cards.map(({ card }) => card.width);
+      expect(Math.max(...cardWidths) - Math.min(...cardWidths)).toBeLessThanOrEqual(1);
+      for (const { art } of layout.cards) {
+        expect(art).not.toBeNull();
+        expect(art!.width / art!.height).toBeCloseTo(80 / 56, 2);
+      }
+
+      const tabWidths = layout.tabs.map(({ width }) => width);
+      expect(tabWidths).toHaveLength(5);
+      expect(Math.max(...tabWidths) - Math.min(...tabWidths)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test("keeps the compact mobile launcher focused on commands", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/play?seed=0421&mission=0");
 
-    await page.getByTestId("mobile-pause").click();
-    await expect(page.getByTestId("mobile-command-launcher")).not.toBeVisible();
-    const pause = page.getByTestId("pause-menu");
-    await expect(pause).toBeVisible();
-    const resume = pause.getByRole("button", { name: "Resume Mission" });
-    await expect(resume).toBeVisible();
-    const bounds = await resume.boundingBox();
-    expect(bounds).not.toBeNull();
-    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(844);
-    await resume.click();
+    await expect(page.getByTestId("mobile-pause")).toHaveCount(0);
     await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
   });
 
@@ -531,10 +572,10 @@ test.describe("mobile-first layouts", () => {
     await dispatchTouch(page, "pointerdown", yard);
     await dispatchTouch(page, "pointerup", yard);
     await page.getByTestId("mobile-command-toggle").click();
-    await expect(page.getByTestId("command-sidebar").getByTestId("mobile-touch-controls")).not.toBeVisible();
+    await expect(page.getByTestId("command-sidebar").getByTestId("mobile-touch-controls")).toHaveCount(0);
   });
 
-  test("supports touch selection, panning, and direct commands", async ({ page }) => {
+  test("supports touch panning and direct commands for a selected unit", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/play?seed=${String(TEST_SEED).padStart(4, "0")}&mission=0`);
     await waitForBattlefield(page);
@@ -545,13 +586,14 @@ test.describe("mobile-first layouts", () => {
     const infantry = await pointForEntity(page, infantryEntity);
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
-    await waitForStableSelection(page, "1 selected");
+    await page.mouse.click(infantry.x, infantry.y);
+    await waitForStableSelection(page);
 
     const dragStart = { x: 90, y: 650 };
     await dispatchTouch(page, "pointerdown", dragStart);
     await dispatchTouch(page, "pointermove", { x: 155, y: 650 });
     await dispatchTouch(page, "pointerup", { x: 155, y: 650 });
-    await waitForStableSelection(page, "1 selected");
+    await waitForStableSelection(page);
 
     const orderPoint = { x: 300, y: 600 };
     await dispatchTouch(page, "pointerdown", orderPoint);
@@ -624,9 +666,8 @@ test.describe("mobile-first layouts", () => {
     const infantryEntity = playerUnits(state).find((entity) => entity.kind === "infantry");
     if (!infantryEntity) throw new Error("Mission has no player infantry");
     const infantry = await pointForEntity(page, infantryEntity);
-    await dispatchTouch(page, "pointerdown", infantry);
-    await dispatchTouch(page, "pointerup", infantry);
-    await waitForStableSelection(page, "1 selected");
+    await page.mouse.click(infantry.x, infantry.y);
+    await waitForStableSelection(page);
 
     await page.getByTestId("mobile-command-toggle").click();
     await expect(page.getByTestId("command-sidebar")).toBeVisible();
@@ -634,7 +675,10 @@ test.describe("mobile-first layouts", () => {
     await page.setViewportSize({ width: 844, height: 390 });
     await expect(page.getByTestId("mobile-command-launcher")).not.toBeVisible();
     await expect(page.getByTestId("command-sidebar")).toBeVisible();
-    await expect(page.getByTestId("mobile-touch-controls")).toContainText("1 selected");
+    const selectedTab = page.getByTestId("command-sidebar").getByTestId("tab-selected");
+    await expect(selectedTab).toBeVisible();
+    await selectedTab.click();
+    await expect(page.getByTestId("selected-kind")).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
     await expect(page.getByTestId("command-sidebar")).not.toBeVisible();

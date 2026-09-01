@@ -116,21 +116,19 @@ describe("mobile command controls", () => {
 describe("MobileCommandLauncher", () => {
   it("opens and closes the portrait command panel from the compact rail", () => {
     const onToggle = vi.fn();
-    const onPause = vi.fn();
     const buttonRef = createRef<HTMLButtonElement>();
     const { rerender } = render(
-      <MobileCommandLauncher open={false} onToggle={onToggle} onPause={onPause} buttonRef={buttonRef} />,
+      <MobileCommandLauncher open={false} onToggle={onToggle} buttonRef={buttonRef} />,
     );
 
-    expect(screen.getByTestId("mobile-command-toggle")).toHaveTextContent("Commands");
+    expect(screen.getByTestId("mobile-command-toggle")).toHaveAttribute("aria-label", "Open commands");
+    expect(screen.getByTestId("mobile-command-icon").querySelectorAll("path")).toHaveLength(3);
     expect(screen.queryByTestId("mobile-command-scrim")).toBeNull();
     fireEvent.click(screen.getByTestId("mobile-command-toggle"));
     expect(onToggle).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByTestId("mobile-pause"));
-    expect(onPause).toHaveBeenCalledOnce();
 
-    rerender(<MobileCommandLauncher open onToggle={onToggle} onPause={onPause} buttonRef={buttonRef} />);
-    expect(screen.getByTestId("mobile-command-toggle")).toHaveTextContent("Close");
+    rerender(<MobileCommandLauncher open onToggle={onToggle} buttonRef={buttonRef} />);
+    expect(screen.getByTestId("mobile-command-toggle")).toHaveAttribute("aria-label", "Close commands");
     fireEvent.click(screen.getByTestId("mobile-command-scrim"));
     expect(onToggle).toHaveBeenCalledTimes(2);
   });

@@ -54,7 +54,7 @@ export function GamePlayField({
   onMenu: () => void;
   combatAlert?: string | null;
 }) {
-  const status = playFieldStatus(state);
+  const status = playFieldStatus(state, campaign);
   return (
     <Battlefield
       hostRef={hostRef}
@@ -70,7 +70,7 @@ export function GamePlayField({
       objective={status.objective}
       timeRemaining={status.timeRemaining}
       convoyDeparture={status.convoyDeparture}
-      secondary={status.secondary}
+      briefingObjectives={tutorial ? undefined : status.briefingObjectives}
       biome={state.biome}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

@@ -114,7 +114,6 @@
   background: transparent;
 }
 
-.mobilePanelBar,
 .touchControls {
   display: none;
 }
@@ -170,13 +169,16 @@
 
 @media (max-width: 799px) and (orientation: portrait) {
   .sidebar {
+    --sidebar-left-gutter: max(1rem, env(safe-area-inset-left));
+    --sidebar-right-gutter: max(4rem, calc(env(safe-area-inset-right) + 3.5rem));
     position: absolute;
     z-index: 55;
     top: 0;
-    right: max(2.75rem, env(safe-area-inset-right));
+    left: var(--sidebar-left-gutter);
+    right: auto;
     bottom: 0;
     display: none;
-    width: min(20rem, calc(100vw - 2.75rem));
+    width: min(20rem, calc(100vw - var(--sidebar-left-gutter) - var(--sidebar-right-gutter)));
     height: 100%;
     min-height: 0;
     flex: none;
@@ -199,28 +201,6 @@
 
   .sidebar > .header {
     margin-top: 0;
-  }
-
-  .mobilePanelBar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    color: var(--chrome-muted);
-    font-size: 0.55rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .mobilePanelClose {
-    min-height: 44px;
-    padding: 0.35rem 0.55rem;
-    border: 1px solid var(--chrome-inset);
-    color: var(--chrome-cyan);
-    background: var(--chrome-steel);
-    font: inherit;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
   }
 
   .radarSlot :global(canvas) {

@@ -140,11 +140,8 @@ describe("game overlay surfaces", () => {
       camera,
       setPauseView: vi.fn(),
       setPauseNotice: vi.fn(),
-      onSelectionMode: vi.fn(),
       onToggleMobilePanel: vi.fn(),
-      onCloseMobilePanel: vi.fn(),
       onPause: vi.fn(),
-      onTouchCommand: vi.fn(),
       actions: testActions(),
       session: testSession(),
     };

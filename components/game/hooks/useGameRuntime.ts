@@ -14,7 +14,6 @@ import { useGameSession } from "./useGameSession";
 import { useGameSelection } from "./useGameSelection";
 import { useGameRuntimeState } from "./useGameRuntimeState";
 import type { NavigationOrigin } from "./missionRoutes";
-import type { MobileCommand } from "../mobileCommandTypes";
 
 export function useGameRuntime({
   seed,
@@ -98,7 +97,6 @@ export function useGameRuntime({
     setMobileCommandState,
     resetMobileCommand,
     cancelMobileCommand,
-    chooseMobileCommand,
     clearTools,
     issueSelectedCommand,
     toggleRepair,
@@ -198,16 +196,6 @@ export function useGameRuntime({
     }
     setMobilePanelOpen(true);
   }, [closeMobilePanel, mobilePanelOpen, setMobilePanelOpen, setSelectionMode]);
-  const onTouchCommand = useCallback((command: MobileCommand) => {
-    chooseMobileCommand(command);
-    closeMobilePanel();
-  }, [chooseMobileCommand, closeMobilePanel]);
-  const onSelectionMode = useCallback((active: boolean) => {
-    cancelMobileCommand();
-    setSelectionMode(active);
-    if (active) closeMobilePanel();
-  }, [cancelMobileCommand, closeMobilePanel, setSelectionMode]);
-
   const cancelKeyboardTool = useCallback(() => {
     cancelMobileCommand();
     resetInput();
@@ -331,13 +319,10 @@ export function useGameRuntime({
       camera,
       setPauseView,
       setPauseNotice,
-      onSelectionMode,
       onSelect: commitSelection,
       onAnnounce: announceTactical,
       onToggleMobilePanel: toggleMobilePanel,
-      onCloseMobilePanel: closeMobilePanel,
       onPause: openPauseMenu,
-      onTouchCommand,
       actions,
       session,
     },

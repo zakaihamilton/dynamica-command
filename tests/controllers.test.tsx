@@ -2,6 +2,7 @@
 
 import { act, cleanup, renderHook } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useBriefingController } from "../components/briefing/useBriefingController";
 import { useBriefingTypewriter } from "../components/briefing/useBriefingTypewriter";
@@ -174,7 +175,7 @@ describe("game lifecycle hooks", () => {
     window.history.replaceState({}, "", "/");
   });
 
-  it("cleans up stale same-URL sentinels when the mission guard is disabled", () => {
+  it("cleans up stale same-URL sentinels when the mission guard is disabled", async () => {
     const sentinelKey = "__genesisMissionBackSentinel";
     window.history.replaceState({ [sentinelKey]: true, route: "mission" }, "", "/play?seed=0421&mission=0");
     const missionUrl = window.location.href;
@@ -195,10 +196,37 @@ describe("game lifecycle hooks", () => {
     );
 
     act(() => rerender({ enabled: false }));
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(back).toHaveBeenCalledOnce();
     unmount();
     replaceState.mockRestore();
     pushState.mockRestore();
+    back.mockRestore();
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("does not treat the Strict Mode effect remount as browser Back", async () => {
+    window.history.replaceState({}, "", "/briefing?seed=0421&mission=0");
+    window.history.pushState({}, "", "/play?seed=0421&mission=0&fresh=1");
+    const requestLeave = vi.fn();
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
+    const { unmount } = renderHook(
+      () => useMissionBackGuard({ enabled: true, onRequestLeave: requestLeave }),
+      { wrapper: StrictMode },
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(requestLeave).not.toHaveBeenCalled();
+    expect(back).not.toHaveBeenCalled();
+
+    unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
     back.mockRestore();
     window.history.replaceState({}, "", "/");
   });

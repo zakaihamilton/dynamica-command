@@ -3,9 +3,7 @@ import type { CommandBuildControls } from "./commandCatalogTypes";
 import { CommandBuildSection } from "./CommandBuildSection";
 import { CommandHeader } from "./CommandHeader";
 import { MinimapFrame } from "./MinimapFrame";
-import { MobileTouchControls } from "./MobileTouchControls";
 import { ResourceDock } from "./ResourceDock";
-import type { MobileCommand } from "./mobileCommandTypes";
 import styles from "./CommandSidebar.module.css";
 
 export function CommandSidebar({
@@ -38,13 +36,7 @@ export function CommandSidebar({
   onStop,
   onStance,
   onFormation,
-  selectedCount,
-  selectionMode,
-  activeCommand,
-  onTouchCommand,
-  onSelectionMode,
   mobilePanelOpen,
-  onCloseMobilePanel,
 }: CommandBuildControls & {
   factionName: string;
   produced: number;
@@ -55,15 +47,8 @@ export function CommandSidebar({
   onMinimapPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerUp: PointerEventHandler<HTMLCanvasElement>;
   isMinimapDragging: boolean;
-  selectedCount: number;
-  selectionMode: boolean;
-  activeCommand: MobileCommand | null;
-  onTouchCommand: (command: MobileCommand) => void;
-  onSelectionMode: (active: boolean) => void;
   mobilePanelOpen: boolean;
-  onCloseMobilePanel: () => void;
 }) {
-  const hasUnitSelection = selected?.owner === 0 && selected.class === "unit" && !selected.neutral && selectedCount > 0;
   const [portraitViewport, setPortraitViewport] = useState(false);
 
   useEffect(() => {
@@ -88,12 +73,6 @@ export function CommandSidebar({
     >
       <span className={styles.rail} aria-hidden />
       <CommandHeader factionName={factionName} onPause={onPause} />
-      <div className={styles.mobilePanelBar}>
-        <span>Touch command layer</span>
-        <button type="button" className={styles.mobilePanelClose} onClick={onCloseMobilePanel}>
-          Close
-        </button>
-      </div>
 
       <div className={styles.radarSlot}>
         <MinimapFrame
@@ -108,16 +87,6 @@ export function CommandSidebar({
       <div className={styles.resourceSlot}>
         <ResourceDock credits={state.credits[0]} produced={produced} used={used} surplus={power} />
       </div>
-
-      <MobileTouchControls
-        selectedCount={selectedCount}
-        hasUnitSelection={hasUnitSelection}
-        selectionMode={selectionMode}
-        activeCommand={activeCommand}
-        onCommand={onTouchCommand}
-        onSelectionMode={onSelectionMode}
-        onStop={onStop}
-      />
 
       <CommandBuildSection
         state={state}
