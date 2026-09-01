@@ -163,55 +163,55 @@ export function placePhraseFill(
   options: { sparse: boolean; finalBar: boolean; mini: boolean },
 ): void {
   if (options.sparse) {
-    drumEvent(drums, origin + 12, "snare", 0.52, true);
-    drumEvent(drums, origin + 14, "openHat", 0.38);
-    if (options.finalBar) drumEvent(drums, origin + 10, "snare", 0.6, true);
+    drumEventUnique(drums, origin + 12, "snare", 0.52, true);
+    drumEventUnique(drums, origin + 14, "openHat", 0.38);
+    if (options.finalBar) drumEventUnique(drums, origin + 10, "snare", 0.6, true);
     return;
   }
   if (options.mini) {
-    drumEvent(drums, origin + 12, "snare", 0.56, true);
-    drumEvent(drums, origin + 14, "tom", 0.5);
+    drumEventUnique(drums, origin + 12, "snare", 0.56, true);
+    drumEventUnique(drums, origin + 14, "tom", 0.5);
     return;
   }
-  drumEvent(drums, origin, "kick", 0.92, true);
-  drumEvent(drums, origin + 8, "kick", 0.7);
+  drumEventUnique(drums, origin, "kick", 0.92, true);
+  drumEventUnique(drums, origin + 8, "kick", 0.7);
   if (options.finalBar) {
-    drumEvent(drums, origin + 4, "kick", 0.78);
-    drumEvent(drums, origin + 12, "kick", 0.88, true);
-    drumEvent(drums, origin + 12, "impact", 0.86, true);
+    drumEventUnique(drums, origin + 4, "kick", 0.78);
+    drumEventUnique(drums, origin + 12, "kick", 0.88, true);
+    drumEventUnique(drums, origin + 12, "impact", 0.86, true);
   }
   if (fillStyle === "kick-roll") {
-    for (const step of [8, 10, 12, 13, 14, 15]) drumEvent(drums, origin + step, "kick", step >= 12 ? 0.8 : 0.62, step >= 12);
-    drumEvent(drums, origin + 12, "snare", 0.7, true);
+    for (const step of [8, 10, 12, 13, 14, 15]) drumEventUnique(drums, origin + step, "kick", step >= 12 ? 0.8 : 0.62, step >= 12);
+    drumEventUnique(drums, origin + 12, "snare", 0.7, true);
     if (options.finalBar) {
-      for (const step of [6, 8, 10, 11, 13, 15]) drumEvent(drums, origin + step, "snare", 0.64, step >= 10);
+      for (const step of [6, 8, 10, 11, 13, 15]) drumEventUnique(drums, origin + step, "snare", 0.64, step >= 10);
     } else {
-      drumEvent(drums, origin + 14, "snare", 0.55);
+      drumEventUnique(drums, origin + 14, "snare", 0.55);
     }
     return;
   }
   if (fillStyle === "hat-chatter") {
-    for (let step = 8; step < 16; step++) drumEvent(drums, origin + step, "hat", step % 2 === 0 ? 0.36 : 0.22);
-    drumEvent(drums, origin + 12, "snare", 0.68, true);
-    drumEvent(drums, origin + 14, "snare", 0.52);
-    drumEvent(drums, origin + 14, "openHat", 0.4);
+    for (let step = 8; step < 16; step++) drumEventUnique(drums, origin + step, "hat", step % 2 === 0 ? 0.36 : 0.22);
+    drumEventUnique(drums, origin + 12, "snare", 0.68, true);
+    drumEventUnique(drums, origin + 14, "snare", 0.52);
+    drumEventUnique(drums, origin + 14, "openHat", 0.4);
     if (options.finalBar) {
-      for (const step of [6, 8, 10, 11, 13, 15]) drumEvent(drums, origin + step, "snare", 0.62, step >= 10);
+      for (const step of [6, 8, 10, 11, 13, 15]) drumEventUnique(drums, origin + step, "snare", 0.62, step >= 10);
     }
     return;
   }
   if (fillStyle === "tom-only") {
-    for (const step of [8, 10, 12, 14]) drumEvent(drums, origin + step, "tom", step >= 12 ? 0.76 : 0.58, step >= 12);
-    drumEvent(drums, origin + 12, "snare", 0.66, true);
+    for (const step of [8, 10, 12, 14]) drumEventUnique(drums, origin + step, "tom", step >= 12 ? 0.76 : 0.58, step >= 12);
+    drumEventUnique(drums, origin + 12, "snare", 0.66, true);
     if (options.finalBar) {
-      for (const step of [6, 8, 10, 11, 13, 15]) drumEvent(drums, origin + step, "snare", 0.62, step >= 10);
+      for (const step of [6, 8, 10, 11, 13, 15]) drumEventUnique(drums, origin + step, "snare", 0.62, step >= 10);
     } else {
-      drumEvent(drums, origin + 14, "snare", 0.48);
+      drumEventUnique(drums, origin + 14, "snare", 0.48);
     }
     return;
   }
   const fillSteps = options.finalBar ? [6, 8, 10, 11, 12, 13, 14, 15] : [8, 10, 12, 13, 14, 15];
-  for (const step of fillSteps) drumEvent(drums, origin + step, step >= 12 ? "tom" : "snare", step >= 12 ? 0.74 : 0.6, step >= 12);
+  for (const step of fillSteps) drumEventUnique(drums, origin + step, step >= 12 ? "tom" : "snare", step >= 12 ? 0.74 : 0.6, step >= 12);
 }
 
 export function wrapDegree(scale: readonly number[], degree: number): number {
@@ -242,6 +242,17 @@ export function noteEvent(
 
 export function drumEvent(drums: MusicDrumEvent[], step: number, kind: MusicDrumKind, velocity: number, accent = false): void {
   drums.push({ step, kind, velocity, ...(accent ? { accent: true } : {}) });
+}
+
+export function drumEventUnique(
+  drums: MusicDrumEvent[],
+  step: number,
+  kind: MusicDrumKind,
+  velocity: number,
+  accent = false,
+): void {
+  if (drums.some((event) => event.step === step && event.kind === kind)) return;
+  drumEvent(drums, step, kind, velocity, accent);
 }
 
 export function legacyNotes(events: MusicNoteEvent[]): (number | null)[] {

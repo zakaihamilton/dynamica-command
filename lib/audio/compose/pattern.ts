@@ -115,6 +115,7 @@ function placeMelody(
 
 function placeCounter(
   notes: MusicNoteEvent[],
+  melody: MusicNoteEvent[],
   origin: number,
   motif: MusicMotif,
   response: boolean,
@@ -134,13 +135,10 @@ function placeCounter(
     if (degree === null) continue;
     const motifStep = ((motif.rhythm[i] ?? i * 2) + stepShift) % STEPS_PER_BAR;
     if (motifStep % 2 === 1 || motifStep >= STEPS_PER_BAR) continue;
-    noteEvent(
-      notes,
-      origin + motifStep,
-      scaleToneMidi(rootMidi, scale, chord, degree + variant + interval, octave),
-      duration,
-      velocity,
-    );
+    const midi = scaleToneMidi(rootMidi, scale, chord, degree + variant + interval, octave);
+    const step = origin + motifStep;
+    if (melody.some((lead) => lead.step === step && lead.midi === midi)) continue;
+    noteEvent(notes, step, midi, duration, velocity);
   }
 }
 
@@ -198,8 +196,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const dropTexture = formRng.next() < (climax || hookSection ? 0.1 : 0.42);
     const miniRoll = formRng.next();
     const miniFill = thinBar && phraseBar === 3 && !intro && !holdBass && miniRoll < 0.55;
-    const dropHats = thinBar && dropTexture && !climax && !hookSection;
-    const dropPulse = thinBar && dropTexture && !climax;
+    const dropHats = thinBar && dropTexture && !hookSection;
+    const dropPulse = thinBar && dropTexture && !hookSection;
     const denseBar = cue === "victory" || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
     const fullDrums = !sparse && denseBar && (cue === "victory" || (!breakdown && (!intro || phraseBar >= 4)));
     const lightDrums = sparse && !breakdown && (!intro || phraseBar >= 4);
@@ -319,10 +317,11 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
 
     if (useCounter) {
       const lead = useHookLead ? hook : motif;
-      const interval = climax || hookSection ? 2 : 5;
+      const interval = climax ? 5 : hookSection ? 2 : 5;
       const counterOctave = 1;
       placeCounter(
         notes.counter,
+        notes.melody,
         origin,
         lead,
         response,

@@ -241,6 +241,37 @@ describe("generated audio", () => {
     }
   });
 
+  it("keeps climax counters off the harmony line and does not stack drum hits", () => {
+    for (const seed of [0, 1, 421, 9999]) {
+      for (let mission = 0; mission < 8; mission++) {
+        const pattern = composeMusic(seed, "mission", mission);
+        const climax = pattern.sections.find((section) => section.name === "climax");
+        expect(climax).toBeTruthy();
+        const start = climax!.startBar * STEPS_PER_BAR;
+        const end = climax!.endBar * STEPS_PER_BAR;
+        const climaxMelody = pattern.notes.melody.filter((note) => note.step >= start && note.step < end);
+        const climaxCounter = pattern.notes.counter.filter((note) => note.step >= start && note.step < end);
+        for (const note of climaxCounter) {
+          expect(climaxMelody.some((lead) => lead.step === note.step && lead.midi === note.midi)).toBe(false);
+        }
+        const seen = new Set<string>();
+        for (const event of pattern.drums) {
+          const key = `${event.step}:${event.kind}`;
+          expect(seen.has(key)).toBe(false);
+          seen.add(key);
+        }
+        if (pattern.style.arrangement.pulseEnabled[2]) {
+          const hook = pattern.sections.find((section) => section.name === "hook")!;
+          const midHookPulse = pattern.notes.pulse.filter((note) => {
+            const bar = Math.floor(note.step / STEPS_PER_BAR);
+            return bar === hook.startBar + 2 || bar === hook.startBar + 3;
+          });
+          expect(midHookPulse.length).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
   it("maps routes onto music cues", () => {
     expect(musicCueFromPath("/")).toBeNull();
     expect(musicCueFromPath("/briefing")).toBeNull();
