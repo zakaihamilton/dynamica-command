@@ -8,13 +8,13 @@ import { diagonalCornerBlocked, PATH_DIRS } from "../lib/sim/pathfinding";
 import type { Entity, MissionKind, SimState, Vec2 } from "../lib/types";
 
 const SEED_COUNT = 10_000;
-const EXHAUSTIVE_TEST_TIMEOUT = 60_000;
+const EXHAUSTIVE_TEST_TIMEOUT = 120_000;
 const IS_COVERAGE = Boolean(process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE);
-const REPRESENTATIVE_SEEDS = [
-  ...Array.from({ length: 64 }, (_, index) => index * 157),
-  421,
-  9999,
-];
+const SCENARIO_SAMPLE_COUNT = 1_024;
+const REPRESENTATIVE_SEEDS = Array.from(
+  { length: SCENARIO_SAMPLE_COUNT },
+  (_, index) => Math.floor((index * (SEED_COUNT - 1)) / (SCENARIO_SAMPLE_COUNT - 1)),
+);
 const SCENARIO_KINDS = new Set<MissionKind>(["escort", "sabotage", "rescue", "extraction"]);
 
 function reachableCells(state: SimState, from: Vec2): Uint8Array {

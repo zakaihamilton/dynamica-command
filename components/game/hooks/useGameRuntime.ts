@@ -14,6 +14,7 @@ import { useGameSession } from "./useGameSession";
 import { useGameSelection } from "./useGameSelection";
 import { useGameRuntimeState } from "./useGameRuntimeState";
 import type { NavigationOrigin } from "./missionRoutes";
+import { clearRenderSessionCaches } from "@/lib/render/sessionCache";
 
 export function useGameRuntime({
   seed,
@@ -271,6 +272,8 @@ export function useGameRuntime({
   });
 
   useGameAudioLifecycle({ seed, missionIndex: state.missionIndex, tutorial, paused });
+
+  useEffect(() => () => clearRenderSessionCaches(), []);
 
   return {
     campaign,

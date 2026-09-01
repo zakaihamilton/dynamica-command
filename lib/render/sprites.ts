@@ -44,6 +44,7 @@ export function paintShapes(ctx: CanvasRenderingContext2D, shapes: ShapeSpec[]):
   }
 }
 
+const SPRITE_CACHE_LIMIT = 512;
 const cache = new Map<string, HTMLCanvasElement>();
 const readyKeys = new Set<string>();
 const imageCache = new Map<string, HTMLImageElement>();
@@ -110,7 +111,8 @@ function notifyImageReady(key: string): void {
 
 export function isRasterReady(spec: SpriteSpec): boolean {
   if (!spec.imageSrc) return true;
-  return readyKeys.has(rasterCacheKey(spec));
+  const key = rasterCacheKey(spec);
+  return cache.has(key) && readyKeys.has(key);
 }
 
 export function cachedImage(src: string): HTMLImageElement {
@@ -161,7 +163,10 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
       imageReadyCallbacks.set(key, callbacks);
     }
   }
-  if (hit) return hit;
+  if (hit) {
+    retainRaster(key, hit);
+    return hit;
+  }
   const c = document.createElement("canvas");
   if (spec.imageSrc) {
     // Keep a high-resolution working canvas: the source sprites are raster art
@@ -243,8 +248,21 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
     }
     readyKeys.add(key);
   }
-  cache.set(key, c);
+  retainRaster(key, c);
   return c;
+}
+
+function retainRaster(key: string, raster: HTMLCanvasElement): void {
+  if (!cache.has(key) && cache.size >= SPRITE_CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) {
+      cache.delete(oldest);
+      readyKeys.delete(oldest);
+      imageReadyCallbacks.delete(oldest);
+    }
+  }
+  cache.delete(key);
+  cache.set(key, raster);
 }
 
 export function drawSprite(
@@ -277,6 +295,10 @@ export function drawSprite(
 
 export function cachedSprite(id: string): HTMLCanvasElement | undefined {
   return cache.get(id);
+}
+
+export function spriteCacheSize(): number {
+  return cache.size;
 }
 
 export function clearSpriteCache(): void {

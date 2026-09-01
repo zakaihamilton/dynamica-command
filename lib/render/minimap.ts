@@ -54,6 +54,7 @@ let terrainCanvas: HTMLCanvasElement | null = null;
 export function invalidateMinimap(): void {
   lastTerrainKey = "";
   lastOverlayKeys = new WeakMap<HTMLCanvasElement, string>();
+  terrainCanvas = null;
 }
 
 function paintMinimapTerrain(ctx: CanvasRenderingContext2D, state: SimState, w: number, h: number): void {

@@ -9,8 +9,19 @@ const FAMILY_MATERIALS = [
 ] as const;
 const TERRAIN_TREATMENTS = ["modular", "armored", "expeditionary"] as const;
 
+const CAMPAIGN_PROFILE_CACHE_LIMIT = 64;
+const FACTION_PROFILE_CACHE_LIMIT = 128;
 const campaignCache = new Map<number, CampaignVisualProfile>();
 const profileCache = new Map<string, FactionVisualProfile>();
+
+function retain<T>(cache: Map<string | number, T>, key: string | number, value: T, limit: number): void {
+  if (!cache.has(key) && cache.size >= limit) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.delete(key);
+  cache.set(key, value);
+}
 
 function computeCampaignVisualProfile(seed: number): CampaignVisualProfile {
   const rng = createRng(seed, "campaign-visual-profile");
@@ -38,19 +49,34 @@ function computeVisualProfile(seed: number, owner: Owner): FactionVisualProfile 
 
 export function generateCampaignVisualProfile(seed: number): CampaignVisualProfile {
   const hit = campaignCache.get(seed);
-  if (hit) return hit;
+  if (hit) {
+    retain(campaignCache, seed, hit, CAMPAIGN_PROFILE_CACHE_LIMIT);
+    return hit;
+  }
   const profile = computeCampaignVisualProfile(seed);
-  campaignCache.set(seed, profile);
+  retain(campaignCache, seed, profile, CAMPAIGN_PROFILE_CACHE_LIMIT);
   return profile;
 }
 
 export function generateVisualProfile(seed: number, owner: Owner): FactionVisualProfile {
   const key = `${seed}:${owner}`;
   const hit = profileCache.get(key);
-  if (hit) return hit;
+  if (hit) {
+    retain(profileCache, key, hit, FACTION_PROFILE_CACHE_LIMIT);
+    return hit;
+  }
   const profile = computeVisualProfile(seed, owner);
-  profileCache.set(key, profile);
+  retain(profileCache, key, profile, FACTION_PROFILE_CACHE_LIMIT);
   return profile;
+}
+
+export function clearVisualProfileCache(): void {
+  campaignCache.clear();
+  profileCache.clear();
+}
+
+export function visualProfileCacheSize(): { campaigns: number; profiles: number } {
+  return { campaigns: campaignCache.size, profiles: profileCache.size };
 }
 
 export function profileKey(profile: FactionVisualProfile): string {

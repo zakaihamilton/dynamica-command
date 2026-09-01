@@ -203,6 +203,18 @@ describe("generated structure quotas", () => {
       }
     }
   });
+
+  it("adds a deterministic two-building cushion to generic quotas", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      for (let index = 0; index < 8; index++) {
+        const win = generateWinCategory(seed, index, "structureQuota");
+        if (win.building) continue;
+        const previousMinimum = 5 + Math.floor(index / 2);
+        expect(win.target).toBeGreaterThanOrEqual(previousMinimum + 2);
+        expect(win.target).toBeLessThanOrEqual(previousMinimum + 4);
+      }
+    }
+  });
 });
 
 describe("mission briefing objectives", () => {

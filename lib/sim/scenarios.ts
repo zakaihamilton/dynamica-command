@@ -64,7 +64,11 @@ export function configureMissionScenario(
       }
     } else {
       for (let i = 0; i < count; i++) {
-        const desired = kind === "escort" ? convoyStartPoint(map, i) : centerPoint(map, i, count);
+        const desired = kind === "escort"
+          ? convoyStartPoint(map, i)
+          : kind === "rescue"
+            ? rescuePoint(map, i, count)
+            : centerPoint(map, i, count);
         const point = reachableScenarioPoint(state, desired, scenarioReachability);
         const target = spawnUnit(state, 0, kind === "escort" ? "convoyTruck" : "infantry", point.x, point.y);
         target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
@@ -106,6 +110,14 @@ export function configureMissionScenario(
 
 function centerPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart">, index: number, count: number): Vec2 {
   const t = (index + 1) / (count + 1);
+  return {
+    x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * t),
+    y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * t),
+  };
+}
+
+function rescuePoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart">, index: number, count: number): Vec2 {
+  const t = 0.55 + (index / Math.max(1, count - 1)) * 0.25;
   return {
     x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * t),
     y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * t),

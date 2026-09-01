@@ -129,7 +129,7 @@ export function generateWinCategory(
       const building = rng.chance(0.4) ? rng.pick(BUILDABLE) : undefined;
       const target = building === "turret" || building === "power"
         ? 4 + Math.floor(missionIndex / 2) + rng.int(3)
-        : 5 + Math.floor(missionIndex / 2) + rng.int(3);
+        : 7 + Math.floor(missionIndex / 2) + rng.int(3);
       return { kind, target, building };
     }
     case "destroyMarked":

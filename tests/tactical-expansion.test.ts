@@ -5,6 +5,8 @@ import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 import { missionDifficulty } from "../lib/sim/difficulty";
 import { BUILDING_STATS, STARTING_CREDITS, TICKS_PER_SECOND, UNIT_STATS } from "../lib/catalog";
+import { createCampaign } from "../lib/gen/campaign";
+import { generateMap } from "../lib/gen/map";
 import { tooltipLines, tileTooltipLines } from "../lib/render/renderer";
 import { objectiveProgress } from "../lib/sim/objectives";
 import type { MissionKind } from "../lib/types";
@@ -61,6 +63,15 @@ describe("tactical expansion", () => {
     expect(Array.from({ length: 8 }, (_, index) => missionDifficulty(index).offensiveStartingTurrets)).toEqual([0, 0, 0, 0, 1, 0, 0, 0]);
   });
 
+  it("gives the final mission a bounded late-pressure step", () => {
+    expect(missionDifficulty(7)).toMatchObject({
+      enemyProductionStart: 120,
+      enemyProductionEvery: 108,
+      enemyAssaultEvery: 540,
+      startingGuards: 2,
+    });
+  });
+
   it("gates tutorial orders until the matching stage", () => {
     const state = createTutorialMission(42);
     const unit = state.entities.find((entity) => entity.owner === 0 && entity.class === "unit")!;
@@ -105,6 +116,25 @@ describe("tactical expansion", () => {
     }
     const hostile = state.entities.find((entity) => entity.owner === 1 && entity.class === "unit");
     expect(hostile?.attackTarget).not.toBe(neutral?.id);
+  });
+
+  it("stages rescue targets in the far half of the route", () => {
+    let sample: { state: ReturnType<typeof createMission>; map: ReturnType<typeof generateMap> } | undefined;
+    for (let seed = 0; seed < 200 && !sample; seed++) {
+      const campaign = createCampaign(seed);
+      const mission = campaign.missions.find((item) => item.win.kind === "rescue");
+      if (!mission) continue;
+      sample = { state: createMission({ seed, missionIndex: mission.index }), map: generateMap(seed, mission) };
+    }
+
+    expect(sample).toBeDefined();
+    const { state, map } = sample!;
+    const routeDistance = Math.hypot(map.enemyStart.x - map.playerStart.x, map.enemyStart.y - map.playerStart.y);
+    for (const id of state.runtime?.targetIds ?? []) {
+      const target = state.entities.find((entity) => entity.id === id)!;
+      const distanceFromPlayer = Math.hypot(target.x - map.playerStart.x, target.y - map.playerStart.y);
+      expect(distanceFromPlayer).toBeGreaterThan(routeDistance * 0.5 - 2);
+    }
   });
 
   it("frees rescue actors when a player unit reaches them", () => {

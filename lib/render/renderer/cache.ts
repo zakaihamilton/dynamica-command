@@ -43,4 +43,12 @@ export function invalidateTerrainCache(): void {
   terrainScroll.key = "";
 }
 
+export function clearRendererSessionCache(): void {
+  terrainScroll.key = "";
+  terrainCanvas = null;
+  entityById.clear();
+  drawList.length = 0;
+  lastReadySprite.clear();
+}
+
 export { terrainScroll };
