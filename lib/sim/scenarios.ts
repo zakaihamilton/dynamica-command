@@ -56,6 +56,9 @@ export function configureMissionScenario(
     const targetIds: number[] = [];
     const count = mission.win.targetCount ?? 2;
     const scenarioReachability = kind === "sabotage" ? undefined : reachableScenarioCells(state);
+    const rescueRoute = kind === "rescue"
+      ? { start: map.playerStart, end: map.enemyStart, min: 0.55, max: 0.8 }
+      : undefined;
     if (kind === "sabotage") {
       for (let i = 0; i < count; i++) {
         const spot = map.markedSpots[i] ?? { x: enemyStart.x - 4 - i * 3, y: enemyStart.y - 5 + (i % 2) * 2 };
@@ -69,7 +72,7 @@ export function configureMissionScenario(
           : kind === "rescue"
             ? rescuePoint(map, i, count)
             : centerPoint(map, i, count);
-        const point = reachableScenarioPoint(state, desired, scenarioReachability);
+        const point = reachableScenarioPoint(state, desired, scenarioReachability, rescueRoute);
         const target = spawnUnit(state, 0, kind === "escort" ? "convoyTruck" : "infantry", point.x, point.y);
         target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
         target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
@@ -148,10 +151,21 @@ function reachableScenarioCells(state: SimState): Uint8Array | undefined {
   return seen;
 }
 
-function reachableScenarioPoint(state: SimState, desired: Vec2, seen?: Uint8Array): Vec2 {
+function reachableScenarioPoint(
+  state: SimState,
+  desired: Vec2,
+  seen?: Uint8Array,
+  routeBand?: { start: Vec2; end: Vec2; min: number; max: number },
+): Vec2 {
   if (!seen) return desired;
   let best: Vec2 | undefined;
   let bestDistance = Infinity;
+  let bestInBand: Vec2 | undefined;
+  let bestInBandDistance = Infinity;
+  const routeDx = (routeBand?.end.x ?? 0) - (routeBand?.start.x ?? 0);
+  const routeDy = (routeBand?.end.y ?? 0) - (routeBand?.start.y ?? 0);
+  const routeLengthSquared = routeDx * routeDx + routeDy * routeDy;
+  const routeLength = Math.sqrt(routeLengthSquared);
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       if (!seen[y * state.width + x] || !isWalkable(state, x, y)) continue;
@@ -160,9 +174,20 @@ function reachableScenarioPoint(state: SimState, desired: Vec2, seen?: Uint8Arra
         bestDistance = distance;
         best = { x, y };
       }
+      if (!routeBand || routeLengthSquared === 0) continue;
+      const fromStartX = x - routeBand.start.x;
+      const fromStartY = y - routeBand.start.y;
+      const progress = (fromStartX * routeDx + fromStartY * routeDy) / routeLengthSquared;
+      const distanceFromStart = Math.hypot(fromStartX, fromStartY);
+      if (progress < routeBand.min || progress > routeBand.max) continue;
+      if (distanceFromStart < routeLength * routeBand.min || distanceFromStart > routeLength * routeBand.max) continue;
+      if (distance < bestInBandDistance) {
+        bestInBandDistance = distance;
+        bestInBand = { x, y };
+      }
     }
   }
-  return best ?? desired;
+  return bestInBand ?? best ?? desired;
 }
 
 function convoyStartPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart" | "width" | "height">, index: number): Vec2 {

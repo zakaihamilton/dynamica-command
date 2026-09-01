@@ -7,6 +7,10 @@ import { drawCachedTurretModel } from "../gl/turretRaster";
 
 export const turretAimMap = new Map<number, { angle: number; lastMs: number }>();
 
+export function clearTurretAimCache(): void {
+  turretAimMap.clear();
+}
+
 let cachedTurretModel: UnitModel | null = null;
 export function getTurretModel(): UnitModel {
   if (!cachedTurretModel) {

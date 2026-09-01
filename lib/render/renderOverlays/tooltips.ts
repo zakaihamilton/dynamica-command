@@ -11,6 +11,10 @@ import type { RenderExtras } from "./types";
 
 const sceneryMemo = new SceneryMemo();
 
+export function clearTooltipRenderCache(): void {
+  sceneryMemo.clear();
+}
+
 function memoScenery(state: SimState, x: number, y: number) {
   return sceneryMemo.sample(state, x, y);
 }
