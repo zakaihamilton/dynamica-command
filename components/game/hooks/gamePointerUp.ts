@@ -1,3 +1,5 @@
+import { beepForCommands } from "@/lib/audio/uiOrders";
+import type { BeepKind } from "@/lib/audio/synth";
 import type { Camera } from "@/lib/iso";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
@@ -40,7 +42,7 @@ export type PointerUpEffect = {
   clearRepairAndSell?: boolean;
   contextOrder?: boolean;
   attackMove?: boolean;
-  beep?: "select" | "ack" | "build";
+  beep?: BeepKind;
 };
 
 const DRAG_THRESHOLD = 8;
@@ -90,16 +92,17 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
 
   if (pointerType === "touch" && mobileCommand) {
     const target = pickSelectableEntity(state, p.x, p.y, tx, ty, cam);
+    const commands = selectedIds.length > 0 ? mobileCommandOrders(state, mobileCommand, selectedIds, target, tx, ty) : [];
     return {
-      commands: selectedIds.length > 0 ? mobileCommandOrders(state, mobileCommand, selectedIds, target, tx, ty) : [],
+      commands,
       clearMobileCommand: true,
-      beep: "ack",
+      beep: beepForCommands(commands),
     };
   }
 
   if (button === 2) {
     if (repairMode || sellMode) {
-      return { preventDefault: true, clearRepairAndSell: true, beep: "select" };
+      return { preventDefault: true, clearRepairAndSell: true, beep: "cancel" };
     }
     return {
       preventDefault: true,
@@ -120,7 +123,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
   if (repairMode) {
     const hit = pickSelectableEntity(state, p.x, p.y, tx, ty, cam);
     if (hit && hit.owner === 0 && hit.class === "building") {
-      return { clearBox: true, commands: [{ type: "repair", buildingId: hit.id }], beep: "build" };
+      return { clearBox: true, commands: [{ type: "repair", buildingId: hit.id }] };
     }
     return { clearBox: true };
   }
@@ -128,7 +131,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
   if (sellMode) {
     const hit = pickSelectableEntity(state, p.x, p.y, tx, ty, cam);
     if (hit && hit.owner === 0 && hit.class === "building") {
-      return { clearBox: true, commands: [{ type: "sell", buildingId: hit.id }], beep: "build" };
+      return { clearBox: true, commands: [{ type: "sell", buildingId: hit.id }] };
     }
     return { clearBox: true };
   }
@@ -140,24 +143,26 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
 
   const hit = pickSelectableEntity(state, p.x, p.y, tx, ty, cam);
   if (pointerType === "touch" && selectedIds.length > 0 && !hit) {
+    const commands = contextOrders(state, selectedIds, undefined, tx, ty);
     return {
       clearBox: true,
-      commands: contextOrders(state, selectedIds, undefined, tx, ty),
-      beep: "ack",
+      commands,
+      beep: beepForCommands(commands),
     };
   }
   if (pointerType === "touch" && selectedIds.length > 0 && hit?.owner === 0) {
     const supportOrders = friendlySupportOrders(state, selectedIds, hit, tx, ty);
     if (supportOrders.length) {
-      return { clearBox: true, commands: supportOrders, beep: "ack" };
+      return { clearBox: true, commands: supportOrders, beep: beepForCommands(supportOrders) };
     }
     return { clearBox: true, select: [hit.id], beep: "select" };
   }
   if (pointerType === "touch" && selectedIds.length > 0 && hit?.owner === 1 && !hit.neutral) {
+    const commands: Command[] = [{ type: "attack", unitIds: selectedIds, targetId: hit.id }];
     return {
       clearBox: true,
-      commands: [{ type: "attack", unitIds: selectedIds, targetId: hit.id }],
-      beep: "ack",
+      commands,
+      beep: beepForCommands(commands),
     };
   }
   return { clearBox: true, select: selectableIds(state, hit), beep: "select" };

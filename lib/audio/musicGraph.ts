@@ -205,9 +205,9 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   padOscC.type = p.style.padType;
   padOscD.type = p.style.padType;
   padOscA.frequency.setValueAtTime(p.padRoot[0] ?? p.rootHz, now);
-  padOscB.frequency.setValueAtTime((p.padRoot[0] ?? p.rootHz) * 1.002, now);
-  padOscC.frequency.setValueAtTime((p.padRoot[0] ?? p.rootHz) * 0.998, now);
-  padOscD.frequency.setValueAtTime((p.padFifth[0] ?? p.rootHz * 1.5) * 1.001, now);
+  padOscB.frequency.setValueAtTime((p.padThird[0] ?? (p.padRoot[0] ?? p.rootHz) * 1.25) * 1.002, now);
+  padOscC.frequency.setValueAtTime((p.padFifth[0] ?? p.rootHz * 1.5) * 0.998, now);
+  padOscD.frequency.setValueAtTime((p.padSeventh[0] ?? (p.padRoot[0] ?? p.rootHz) * 1.78) * 1.001, now);
   padOscA.detune.setValueAtTime(p.style.padDetune[0], now);
   padOscB.detune.setValueAtTime(p.style.padDetune[1], now);
   padOscC.detune.setValueAtTime(p.style.padDetune[2], now);
