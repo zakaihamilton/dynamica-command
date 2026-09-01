@@ -36,10 +36,27 @@ describe("generated audio", () => {
 
   it("covers every seeded style family and keeps mission fingerprints distinct", () => {
     const corpus = Array.from({ length: 96 }, (_, seed) => composeMusic(seed, "mission", 0));
-    expect(new Set(corpus.map((pattern) => pattern.style.name)).size).toBe(6);
+    expect(new Set(corpus.map((pattern) => pattern.style.name)).size).toBe(8);
+    expect(corpus.some((pattern) => pattern.style.bassRiffFamily === "classic")).toBe(true);
+    expect(corpus.some((pattern) => pattern.theme.groove === "shuffle")).toBe(true);
+    expect(corpus.some((pattern) => pattern.scaleName === "phrygian")).toBe(true);
 
     const missions = Array.from({ length: 8 }, (_, mission) => composeMusic(421, "mission", mission));
     expect(new Set(missions.map((pattern) => pattern.style.arrangement.name)).size).toBe(8);
+    const campaign = Array.from({ length: 12 }, (_, mission) => composeMusic(421, "mission", mission));
+    expect(new Set(campaign.map((pattern) => pattern.style.arrangement.name)).size).toBe(12);
+    expect(campaign.some((pattern, index) =>
+      campaign.some((other, otherIndex) =>
+        index !== otherIndex &&
+        JSON.stringify(pattern.style.arrangement.melodyEnabled) !== JSON.stringify(other.style.arrangement.melodyEnabled),
+      ),
+    )).toBe(true);
+    expect(campaign.some((pattern, index) =>
+      campaign.some((other, otherIndex) =>
+        index !== otherIndex &&
+        JSON.stringify(pattern.style.arrangement.counterEnabled) !== JSON.stringify(other.style.arrangement.counterEnabled),
+      ),
+    )).toBe(true);
     const fingerprints = missions.map((pattern) => JSON.stringify({
       style: pattern.style,
       bpm: pattern.bpm,
@@ -80,6 +97,16 @@ describe("generated audio", () => {
       ];
 
       expect(firstHalf.some((lane, index) => JSON.stringify(lane) !== JSON.stringify(secondHalf[index]))).toBe(true);
+      const quarter = STEPS_PER_BAR * 16;
+      const quarterPrints = [0, 1, 2, 3].map((index) => JSON.stringify({
+        bass: pattern.bass.slice(index * quarter, (index + 1) * quarter),
+        arp: pattern.arp.slice(index * quarter, (index + 1) * quarter),
+        melody: pattern.melody.slice(index * quarter, (index + 1) * quarter),
+        kick: pattern.kick.slice(index * quarter, (index + 1) * quarter),
+      }));
+      expect(quarterPrints[0]).not.toEqual(quarterPrints[1]);
+      expect(quarterPrints[1]).not.toEqual(quarterPrints[2]);
+      expect(quarterPrints[2]).not.toEqual(quarterPrints[3]);
       expect(new Set(pattern.padRoot).size).toBeGreaterThan(2);
       for (const bar of fillBars) {
         const start = bar * STEPS_PER_BAR;
@@ -142,16 +169,15 @@ describe("generated audio", () => {
         expect(melodyHits).toBeLessThan(MUSIC_STEPS / 2);
         expect(pattern.rootHz).toBeGreaterThan(midiToHz(30));
         if (cue === "mission") {
-          expect(["pulse", "march"]).toContain(pattern.theme.groove);
-          expect(["natural minor", "dorian", "mixolydian", "major"]).toContain(pattern.scaleName);
+          expect(["pulse", "march", "shuffle"]).toContain(pattern.theme.groove);
+          expect(["natural minor", "dorian", "mixolydian", "major", "phrygian"]).toContain(pattern.scaleName);
         }
       }
     }
   });
 
   it("builds a recurring 80s synth-pop hook with gated drums", () => {
-    const pattern = composeMusic(421, "mission", 3);
-    const sectionNotes = (name: string, lane: "melody" | "pulse" | "counter") => {
+    const sectionNotesFor = (pattern: ReturnType<typeof composeMusic>, name: string, lane: "melody" | "pulse" | "counter") => {
       const section = pattern.sections.find((entry) => entry.name === name);
       if (!section) return [];
       return pattern.notes[lane].filter((note) => note.step >= section.startBar * STEPS_PER_BAR && note.step < section.endBar * STEPS_PER_BAR);
@@ -159,39 +185,45 @@ describe("generated audio", () => {
     const averageDuration = (notes: { duration: number }[]) =>
       notes.reduce((sum, note) => sum + note.duration, 0) / Math.max(1, notes.length);
 
-    expect(pattern.theme.hook).not.toEqual(pattern.motif);
-    expect(pattern.motif.rhythm.some((step) => step % 2 === 1)).toBe(true);
-    expect(["pulse", "march"]).toContain(pattern.theme.groove);
-    expect(["natural minor", "dorian", "mixolydian", "major"]).toContain(pattern.scaleName);
-    expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
-    expect(sectionNotes("groove", "melody").length).toBeGreaterThan(0);
-    expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
-    expect(sectionNotes("climax", "melody").length).toBeGreaterThan(sectionNotes("hook", "melody").length);
-    expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
-    const developmentMelody = sectionNotes("development", "melody");
-    const developmentCounter = sectionNotes("development", "counter");
-    expect(developmentCounter.length).toBeGreaterThan(0);
-    for (const note of developmentCounter) {
-      expect(developmentMelody.some((lead) => lead.step === note.step && lead.midi === note.midi)).toBe(true);
-    }
-    expect(pattern.drums.some((event) => event.kind === "clap")).toBe(true);
-    expect(pattern.drums.some((event) => event.kind === "impact")).toBe(true);
-    expect(pattern.arpType).toBe(pattern.style.pulseType);
-    expect(new Set(pattern.padThird).size).toBeGreaterThan(2);
-    expect(new Set(pattern.padSeventh).size).toBeGreaterThan(2);
+    for (const seed of [0, 421, 9999]) {
+      const pattern = composeMusic(seed, "mission", 3);
+      const sectionNotes = (name: string, lane: "melody" | "pulse" | "counter") => sectionNotesFor(pattern, name, lane);
+      expect(pattern.theme.hook).not.toEqual(pattern.motif);
+      expect(pattern.motif.rhythm.some((step) => step % 2 === 1)).toBe(true);
+      expect(["pulse", "march", "shuffle"]).toContain(pattern.theme.groove);
+      expect(["natural minor", "dorian", "mixolydian", "major", "phrygian"]).toContain(pattern.scaleName);
+      expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
+      expect(sectionNotes("groove", "melody").length).toBeGreaterThan(0);
+      expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
+      expect(sectionNotes("climax", "melody").length).toBeGreaterThan(sectionNotes("hook", "melody").length);
+      expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
+      const developmentMelody = sectionNotes("development", "melody");
+      const developmentCounter = sectionNotes("development", "counter");
+      expect(developmentCounter.length).toBeGreaterThan(0);
+      for (const note of developmentCounter) {
+        const lead = developmentMelody.find((entry) => entry.step === note.step);
+        expect(lead).toBeTruthy();
+        expect(lead?.midi).not.toBe(note.midi);
+      }
+      expect(pattern.drums.some((event) => event.kind === "clap")).toBe(true);
+      expect(pattern.drums.some((event) => event.kind === "impact")).toBe(true);
+      expect(pattern.arpType).toBe(pattern.style.pulseType);
+      expect(new Set(pattern.padThird).size).toBeGreaterThan(2);
+      expect(new Set(pattern.padSeventh).size).toBeGreaterThan(2);
 
-    const sectionHats = (name: string) => {
-      const section = pattern.sections.find((entry) => entry.name === name);
-      if (!section) return [];
-      return pattern.drums.filter(
-        (event) =>
-          event.kind === "hat" &&
-          event.step >= section.startBar * STEPS_PER_BAR &&
-          event.step < section.endBar * STEPS_PER_BAR,
-      );
-    };
-    expect(sectionHats("climax").length).toBeGreaterThan(sectionHats("hook").length);
-    expect(sectionHats("hook").length).toBeLessThanOrEqual(8 * 8);
+      const sectionHats = (name: string) => {
+        const section = pattern.sections.find((entry) => entry.name === name);
+        if (!section) return [];
+        return pattern.drums.filter(
+          (event) =>
+            event.kind === "hat" &&
+            event.step >= section.startBar * STEPS_PER_BAR &&
+            event.step < section.endBar * STEPS_PER_BAR,
+        );
+      };
+      expect(sectionHats("climax").length).toBeGreaterThan(sectionHats("hook").length);
+      expect(sectionHats("hook").length).toBeLessThanOrEqual(8 * 8);
+    }
 
     const majorOpeners = [
       [0, 4, 5, 3],
@@ -211,6 +243,84 @@ describe("generated audio", () => {
       expect(majorOpeners).toContainEqual(major.theme.progressionA.slice(0, 4));
       expect(major.theme.progressionA.slice(0, 4)).not.toEqual([0, 5, 2, 6]);
     }
+  });
+
+  it("keeps climax counters off the harmony line and does not stack drum hits", () => {
+    for (const seed of [0, 1, 421, 9999]) {
+      for (let mission = 0; mission < 8; mission++) {
+        const pattern = composeMusic(seed, "mission", mission);
+        const climax = pattern.sections.find((section) => section.name === "climax");
+        expect(climax).toBeTruthy();
+        const start = climax!.startBar * STEPS_PER_BAR;
+        const end = climax!.endBar * STEPS_PER_BAR;
+        const climaxMelody = pattern.notes.melody.filter((note) => note.step >= start && note.step < end);
+        const climaxCounter = pattern.notes.counter.filter((note) => note.step >= start && note.step < end);
+        for (const note of climaxCounter) {
+          expect(climaxMelody.some((lead) => lead.step === note.step && lead.midi === note.midi)).toBe(false);
+        }
+        const seen = new Set<string>();
+        for (const event of pattern.drums) {
+          const key = `${event.step}:${event.kind}`;
+          expect(seen.has(key)).toBe(false);
+          seen.add(key);
+        }
+        if (pattern.style.arrangement.pulseEnabled[2]) {
+          const hook = pattern.sections.find((section) => section.name === "hook")!;
+          const midHookPulse = pattern.notes.pulse.filter((note) => {
+            const bar = Math.floor(note.step / STEPS_PER_BAR);
+            return bar === hook.startBar + 2 || bar === hook.startBar + 3;
+          });
+          expect(midHookPulse.length).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it("opens holdBass holes and delays the groove echo", () => {
+    const sectionHits = (pattern: ReturnType<typeof composeMusic>, name: string, kind: "kick" | "snare" | "hat") => {
+      const section = pattern.sections.find((entry) => entry.name === name);
+      if (!section) return 0;
+      const start = section.startBar * STEPS_PER_BAR;
+      const end = section.endBar * STEPS_PER_BAR;
+      return pattern.drums.filter((event) => event.kind === kind && event.step >= start && event.step < end).length;
+    };
+    let sawDrop = false;
+    let sawEcho = false;
+    for (const seed of [0, 1, 7, 21, 421, 999, 2000, 9999]) {
+      for (let mission = 0; mission < 12; mission++) {
+        const pattern = composeMusic(seed, "mission", mission);
+        if (pattern.style.arrangement.name === "double-drop") {
+          sawDrop = true;
+          const grooveKicks = sectionHits(pattern, "groove", "kick");
+          expect(sectionHits(pattern, "escalation", "kick")).toBeLessThan(grooveKicks / 3);
+          expect(sectionHits(pattern, "breakdown", "kick")).toBeLessThan(grooveKicks / 3);
+          const escalation = pattern.sections.find((section) => section.name === "escalation")!;
+          expect(pattern.notes.pulse.some((note) =>
+            note.step >= escalation.startBar * STEPS_PER_BAR && note.step < escalation.endBar * STEPS_PER_BAR,
+          )).toBe(false);
+        }
+        if (pattern.style.arrangement.echoMelody) {
+          sawEcho = true;
+          const groove = pattern.sections.find((section) => section.name === "groove")!;
+          const inGroove = (bar: number) => bar >= groove.startBar && bar < groove.endBar;
+          const even = pattern.notes.melody.filter((note) => {
+            const bar = Math.floor(note.step / STEPS_PER_BAR);
+            return inGroove(bar) && (bar - groove.startBar) % 2 === 0 && bar > groove.startBar;
+          });
+          const odd = pattern.notes.melody.filter((note) => {
+            const bar = Math.floor(note.step / STEPS_PER_BAR);
+            return inGroove(bar) && (bar - groove.startBar) % 2 === 1;
+          });
+          expect(even.length).toBeGreaterThan(0);
+          expect(odd.length).toBeGreaterThan(0);
+          const average = (notes: { velocity: number }[]) =>
+            notes.reduce((sum, note) => sum + note.velocity, 0) / Math.max(1, notes.length);
+          expect(average(even)).toBeLessThan(average(odd));
+        }
+      }
+    }
+    expect(sawDrop).toBe(true);
+    expect(sawEcho).toBe(true);
   });
 
   it("maps routes onto music cues", () => {

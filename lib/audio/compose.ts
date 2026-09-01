@@ -8,6 +8,7 @@ export {
   type MusicArrangementName,
   type MusicArrangementProfile,
   type MusicStyleName,
+  type MusicFillStyle,
   type MusicStyleProfile,
   type MusicDrumProfile,
   type MusicSectionName,
