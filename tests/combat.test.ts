@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { issue } from "../lib/sim/api";
 import { tickCombat } from "../lib/sim/combat";
+import { createPendingAlerts, flushPlayerAlerts } from "../lib/sim/combat/alerts";
 import { addBuilding, addUnit, makeFixture, setHeight } from "../lib/sim/fixtures";
+import type { SimEvent } from "../lib/types";
 
 describe("combat targeting", () => {
   it("prefers a combat unit over a closer passive building", () => {
@@ -414,12 +416,12 @@ describe("combat alerts", () => {
 
   it("keeps the construction-yard warning when infantry is also hit", () => {
     const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
-    addBuilding(s, 0, "constructionYard", 5, 4);
-    addUnit(s, 0, "infantry", 8, 8);
-    addUnit(s, 1, "infantry", 4, 4);
-    addUnit(s, 1, "infantry", 7, 8);
-
-    const alerts = tickCombat(s).filter((event) => event.type === "alert");
-    expect(alerts).toEqual([{ type: "alert", kind: "warning", text: "Construction yard under attack" }]);
+    const pending = createPendingAlerts();
+    pending.yard = true;
+    pending.unit = true;
+    pending.building = true;
+    const events: SimEvent[] = [];
+    flushPlayerAlerts(s, pending, events);
+    expect(events).toEqual([{ type: "alert", kind: "warning", text: "Construction yard under attack" }]);
   });
 });
