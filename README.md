@@ -22,6 +22,7 @@ Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Pr
 | `yarn dev` | Next.js dev server |
 | `yarn build` / `yarn start` | Production build and serve |
 | `yarn test` | Vitest (headless, no browser) |
+| `yarn typecheck` | TypeScript type checking without emitting files |
 | `yarn test:e2e` | Playwright browser smoke test; runs a browser preflight first |
 | `yarn inspect 0421` | Dump generated campaign JSON |
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |

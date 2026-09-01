@@ -1,4 +1,4 @@
-import { cliffFaces, drawElevationFaces } from "../../gen/assets";
+import { cliffFaces } from "../../gen/assets";
 import { MAP_SKIRT, isMountainScenery } from "../../gen/map";
 import { generateCampaignVisualProfile } from "../../gen/visualProfile";
 import type { SimState } from "../../types";
@@ -12,6 +12,7 @@ import { isoDiamondPath } from "../isoDiamond";
 import { paintShroudOverlay, paintShroudMaskTile, drawAtlasDiamond } from "./tile";
 import { smoothFogGain, drawBlockerProp, drawOreCrystals } from "./details";
 import { SHROUD_FILL, TERRAIN_COVER } from "./constants";
+import { drawElevationFaces } from "./cliffs";
 
 const sceneryMemo = new SceneryMemo();
 

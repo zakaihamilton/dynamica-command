@@ -89,6 +89,20 @@ describe("runBalanceJob", () => {
     const records = runBalanceJob(job);
     expect(records).toHaveLength(1);
   });
+
+  it("does not count a post-loss power deficit", () => {
+    const records = runBalanceJob({
+      from: 8,
+      to: 8,
+      missions: [4],
+      maxTicks: 14400,
+      strategy: "competent",
+      scenarios: [{ seed: 8, mission: 4 }],
+    });
+    expect(records[0]?.result).toBe("lost");
+    expect(records[0]?.lossReason).toBe("yardDestroyed");
+    expect(records[0]?.powerDeficit).toBe(false);
+  });
 });
 
 describe("sortBalanceRecords", () => {

@@ -22,6 +22,7 @@ export function Battlefield({
   timeRemaining,
   convoyDeparture,
   briefingObjectives,
+  showHud = true,
   biome,
   children,
   onPointerDown,
@@ -44,6 +45,7 @@ export function Battlefield({
   timeRemaining?: string;
   convoyDeparture?: string;
   briefingObjectives?: MissionObjective[];
+  showHud?: boolean;
   biome: BiomeName;
   children?: ReactNode;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
@@ -74,16 +76,18 @@ export function Battlefield({
       <ScrollArrow dir="right" available={panAvail.right} hot={hotPan === "right"} />
       <ScrollArrow dir="up" available={panAvail.up} hot={hotPan === "up"} />
       <ScrollArrow dir="down" available={panAvail.down} hot={hotPan === "down"} />
-      <BattlefieldHud
-        seed={seed}
-        levelNumber={levelNumber}
-        levelCount={levelCount}
-        missionName={missionName}
-        objective={objective}
-        timeRemaining={timeRemaining}
-        convoyDeparture={convoyDeparture}
-        briefingObjectives={briefingObjectives}
-      />
+      {showHud ? (
+        <BattlefieldHud
+          seed={seed}
+          levelNumber={levelNumber}
+          levelCount={levelCount}
+          missionName={missionName}
+          objective={objective}
+          timeRemaining={timeRemaining}
+          convoyDeparture={convoyDeparture}
+          briefingObjectives={briefingObjectives}
+        />
+      ) : null}
       {children}
     </div>
   );

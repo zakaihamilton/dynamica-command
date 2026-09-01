@@ -1,8 +1,9 @@
-import { tileCliffGeometry, fillElevationPoly } from "../../gen/assets";
+import { tileCliffGeometry } from "../../gen/assets";
 import { expandIsoDiamond, isoAtlasTransform } from "../../iso";
 import { atlasRectForTile, fogTerrainGain, type TerrainAtlas } from "../terrainAtlas";
 import { TERRAIN_COVER, SHROUD_FILL } from "./constants";
 import { isoDiamondPath } from "../isoDiamond";
+import { fillElevationPoly } from "./cliffs";
 
 export function paintShroudCliffs(
   ctx: CanvasRenderingContext2D,

@@ -103,6 +103,7 @@ export function GameOverlays({
           used={grid.used}
           miniRef={miniRef}
           onPause={onPause}
+          onToggleMobilePanel={onToggleMobilePanel}
           camera={camera}
           onTab={onTab}
           actions={actions}

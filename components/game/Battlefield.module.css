@@ -36,7 +36,7 @@
   font-family: var(--font-geist-mono), monospace;
   font-size: 0.75rem;
   text-transform: uppercase;
-  background: linear-gradient(to bottom, rgba(5, 8, 14, 0.9), rgba(5, 8, 14, 0));
+  background: rgba(5, 8, 14, 0.5);
   text-shadow: 1px 1px #000;
 }
 

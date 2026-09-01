@@ -21,6 +21,7 @@ export function GameSidebarSurface({
   used,
   miniRef,
   onPause,
+  onToggleMobilePanel,
   camera,
   onTab,
   actions,
@@ -40,6 +41,7 @@ export function GameSidebarSurface({
   used: number;
   miniRef: Ref<HTMLCanvasElement>;
   onPause: GameSession["openPauseMenu"];
+  onToggleMobilePanel: () => void;
   camera: GameCamera;
   onTab: (tab: CommandTab) => void;
   actions: GameActions;
@@ -65,6 +67,10 @@ export function GameSidebarSurface({
       used={used}
       miniRef={miniRef}
       onPause={onPause}
+      onPlace={(kind) => {
+        actions.togglePlace(kind);
+        if (mobilePanelOpen) onToggleMobilePanel();
+      }}
       onMinimapPointerDown={onMinimapPointerDown}
       onMinimapPointerMove={onMinimapPointerMove}
       onMinimapPointerUp={onMinimapPointerUp}
@@ -73,7 +79,6 @@ export function GameSidebarSurface({
       onTab={onTab}
       onRepair={actions.toggleRepair}
       onSell={actions.toggleSell}
-      onPlace={actions.togglePlace}
       onCancelBuilding={actions.cancelBuilding}
       onQueueUnit={actions.queueUnit}
       onCancelUnit={actions.cancelUnit}

@@ -5,8 +5,6 @@ export {
   elevationFace,
   tileCliffGeometry,
   cliffCornerWedge,
-  drawElevationFaces,
-  fillElevationPoly,
 } from "./cliffGeometry";
 export type { ElevationFace, ElevationFaceOptions, TileCliffGeometry } from "./cliffGeometry";
 export { TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, tileSprite, tileSpriteId } from "./tileSprites";

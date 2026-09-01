@@ -71,6 +71,7 @@ export function GamePlayField({
       timeRemaining={status.timeRemaining}
       convoyDeparture={status.convoyDeparture}
       briefingObjectives={tutorial ? undefined : status.briefingObjectives}
+      showHud={state.result === "playing"}
       biome={state.biome}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

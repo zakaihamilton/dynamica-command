@@ -16,7 +16,7 @@ jobs:
           node-version: 22
           cache: yarn
       - run: yarn install --frozen-lockfile
-      - run: yarn tsc --noEmit
+      - run: yarn typecheck
       - run: yarn health:invariants
       - run: yarn health:dead-code
       - run: yarn health:coverage

@@ -1,6 +1,5 @@
 import {
   cliffFaces,
-  drawElevationFaces,
   tileSprite,
   TILE_SPRITE_PAD_X,
   TILE_SPRITE_PAD_Y,
@@ -11,6 +10,7 @@ import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/is
 import { rasterize } from "@/lib/render/sprites";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
 import { CINEMA_SEED } from "./scene";
+import { drawElevationFaces } from "@/lib/render/terrainPaint/cliffs";
 
 export function tileKind(tile: number): "clear" | "water" | "resource" | "blocked" {
   if (tile === TILE_WATER) return "water";

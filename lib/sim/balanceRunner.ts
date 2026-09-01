@@ -92,7 +92,7 @@ function runScenario(
     commandsIssued += commands?.length ?? 0;
     const result = tick(state, commands);
     commandRejections += result.events.filter((event) => event.type === "commandRejected").length;
-    powerDeficit ||= powerBreakdown(state, 0).surplus < 0;
+    if (state.result === "playing") powerDeficit ||= powerBreakdown(state, 0).surplus < 0;
   }
   return {
     powerDeficit,
