@@ -3,13 +3,13 @@ import { rngFromState } from "../../seed/rng";
 import { buildGrid, statsFor, isCombatThreat, acquire, acquirePreferred, closestEnemy } from "./grid";
 import { lineOfSight, firingPosition } from "./targeting";
 import { strike, chase, resumeAttackMove } from "./damage";
-import { flushPlayerAlerts, type PendingAlerts } from "./alerts";
+import { createPendingAlerts, flushPlayerAlerts } from "./alerts";
 import type { SimEvent, SimState } from "../../types";
 import { tryFindPath } from "../pathBudget";
 
 export function tickCombat(state: SimState): SimEvent[] {
   const events: SimEvent[] = [];
-  const pending: PendingAlerts = { harvester: false, yard: false, convoy: false };
+  const pending = createPendingAlerts();
   const rng = rngFromState(state.rngState);
   const grid = buildGrid(state);
   const escortStaging = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined;

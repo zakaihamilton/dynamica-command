@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { issue } from "../lib/sim/api";
 import { tickCombat } from "../lib/sim/combat";
+import { createPendingAlerts, flushPlayerAlerts } from "../lib/sim/combat/alerts";
 import { addBuilding, addUnit, makeFixture, setHeight } from "../lib/sim/fixtures";
+import type { SimEvent } from "../lib/types";
 
 describe("combat targeting", () => {
   it("prefers a combat unit over a closer passive building", () => {
@@ -394,5 +396,32 @@ describe("combat alerts", () => {
     expect(tickCombat(s).filter((event) => event.type === "alert")).toHaveLength(1);
     attacker.cooldown = 0;
     expect(tickCombat(s).filter((event) => event.type === "alert")).toHaveLength(0);
+  });
+
+  it("emits a contact alert when an enemy strikes a generic player unit", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, "tank", 5, 4);
+    addUnit(s, 1, "infantry", 4, 4);
+
+    expect(tickCombat(s)).toContainEqual({ type: "alert", kind: "contact", text: "Unit under attack" });
+  });
+
+  it("emits a contact alert when an enemy strikes a non-yard building", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "power", 5, 4);
+    addUnit(s, 1, "infantry", 4, 4);
+
+    expect(tickCombat(s)).toContainEqual({ type: "alert", kind: "contact", text: "Base under attack" });
+  });
+
+  it("keeps the construction-yard warning when infantry is also hit", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const pending = createPendingAlerts();
+    pending.yard = true;
+    pending.unit = true;
+    pending.building = true;
+    const events: SimEvent[] = [];
+    flushPlayerAlerts(s, pending, events);
+    expect(events).toEqual([{ type: "alert", kind: "warning", text: "Construction yard under attack" }]);
   });
 });

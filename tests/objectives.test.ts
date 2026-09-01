@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TICKS_PER_SECOND } from "../lib/catalog";
 import { CONVOY_STAGING_TICKS, createMission, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
-import { formatHoldClock, inspect, objectiveProgress } from "../lib/sim/objectives";
+import { formatHoldClock, inspect, objectiveProgress, evaluateObjectives } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
 import { generateWinCategory, missionDurationMinutesFor, missionTimeLimitClock, missionTimeLimitLabel, missionTimeLimitTicks, secondaryObjectivesForMissionSeed } from "../lib/gen/objectives";
 import { formatMissionClock, formatMissionClockFromTicks, minutesToTicks } from "../lib/gen/pacing";
@@ -140,6 +140,56 @@ describe("win categories", () => {
     cy.hp = 0;
     tick(s);
     expect(inspect(s).result).toBe("lost");
+  });
+});
+
+describe("deadline warnings", () => {
+  function rescueAt(tick: number, deadline = 2000) {
+    const s = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: deadline } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    s.tick = tick;
+    s.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [],
+      deadline,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+    return s;
+  }
+
+  it("pings at 60, 30, and 10 seconds remaining on a loss timer", () => {
+    const minute = 60 * TICKS_PER_SECOND;
+    expect(evaluateObjectives(rescueAt(2000 - minute))).toContainEqual({
+      type: "deadlineWarning",
+      remainingTicks: minute,
+    });
+    expect(evaluateObjectives(rescueAt(2000 - 30 * TICKS_PER_SECOND))).toContainEqual({
+      type: "deadlineWarning",
+      remainingTicks: 30 * TICKS_PER_SECOND,
+    });
+    expect(evaluateObjectives(rescueAt(2000 - 10 * TICKS_PER_SECOND))).toContainEqual({
+      type: "deadlineWarning",
+      remainingTicks: 10 * TICKS_PER_SECOND,
+    });
+    expect(evaluateObjectives(rescueAt(2000 - 59 * TICKS_PER_SECOND)).some((event) => event.type === "deadlineWarning")).toBe(false);
+  });
+
+  it("does not ping the hold-the-line win clock", () => {
+    const s = makeFixture({ win: { kind: "holdTheLine", ticks: 2000 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    s.tick = 2000 - 60 * TICKS_PER_SECOND;
+    s.runtime = {
+      kind: "holdTheLine",
+      phase: "active",
+      targetIds: [],
+      rescued: 0,
+      required: 0,
+      secondary: [],
+    };
+    expect(evaluateObjectives(s).some((event) => event.type === "deadlineWarning")).toBe(false);
   });
 });
 

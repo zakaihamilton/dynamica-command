@@ -3,6 +3,7 @@ import { UNIT_STATS } from "../lib/catalog";
 import { addBuilding, makeFixture } from "../lib/sim/fixtures";
 import { issue } from "../lib/sim/orders";
 import { tickProduction } from "../lib/sim/production";
+import { powerFor } from "../lib/sim/world";
 
 function readyBase(width = 24, height = 16) {
   const s = makeFixture({ width, height, win: { kind: "annihilate" } });
@@ -60,5 +61,22 @@ describe("producer speed", () => {
     issue(s, { type: "produce", fromId: barracks.id, unit: "infantry" });
     tickProduction(s);
     expect(barracks.producing?.remaining).toBe(UNIT_STATS.infantry.buildTicks - 1);
+  });
+});
+
+describe("power shortage events", () => {
+  it("emits once when player surplus crosses below zero", () => {
+    const s = readyBase();
+    addBuilding(s, 0, "factory", 6, 4);
+    addBuilding(s, 0, "factory", 10, 4);
+    addBuilding(s, 0, "barracks", 6, 8);
+    addBuilding(s, 0, "refinery", 10, 8);
+    addBuilding(s, 0, "turret", 0, 6);
+    addBuilding(s, 0, "turret", 0, 8);
+    addBuilding(s, 0, "turret", 0, 10);
+    expect(powerFor(s, 0)).toBeLessThan(0);
+
+    expect(tickProduction(s)).toContainEqual({ type: "powerShortage", owner: 0 });
+    expect(tickProduction(s).filter((event) => event.type === "powerShortage")).toHaveLength(0);
   });
 });

@@ -10,6 +10,7 @@ import {
 import { exportMissionSoundtrack, missionSoundtrackFilename, supportsM4aExport } from "../lib/audio/export";
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../lib/audio/music";
 import { beep, isSfxEnabled, playSfx, setSfxEnabled } from "../lib/audio/synth";
+import { beepForCommands } from "../lib/audio/uiOrders";
 import { spatialAudioForWorld } from "../lib/audio/spatial";
 import { createCamera } from "../lib/iso";
 
@@ -341,11 +342,36 @@ describe("generated audio", () => {
   it("exposes semantic layered cues without requiring an audio device", () => {
     expect(() => {
       playSfx("uiConfirm");
+      playSfx("uiCancel");
+      playSfx("orderAttack");
+      playSfx("orderHarvest");
+      playSfx("credits");
+      playSfx("powerShortage");
+      playSfx("insufficientFunds");
+      playSfx("deadline");
       playSfx("smallArms", { pan: -0.8 });
+      playSfx("antiArmor");
       playSfx("cannon", { pan: 0.8 });
-      playSfx("destruction");
+      playSfx("impact");
+      playSfx("destruction", { heavy: true });
+      playSfx("contact");
+      playSfx("warning");
       setMusicIntensity("critical");
     }).not.toThrow();
+  });
+
+  it("maps issued orders onto distinct acknowledgement beeps", () => {
+    expect(beepForCommands([])).toBeUndefined();
+    expect(beepForCommands([{ type: "move", unitIds: [1], x: 2, y: 3 }])).toBe("ack");
+    expect(beepForCommands([{ type: "attack", unitIds: [1], targetId: 9 }])).toBe("ackAttack");
+    expect(beepForCommands([{ type: "attackMove", unitIds: [1], x: 4, y: 5 }])).toBe("ackAttack");
+    expect(beepForCommands([{ type: "harvest", unitIds: [1], x: 4, y: 5 }])).toBe("ackHarvest");
+    expect(beepForCommands([
+      { type: "harvest", unitIds: [1], x: 4, y: 5 },
+      { type: "move", unitIds: [2], x: 4, y: 5 },
+    ])).toBe("ackHarvest");
+    expect(beepForCommands([{ type: "support", unitIds: [1], targetId: 2 }])).toBe("ack");
+    expect(beepForCommands([{ type: "stop", unitIds: [1] }])).toBe("ack");
   });
 
   it("maps world positions to bounded stereo placement and audible range", () => {

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
 import { buildingCameoStatus, buildingLimitReached, isSupportUnit, unitCameoStatus } from "@/lib/catalog";
 import { beep } from "@/lib/audio/synth";
+import { beepForCommands } from "@/lib/audio/uiOrders";
 import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
 import { terrainAccess } from "@/lib/sim/world";
 import type { MobileCommand } from "../mobileCommandTypes";
@@ -48,7 +49,7 @@ export function useGameActions({
     mobileCommand.current = null;
     setMobileCommandState(null);
     clearTools();
-    beep("select");
+    beep("cancel");
   }, [clearTools]);
 
   const resetMobileCommand = useCallback(() => {
@@ -82,7 +83,8 @@ export function useGameActions({
     const access = terrainAccess(state, tx, ty);
     if (!unitIds.length || !Number.isInteger(tx) || !Number.isInteger(ty) || !access.traversable || (command === "harvest" && access.label !== "Ore field")) return false;
     cmdQ.current.push({ type: command, unitIds, x: tx, y: ty });
-    beep("ack");
+    const kind = beepForCommands([{ type: command, unitIds, x: tx, y: ty }]);
+    if (kind) beep(kind);
     return true;
   }, [cmdQ, selected, selectedIds, stateRef]);
 
@@ -96,7 +98,8 @@ export function useGameActions({
     });
     if (!unitIds.length) return false;
     cmdQ.current.push({ type: command, unitIds, targetId });
-    beep("ack");
+    const kind = beepForCommands([{ type: command, unitIds, targetId }]);
+    if (kind) beep(kind);
     return true;
   }, [cmdQ, selected, selectedIds, stateRef]);
 
@@ -141,12 +144,12 @@ export function useGameActions({
     if (place.current === kind) {
       place.current = null;
       setPlaceKind(null);
-      beep("select");
+      beep("cancel");
       return;
     }
     if (buildingCameoStatus(stateRef.current.entities, 0, kind).phase === "idle") return;
     cmdQ.current.push({ type: "cancelBuild", building: kind });
-    beep("select");
+    beep("cancel");
   }, [cmdQ, stateRef]);
 
   const availableProducer = useCallback((unit: UnitKind) => leastLoadedProducer(stateRef.current, 0, unit), [stateRef]);
@@ -161,7 +164,7 @@ export function useGameActions({
   const cancelUnit = useCallback((unit: UnitKind) => {
     if (unitCameoStatus(stateRef.current.entities, 0, unit).phase === "idle") return;
     cmdQ.current.push({ type: "cancelProduce", unit });
-    beep("select");
+    beep("cancel");
   }, [cmdQ, stateRef]);
 
   const activateCameo = useCallback((tab: "construction" | "production", index: number, cancel: boolean) => {

@@ -1,5 +1,5 @@
-import { labelFor } from "../catalog";
-import type { InspectReport, MissionRuntime, SimEvent, SimState } from "../types";
+import { labelFor, TICKS_PER_SECOND } from "../catalog";
+import type { InspectReport, MissionKind, MissionRuntime, SimEvent, SimState } from "../types";
 import { formatSeed } from "../seed/rng";
 import { formatMissionClock, formatMissionClockFromTicks } from "../gen/pacing";
 import { living } from "./world";
@@ -29,6 +29,17 @@ function timeRemainingTicks(state: SimState): number | undefined {
   }
   if (state.win.kind === "holdTheLine" && state.win.ticks !== undefined) return Math.max(0, state.win.ticks - state.tick);
   return undefined;
+}
+
+const LOSS_DEADLINE_KINDS: MissionKind[] = ["escort", "sabotage", "rescue", "extraction"];
+const DEADLINE_WARNING_SECONDS = [60, 30, 10] as const;
+
+function deadlineWarningEvent(state: SimState): SimEvent | undefined {
+  if (!state.runtime || !LOSS_DEADLINE_KINDS.includes(state.runtime.kind)) return undefined;
+  const remaining = timeRemainingTicks(state);
+  if (remaining === undefined) return undefined;
+  if (!DEADLINE_WARNING_SECONDS.some((seconds) => remaining === seconds * TICKS_PER_SECOND)) return undefined;
+  return { type: "deadlineWarning", remainingTicks: remaining };
 }
 
 export function secondaryProgress(state: SimState): SecondaryProgress[] {
@@ -208,7 +219,8 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
       return [{ type: "objectiveExpired", kind: state.runtime.kind }, { type: "lost" }];
     }
   }
-  return [];
+  const warning = deadlineWarningEvent(state);
+  return warning ? [warning] : [];
 }
 
 export function inspect(state: SimState): InspectReport {

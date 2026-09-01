@@ -1,5 +1,6 @@
 import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "react";
 import { beep } from "@/lib/audio/synth";
+import { beepForCommands } from "@/lib/audio/uiOrders";
 import { pickTile } from "@/lib/render/renderer";
 import type { CommandMarker } from "@/lib/render/renderOverlays/types";
 import { panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
@@ -68,7 +69,7 @@ export function useGameInput({
     const { x: tx, y: ty } = pointerTile(s, p, camRef.current);
     if (repairRef.current || sellRef.current) {
       clearTools();
-      beep("select");
+      beep("cancel");
       return;
     }
     const ids = [...selectedRef.current];
@@ -78,7 +79,8 @@ export function useGameInput({
     markUnitCommand(s, p, commands);
     mobileCommandRef.current = null;
     setMobileCommandState(null);
-    beep("ack");
+    const kind = beepForCommands(commands);
+    if (kind) beep(kind);
   }, [camRef, clearTools, cmdQRef, markUnitCommand, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState]);
 
   const { beginTouch, moveTouch, endTouch, cancelTouch } = useTouchGestures({

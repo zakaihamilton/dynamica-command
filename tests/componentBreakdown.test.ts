@@ -3,7 +3,7 @@ import { canvasPointerPos } from "../components/game/hooks/canvasPointer";
 import { applyGameCommand } from "../components/game/hooks/gameKeyboard";
 import { leastLoadedProducer } from "../components/game/hooks/gameActions";
 import { resolvePointerUp } from "../components/game/hooks/gamePointerUp";
-import { alertSfx, desiredMusicIntensity, warningAlert } from "../components/game/hooks/gameLoopEffects";
+import { alertSfx, desiredMusicIntensity, rejectionSfx, warningAlert } from "../components/game/hooks/gameLoopEffects";
 import { missionConfirmationFor } from "../components/game/hooks/missionConfirmation";
 import { briefingBackPath, briefingPath, campaignCompletePath, menuPath, resultPrimaryPath, tutorialPath } from "../components/game/hooks/missionRoutes";
 import { gameOverlayModel } from "../components/game/gameOverlayModel";
@@ -101,7 +101,7 @@ describe("pointer-up policy", () => {
       placeKind: null,
       repairMode: true,
       sellMode: false,
-    })).toEqual({ preventDefault: true, clearRepairAndSell: true, beep: "select" });
+    })).toEqual({ preventDefault: true, clearRepairAndSell: true, beep: "cancel" });
 
     expect(resolvePointerUp({
       pointerType: "mouse",
@@ -149,7 +149,7 @@ describe("pointer-up policy", () => {
     const cam = createCamera();
     const p = tileToScreen(yard.x, yard.y, cam, heightAt(state, yard.x, yard.y));
 
-    expect(resolvePointerUp({
+    const repair = resolvePointerUp({
       pointerType: "mouse",
       button: 0,
       ctrlKey: false,
@@ -164,11 +164,12 @@ describe("pointer-up policy", () => {
       placeKind: null,
       repairMode: true,
       sellMode: false,
-    })).toMatchObject({
+    });
+    expect(repair).toMatchObject({
       clearBox: true,
-      beep: "build",
       commands: [{ type: "repair", buildingId: yard.id }],
     });
+    expect(repair.beep).toBeUndefined();
 
     expect(resolvePointerUp({
       pointerType: "mouse",
@@ -307,5 +308,8 @@ describe("loop audio intensity", () => {
       { type: "alert", kind: "warning", text: "Incoming" },
     ])).toBe(false);
     expect(alertSfx("objective")).toBe("objective");
+    expect(rejectionSfx("insufficient credits")).toBe("insufficientFunds");
+    expect(rejectionSfx("power shortage")).toBe("powerShortage");
+    expect(rejectionSfx("invalid placement")).toBe("uiError");
   });
 });
