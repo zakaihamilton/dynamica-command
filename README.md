@@ -1,6 +1,6 @@
 # Dynamica Command
 
-A browser **Command & Conquer–like** isometric RTS. One **4-digit seed** (`0000`–`9999`) writes the whole theater: factions, characters, campaign plot, mission maps, win conditions, and every sprite. Enter the same number later to resume.
+Dynamica Command is a fully client-side browser **Command & Conquer–like** isometric RTS. One **4-digit seed** (`0000`–`9999`) deterministically generates the whole theater: factions, characters, campaign plot, mission maps, win conditions, and every sprite. Enter the same number later to resume; no account or backend is required.
 
 **[Play from source](#run)** · [github.com/zakaihamilton/dynamica-command](https://github.com/zakaihamilton/dynamica-command)
 
@@ -11,11 +11,11 @@ A browser **Command & Conquer–like** isometric RTS. One **4-digit seed** (`000
 Requires Node.js and [Yarn 1](https://classic.yarnpkg.com/) (`packageManager`: `yarn@1.22.22`).
 
 ```bash
-yarn
+yarn install --frozen-lockfile
 yarn dev
 ```
 
-Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load, portable export, and briefing. The generated sprite browser is public at **`/assets`**, with a public JSON API at **`/api/assets`**.
+Open the app, then choose **New Game** or type a seed such as `0421` and choose **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load, portable export, and briefing. The generated sprite browser is public at **`/assets`**, with a public JSON API at **`/api/assets`**.
 
 | Script | What it does |
 | --- | --- |
@@ -37,7 +37,7 @@ For local E2E runs, the preflight launches the same headless browser used by Pla
 
 ## How a seed works
 
-The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Campaign content is **never stored** — it is regenerated. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `dynamica-command:save:0421`. Audio preferences (`music` / `sound effects` toggles and volumes) persist separately as `dynamica-command:settings`.
+The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Generated campaign content is **not persisted**; it is regenerated from the same seed. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `dynamica-command:save:0421`. Audio preferences (`music` / `sound effects` toggles and volumes) persist separately as `dynamica-command:settings`.
 
 ```text
 seed 0421
