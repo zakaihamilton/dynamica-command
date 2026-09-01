@@ -28,50 +28,62 @@ export function NewGameSetup({
   onBack: () => void;
 }) {
   return (
-    <MetalPanel className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title">
-      <ConsoleLabel>Genesis Command</ConsoleLabel>
-      <h2 id="new-game-title" className={styles.title}>New campaign</h2>
-      <p className={styles.copy}>
-        Roll a random theater or enter a four-digit code to replay a war you already know.
-      </p>
-      <ConsoleLabel className={styles.seedLabel}>Theater seed</ConsoleLabel>
-      <SeedEntry
-        code={code}
-        error={error}
-        previewLine={previewLine}
-        inputRef={inputRef}
-        onChange={onChange}
-        onRandomize={onRandomize}
-        onLaunch={onLaunch}
-      />
-      <ConsoleButton
-        className={styles.launch}
-        tooltip="Begin the first briefing"
-        shortcut={SHORTCUT.deploy}
-        onClick={onLaunch}
-      >
-        Launch
-      </ConsoleButton>
-      {onOperations ? (
-        <ConsoleButton
-          muted
-          className={styles.operations}
-          tooltip="Open the operations map for this seed"
-          onClick={onOperations}
-        >
-          Operations map
-        </ConsoleButton>
-      ) : null}
-      <ConsoleButton
-        muted
-        className={styles.back}
-        tooltip="Return to the main menu"
-        shortcut={SHORTCUT.back}
-        onClick={onBack}
-      >
-        Back
-      </ConsoleButton>
-      <p className={styles.hint}>R rolls a new theater · Enter launches · Escape returns</p>
+    <MetalPanel as="section" className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title" data-testid="deploy-screen">
+      <div className={styles.intro}>
+        <ConsoleLabel>Genesis command // Deployment</ConsoleLabel>
+        <h2 id="new-game-title" className={styles.title}>New theater</h2>
+        <p className={styles.copy}>
+          Every four-digit seed writes a different war. Roll a fresh theater or enter a code to return to one you already know.
+        </p>
+        <div className={styles.introReadout}>
+          <span>CAMPAIGN FORMAT</span>
+          <strong>8 OPERATIONS</strong>
+          <span>DETERMINISTIC WORLD / LOCAL SAVE</span>
+        </div>
+      </div>
+
+      <div className={styles.form}>
+        <ConsoleLabel className={styles.seedLabel}>Theater seed</ConsoleLabel>
+        <SeedEntry
+          code={code}
+          error={error}
+          previewLine={previewLine}
+          inputRef={inputRef}
+          onChange={onChange}
+          onRandomize={onRandomize}
+          onLaunch={onLaunch}
+        />
+        <div className={styles.actions}>
+          <ConsoleButton
+            className={styles.launch}
+            tooltip="Begin the first briefing"
+            shortcut={SHORTCUT.deploy}
+            onClick={onLaunch}
+          >
+            Launch
+          </ConsoleButton>
+          {onOperations ? (
+            <ConsoleButton
+              muted
+              className={styles.operations}
+              tooltip="Open the operations map for this seed"
+              onClick={onOperations}
+            >
+              Operations map
+            </ConsoleButton>
+          ) : null}
+          <ConsoleButton
+            muted
+            className={styles.back}
+            tooltip="Return to the main menu"
+            shortcut={SHORTCUT.back}
+            onClick={onBack}
+          >
+            Back
+          </ConsoleButton>
+        </div>
+        <p className={styles.hint}>R rolls a new theater · Enter launches · Escape returns</p>
+      </div>
     </MetalPanel>
   );
 }

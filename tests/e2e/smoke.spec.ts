@@ -129,21 +129,51 @@ test("returns from the operations map with Escape", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
 });
 
-test("keeps redesigned menu and operations chrome inside the desktop viewport", async ({ page }) => {
+test("keeps the unified menu and operations chrome inside the desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "GENESIS" })).toBeVisible();
+  await expect(page.getByTestId("menu-dashboard")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main menu" })).toBeVisible();
+  await expect(page.getByTestId("menu-dashboard").getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);
 
   const menuOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(menuOverflow).toBe(false);
 
   await page.getByRole("button", { name: "NEW GAME" }).click();
+  await expect(page.getByTestId("deploy-screen")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New theater" })).toBeVisible();
   await page.getByRole("button", { name: "Operations map" }).click();
   await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
 
   const operationsOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(operationsOverflow).toBe(false);
   await expect(page.getByTestId("mission-detail")).toBeVisible();
+});
+
+test("opens the campaign archive from the main menu", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "LOAD MISSION" }).click();
+
+  await expect(page).toHaveURL(/\/load$/);
+  await expect(page.getByTestId("campaign-archive")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Load mission" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "IMPORT SAVE" })).toBeVisible();
+  await expect(page.getByText("No saved campaigns.")).toBeVisible();
+  const archiveScrollContainers = await page.getByTestId("campaign-archive").evaluate((element) => {
+    const containers: string[] = [];
+    let current: Element | null = element;
+    while (current) {
+      const overflowY = window.getComputedStyle(current).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") containers.push(current.tagName.toLowerCase());
+      current = current.parentElement;
+    }
+    return containers;
+  });
+  expect(archiveScrollContainers).toEqual(["div"]);
+
+  await page.getByRole("button", { name: "Return to menu" }).click();
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test("keeps briefing dialogue and battlefield status readable on mobile", async ({ page }) => {
@@ -454,18 +484,20 @@ test("resumes a seeded save from the menu", async ({ page }) => {
   }, { key: saveKey(421), raw: saveEnvelope(state) });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "LOAD MISSION" }).click();
   await page.getByRole("button", { name: /Mission 1/ }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&resume=1/);
   await expect(page.getByTestId("seed")).toHaveText("Seed 0421");
   await expect(page.getByTestId("credits")).toHaveText("9,876");
 });
 
-test("offers to reset an unreadable save from the welcome screen", async ({ page }) => {
+test("offers to reset an unreadable save from the campaign archive", async ({ page }) => {
   await page.addInitScript(({ key }) => {
     localStorage.setItem(key, "not valid json");
   }, { key: saveKey(421) });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "LOAD MISSION" }).click();
   const recovery = page.getByRole("alert").filter({ hasText: "Unreadable save: 0421" });
   await expect(recovery).toContainText("Unreadable save: 0421");
   await page.getByRole("button", { name: "Reset 0421" }).click();

@@ -6,7 +6,6 @@ import { MenuBackdrop } from "./MenuBackdrop";
 import { MenuHero } from "./MenuHero";
 import { MenuMainPanel } from "./MenuMainPanel";
 import { MenuOverlay } from "./MenuOverlay";
-import { SaveImportDialog } from "./SaveImportDialog";
 import { useMenuController } from "./useMenuController";
 import styles from "./MenuScreen.module.css";
 
@@ -22,21 +21,36 @@ export function MenuScreen() {
       <div className={styles.vignette} />
       <div className={styles.scanlines} />
 
-      <div className={styles.content}>
-        <MenuHero />
-        <MenuMainPanel
-          saves={controller.saves}
-          unreadableSaves={controller.unreadableSaves}
-          onNewGame={controller.openNewGame}
-          onOptions={controller.openOptions}
-          onResume={controller.resume}
-          onCampaignMap={controller.openCampaign}
-          onDelete={controller.deleteSave}
-          onResetUnreadable={controller.resetUnreadableSave}
-          onImportFile={controller.handleImportFile}
-          importError={controller.importError}
-          importNotice={controller.importNotice}
-        />
+      <div className={styles.uiLayer}>
+        <header className={styles.topbar} aria-label="Genesis command status">
+          <div className={styles.topbarBrand}>
+            <span className={styles.brandMark}>GP</span>
+            <span>GENESIS PROTOCOL</span>
+            <span className={styles.topbarDivider}>/</span>
+            <span className={styles.topbarMuted}>COMMAND DESK</span>
+          </div>
+          <div className={styles.topbarStatus}>
+            <span className={styles.statusDot} aria-hidden="true" />
+            <span>LOCAL THEATER LINK</span>
+            <span className={styles.topbarCode}>GP-01</span>
+          </div>
+        </header>
+
+        <main className={styles.content}>
+          <MenuHero />
+          <MenuMainPanel
+            onNewGame={controller.openNewGame}
+            onLoadMission={controller.openLoadMission}
+            onOptions={controller.openOptions}
+          />
+        </main>
+
+        <footer className={styles.footer}>
+          <span>SEED YOUR OWN THEATER</span>
+          <span className={styles.footerRule} aria-hidden="true" />
+          <span>8 OPERATIONS / NO TWO WARS ALIKE</span>
+          <span className={styles.footerVersion}>BUILD 01.04 // LOCAL ONLY</span>
+        </footer>
       </div>
 
       <MenuOverlay
@@ -56,16 +70,6 @@ export function MenuScreen() {
         onVolumeChange={controller.updateVolume}
         onBack={controller.goBack}
       />
-      {controller.importPreview ? (
-        <SaveImportDialog
-          fileName={controller.importPreview.fileName}
-          save={controller.importPreview.save}
-          collision={controller.importPreview.collision}
-          error={controller.importError}
-          onConfirm={controller.confirmImport}
-          onCancel={controller.cancelImport}
-        />
-      ) : null}
     </div>
   );
 }

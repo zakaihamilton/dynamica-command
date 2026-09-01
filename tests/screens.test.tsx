@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BriefingScreen } from "../components/briefing/BriefingScreen";
+import { CampaignArchiveScreen } from "../components/campaign/CampaignArchiveScreen";
 import { CampaignCompleteScreen } from "../components/campaign/CampaignCompleteScreen";
 import { MenuScreen } from "../components/menu/MenuScreen";
 import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
@@ -18,8 +19,8 @@ vi.mock("@/lib/audio/mixer", () => ({ setAudioLevels: vi.fn() }));
 vi.mock("@/components/menu/MenuBackdrop", () => ({ MenuBackdrop: () => <div data-testid="menu-backdrop" /> }));
 vi.mock("@/components/menu/MenuHero", () => ({ MenuHero: () => <h1>Genesis Protocol</h1> }));
 vi.mock("@/components/menu/MenuMainPanel", () => ({
-  MenuMainPanel: ({ onNewGame, onOptions }: { onNewGame: () => void; onOptions: () => void }) => (
-    <div><button onClick={onNewGame}>NEW GAME</button><button onClick={onOptions}>OPTIONS</button></div>
+  MenuMainPanel: ({ onNewGame, onLoadMission, onOptions }: { onNewGame: () => void; onLoadMission: () => void; onOptions: () => void }) => (
+    <div><button onClick={onNewGame}>NEW GAME</button><button onClick={onLoadMission}>LOAD MISSION</button><button onClick={onOptions}>OPTIONS</button></div>
   ),
 }));
 vi.mock("@/components/menu/MenuOverlay", () => ({
@@ -55,6 +56,19 @@ describe("MenuScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch" }));
     expect(router.push).toHaveBeenCalledWith("/tutorial?seed=0421&from=menu");
     vi.restoreAllMocks();
+  });
+});
+
+describe("CampaignArchiveScreen", () => {
+  it("loads as a separate archive page and returns to the menu", () => {
+    render(<CampaignArchiveScreen />);
+
+    expect(screen.getByTestId("campaign-archive")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Load mission" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "IMPORT SAVE" })).toBeVisible();
+    expect(screen.getByText("No saved campaigns.")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Return to menu" }));
+    expect(router.push).toHaveBeenCalledWith("/");
   });
 });
 

@@ -19,6 +19,13 @@
   scrollbar-width: thin;
 }
 
+.expanded {
+  height: auto;
+  max-height: none;
+  padding-inline-end: 0;
+  overflow: visible;
+}
+
 .listWrap::-webkit-scrollbar {
   width: 0.45rem;
 }

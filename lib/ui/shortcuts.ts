@@ -36,6 +36,7 @@ export type GameCommand =
 
 export type MenuCommand =
   | { type: "newGame" }
+  | { type: "loadMission" }
   | { type: "options" }
   | { type: "deploy" }
   | { type: "randomize" }
@@ -202,6 +203,7 @@ export function menuCommandFromKey(
   }
   if (ctx.typing) return null;
   if (letter(e) === "n") return { type: "newGame" };
+  if (letter(e) === "l") return { type: "loadMission" };
   if (letter(e) === "o") return { type: "options" };
   return null;
 }

@@ -581,8 +581,27 @@ test.describe("mobile-first layouts", () => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto("/");
     await expectNoHorizontalOverflow(page);
+
+    await page.getByRole("button", { name: "LOAD MISSION" }).click();
+    await expect(page.getByTestId("campaign-archive")).toBeVisible();
+    await expect(page.getByRole("button", { name: "IMPORT SAVE" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    const archiveScrollContainers = await page.getByTestId("campaign-archive").evaluate((element) => {
+      const containers: string[] = [];
+      let current: Element | null = element;
+      while (current) {
+        const overflowY = window.getComputedStyle(current).overflowY;
+        if (overflowY === "auto" || overflowY === "scroll") containers.push(current.tagName.toLowerCase());
+        current = current.parentElement;
+      }
+      return containers;
+    });
+    expect(archiveScrollContainers).toEqual(["div"]);
+    await page.getByRole("button", { name: "Return to menu" }).click();
+
     await page.getByRole("button", { name: "NEW GAME" }).click();
     await expectNoHorizontalOverflow(page);
+    await expect(page.getByTestId("deploy-screen")).toBeVisible();
     await expect(page.getByLabel("Four digit theater seed")).toBeVisible();
 
     await page.goto("/briefing?seed=0421&mission=0");

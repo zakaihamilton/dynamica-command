@@ -1,17 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCampaign } from "@/lib/gen/campaign";
-import {
-  listSaves,
-  listUnreadableSaves,
-  cachedLocalStorage,
-  hasSaveForSeed,
-  parseSaveExport,
-  removeSave,
-  type ParsedSaveExport,
-} from "@/lib/persist/save";
+import { cachedLocalStorage } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
-import { importSaveAtomically } from "@/lib/persist/saveTransfer";
 import { defaultSettings, readSettings, type GameSettings } from "@/lib/persist/settings";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
@@ -22,35 +13,19 @@ import { menuLaunchPath, rollSeed } from "./menuLaunch";
 export function useMenuController() {
   const router = useRouter();
   const [code, setCode] = useState("");
-  const [saves, setSaves] = useState(() => [] as ReturnType<typeof listSaves>);
-  const [unreadableSaves, setUnreadableSaves] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [view, setView] = useState<MenuView>("main");
   const [settings, setSettings] = useState<GameSettings>(() => defaultSettings());
-  const [importPreview, setImportPreview] = useState<{
-    fileName: string;
-    save: ParsedSaveExport;
-    collision: boolean;
-  } | null>(null);
-  const [importError, setImportError] = useState("");
-  const [importNotice, setImportNotice] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
-
-  const refreshSaves = useCallback(() => {
-    const storage = cachedLocalStorage();
-    setSaves(listSaves(storage));
-    setUnreadableSaves(listUnreadableSaves(storage));
-  }, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const storage = cachedLocalStorage();
-      refreshSaves();
       setSettings(readSettings(storage));
     });
     return () => cancelAnimationFrame(frame);
-  }, [refreshSaves]);
+  }, []);
 
   const preview = useMemo(() => {
     const seed = parseSeed(code);
@@ -65,6 +40,7 @@ export function useMenuController() {
   }, []);
 
   const openOptions = useCallback(() => setView("options"), []);
+  const openLoadMission = useCallback(() => router.push("/load"), [router]);
 
   const openOperations = useCallback(() => {
     const seed = parseSeed(code);
@@ -92,48 +68,6 @@ export function useMenuController() {
     router.push(path);
   }, [code, router]);
 
-  const deleteSave = useCallback((saveSeed: string) => {
-    const storage = cachedLocalStorage();
-    removeSave(storage, Number(saveSeed));
-    refreshSaves();
-  }, [refreshSaves]);
-
-  const resetUnreadableSave = useCallback((saveSeed: string) => {
-    const storage = cachedLocalStorage();
-    removeSave(storage, Number(saveSeed));
-    refreshSaves();
-  }, [refreshSaves]);
-
-  const handleImportFile = useCallback(async (file: File) => {
-    setImportError("");
-    setImportNotice("");
-    try {
-      const parsed = parseSaveExport(await file.text());
-      const collision = hasSaveForSeed(cachedLocalStorage(), parsed.state.seed);
-      setImportPreview({ fileName: file.name, save: parsed, collision });
-    } catch (cause) {
-      setImportPreview(null);
-      setImportError(cause instanceof Error ? cause.message : "Unable to read save file");
-    }
-  }, []);
-
-  const confirmImport = useCallback(() => {
-    if (!importPreview) return;
-    const imported = importSaveAtomically(cachedLocalStorage(), importPreview.save);
-    if (!imported) {
-      setImportError("Import failed: browser storage could not be updated.");
-      return;
-    }
-    setImportPreview(null);
-    setImportNotice(`Imported save ${formatSeed(importPreview.save.state.seed)}. Choose Resume or Operations when ready.`);
-    refreshSaves();
-  }, [importPreview, refreshSaves]);
-
-  const cancelImport = useCallback(() => {
-    setImportPreview(null);
-    setImportError("");
-  }, []);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const command = menuCommandFromKey(e, {
@@ -144,6 +78,7 @@ export function useMenuController() {
       if (!command) return;
       e.preventDefault();
       if (command.type === "newGame") openNewGame();
+      else if (command.type === "loadMission") openLoadMission();
       else if (command.type === "options") openOptions();
       else if (command.type === "toggleSound") toggleSound();
       else if (command.type === "toggleMusic") toggleMusic();
@@ -153,16 +88,11 @@ export function useMenuController() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [view, openNewGame, openOptions, toggleSound, toggleMusic, launch, randomize]);
+  }, [view, openNewGame, openLoadMission, openOptions, toggleSound, toggleMusic, launch, randomize]);
 
   return {
     code,
-    saves,
-    unreadableSaves,
     error,
-    importPreview,
-    importError,
-    importNotice,
     view,
     settings,
     inputRef,
@@ -170,6 +100,7 @@ export function useMenuController() {
       ? `${preview.world.name} · ${preview.factions[0].name} vs ${preview.factions[1].name}`
       : "Four digits lock a theater — or roll a random war",
     openNewGame,
+    openLoadMission,
     openOptions,
     openOperations,
     randomize,
@@ -178,17 +109,10 @@ export function useMenuController() {
     toggleMusic,
     toggleTacticalRoster,
     updateVolume,
-    deleteSave,
-    resetUnreadableSave,
-    handleImportFile,
-    confirmImport,
-    cancelImport,
     setCode: (value: string) => {
       setCode(value);
       setError("");
     },
     goBack: () => setView("main"),
-    resume: (seed: string) => router.push(`/play?seed=${seed}&resume=1`),
-    openCampaign: (seed: string) => router.push(`/campaign?seed=${seed}`),
   };
 }

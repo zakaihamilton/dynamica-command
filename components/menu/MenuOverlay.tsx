@@ -43,19 +43,21 @@ export function MenuOverlay({
   if (view === "main") return null;
 
   return (
-    <div className={styles.overlay}>
+    <div className={styles.overlay} data-testid="menu-overlay" data-view={view}>
       {view === "newGame" ? (
-        <NewGameSetup
-          code={code}
-          error={error}
-          previewLine={previewLine}
-          inputRef={inputRef}
-          onChange={onChange}
-          onRandomize={onRandomize}
-          onLaunch={onLaunch}
-          onOperations={onOperations}
-          onBack={onBack}
-        />
+        <div className={styles.deployStage}>
+          <NewGameSetup
+            code={code}
+            error={error}
+            previewLine={previewLine}
+            inputRef={inputRef}
+            onChange={onChange}
+            onRandomize={onRandomize}
+            onLaunch={onLaunch}
+            onOperations={onOperations}
+            onBack={onBack}
+          />
+        </div>
       ) : (
         <MenuOptions
           settings={settings}

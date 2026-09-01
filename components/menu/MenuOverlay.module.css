@@ -5,9 +5,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(5px) saturate(0.8);
-  padding: 1rem;
+  background:
+    linear-gradient(90deg, rgba(3, 7, 12, 0.88), rgba(3, 7, 12, 0.72)),
+    rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(7px) saturate(0.78);
+  padding: clamp(0.75rem, 3vw, 3rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.deployStage {
+  width: min(100%, 76rem);
+}
+
+@media (max-width: 639px) {
+  .overlay {
+    align-items: flex-start;
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .deployStage {
+    margin-block: auto;
+  }
 }

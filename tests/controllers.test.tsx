@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe("useMenuController", () => {
-  it("loads saves/settings and routes valid launches", () => {
+  it("loads settings and routes valid launches", () => {
     const progress = freshCampaignProgress(421);
     progress.tutorialComplete = true;
     writeCampaignProgress(localStorageAdapter(), progress);
@@ -60,6 +60,10 @@ describe("useMenuController", () => {
     expect(result.current.view).toBe("main");
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "n" })));
     expect(result.current.view).toBe("newGame");
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "l" })));
+    expect(router.push).toHaveBeenCalledWith("/load");
   });
 });
 
