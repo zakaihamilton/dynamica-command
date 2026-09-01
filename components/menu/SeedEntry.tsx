@@ -35,6 +35,9 @@ export function SeedEntry({
           <input
             ref={inputRef}
             value={code}
+            onFocus={(e) => {
+              if (code.length === 4) e.currentTarget.select();
+            }}
             onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
             onKeyDown={(e) => {
               if (e.key === "Enter") {

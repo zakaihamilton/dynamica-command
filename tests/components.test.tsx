@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { createRef } from "react";
+import { createRef, useRef, useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
@@ -34,6 +34,23 @@ vi.mock("@/components/audio/SoundtrackPanel", () => ({
 vi.mock("@/components/game/ConstructionCameos", () => ({ ConstructionCameos: () => <div data-testid="construction-catalog" /> }));
 vi.mock("@/components/game/ProductionCameos", () => ({ ProductionCameos: () => <div data-testid="production-catalog" /> }));
 vi.mock("@/components/game/SelectionPanel", () => ({ SelectionPanel: () => <div data-testid="selection-catalog" /> }));
+
+function ControlledSeedEntry() {
+  const [code, setCode] = useState("0421");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <SeedEntry
+      code={code}
+      error=""
+      previewLine="Preview"
+      inputRef={inputRef}
+      onChange={setCode}
+      onRandomize={vi.fn()}
+      onLaunch={vi.fn()}
+    />
+  );
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -175,6 +192,19 @@ describe("CommandCatalogContent", () => {
 });
 
 describe("SeedEntry", () => {
+  it("selects an existing seed so typing replaces it", async () => {
+    const user = userEvent.setup();
+    render(<ControlledSeedEntry />);
+    const input = screen.getByLabelText("Four digit theater seed");
+
+    input.focus();
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(4);
+
+    await user.keyboard("9876");
+    expect(input).toHaveValue("9876");
+  });
+
   it("sanitizes input and launches on Enter or Roll", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
