@@ -142,12 +142,6 @@
   text-align: left;
 }
 
-.eyebrow {
-  margin: 0 0 0.7rem;
-  color: var(--chrome-cyan);
-  text-align: inherit;
-}
-
 .title {
   margin: 0;
   text-align: inherit;
@@ -321,11 +315,6 @@
   .commandColumn {
     width: 100%;
     gap: 1.15rem;
-  }
-
-  .eyebrow {
-    margin-bottom: 0.65rem;
-    font-size: 0.58rem;
   }
 
   .title {
