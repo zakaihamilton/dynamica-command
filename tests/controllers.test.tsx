@@ -16,6 +16,7 @@ import { useMissionRoutes } from "../components/game/hooks/useMissionRoutes";
 import { useMissionBackGuard } from "../components/game/hooks/useMissionBackGuard";
 import { useMenuController } from "../components/menu/useMenuController";
 import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
+import { consumeFreshLaunchIntent } from "../lib/persist/navigation";
 import { createSaveSession, localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
 import { defaultSettings } from "../lib/persist/settings";
 import { makeFixture, addBuilding, addUnit } from "../lib/sim/fixtures";
@@ -35,6 +36,7 @@ afterEach(() => {
   cleanup();
   router.push.mockReset();
   window.localStorage.clear();
+  window.sessionStorage.clear();
 });
 
 describe("useMenuController", () => {
@@ -87,6 +89,22 @@ describe("useBriefingController", () => {
     expect(skip).toHaveBeenCalledOnce();
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" })));
     expect(replay).toHaveBeenCalledOnce();
+  });
+
+  it("marks a new-theater launch as fresh across client-side navigation", () => {
+    const { result } = renderHook(() => useBriefingController({
+      seed: 421,
+      mission: 0,
+      returnToGame: false,
+      isComplete: true,
+      replayTransmission: vi.fn(),
+      skipToEnd: vi.fn(),
+    }));
+
+    act(() => result.current.launch());
+
+    expect(router.push).toHaveBeenCalledWith("/play?seed=0421&mission=0&fresh=1");
+    expect(consumeFreshLaunchIntent(421, 0)).toBe(true);
   });
 });
 

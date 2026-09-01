@@ -1,4 +1,5 @@
 import type { MeshData } from "./types";
+import { appendCap, appendQuad } from "./buffers";
 
 export function createCylinderMesh(
   cx: number,
@@ -16,6 +17,7 @@ export function createCylinderMesh(
   const n: number[] = [];
   const m: number[] = [];
   const idx: number[] = [];
+  const buffers = { p, n, m, idx };
 
   const dz = Math.max(0.0001, maxZ - minZ);
   const dr = rBot - rTop;
@@ -36,53 +38,23 @@ export function createCylinderMesh(
     const p2: [number, number, number] = [cx + rTop * Math.cos(a1), cy + rTop * Math.sin(a1), maxZ];
     const p3: [number, number, number] = [cx + rTop * Math.cos(a0), cy + rTop * Math.sin(a0), maxZ];
 
-    const baseIdx = p.length / 3;
-    p.push(...p0, ...p1, ...p2, ...p3);
-    n.push(...norm, ...norm, ...norm, ...norm);
-    m.push(mask, mask, mask, mask);
-    idx.push(baseIdx, baseIdx + 1, baseIdx + 2, baseIdx, baseIdx + 2, baseIdx + 3);
+    appendQuad(buffers, p0, p1, p2, p3, norm, mask);
   }
 
   // Cap Top
   if (capTop) {
-    const centerIdx = p.length / 3;
-    p.push(cx, cy, maxZ);
-    n.push(0, 0, 1);
-    m.push(mask);
-
-    const ringStart = p.length / 3;
-    for (let i = 0; i < segments; i++) {
+    appendCap(buffers, [cx, cy, maxZ], [0, 0, 1], segments, mask, (i) => {
       const a = (i / segments) * Math.PI * 2;
-      p.push(cx + rTop * Math.cos(a), cy + rTop * Math.sin(a), maxZ);
-      n.push(0, 0, 1);
-      m.push(mask);
-    }
-
-    for (let i = 0; i < segments; i++) {
-      const next = (i + 1) % segments;
-      idx.push(centerIdx, ringStart + i, ringStart + next);
-    }
+      return [cx + rTop * Math.cos(a), cy + rTop * Math.sin(a), maxZ];
+    });
   }
 
   // Cap Bottom
   if (capBottom) {
-    const centerIdx = p.length / 3;
-    p.push(cx, cy, minZ);
-    n.push(0, 0, -1);
-    m.push(mask);
-
-    const ringStart = p.length / 3;
-    for (let i = 0; i < segments; i++) {
+    appendCap(buffers, [cx, cy, minZ], [0, 0, -1], segments, mask, (i) => {
       const a = (i / segments) * Math.PI * 2;
-      p.push(cx + rBot * Math.cos(a), cy + rBot * Math.sin(a), minZ);
-      n.push(0, 0, -1);
-      m.push(mask);
-    }
-
-    for (let i = 0; i < segments; i++) {
-      const next = (i + 1) % segments;
-      idx.push(centerIdx, ringStart + next, ringStart + i);
-    }
+      return [cx + rBot * Math.cos(a), cy + rBot * Math.sin(a), minZ];
+    }, true);
   }
 
   return {
@@ -109,6 +81,7 @@ export function createCylinderXMesh(
   const n: number[] = [];
   const m: number[] = [];
   const idx: number[] = [];
+  const buffers = { p, n, m, idx };
 
   const dx = Math.max(0.0001, maxX - minX);
   const dr = rBack - rFront;
@@ -129,53 +102,23 @@ export function createCylinderXMesh(
     const p2: [number, number, number] = [maxX, cy + rFront * Math.cos(a1), cz + rFront * Math.sin(a1)];
     const p3: [number, number, number] = [maxX, cy + rFront * Math.cos(a0), cz + rFront * Math.sin(a0)];
 
-    const baseIdx = p.length / 3;
-    p.push(...p0, ...p1, ...p2, ...p3);
-    n.push(...norm, ...norm, ...norm, ...norm);
-    m.push(mask, mask, mask, mask);
-    idx.push(baseIdx, baseIdx + 1, baseIdx + 2, baseIdx, baseIdx + 2, baseIdx + 3);
+    appendQuad(buffers, p0, p1, p2, p3, norm, mask);
   }
 
   // Cap Front (+X)
   if (capFront) {
-    const centerIdx = p.length / 3;
-    p.push(maxX, cy, cz);
-    n.push(1, 0, 0);
-    m.push(mask);
-
-    const ringStart = p.length / 3;
-    for (let i = 0; i < segments; i++) {
+    appendCap(buffers, [maxX, cy, cz], [1, 0, 0], segments, mask, (i) => {
       const a = (i / segments) * Math.PI * 2;
-      p.push(maxX, cy + rFront * Math.cos(a), cz + rFront * Math.sin(a));
-      n.push(1, 0, 0);
-      m.push(mask);
-    }
-
-    for (let i = 0; i < segments; i++) {
-      const next = (i + 1) % segments;
-      idx.push(centerIdx, ringStart + i, ringStart + next);
-    }
+      return [maxX, cy + rFront * Math.cos(a), cz + rFront * Math.sin(a)];
+    });
   }
 
   // Cap Back (-X)
   if (capBack) {
-    const centerIdx = p.length / 3;
-    p.push(minX, cy, cz);
-    n.push(-1, 0, 0);
-    m.push(mask);
-
-    const ringStart = p.length / 3;
-    for (let i = 0; i < segments; i++) {
+    appendCap(buffers, [minX, cy, cz], [-1, 0, 0], segments, mask, (i) => {
       const a = (i / segments) * Math.PI * 2;
-      p.push(minX, cy + rBack * Math.cos(a), cz + rBack * Math.sin(a));
-      n.push(-1, 0, 0);
-      m.push(mask);
-    }
-
-    for (let i = 0; i < segments; i++) {
-      const next = (i + 1) % segments;
-      idx.push(centerIdx, ringStart + next, ringStart + i);
-    }
+      return [minX, cy + rBack * Math.cos(a), cz + rBack * Math.sin(a)];
+    }, true);
   }
 
   return {

@@ -6,7 +6,10 @@ export const COMMANDER_CADENCE = 24;
 export const COMBAT_ORDER_REFRESH = 96;
 export const BUILDING_RESERVE = 180;
 export const YARD_THREAT_RADIUS = 18;
-export const STRUCTURE_QUOTA_KINDS: BuildingKind[] = ["power", "refinery", "barracks", "factory", "turret"];
+// Keep this list aligned with generated structure-quota objectives. Barracks
+// and factories are single-instance buildings, so asking the commander to
+// build another one would produce a rejected command forever.
+export const STRUCTURE_QUOTA_KINDS: BuildingKind[] = ["power", "refinery", "turret"];
 export const OFFENSIVE_KINDS = new Set<MissionKind>([
   "sabotage",
   "destroyMarked",

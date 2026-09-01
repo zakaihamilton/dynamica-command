@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRef } from "react";
 import { createCamera } from "../lib/iso";
 import { makeFixture } from "../lib/sim/fixtures";
+import { markFreshLaunchIntent } from "../lib/persist/navigation";
 import { localStorageAdapter, readSave, saveKey, writeSave } from "../lib/persist/save";
 import { TELEMETRY_KEY } from "../lib/persist/telemetry";
 import type { BuildingKind } from "../lib/types";
@@ -41,6 +42,7 @@ import { useGameRuntime } from "../components/game/hooks/useGameRuntime";
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  window.sessionStorage.clear();
   renderGameFrame.mockClear();
   startLoop.mockClear();
 });
@@ -134,6 +136,59 @@ describe("useGameRuntime", () => {
     const fresh = initialMission(421, 0, false, false, true);
 
     expect(fresh.tick).toBe(0);
+  });
+
+  it("resumes a fresh-flagged mission after a browser reload", () => {
+    const saved = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    saved.tick = 120;
+    saved.credits[0] = 9876;
+    expect(writeSave(localStorageAdapter(), saved)).toBe(true);
+
+    const getEntriesByType = vi.spyOn(window.performance, "getEntriesByType").mockReturnValue([
+      { type: "reload" } as PerformanceNavigationTiming,
+    ]);
+
+    const resumed = initialMission(421, 0, false, false, true);
+
+    expect(resumed.tick).toBe(120);
+    expect(resumed.credits[0]).toBe(9876);
+    getEntriesByType.mockRestore();
+  });
+
+  it("honors a fresh SPA launch after the document was reloaded", () => {
+    const saved = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    saved.tick = 120;
+    expect(writeSave(localStorageAdapter(), saved)).toBe(true);
+
+    const getEntriesByType = vi.spyOn(window.performance, "getEntriesByType").mockReturnValue([
+      { type: "reload" } as PerformanceNavigationTiming,
+    ]);
+    markFreshLaunchIntent(421, 0);
+
+    const fresh = initialMission(421, 0, false, false, true);
+
+    expect(fresh.tick).toBe(0);
+    getEntriesByType.mockRestore();
+  });
+
+  it("uses the in-memory fresh intent when sessionStorage rejects the marker", () => {
+    const saved = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    saved.tick = 120;
+    expect(writeSave(localStorageAdapter(), saved)).toBe(true);
+
+    const getEntriesByType = vi.spyOn(window.performance, "getEntriesByType").mockReturnValue([
+      { type: "reload" } as PerformanceNavigationTiming,
+    ]);
+    const setItem = vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+      throw new Error("session storage unavailable");
+    });
+    markFreshLaunchIntent(421, 0);
+
+    const fresh = initialMission(421, 0, false, false, true);
+
+    expect(fresh.tick).toBe(0);
+    setItem.mockRestore();
+    getEntriesByType.mockRestore();
   });
 
   it("saves the current state when the page is unloaded", () => {

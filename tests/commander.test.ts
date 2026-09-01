@@ -81,6 +81,20 @@ describe("competent commander", () => {
     }
   });
 
+  it("does not retry an impossible single-instance building for a structure quota", () => {
+    const state = createMission({ seed: 23, missionIndex: 7 });
+    const commander = new CompetentCommander();
+    let rejections = 0;
+
+    for (let i = 0; i < 4_000 && state.result === "playing"; i++) {
+      const result = tick(state, commander.plan(state));
+      rejections += result.events.filter((event) => event.type === "commandRejected").length;
+    }
+
+    expect(state.missionKind).toBe("structureQuota");
+    expect(rejections).toBe(0);
+  });
+
   it.skipIf(IS_COVERAGE).each([
     [2, 7, "structureQuota"],
     [1, 7, "escort"],

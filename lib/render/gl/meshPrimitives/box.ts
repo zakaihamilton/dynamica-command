@@ -1,5 +1,6 @@
 import type { MeshData } from "./types";
 import { computeNormal } from "./math";
+import { appendQuad, type MeshPoint } from "./buffers";
 
 export function createBoxMesh(
   minX: number,
@@ -15,32 +16,20 @@ export function createBoxMesh(
   const m: number[] = [];
   const idx: number[] = [];
 
-  function addQuad(
-    p0: [number, number, number],
-    p1: [number, number, number],
-    p2: [number, number, number],
-    p3: [number, number, number],
-    norm: [number, number, number],
-  ) {
-    const baseIdx = p.length / 3;
-    p.push(...p0, ...p1, ...p2, ...p3);
-    n.push(...norm, ...norm, ...norm, ...norm);
-    m.push(mask, mask, mask, mask);
-    idx.push(baseIdx, baseIdx + 1, baseIdx + 2, baseIdx, baseIdx + 2, baseIdx + 3);
-  }
+  const buffers = { p, n, m, idx };
 
   // +Z (top)
-  addQuad([minX, minY, maxZ], [maxX, minY, maxZ], [maxX, maxY, maxZ], [minX, maxY, maxZ], [0, 0, 1]);
+  appendQuad(buffers, [minX, minY, maxZ], [maxX, minY, maxZ], [maxX, maxY, maxZ], [minX, maxY, maxZ], [0, 0, 1], mask);
   // -Z (bottom)
-  addQuad([minX, maxY, minZ], [maxX, maxY, minZ], [maxX, minY, minZ], [minX, minY, minZ], [0, 0, -1]);
+  appendQuad(buffers, [minX, maxY, minZ], [maxX, maxY, minZ], [maxX, minY, minZ], [minX, minY, minZ], [0, 0, -1], mask);
   // +X (front)
-  addQuad([maxX, minY, minZ], [maxX, maxY, minZ], [maxX, maxY, maxZ], [maxX, minY, maxZ], [1, 0, 0]);
+  appendQuad(buffers, [maxX, minY, minZ], [maxX, maxY, minZ], [maxX, maxY, maxZ], [maxX, minY, maxZ], [1, 0, 0], mask);
   // -X (back)
-  addQuad([minX, minY, maxZ], [minX, maxY, maxZ], [minX, maxY, minZ], [minX, minY, minZ], [-1, 0, 0]);
+  appendQuad(buffers, [minX, minY, maxZ], [minX, maxY, maxZ], [minX, maxY, minZ], [minX, minY, minZ], [-1, 0, 0], mask);
   // +Y (left)
-  addQuad([minX, maxY, minZ], [maxX, maxY, minZ], [maxX, maxY, maxZ], [minX, maxY, maxZ], [0, 1, 0]);
+  appendQuad(buffers, [minX, maxY, minZ], [maxX, maxY, minZ], [maxX, maxY, maxZ], [minX, maxY, maxZ], [0, 1, 0], mask);
   // -Y (right)
-  addQuad([minX, minY, maxZ], [maxX, minY, maxZ], [maxX, minY, minZ], [minX, minY, minZ], [0, -1, 0]);
+  appendQuad(buffers, [minX, minY, maxZ], [maxX, minY, maxZ], [maxX, minY, minZ], [minX, minY, minZ], [0, -1, 0], mask);
 
   return {
     positions: new Float32Array(p),
@@ -68,19 +57,10 @@ export function createTrapezoidMesh(
   const m: number[] = [];
   const idx: number[] = [];
 
-  function addQuad(
-    p0: [number, number, number],
-    p1: [number, number, number],
-    p2: [number, number, number],
-    p3: [number, number, number],
-  ) {
-    const baseIdx = p.length / 3;
-    const norm = computeNormal(p0, p1, p2);
-    p.push(...p0, ...p1, ...p2, ...p3);
-    n.push(...norm, ...norm, ...norm, ...norm);
-    m.push(mask, mask, mask, mask);
-    idx.push(baseIdx, baseIdx + 1, baseIdx + 2, baseIdx, baseIdx + 2, baseIdx + 3);
-  }
+  const buffers = { p, n, m, idx };
+  const addQuad = (p0: MeshPoint, p1: MeshPoint, p2: MeshPoint, p3: MeshPoint): void => {
+    appendQuad(buffers, p0, p1, p2, p3, computeNormal(p0, p1, p2), mask);
+  };
 
   // +Z (top)
   addQuad([tMinX, tMinY, maxZ], [tMaxX, tMinY, maxZ], [tMaxX, tMaxY, maxZ], [tMinX, tMaxY, maxZ]);

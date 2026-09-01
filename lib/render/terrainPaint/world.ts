@@ -215,14 +215,18 @@ function paintShroudLayer(
   const tw = TILE_W * z;
   const th = TILE_H * z;
   const step = HEIGHT_STEP * z;
+  const paintVisibleShroud = (
+    target: CanvasRenderingContext2D,
+    painter: typeof paintShroudOverlay,
+  ) => visitVisibleTiles(ctx, state, cam, (x, y) => {
+    const scenery = memoScenery(state, x, y);
+    const s = tileToScreen(x, y, cam, scenery.elev);
+    const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
+    const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
+    painter(target, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y));
+  });
   if (typeof document === "undefined") {
-    visitVisibleTiles(ctx, state, cam, (x, y) => {
-      const scenery = memoScenery(state, x, y);
-      const s = tileToScreen(x, y, cam, scenery.elev);
-      const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
-      const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
-      paintShroudOverlay(ctx, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y));
-    });
+    paintVisibleShroud(ctx, paintShroudOverlay);
     return;
   }
   if (!shroudMask) shroudMask = document.createElement("canvas");
@@ -232,13 +236,7 @@ function paintShroudLayer(
   }
   const fog = shroudMask.getContext("2d");
   if (!fog) {
-    visitVisibleTiles(ctx, state, cam, (x, y) => {
-      const scenery = memoScenery(state, x, y);
-      const s = tileToScreen(x, y, cam, scenery.elev);
-      const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
-      const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
-      paintShroudOverlay(ctx, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y));
-    });
+    paintVisibleShroud(ctx, paintShroudOverlay);
     return;
   }
   fog.setTransform(1, 0, 0, 1, 0, 0);
@@ -249,13 +247,7 @@ function paintShroudLayer(
   fog.fillStyle = `rgba(8, 13, 17, ${overlay})`;
   fog.fillRect(0, 0, w, h);
   fog.globalCompositeOperation = "destination-out";
-  visitVisibleTiles(ctx, state, cam, (x, y) => {
-    const scenery = memoScenery(state, x, y);
-    const s = tileToScreen(x, y, cam, scenery.elev);
-    const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
-    const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
-    paintShroudMaskTile(fog, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y));
-  });
+  paintVisibleShroud(fog, paintShroudMaskTile);
   fog.globalCompositeOperation = "source-over";
   fog.globalAlpha = 1;
   ctx.save();

@@ -6,6 +6,7 @@ import { resetPathBudget } from "../lib/sim/pathBudget";
 import { bakeTerrainAtlasData } from "../lib/render/terrainAtlas";
 import { flowFieldCacheSize, flowFieldFor } from "../lib/sim/flowField";
 import { staticNavigationFor } from "../lib/sim/world";
+import type { SimState } from "../lib/types";
 
 const MAX_ATLAS_MS = 1_000;
 const MAX_ATLAS_BYTES = 4 * 1024 * 1024;
@@ -26,6 +27,34 @@ type Sample = {
   ms: number;
   bytes: number;
 };
+
+function addBenchmarkFormation(state: SimState) {
+  addBuilding(state, 0, "constructionYard", 0, 0);
+  return Array.from({ length: FOREGROUND_GROUP_UNITS }, (_, i) =>
+    addUnit(state, 0, "infantry", 3 + (i % 12), 4 + Math.floor(i / 12)),
+  );
+}
+
+function issueBenchmarkDestinations(
+  state: SimState,
+  units: ReturnType<typeof addUnit>[],
+  destinations: { x: number; y: number }[],
+): void {
+  const groups = destinations.length;
+  destinations.forEach((destination, index) => {
+    const group = units.slice(
+      Math.floor(index * units.length / groups),
+      Math.floor((index + 1) * units.length / groups),
+    );
+    issue(state, {
+      type: "move",
+      unitIds: group.map((unit) => unit.id),
+      x: destination.x,
+      y: destination.y,
+      formation: "line",
+    });
+  });
+}
 
 const atlasSamples: Sample[] = [];
 for (const seed of [0, 421, 9999]) {
@@ -95,10 +124,7 @@ let pendingAfterOrder = 0;
 let pendingAfterFirstTick = 0;
 for (let sample = 0; sample < FOREGROUND_PATH_SAMPLES; sample++) {
   const state = makeFixture({ width: 96, height: 96, win: { kind: "harvestQuota", target: 99999 } });
-  addBuilding(state, 0, "constructionYard", 0, 0);
-  const units = Array.from({ length: FOREGROUND_GROUP_UNITS }, (_, i) =>
-    addUnit(state, 0, "infantry", 3 + (i % 12), 4 + Math.floor(i / 12)),
-  );
+  const units = addBenchmarkFormation(state);
   const started = performance.now();
   issue(state, {
     type: "move",
@@ -137,24 +163,8 @@ type RoutingSample = {
 
 function routingSample(seed: number, scenario: string, destinations: { x: number; y: number }[], invalidate = false): RoutingSample {
   const state = makeFixture({ seed, width: 96, height: 96, win: { kind: "harvestQuota", target: 99999 } });
-  addBuilding(state, 0, "constructionYard", 0, 0);
-  const units = Array.from({ length: FOREGROUND_GROUP_UNITS }, (_, i) =>
-    addUnit(state, 0, "infantry", 3 + (i % 12), 4 + Math.floor(i / 12)),
-  );
-  const groups = destinations.length;
-  destinations.forEach((destination, index) => {
-    const group = units.slice(
-      Math.floor(index * units.length / groups),
-      Math.floor((index + 1) * units.length / groups),
-    );
-    issue(state, {
-      type: "move",
-      unitIds: group.map((unit) => unit.id),
-      x: destination.x,
-      y: destination.y,
-      formation: "line",
-    });
-  });
+  const units = addBenchmarkFormation(state);
+  issueBenchmarkDestinations(state, units, destinations);
   // Static occupancy is cached independently from flow fields in a live
   // mission. Warm it here so this metric measures flow-field construction,
   // while the invalidation scenario below still measures a rebuild.
@@ -171,13 +181,7 @@ function routingSample(seed: number, scenario: string, destinations: { x: number
     const revision = state.navigationRevision;
     addBuilding(state, 1, "power", 50, 50);
     if (state.navigationRevision === revision) throw new Error("Navigation revision did not change during benchmark setup");
-    destinations.forEach((destination, index) => {
-      const group = units.slice(
-        Math.floor(index * units.length / groups),
-        Math.floor((index + 1) * units.length / groups),
-      );
-      issue(state, { type: "move", unitIds: group.map((unit) => unit.id), x: destination.x, y: destination.y, formation: "line" });
-    });
+    issueBenchmarkDestinations(state, units, destinations);
     measureFields();
   }
   for (let sample = timings.length; sample < FOREGROUND_PATH_SAMPLES; sample++) measureFields();

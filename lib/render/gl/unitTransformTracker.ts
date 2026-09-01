@@ -33,6 +33,22 @@ type UnitStateHistory = {
 
 const historyMap = new Map<number, UnitStateHistory>();
 
+function createUnitHistory(e: Entity, state: SimState, clockMs: number): UnitStateHistory {
+  const initialYaw = e.facing !== undefined ? (e.facing / 8) * Math.PI * 2 - Math.PI / 4 : -Math.PI / 4;
+  return {
+    id: e.id,
+    prevX: e.x,
+    prevY: e.y,
+    currX: e.x,
+    currY: e.y,
+    lastUpdateTick: state.tick,
+    yaw: initialYaw,
+    turretYaw: initialYaw,
+    stridePhase: 0,
+    lastClockMs: clockMs,
+  };
+}
+
 export function resetUnitTransformTracker(): void {
   historyMap.clear();
 }
@@ -46,19 +62,7 @@ export function updateUnitHistory(state: SimState, clockMs: number): void {
 
     let hist = historyMap.get(e.id);
     if (!hist) {
-      const initialYaw = e.facing !== undefined ? (e.facing / 8) * Math.PI * 2 - Math.PI / 4 : -Math.PI / 4;
-      hist = {
-        id: e.id,
-        prevX: e.x,
-        prevY: e.y,
-        currX: e.x,
-        currY: e.y,
-        lastUpdateTick: state.tick,
-        yaw: initialYaw,
-        turretYaw: initialYaw,
-        stridePhase: 0,
-        lastClockMs: clockMs,
-      };
+      hist = createUnitHistory(e, state, clockMs);
       historyMap.set(e.id, hist);
     } else {
       if (state.tick !== hist.lastUpdateTick) {
@@ -95,19 +99,7 @@ export function computeUnitDynamicTransform(
 ): UnitDynamicTransform {
   let hist = historyMap.get(e.id);
   if (!hist) {
-    const initialYaw = e.facing !== undefined ? (e.facing / 8) * Math.PI * 2 - Math.PI / 4 : -Math.PI / 4;
-    hist = {
-      id: e.id,
-      prevX: e.x,
-      prevY: e.y,
-      currX: e.x,
-      currY: e.y,
-      lastUpdateTick: state.tick,
-      yaw: initialYaw,
-      turretYaw: initialYaw,
-      stridePhase: 0,
-      lastClockMs: clockMs,
-    };
+    hist = createUnitHistory(e, state, clockMs);
     historyMap.set(e.id, hist);
   }
 

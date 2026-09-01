@@ -3,6 +3,7 @@ import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission } from "@/lib/sim/tutorial";
 import { cachedLocalStorage, readSave } from "@/lib/persist/save";
+import { consumeFreshLaunchIntent } from "@/lib/persist/navigation";
 import type { SaveSession } from "@/lib/persist/save";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { SimState } from "@/lib/types";
@@ -14,6 +15,17 @@ import { useMissionBackGuard } from "./useMissionBackGuard";
 
 export type { MissionConfirmation, MissionConfirmationAction } from "./missionConfirmation";
 
+function isBrowserReload(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const navigation = window.performance?.getEntriesByType?.("navigation")[0] as PerformanceNavigationTiming | undefined;
+  if (navigation) return navigation.type === "reload";
+
+  // Keep compatibility with browsers that only expose the legacy navigation API.
+  const legacyNavigation = (window.performance as Performance & { navigation?: { type?: number } }).navigation;
+  return legacyNavigation?.type === 1;
+}
+
 export function initialMission(
   seed: number,
   mission: number,
@@ -22,7 +34,9 @@ export function initialMission(
   fresh = false,
 ): SimState {
   if (tutorial) return createTutorialMission(seed);
-  if (!fresh && typeof window !== "undefined") {
+  const freshLaunchIntent = consumeFreshLaunchIntent(seed, mission);
+  const startFresh = fresh && (freshLaunchIntent || !isBrowserReload());
+  if (!startFresh && typeof window !== "undefined") {
     const saved = readSave(cachedLocalStorage(), seed);
     if (saved && (resume || saved.missionIndex === mission)) return saved;
   }

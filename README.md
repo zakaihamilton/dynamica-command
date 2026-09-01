@@ -26,11 +26,11 @@ Open the app, then **New Game** or type a seed such as `0421` and **Launch**. Pr
 | `yarn test:e2e` | Playwright browser smoke test; runs a browser preflight first |
 | `yarn inspect 0421` | Dump generated campaign JSON |
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
-| `yarn balance --from 0 --to 9 --jobs 4 --check true` | Run the competent commander through the full mission horizon with bounded worker parallelism and enforce balance thresholds. `--jobs 1` is the serial reference; omit it for a bounded CPU-based default. Nightly CI samples seeds `0000`–`0009` (80 scenarios) with 8 workers. |
+| `yarn balance --from 0 --to 39 --jobs 8 --check true` | Run the competent commander through the full mission horizon with bounded worker parallelism and enforce balance thresholds. `--jobs 1` is the serial reference; omit it for a bounded CPU-based default. CI samples seeds `0000`–`0039` (320 scenarios) with 8 workers. |
 | `yarn health:invariants` | Validate generated campaign topology and scenario reachability across representative seeds |
 | `yarn health:coverage` | Run focused V8 coverage; long generated-map and commander sweeps run in `health:invariants` |
 | `yarn health:performance` | Enforce terrain atlas, simulation, combat, and routing performance budgets |
-| `yarn health:balance` | Run the strict 80-scenario competent-commander acceptance sweep used by CI |
+| `yarn health:balance` | Run the strict 320-scenario competent-commander acceptance sweep used by CI |
 | `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
 
 For local E2E runs, the preflight launches the same headless browser used by Playwright and reports an actionable install/path error before starting the app. Run `yarn playwright install chromium`, or point at an installed browser with `PLAYWRIGHT_CHROME_PATH=/absolute/path/to/chrome yarn test:e2e`. Ubuntu CI installs and runs the bundled Chromium as the authoritative browser environment.

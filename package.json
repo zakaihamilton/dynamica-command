@@ -23,10 +23,10 @@
     "health:coverage": "VITEST_COVERAGE=1 vitest run --coverage",
     "health:invariants": "vitest run tests/allSeeds.test.ts tests/terrain.test.ts tests/commander.test.ts",
     "health:performance": "tsx scripts/perf.ts",
-    "health:balance": "tsx scripts/balance.ts --from 0 --to 9 --jobs 8 --check true --progress false",
+    "health:balance": "tsx scripts/balance.ts --from 0 --to 39 --jobs 8 --check true --progress false",
     "ci:timed-tests": "vitest run --reporter=dot --reporter=json --outputFile=artifacts/test-timing.json",
     "ci:timed-performance": "tsx scripts/perf.ts > artifacts/performance-timing.json",
-    "ci:timed-balance": "tsx scripts/balance.ts --from 0 --to 9 --jobs 8 --check true --progress false > artifacts/balance-timing.json",
+    "ci:timed-balance": "tsx scripts/balance.ts --from 0 --to 39 --jobs 8 --check true --progress false > artifacts/balance-timing.json",
     "health:licenses": "license-checker --json",
     "health:documentation": "markdownlint-cli2 \"**/*.md\" \"#.repnix\" \"#node_modules\" \"#playwright-report\" \"#test-results\" \"#coverage\" \"#dist\" \"#build\" \"#.next\" \"#.turbo\" \"#.git\" \"#generated\""
   },

@@ -528,6 +528,58 @@ test("loads the last save from the pause menu", async ({ page }) => {
   await expect(page.getByTestId("credits")).toHaveText("9,876");
 });
 
+test("resumes the active mission after refreshing the window", async ({ page }) => {
+  await deployToBattlefield(page);
+  await expect(page.getByTestId("command-sidebar")).toBeVisible();
+
+  const state = distinctiveSave();
+  await page.evaluate(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, { key: saveKey(421), raw: saveEnvelope(state) });
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Load Mission" }).click();
+  await page.getByRole("dialog", { name: "Load mission?" }).getByRole("button", { name: "Load mission" }).click();
+  await expect(page.getByRole("status")).toContainText(/Loaded mission at tick 120/);
+  await page.getByRole("button", { name: "Resume Mission" }).click();
+
+  await page.reload();
+  await expect(page.getByTestId("command-sidebar")).toBeVisible();
+  await expect(page.getByTestId("credits")).toHaveText("9,876");
+});
+
+test("starts a new same-seed mission after reloading before a fresh launch", async ({ page }) => {
+  await deployToBattlefield(page);
+  await expect(page.getByTestId("command-sidebar")).toBeVisible();
+
+  const state = distinctiveSave();
+  await page.evaluate(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, { key: saveKey(421), raw: saveEnvelope(state) });
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Load Mission" }).click();
+  await page.getByRole("dialog", { name: "Load mission?" }).getByRole("button", { name: "Load mission" }).click();
+  await expect(page.getByRole("status")).toContainText(/Loaded mission at tick 120/);
+  await page.getByRole("button", { name: "Resume Mission" }).click();
+
+  await page.reload();
+  await expect(page.getByTestId("credits")).toHaveText("9,876");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Escape to Menu" }).click();
+  await page.getByRole("dialog", { name: "Leave mission?" }).getByRole("button", { name: "Leave mission" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("menu-dashboard")).toBeVisible();
+
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await page.getByLabel("Four digit theater seed").fill("0421");
+  await page.getByRole("button", { name: "Launch" }).click();
+  await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
+  await page.getByRole("button", { name: "Launch" }).click();
+  await expect(page).toHaveURL(/\/play\?seed=0421&mission=0&fresh=1/);
+  await expect(page.getByTestId("credits")).toHaveText("2,000");
+});
+
 test("shows a mission result overlay from a finished save", async ({ page }) => {
   const state = distinctiveSave("won");
   await page.addInitScript(({ key, raw }) => {

@@ -1,9 +1,9 @@
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
-import type { CatalogAsset } from "@/lib/gen/assetCatalog";
-import type { Facing, FactionVisualProfile } from "@/lib/types";
+import type { Facing } from "@/lib/types";
 import { AssetChip } from "./AssetChip";
+import type { AssetPreviewControlProps } from "./AssetPreview";
 import styles from "./AssetPreview.module.css";
 
 const FACINGS: Facing[] = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -23,19 +23,7 @@ export function AssetPreviewControls({
   onConstruction,
   onDamage,
   onDesignFamily,
-}: {
-  selected: CatalogAsset;
-  facing: Facing;
-  playing: boolean;
-  construction: 0 | 1 | 2 | 3;
-  damage: 0 | 1 | 2;
-  designFamily: FactionVisualProfile["designFamily"];
-  onFacing: (dir: Facing) => void;
-  onPlaying: () => void;
-  onConstruction: (stage: 0 | 1 | 2 | 3) => void;
-  onDamage: (stage: 0 | 1 | 2) => void;
-  onDesignFamily: (value: FactionVisualProfile["designFamily"]) => void;
-}) {
+}: AssetPreviewControlProps) {
   const showFacing = selected.category === "unit" || (selected.category === "building" && selected.kind === "turret");
   const showAnim = selected.category === "unit" || selected.category === "building";
 

@@ -4,22 +4,8 @@ import type { Facing, FactionVisualProfile } from "@/lib/types";
 import { AssetPreviewControls } from "./AssetPreviewControls";
 import styles from "./AssetPreview.module.css";
 
-export function AssetPreview({
-  selected,
-  canvasRef,
-  facing,
-  playing,
-  construction,
-  damage,
-  designFamily,
-  onFacing,
-  onPlaying,
-  onConstruction,
-  onDamage,
-  onDesignFamily,
-}: {
+export type AssetPreviewControlProps = {
   selected: CatalogAsset;
-  canvasRef: Ref<HTMLCanvasElement>;
   facing: Facing;
   playing: boolean;
   construction: 0 | 1 | 2 | 3;
@@ -30,25 +16,19 @@ export function AssetPreview({
   onConstruction: (stage: 0 | 1 | 2 | 3) => void;
   onDamage: (stage: 0 | 1 | 2) => void;
   onDesignFamily: (value: FactionVisualProfile["designFamily"]) => void;
-}) {
+};
+
+export type AssetPreviewProps = AssetPreviewControlProps & {
+  canvasRef: Ref<HTMLCanvasElement>;
+};
+
+export function AssetPreview({ canvasRef, ...controls }: AssetPreviewProps) {
   return (
     <div className={styles.pane}>
       <div className={styles.stage}>
-        <canvas ref={canvasRef} width={420} height={280} className={styles.canvas} aria-label={`${selected.label} preview`} />
+        <canvas ref={canvasRef} width={420} height={280} className={styles.canvas} aria-label={`${controls.selected.label} preview`} />
       </div>
-      <AssetPreviewControls
-        selected={selected}
-        facing={facing}
-        playing={playing}
-        construction={construction}
-        damage={damage}
-        designFamily={designFamily}
-        onFacing={onFacing}
-        onPlaying={onPlaying}
-        onConstruction={onConstruction}
-        onDamage={onDamage}
-        onDesignFamily={onDesignFamily}
-      />
+      <AssetPreviewControls {...controls} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { MeshData } from "./types";
 import { computeNormal } from "./math";
+import { appendCap, appendQuad, type MeshPoint } from "./buffers";
 import { createBoxMesh } from "./box";
 
 export function createPolygonPrismMesh(
@@ -12,6 +13,7 @@ export function createPolygonPrismMesh(
   const n: number[] = [];
   const m: number[] = [];
   const idx: number[] = [];
+  const buffers = { p, n, m, idx };
   const count = pointsXY.length;
   if (count < 3) return createBoxMesh(0, 0, minZ, 0, 0, maxZ, mask);
 
@@ -29,52 +31,19 @@ export function createPolygonPrismMesh(
     const pA = pointsXY[i]!;
     const pB = pointsXY[(i + 1) % count]!;
 
-    const p0: [number, number, number] = [pA[0], pA[1], minZ];
-    const p1: [number, number, number] = [pB[0], pB[1], minZ];
-    const p2: [number, number, number] = [pB[0], pB[1], maxZ];
-    const p3: [number, number, number] = [pA[0], pA[1], maxZ];
+    const p0: MeshPoint = [pA[0], pA[1], minZ];
+    const p1: MeshPoint = [pB[0], pB[1], minZ];
+    const p2: MeshPoint = [pB[0], pB[1], maxZ];
+    const p3: MeshPoint = [pA[0], pA[1], maxZ];
 
-    const norm = computeNormal(p0, p1, p2);
-    const baseIdx = p.length / 3;
-    p.push(...p0, ...p1, ...p2, ...p3);
-    n.push(...norm, ...norm, ...norm, ...norm);
-    m.push(mask, mask, mask, mask);
-    idx.push(baseIdx, baseIdx + 1, baseIdx + 2, baseIdx, baseIdx + 2, baseIdx + 3);
+    appendQuad(buffers, p0, p1, p2, p3, computeNormal(p0, p1, p2), mask);
   }
 
   // Top cap (+Z)
-  const topCenterIdx = p.length / 3;
-  p.push(avgX, avgY, maxZ);
-  n.push(0, 0, 1);
-  m.push(mask);
-
-  const topRingStart = p.length / 3;
-  for (let i = 0; i < count; i++) {
-    p.push(pointsXY[i]![0], pointsXY[i]![1], maxZ);
-    n.push(0, 0, 1);
-    m.push(mask);
-  }
-  for (let i = 0; i < count; i++) {
-    const next = (i + 1) % count;
-    idx.push(topCenterIdx, topRingStart + i, topRingStart + next);
-  }
+  appendCap(buffers, [avgX, avgY, maxZ], [0, 0, 1], count, mask, (i) => [pointsXY[i]![0], pointsXY[i]![1], maxZ]);
 
   // Bottom cap (-Z)
-  const botCenterIdx = p.length / 3;
-  p.push(avgX, avgY, minZ);
-  n.push(0, 0, -1);
-  m.push(mask);
-
-  const botRingStart = p.length / 3;
-  for (let i = 0; i < count; i++) {
-    p.push(pointsXY[i]![0], pointsXY[i]![1], minZ);
-    n.push(0, 0, -1);
-    m.push(mask);
-  }
-  for (let i = 0; i < count; i++) {
-    const next = (i + 1) % count;
-    idx.push(botCenterIdx, botRingStart + next, botRingStart + i);
-  }
+  appendCap(buffers, [avgX, avgY, minZ], [0, 0, -1], count, mask, (i) => [pointsXY[i]![0], pointsXY[i]![1], minZ], true);
 
   return {
     positions: new Float32Array(p),
