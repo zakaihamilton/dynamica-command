@@ -37,6 +37,8 @@ describe("generated audio", () => {
     const corpus = Array.from({ length: 96 }, (_, seed) => composeMusic(seed, "mission", 0));
     expect(new Set(corpus.map((pattern) => pattern.style.name)).size).toBe(8);
     expect(corpus.some((pattern) => pattern.style.bassRiffFamily === "classic")).toBe(true);
+    expect(corpus.some((pattern) => pattern.theme.groove === "shuffle")).toBe(true);
+    expect(corpus.some((pattern) => pattern.scaleName === "phrygian")).toBe(true);
 
     const missions = Array.from({ length: 8 }, (_, mission) => composeMusic(421, "mission", mission));
     expect(new Set(missions.map((pattern) => pattern.style.arrangement.name)).size).toBe(8);
