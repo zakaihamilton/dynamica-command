@@ -199,11 +199,12 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const dropHats = thinBar && dropTexture && !hookSection;
     const dropPulse = thinBar && dropTexture && !hookSection;
     const denseBar = cue === "victory" || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
-    const fullDrums = !sparse && denseBar && (cue === "victory" || (!breakdown && (!intro || phraseBar >= 4)));
-    const lightDrums = sparse && !breakdown && (!intro || phraseBar >= 4);
+    const hole = holdBass;
+    const fullDrums = !sparse && denseBar && (cue === "victory" || (!hole && (!intro || phraseBar >= 4)));
+    const lightDrums = sparse && !hole && (!intro || phraseBar >= 4);
     let usePulse = arrangement.pulseEnabled[sectionIndex]!;
     if (intro && phraseBar < 4) usePulse = false;
-    if (breakdown && phraseBar < 6) usePulse = false;
+    if (hole && phraseBar < 6) usePulse = false;
     if (dropPulse) usePulse = false;
     const phraseSlot = phraseBar % 4;
     const response = phraseSlot === 1 || phraseSlot === 2;
@@ -213,18 +214,18 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       (intro && phraseBar >= 6) ||
       (breakdown && phraseBar >= 4) ||
       (section.name === "escalation" && phraseBar >= 4);
-    const echoSkip = arrangement.echoMelody && section.name === "groove" && phraseBar % 2 === 0;
+    const echoBar = arrangement.echoMelody && section.name === "groove" && phraseBar % 2 === 0;
     const useMelody =
       arrangement.melodyEnabled[sectionIndex] &&
       !restBar &&
-      !echoSkip &&
+      !echoBar &&
       (section.name === "groove" ||
         section.name === "development" ||
         section.name === "escalation" ||
         hookSection ||
         (intro && phraseBar >= 6) ||
         (breakdown && phraseBar >= 4));
-    const useCounter = !sparse && arrangement.counterEnabled[sectionIndex]! && (useMelody || (arrangement.echoMelody && section.name === "groove"));
+    const useCounter = !sparse && arrangement.counterEnabled[sectionIndex]! && (useMelody || echoBar);
     const sequenceOffset = liftBar ? 2 : 0;
     const sequenceOctave = liftBar && style.melodyOctave === 1 ? 2 : style.melodyOctave;
     const variant = (climax
@@ -267,7 +268,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       const sectionPulseStride = arrangement.pulseStrides[sectionIndex]!;
       const pulseStride = climax
         ? 1
-        : breakdown || (sparse && cue === "defeat")
+        : hole || (sparse && cue === "defeat")
           ? 4
           : hookSection && sectionPulseStride === 1
             ? 2
@@ -315,6 +316,24 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       );
     }
 
+    if (echoBar && phraseBar > 0) {
+      placeMelody(
+        notes.melody,
+        origin,
+        motif,
+        false,
+        rootMidi,
+        scalePick.notes,
+        chord,
+        variant,
+        sequenceOctave,
+        () => 2,
+        mixEnergy(0.48, energy),
+        false,
+        stepShift + 2,
+      );
+    }
+
     if (useCounter) {
       const lead = useHookLead ? hook : motif;
       const interval = climax ? 5 : hookSection ? 2 : 5;
@@ -344,14 +363,14 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       for (const step of hits.snare) {
         const accent = step === 4 || step === 12;
         drumEvent(drums, origin + step, "snare", (accent ? 0.9 : 0.62) * drumGain, accent);
-        if (!breakdown && !holdBass) drumEvent(drums, origin + step, "clap", (accent ? 0.76 : 0.48) * drumGain, accent);
+        if (!hole) drumEvent(drums, origin + step, "clap", (accent ? 0.76 : 0.48) * drumGain, accent);
       }
       const hatStride = climax ? 1 : dropHats ? 4 : arrangement.hatStride[sectionIndex]!;
       for (let step = 0; step < STEPS_PER_BAR; step += hatStride) {
         const offbeat = climax ? step % 2 === 1 : step % 4 === 2;
         drumEvent(drums, origin + step, "hat", (offbeat ? 0.28 : 0.2) * drumGain);
       }
-      if (!breakdown && !dropHats) {
+      if (!hole && !dropHats) {
         for (const step of openHatSteps) drumEvent(drums, origin + step, "openHat", 0.44 * drumGain);
       }
     }
@@ -366,7 +385,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
 
     if (fill) {
       placePhraseFill(drums, origin, arrangement.fillStyle[sectionIndex]!, {
-        sparse,
+        sparse: sparse || (hole && cue !== "victory"),
         finalBar: bar === MUSIC_BARS - 1,
         mini: false,
       });
