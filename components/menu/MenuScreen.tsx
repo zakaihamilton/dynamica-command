@@ -2,7 +2,6 @@
 
 import type { CSSProperties } from "react";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
-import { MenuBackdrop } from "./MenuBackdrop";
 import { MenuHero } from "./MenuHero";
 import { MenuMainPanel } from "./MenuMainPanel";
 import { MenuOverlay } from "./MenuOverlay";
@@ -17,9 +16,7 @@ export function MenuScreen() {
       className={styles.screen}
       style={{ "--scene-art": `url("${RASTER_ART.menu}")` } as CSSProperties}
     >
-      <MenuBackdrop />
       <div className={styles.vignette} />
-      <div className={styles.scanlines} />
 
       <div className={styles.uiLayer}>
         <header className={styles.topbar} aria-label="Dynamica command status">
@@ -37,12 +34,14 @@ export function MenuScreen() {
         </header>
 
         <main className={styles.content}>
-          <MenuHero />
-          <MenuMainPanel
-            onNewGame={controller.openNewGame}
-            onLoadMission={controller.openLoadMission}
-            onOptions={controller.openOptions}
-          />
+          <div className={styles.commandColumn}>
+            <MenuHero />
+            <MenuMainPanel
+              onNewGame={controller.openNewGame}
+              onLoadMission={controller.openLoadMission}
+              onOptions={controller.openOptions}
+            />
+          </div>
         </main>
 
         <footer className={styles.footer}>

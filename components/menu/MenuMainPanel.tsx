@@ -14,16 +14,10 @@ export function MenuMainPanel({
   onOptions: () => void;
 }) {
   return (
-    <MetalPanel as="nav" className={styles.panel} data-testid="menu-dashboard" aria-label="Main menu" aria-labelledby="main-menu-title">
+    <MetalPanel as="nav" className={styles.panel} data-testid="menu-dashboard" aria-label="Main menu">
       <div className={styles.panelHeader}>
-        <div className={styles.panelHeading}>
-          <div>
-            <ConsoleLabel>Dynamica command // Main menu</ConsoleLabel>
-            <h2 id="main-menu-title" className={styles.title}>Main menu</h2>
-          </div>
-          <span className={styles.status}>READY</span>
-        </div>
-        <p className={styles.copy}>Deploy a new theater, load a saved mission, or manage your local command link.</p>
+        <ConsoleLabel>Deploy</ConsoleLabel>
+        <span className={styles.status}>READY</span>
       </div>
 
       <div className={styles.actions}>

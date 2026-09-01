@@ -5,8 +5,21 @@
   overflow: hidden;
   color: var(--chrome-body);
   background:
-    linear-gradient(180deg, rgba(3, 7, 12, 0.38), rgba(3, 7, 12, 0.74)),
-    var(--scene-art) center / cover no-repeat,
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--chrome-void) 82%, transparent) 0%,
+      color-mix(in srgb, var(--chrome-void) 48%, transparent) 24%,
+      color-mix(in srgb, var(--chrome-void) 12%, transparent) 48%,
+      transparent 68%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--chrome-void) 34%, transparent) 0%,
+      transparent 16%,
+      transparent 78%,
+      color-mix(in srgb, var(--chrome-void) 58%, transparent) 100%
+    ),
+    var(--scene-art) center right / cover no-repeat,
     var(--chrome-void);
 }
 
@@ -15,22 +28,19 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 52% 48%, transparent 17%, color-mix(in srgb, var(--chrome-void) 48%, transparent) 68%, color-mix(in srgb, var(--chrome-void) 90%, transparent) 100%),
-    linear-gradient(to bottom, color-mix(in srgb, var(--chrome-bg) 35%, transparent), transparent 18%, transparent 82%, color-mix(in srgb, var(--chrome-bg) 62%, transparent));
-}
-
-.scanlines {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.025) 0px,
-    rgba(255, 255, 255, 0.025) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  mix-blend-mode: overlay;
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--chrome-void) 58%, transparent) 0%,
+      color-mix(in srgb, var(--chrome-void) 18%, transparent) 28%,
+      transparent 52%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--chrome-bg) 28%, transparent),
+      transparent 14%,
+      transparent 86%,
+      color-mix(in srgb, var(--chrome-bg) 50%, transparent)
+    );
 }
 
 .uiLayer {
@@ -110,37 +120,43 @@
 .content {
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
   min-height: 0;
   min-width: 0;
   width: 100%;
   align-items: center;
   justify-content: flex-start;
-  gap: clamp(1rem, 2.5vh, 1.75rem);
-  padding: clamp(1rem, 2vh, 2rem) 0;
+  padding: clamp(0.75rem, 2.4vh, 2rem) 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
+.commandColumn {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2.4vh, 1.6rem);
+  width: min(100%, 28rem);
+  min-width: 0;
+}
+
 .hero {
-  width: min(100%, 42rem);
-  text-align: center;
+  width: 100%;
+  text-align: left;
 }
 
 .eyebrow {
-  margin: 0 0 1rem;
+  margin: 0 0 0.7rem;
   color: var(--chrome-cyan);
   text-align: inherit;
 }
 
 .title {
   margin: 0;
-  text-align: center;
+  text-align: inherit;
   font-family: var(--font-display);
-  font-size: clamp(4rem, 8vw, 7rem);
+  font-size: clamp(2.9rem, 5.4vw, 4.2rem);
   font-weight: 900;
   line-height: 0.82;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   color: var(--chrome-text);
   text-shadow:
     0 0 18px color-mix(in srgb, var(--chrome-cyan) 70%, transparent),
@@ -150,12 +166,12 @@
 }
 
 .subtitle {
-  margin: 0.45rem 0 0;
-  text-align: center;
+  margin: 0.4rem 0 0;
+  text-align: inherit;
   font-family: var(--font-ui);
-  font-size: clamp(2.25rem, 4.8vw, 4.5rem);
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
   font-weight: 900;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.16em;
   color: var(--chrome-cyan);
   text-shadow:
     0 0 18px color-mix(in srgb, var(--chrome-cyan) 80%, transparent),
@@ -167,20 +183,16 @@
 .heroRule {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin: 1.7rem 0 1.2rem;
+  gap: 0.55rem;
+  width: min(100%, 16rem);
+  margin: 1.05rem 0 0.8rem;
   color: var(--chrome-cyan-dim);
 }
 
-.heroRule::before,
 .heroRule::after {
   content: "";
   height: 1px;
   flex: 1;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--chrome-cyan) 58%, transparent));
-}
-
-.heroRule::after {
   background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 58%, transparent), transparent);
 }
 
@@ -194,47 +206,17 @@
 
 .tagline {
   margin: 0;
-  text-align: center;
+  text-align: inherit;
   font-family: var(--font-ui);
-  font-size: clamp(0.95rem, 1.8vw, 1.35rem);
+  font-size: clamp(0.82rem, 1.5vw, 1.05rem);
   font-weight: 800;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--chrome-text);
   text-shadow:
     0 0 14px color-mix(in srgb, var(--chrome-cyan) 65%, transparent),
     0 0 32px color-mix(in srgb, var(--chrome-cyan) 40%, transparent),
     0 2px 0 var(--chrome-void);
-}
-
-.meta {
-  max-width: 30rem;
-  margin: 1.35rem auto 0;
-  color: var(--chrome-body);
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  line-height: 1.6;
-  opacity: 0.82;
-}
-
-.heroReadout {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 2rem;
-  padding: 0.5rem 0.75rem;
-  border-inline: 1px solid color-mix(in srgb, var(--chrome-cyan) 34%, transparent);
-  color: var(--chrome-muted);
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.readoutValue {
-  color: var(--chrome-success);
 }
 
 .footer {
@@ -254,36 +236,56 @@
   margin-inline-start: auto;
 }
 
-@media (min-width: 960px) {
+@media (max-width: 959px) {
+  .screen {
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--chrome-void) 42%, transparent) 0%,
+        color-mix(in srgb, var(--chrome-void) 28%, transparent) 38%,
+        color-mix(in srgb, var(--chrome-void) 62%, transparent) 100%
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--chrome-void) 36%, transparent) 0%,
+        transparent 46%,
+        color-mix(in srgb, var(--chrome-void) 18%, transparent) 100%
+      ),
+      var(--scene-art) center / cover no-repeat,
+      var(--chrome-void);
+  }
+
+  .vignette {
+    background:
+      radial-gradient(
+        ellipse at 50% 42%,
+        transparent 22%,
+        color-mix(in srgb, var(--chrome-void) 28%, transparent) 68%,
+        color-mix(in srgb, var(--chrome-void) 62%, transparent) 100%
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--chrome-bg) 32%, transparent),
+        transparent 16%,
+        transparent 72%,
+        color-mix(in srgb, var(--chrome-bg) 58%, transparent)
+      );
+  }
+
   .content {
-    gap: clamp(1rem, 2.5vh, 1.75rem);
+    justify-content: center;
   }
 
-  .eyebrow {
-    margin-bottom: 0.55rem;
+  .commandColumn {
+    width: min(100%, 32rem);
   }
 
-  .title {
-    font-size: clamp(3.1rem, 5vw, 4.4rem);
-  }
-
-  .subtitle {
-    margin-top: 0.25rem;
-    font-size: clamp(1.8rem, 3vw, 2.8rem);
+  .hero {
+    text-align: center;
   }
 
   .heroRule {
-    margin-block: 1rem 0.75rem;
-    width: min(100%, 30rem);
-  }
-
-  .meta {
-    margin-top: 0.85rem;
-  }
-
-  .heroReadout {
-    margin-top: 1rem;
-    padding-block: 0.4rem;
+    margin-inline: auto;
   }
 }
 
@@ -314,47 +316,36 @@
 
   .content {
     align-items: stretch;
-    gap: 1.25rem;
-    padding: 1.4rem 0 1.25rem;
+    padding: 1.15rem 0 1rem;
   }
 
-  .hero {
+  .commandColumn {
     width: 100%;
+    gap: 1.15rem;
   }
 
   .eyebrow {
-    margin-bottom: 0.8rem;
-    text-align: center;
+    margin-bottom: 0.65rem;
     font-size: 0.58rem;
   }
 
   .title {
-    font-size: clamp(2.55rem, 16vw, 4.25rem);
+    font-size: clamp(2.45rem, 15vw, 3.6rem);
+    letter-spacing: 0.04em;
   }
 
   .subtitle {
-    font-size: clamp(1.7rem, 10vw, 2.5rem);
-    letter-spacing: 0.18em;
+    font-size: clamp(1.45rem, 9vw, 2.1rem);
+    letter-spacing: 0.14em;
   }
 
   .heroRule {
-    margin: 1.25rem 0 1rem;
+    margin: 1rem auto 0.8rem;
   }
 
   .tagline {
-    font-size: clamp(0.78rem, 4vw, 1.1rem);
+    font-size: clamp(0.74rem, 3.6vw, 0.95rem);
     letter-spacing: 0.12em;
-  }
-
-  .meta {
-    margin-top: 0.9rem;
-    font-size: 0.58rem;
-    letter-spacing: 0.055em;
-  }
-
-  .heroReadout {
-    margin-top: 1.1rem;
-    font-size: 0.48rem;
   }
 
   .footer {
@@ -364,10 +355,6 @@
 
 @media (max-width: 360px) {
   .title {
-    font-size: clamp(2.35rem, 15vw, 3.6rem);
-  }
-
-  .meta {
-    max-width: 17rem;
+    font-size: clamp(2.2rem, 14vw, 3.2rem);
   }
 }
