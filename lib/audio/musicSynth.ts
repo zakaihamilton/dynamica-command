@@ -145,12 +145,14 @@ export function playTransition(audio: AudioGraphContext, g: MusicGraph, time: nu
 export function retunePad(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern, bar: number, time: number): void {
   const index = ((bar % p.bars) + p.bars) % p.bars;
   const root = p.padRoot[index] ?? p.rootHz;
+  const third = p.padThird[index] ?? root * 1.25;
   const fifth = p.padFifth[index] ?? root * 1.5;
+  const seventh = p.padSeventh[index] ?? root * 1.78;
   const t = Math.max(time, audio.currentTime);
   g.padOscA.frequency.setTargetAtTime(root, t, 0.04);
-  g.padOscB.frequency.setTargetAtTime(root * 1.002, t, 0.04);
-  g.padOscC.frequency.setTargetAtTime(root * 0.998, t, 0.04);
-  g.padOscD.frequency.setTargetAtTime(fifth * 1.001, t, 0.04);
+  g.padOscB.frequency.setTargetAtTime(third * 1.002, t, 0.04);
+  g.padOscC.frequency.setTargetAtTime(fifth * 0.998, t, 0.04);
+  g.padOscD.frequency.setTargetAtTime(seventh * 1.001, t, 0.04);
 }
 
 export function schedulePadGate(
