@@ -223,15 +223,6 @@
     text-transform: uppercase;
   }
 
-  .touchControls {
-    display: block;
-    min-width: 0;
-    padding: 0.55rem;
-    border: 1px solid var(--chrome-inset);
-    background: color-mix(in srgb, var(--chrome-steel-lo) 88%, transparent);
-    box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -1px -1px var(--chrome-void);
-  }
-
   .radarSlot :global(canvas) {
     height: 118px;
   }
@@ -303,13 +294,6 @@
   .header,
   .sidebar button {
     min-height: 44px;
-  }
-
-  .touchControls {
-    display: block;
-    padding: 0.35rem;
-    border: 1px solid var(--chrome-inset);
-    background: color-mix(in srgb, var(--chrome-steel-lo) 88%, transparent);
   }
 
   .touchStatus strong {

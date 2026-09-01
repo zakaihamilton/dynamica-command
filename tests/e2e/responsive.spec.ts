@@ -109,6 +109,25 @@ async function waitForStableSelection(page: import("@playwright/test").Page, tex
   }));
 }
 
+async function persistedUnitOrder(page: import("@playwright/test").Page, unitId: number) {
+  return page.evaluate(({ key, unitId: id }) => {
+    window.dispatchEvent(new Event("pagehide"));
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      state?: {
+        entities?: Array<{
+          id: number;
+          orderMode?: string;
+          orderDestination?: { x: number; y: number };
+        }>;
+      };
+    };
+    const unit = parsed.state?.entities?.find((entity) => entity.id === id);
+    return unit ? { orderMode: unit.orderMode ?? null, orderDestination: unit.orderDestination ?? null } : null;
+  }, { key: saveKey(TEST_SEED), unitId });
+}
+
 async function pageCamera(page: import("@playwright/test").Page, state: SimState) {
   const canvas = page.getByTestId("battlefield-canvas");
   const dimensions = await canvas.evaluate((element) => ({
@@ -156,19 +175,6 @@ async function pointForEntity(page: import("@playwright/test").Page, entity: Ent
     x: point.x,
     y: point.y + (TILE_H / 2) * zoom - 12 * zoom,
   }, bounds, dimensions);
-}
-
-async function marqueeForEntities(page: import("@playwright/test").Page, entities: Entity[]) {
-  const points = await Promise.all(entities.map((entity) => pointForEntity(page, entity)));
-  const canvas = page.getByTestId("battlefield-canvas");
-  const bounds = await canvas.boundingBox();
-  if (!bounds) throw new Error("Battlefield canvas has no layout bounds");
-  const inset = 12;
-  const x0 = Math.max(bounds.x + inset, Math.min(...points.map((point) => point.x)) - inset);
-  const y0 = Math.max(bounds.y + inset, Math.min(...points.map((point) => point.y)) - inset);
-  const x1 = Math.min(bounds.x + bounds.width - inset, Math.max(...points.map((point) => point.x)) + inset);
-  const y1 = Math.min(bounds.y + bounds.height - inset, Math.max(...points.map((point) => point.y)) + inset);
-  return { start: { x: x0, y: y0 }, end: { x: x1, y: y1 } };
 }
 
 async function dispatchTouch(
@@ -428,6 +434,7 @@ test.describe("mobile-first layouts", () => {
     { width: 390, height: 844, name: "phone portrait" },
     { width: 375, height: 667, name: "short phone portrait" },
     { width: 320, height: 568, name: "small phone portrait" },
+    { width: 700, height: 400, name: "narrow phone landscape" },
     { width: 844, height: 390, name: "phone landscape" },
   ]) {
     test(`keeps the battlefield usable at ${viewport.name}`, async ({ page }) => {
@@ -455,15 +462,17 @@ test.describe("mobile-first layouts", () => {
         await expect(sidebar).toHaveAttribute("aria-hidden", "true");
         await expect(sidebar).toHaveAttribute("inert", "");
       } else {
-        await expect(page.getByTestId("command-sidebar")).toBeVisible();
-        const sidebarBounds = await page.getByTestId("command-sidebar").boundingBox();
+        const sidebar = page.getByTestId("command-sidebar");
+        await expect(sidebar).toBeVisible();
+        const sidebarBounds = await sidebar.boundingBox();
         expect(sidebarBounds).not.toBeNull();
         expect(sidebarBounds!.x + sidebarBounds!.width).toBeLessThanOrEqual(viewport.width);
       }
+      await expect(page.getByTestId("mobile-touch-controls")).not.toBeVisible();
     });
   }
 
-  test("opens the collapsible command panel and selection mode without reserving map space", async ({ page }) => {
+  test("opens and closes the command panel without reserving map space", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/play?seed=0421&mission=0");
 
@@ -485,13 +494,11 @@ test.describe("mobile-first layouts", () => {
     expect(panelBounds).not.toBeNull();
     expect(panelBounds!.x).toBeGreaterThanOrEqual(0);
     expect(panelBounds!.x + panelBounds!.width).toBeLessThanOrEqual(390);
+    await expect(panel.getByTestId("mobile-touch-controls")).not.toBeVisible();
+    await expect(panel.getByRole("tab", { name: "Construction" })).toBeVisible();
 
-    const select = panel.getByTestId("mobile-select-mode");
-    await expect(select).toHaveAttribute("aria-pressed", "false");
-    await select.click();
-    await expect(select).toHaveAttribute("aria-pressed", "true");
+    await launcher.getByTestId("mobile-command-toggle").click();
     await expect(panel).not.toBeVisible();
-
     await launcher.getByTestId("mobile-command-toggle").click();
     await expect(panel).toBeVisible();
     await page.getByTestId("mobile-command-scrim").click({ position: { x: 12, y: 420 } });
@@ -515,7 +522,7 @@ test.describe("mobile-first layouts", () => {
     await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
   });
 
-  test("does not expose unit movement for a selected base", async ({ page }) => {
+  test("does not expose the removed touch controls for a selected base", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/play?seed=0421&mission=0");
     await waitForBattlefield(page);
@@ -524,51 +531,32 @@ test.describe("mobile-first layouts", () => {
     await dispatchTouch(page, "pointerdown", yard);
     await dispatchTouch(page, "pointerup", yard);
     await page.getByTestId("mobile-command-toggle").click();
-    await expect(page.getByTestId("command-sidebar").getByTestId("mobile-command-move")).toHaveCount(0);
+    await expect(page.getByTestId("command-sidebar").getByTestId("mobile-touch-controls")).not.toBeVisible();
   });
 
-  test("supports touch selection, marquee selection, panning, commands, and long press", async ({ page }) => {
+  test("supports touch selection, panning, and direct commands", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/play?seed=${String(TEST_SEED).padStart(4, "0")}&mission=0`);
     await waitForBattlefield(page);
 
     const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
-    const units = playerUnits(state);
-    const infantryEntity = units.find((entity) => entity.kind === "infantry");
+    const infantryEntity = playerUnits(state).find((entity) => entity.kind === "infantry");
     if (!infantryEntity) throw new Error("Mission has no player infantry");
     const infantry = await pointForEntity(page, infantryEntity);
     await dispatchTouch(page, "pointerdown", infantry);
     await dispatchTouch(page, "pointerup", infantry);
     await waitForStableSelection(page, "1 selected");
 
-    await page.getByTestId("mobile-command-toggle").click();
-    await page.getByTestId("command-sidebar").getByTestId("mobile-select-mode").click();
-    const marquee = await marqueeForEntities(page, units);
-    await dispatchTouch(page, "pointerdown", marquee.start);
-    await dispatchTouch(page, "pointermove", marquee.end);
-    await dispatchTouch(page, "pointerup", marquee.end);
-    await waitForStableSelection(page, `${units.length} selected`);
-
     const dragStart = { x: 90, y: 650 };
     await dispatchTouch(page, "pointerdown", dragStart);
     await dispatchTouch(page, "pointermove", { x: 155, y: 650 });
     await dispatchTouch(page, "pointerup", { x: 155, y: 650 });
-    await waitForStableSelection(page, `${units.length} selected`);
+    await waitForStableSelection(page, "1 selected");
 
-    await page.getByTestId("mobile-command-toggle").click();
-    await page.getByTestId("command-sidebar").getByTestId("mobile-command-move").click();
-    await expect(page.getByTestId("mobile-touch-controls")).toContainText("Move armed");
     const orderPoint = { x: 300, y: 600 };
     await dispatchTouch(page, "pointerdown", orderPoint);
     await dispatchTouch(page, "pointerup", orderPoint);
-    await expect(page.getByTestId("mobile-touch-controls")).not.toContainText("Move armed");
-
-    await page.getByTestId("mobile-command-toggle").click();
-    await page.getByTestId("command-sidebar").getByTestId("mobile-command-move").click();
-    await dispatchTouch(page, "pointerdown", { x: 300, y: 600 });
-    await page.waitForTimeout(520);
-    await dispatchTouch(page, "pointerup", { x: 300, y: 600 });
-    await expect(page.getByTestId("mobile-touch-controls")).not.toContainText("Move armed");
+    await expect.poll(() => persistedUnitOrder(page, infantryEntity.id)).toMatchObject({ orderMode: "move" });
   });
 
   test("keeps tutorial controls above the battlefield and reachable on small phones", async ({ page }) => {

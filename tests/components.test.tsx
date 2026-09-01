@@ -195,7 +195,7 @@ describe("SeedEntry", () => {
   it("selects an existing seed so typing replaces it", async () => {
     const user = userEvent.setup();
     render(<ControlledSeedEntry />);
-    const input = screen.getByLabelText("Four digit theater seed");
+    const input = screen.getByLabelText<HTMLInputElement>("Four digit theater seed");
 
     input.focus();
     expect(input.selectionStart).toBe(0);
