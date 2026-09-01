@@ -79,7 +79,7 @@ export function GameOverlays({
 
   return (
     <>
-      {!tutorial && !paused && state.result === "playing" && !session.confirmation ? (
+      {!paused && state.result === "playing" && !session.confirmation ? (
         <MobileCommandLauncher
           open={mobilePanelOpen}
           onToggle={onToggleMobilePanel}
@@ -87,7 +87,7 @@ export function GameOverlays({
         />
       ) : null}
 
-      {!tutorial && shouldShowCommandSidebar(state.result) ? (
+      {shouldShowCommandSidebar(state.result) ? (
         <GameSidebarSurface
           factionName={campaign.factions[0].name}
           state={state}

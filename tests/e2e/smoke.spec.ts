@@ -84,6 +84,7 @@ test("first deploy routes through tutorial to briefing", async ({ page }) => {
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/tutorial\?seed=0421/);
   await expect(page.getByTestId("tutorial-overlay")).toBeVisible();
+  await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await page.getByRole("button", { name: "Skip training" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();

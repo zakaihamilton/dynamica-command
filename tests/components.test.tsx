@@ -15,6 +15,8 @@ import { NewGameSetup } from "../components/menu/NewGameSetup";
 import { SeedEntry } from "../components/menu/SeedEntry";
 import { PauseMenu } from "../components/game/PauseMenu";
 import { MissionConfirmation } from "../components/game/MissionConfirmation";
+import { BriefingActions } from "../components/briefing/BriefingActions";
+import { createCampaign } from "../lib/gen/campaign";
 import { defaultSettings } from "../lib/persist/settings";
 import type { Palette } from "../lib/types";
 import { generateVisualProfile } from "../lib/gen/visualProfile";
@@ -131,6 +133,24 @@ describe("MobileCommandLauncher", () => {
     expect(screen.getByTestId("mobile-command-toggle")).toHaveAttribute("aria-label", "Close commands");
     fireEvent.click(screen.getByTestId("mobile-command-scrim"));
     expect(onToggle).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("BriefingActions", () => {
+  it("removes the duplicate back button when returning to a mission", () => {
+    render(
+      <BriefingActions
+        campaign={createCampaign(421)}
+        returnToGame
+        onReplay={vi.fn()}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+        backLabel="Back to mission"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Back to mission" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Return to mission" })).toBeVisible();
   });
 });
 

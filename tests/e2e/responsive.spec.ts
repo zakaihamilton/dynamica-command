@@ -606,7 +606,9 @@ test.describe("mobile-first layouts", () => {
     await page.goto("/tutorial?seed=0421");
     const tutorial = page.getByTestId("tutorial-overlay");
     await expect(tutorial).toBeVisible();
-    await expect(page.getByTestId("mobile-command-launcher")).toHaveCount(0);
+    await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
+    await page.getByTestId("mobile-command-toggle").click();
+    await expect(page.getByTestId("command-sidebar")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     const bounds = await tutorial.boundingBox();

@@ -20,13 +20,15 @@ export function BriefingActions({
 }) {
   return (
     <div className={styles.actions} data-testid="briefing-actions">
-      <ConsoleButton
-        muted
-        tooltip={backLabel}
-        onClick={onBack}
-      >
-        {backLabel}
-      </ConsoleButton>
+      {!returnToGame ? (
+        <ConsoleButton
+          muted
+          tooltip={backLabel}
+          onClick={onBack}
+        >
+          {backLabel}
+        </ConsoleButton>
+      ) : null}
       <ConsoleButton
         tooltip="Replay the incoming transmission"
         shortcut={SHORTCUT.replay}

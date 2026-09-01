@@ -176,4 +176,42 @@ describe("game overlay surfaces", () => {
     expect(screen.queryByTestId("surface-sidebar")).toBeNull();
     expect(screen.queryByTestId("surface-pause")).toBeNull();
   });
+
+  it("keeps command controls available during tutorial play", () => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const props = {
+      campaign: createCampaign(421),
+      state,
+      playerVisualProfile: generateVisualProfile(421, 0),
+      selectedIds: [],
+      tutorial: true,
+      selectionMode: false,
+      mobilePanelOpen: false,
+      mobileLauncherRef: createRef<HTMLButtonElement>(),
+      miniRef: createRef<HTMLCanvasElement>(),
+      activeTab: "construction" as const,
+      onTab: vi.fn(),
+      paused: false,
+      pauseView: "main" as const,
+      pauseNotice: "",
+      audioSettings: defaultSettings(),
+      camera: {
+        onMinimapPointerDown: vi.fn(),
+        onMinimapPointerMove: vi.fn(),
+        onMinimapPointerUp: vi.fn(),
+        isMinimapDragging: false,
+      } as unknown as GameCamera,
+      setPauseView: vi.fn(),
+      setPauseNotice: vi.fn(),
+      onToggleMobilePanel: vi.fn(),
+      onPause: vi.fn(),
+      actions: testActions(),
+      session: testSession(),
+    };
+
+    render(<GameOverlays {...props} />);
+
+    expect(screen.getByTestId("surface-mobile-launcher")).toBeVisible();
+    expect(screen.getByTestId("surface-sidebar")).toBeVisible();
+  });
 });
