@@ -4,9 +4,9 @@ import styles from "./MenuScreen.module.css";
 export function MenuHero() {
   return (
     <div className={styles.hero}>
-      <ConsoleLabel className={styles.eyebrow}>Genesis command // Welcome</ConsoleLabel>
-      <h1 className={styles.title}>GENESIS</h1>
-      <p className={styles.subtitle}>PROTOCOL</p>
+      <ConsoleLabel className={styles.eyebrow}>Dynamica command // Welcome</ConsoleLabel>
+      <h1 className={styles.title}>DYNAMICA</h1>
+      <p className={styles.subtitle}>COMMAND</p>
       <div className={styles.heroRule} aria-hidden="true"><span /></div>
       <p className={styles.tagline}>Harvest. Build. Conquer.</p>
       <p className={styles.meta}>A seeded isometric RTS where every four-digit code writes a different war.</p>

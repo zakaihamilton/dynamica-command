@@ -5,7 +5,7 @@ export type WorldPhaseTimings = {
   combat: number;
 };
 
-const PERF_STORAGE_KEY = "genesis-protocol:perf";
+const PERF_STORAGE_KEY = "dynamica-command:perf";
 
 let enabled: boolean | undefined;
 let lastFrameMs = 0;

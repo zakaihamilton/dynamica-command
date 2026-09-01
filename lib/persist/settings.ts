@@ -1,7 +1,7 @@
 import { safeSetItem, type StorageAdapter } from "./save";
 import { isRecord, readPersistedEnvelope } from "./utils";
 
-export const SETTINGS_KEY = "genesis-protocol:settings";
+export const SETTINGS_KEY = "dynamica-command:settings";
 export const SETTINGS_VERSION = 2 as const;
 
 export type GameSettings = {

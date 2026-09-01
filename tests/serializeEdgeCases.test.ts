@@ -34,7 +34,7 @@ describe("saveKey / saveExportFilename", () => {
   });
 
   it("formats export filenames", () => {
-    expect(saveExportFilename(42)).toBe("genesis-protocol-0042-save.json");
+    expect(saveExportFilename(42)).toBe("dynamica-command-0042-save.json");
   });
 });
 
@@ -44,7 +44,7 @@ describe("serializeSaveExport", () => {
     const campaign = freshCampaignProgress(2000);
     const raw = serializeSaveExport(state, campaign, 12345);
     const parsed = JSON.parse(raw);
-    expect(parsed.format).toBe("genesis-protocol-save");
+    expect(parsed.format).toBe("dynamica-command-save");
     expect(parsed.version).toBe(1);
     expect(parsed.exportedAt).toBe(12345);
     expect(parsed.campaign.seed).toBe(2000);

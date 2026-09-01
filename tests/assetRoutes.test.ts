@@ -30,7 +30,7 @@ describe("GET /api/assets", () => {
       assets: Array<{ id: string; metadataUrl: string; previewUrl: string }>;
     };
     expect(body.apiVersion).toBe(ASSET_API_VERSION);
-    expect(body.name).toBe("Genesis Protocol Asset Bay");
+    expect(body.name).toBe("Dynamica Command Asset Bay");
     expect(body.categories).toEqual(["unit", "building", "wreck", "rubble"]);
     expect(body.count).toBe(listGeneratedAssets().length);
     expect(body.assets).toHaveLength(body.count);

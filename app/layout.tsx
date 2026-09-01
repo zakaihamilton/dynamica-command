@@ -6,7 +6,7 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import styles from "./layout.module.css";
 
 export const metadata: Metadata = {
-  title: "Genesis Protocol",
+  title: "Dynamica Command",
   description: "Seeded isometric RTS — one 4-digit code writes the war.",
 };
 

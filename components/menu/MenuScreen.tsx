@@ -22,17 +22,17 @@ export function MenuScreen() {
       <div className={styles.scanlines} />
 
       <div className={styles.uiLayer}>
-        <header className={styles.topbar} aria-label="Genesis command status">
+        <header className={styles.topbar} aria-label="Dynamica command status">
           <div className={styles.topbarBrand}>
-            <span className={styles.brandMark}>GP</span>
-            <span>GENESIS PROTOCOL</span>
+            <span className={styles.brandMark}>DC</span>
+            <span>DYNAMICA COMMAND</span>
             <span className={styles.topbarDivider}>/</span>
             <span className={styles.topbarMuted}>COMMAND DESK</span>
           </div>
           <div className={styles.topbarStatus}>
             <span className={styles.statusDot} aria-hidden="true" />
             <span>LOCAL THEATER LINK</span>
-            <span className={styles.topbarCode}>GP-01</span>
+            <span className={styles.topbarCode}>DC-01</span>
           </div>
         </header>
 

@@ -92,7 +92,7 @@ export async function supportsM4aExport(): Promise<boolean> {
 }
 
 export function missionSoundtrackFilename(seed: number, missionIndex: number): string {
-  return `genesis-protocol-${formatSeed(seed)}-mission-${String(missionIndex + 1).padStart(2, "0")}.m4a`;
+  return `dynamica-command-${formatSeed(seed)}-mission-${String(missionIndex + 1).padStart(2, "0")}.m4a`;
 }
 
 function interleaveAudioBuffer(buffer: AudioBuffer, start: number, count: number): Float32Array<ArrayBuffer> {

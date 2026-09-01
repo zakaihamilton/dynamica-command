@@ -26,7 +26,7 @@ export function PauseMainMenu({
 }) {
   return (
     <>
-      <ConsoleLabel>Genesis Command</ConsoleLabel>
+      <ConsoleLabel>Dynamica Command</ConsoleLabel>
       <h2 id="pause-title" className={styles.title}>Game paused</h2>
       <div className={styles.actions}>
         <ConsoleButton className={styles.action} tooltip="Return to the battlefield" shortcut={SHORTCUT.resume} onClick={onResume}>Resume Mission</ConsoleButton>

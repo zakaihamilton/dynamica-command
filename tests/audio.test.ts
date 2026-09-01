@@ -255,7 +255,7 @@ describe("generated audio", () => {
   });
 
   it("creates deterministic mission filenames and reports unsupported headless export", async () => {
-    expect(missionSoundtrackFilename(421, 3)).toBe("genesis-protocol-0421-mission-04.m4a");
+    expect(missionSoundtrackFilename(421, 3)).toBe("dynamica-command-0421-mission-04.m4a");
     expect(await supportsM4aExport()).toBe(false);
   });
 

@@ -251,7 +251,7 @@ describe("listUnreadableSaves", () => {
 
   it("skips non-4-digit seed keys", () => {
     const storage = memoryStorage();
-    storage.setItem("genesis-protocol:save:abc", "value");
+    storage.setItem("dynamica-command:save:abc", "value");
     expect(listUnreadableSaves(storage)).toEqual([]);
   });
 

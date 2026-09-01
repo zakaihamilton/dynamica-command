@@ -7,7 +7,7 @@ describe("save download adapter", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("downloads JSON through a browser Blob and anchor", () => {
-    const url = "blob:genesis";
+    const url = "blob:dynamica-command";
     vi.spyOn(URL, "createObjectURL").mockReturnValue(url);
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     const click = vi.fn();
@@ -18,7 +18,7 @@ describe("save download adapter", () => {
       click,
     } as unknown as HTMLAnchorElement);
 
-    downloadSaveExport('{"ok":true}', "genesis-protocol-0421-save.json");
+    downloadSaveExport('{"ok":true}', "dynamica-command-0421-save.json");
 
     expect(URL.createObjectURL).toHaveBeenCalledOnce();
     expect(createElement).toHaveBeenCalledWith("a");

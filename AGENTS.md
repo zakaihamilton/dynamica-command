@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Cursor Cloud specific instructions
 
-Genesis Protocol is a single, fully client-side Next.js 16 + React 19 browser RTS game (Canvas 2D). There is no backend service, database, or environment variables to configure — all campaign content is generated deterministically from a 4-digit seed and persisted to `localStorage`. See `README.md` for the full command list and game details.
+Dynamica Command is a single, fully client-side Next.js 16 + React 19 browser RTS game (Canvas 2D). There is no backend service, database, or environment variables to configure — all campaign content is generated deterministically from a 4-digit seed and persisted to `localStorage`. See `README.md` for the full command list and game details.
 
 Yarn 1.22.22 is preinstalled. `jsdom@30` requires Node `^22.22.2`; nvm provides it at `$HOME/.nvm/versions/node/v22.22.2`. If `node -v` is older (the default PATH can expose 22.14.0 first), prepend that nvm bin directory before any `yarn` command.
 

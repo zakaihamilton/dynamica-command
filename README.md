@@ -1,8 +1,8 @@
-# Genesis Protocol
+# Dynamica Command
 
 A browser **Command & Conquer–like** isometric RTS. One **4-digit seed** (`0000`–`9999`) writes the whole theater: factions, characters, campaign plot, mission maps, win conditions, and every sprite. Enter the same number later to resume.
 
-**[Play from source](#run)** · [github.com/zakaihamilton/genesis-protocol](https://github.com/zakaihamilton/genesis-protocol)
+**[Play from source](#run)** · [github.com/zakaihamilton/dynamica-command](https://github.com/zakaihamilton/dynamica-command)
 
 ![Desktop mission gameplay](docs/mission-desktop.png)
 
@@ -37,7 +37,7 @@ For local E2E runs, the preflight launches the same headless browser used by Pla
 
 ## How a seed works
 
-The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Campaign content is **never stored** — it is regenerated. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `genesis-protocol:save:0421`. Audio preferences (`music` / `sound effects` toggles and volumes) persist separately as `genesis-protocol:settings`.
+The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Campaign content is **never stored** — it is regenerated. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `dynamica-command:save:0421`. Audio preferences (`music` / `sound effects` toggles and volumes) persist separately as `dynamica-command:settings`.
 
 ```text
 seed 0421

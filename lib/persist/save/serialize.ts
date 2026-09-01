@@ -16,14 +16,14 @@ import {
 import { isRecord } from "../utils";
 export { SAVE_CONTENT_VERSION } from "./validation";
 
-export const SAVE_PREFIX = "genesis-protocol:save:";
+export const SAVE_PREFIX = "dynamica-command:save:";
 export const SAVE_VERSION = 2;
 const LEGACY_SAVE_VERSION = 1;
 const LEGACY_SAVE_CONTENT_VERSION = 1;
 
-export const SAVE_EXPORT_FORMAT = "genesis-protocol-save" as const;
+export const SAVE_EXPORT_FORMAT = "dynamica-command-save" as const;
 export const SAVE_EXPORT_VERSION = 1 as const;
-export const SAVE_TRANSFER_KEY = "genesis-protocol:save-transfer";
+export const SAVE_TRANSFER_KEY = "dynamica-command:save-transfer";
 
 export type SaveEnvelope = {
   version: typeof SAVE_VERSION;
@@ -111,7 +111,7 @@ export function parseSaveExport(raw: string): ParsedSaveExport {
 }
 
 export function saveExportFilename(seed: number): string {
-  return `genesis-protocol-${formatSeed(seed)}-save.json`;
+  return `dynamica-command-${formatSeed(seed)}-save.json`;
 }
 
 export function saveKey(seed: number): string {

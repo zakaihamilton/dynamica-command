@@ -52,7 +52,7 @@ describe("portable save transfer", () => {
   });
 
   it("treats unreadable local save keys as collisions", () => {
-    const storage = memoryStorage({ "genesis-protocol:save:0421": "not-json" });
+    const storage = memoryStorage({ "dynamica-command:save:0421": "not-json" });
     expect(hasSaveForSeed(storage, 421)).toBe(true);
   });
 
@@ -62,8 +62,8 @@ describe("portable save transfer", () => {
     const storage = memoryStorage();
     writeSave(storage, oldState);
     writeCampaignProgress(storage, freshCampaignProgress(421));
-    const previousMission = storage.getItem("genesis-protocol:save:0421");
-    const previousCampaign = storage.getItem("genesis-protocol:campaign:0421");
+    const previousMission = storage.getItem("dynamica-command:save:0421");
+    const previousCampaign = storage.getItem("dynamica-command:campaign:0421");
     const originalSet = storage.setItem;
     let writes = 0;
     storage.setItem = (key, value) => {
@@ -75,8 +75,8 @@ describe("portable save transfer", () => {
     const imported = parseSaveExport(serializeSaveExport(state, importedCampaign));
 
     expect(importSaveAtomically(storage, imported)).toBe(true);
-    expect(storage.getItem("genesis-protocol:save:0421")).toBe(previousMission);
-    expect(storage.getItem("genesis-protocol:campaign:0421")).toBe(previousCampaign);
+    expect(storage.getItem("dynamica-command:save:0421")).toBe(previousMission);
+    expect(storage.getItem("dynamica-command:campaign:0421")).toBe(previousCampaign);
     expect(storage.getItem(SAVE_TRANSFER_KEY)).not.toBeNull();
     expect(readSave(storage, 421)?.missionName).toBe(state.missionName);
     expect(readCampaignProgress(storage, 421).completedMissions).toEqual([0]);

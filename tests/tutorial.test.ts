@@ -5,7 +5,7 @@ describe("tutorial", () => {
   it("creates a mission with tutorial stage set to select", () => {
     const state = createTutorialMission(1234);
     expect(state.tutorialStage).toBe("select");
-    expect(state.missionName).toBe("Genesis Training Range");
+    expect(state.missionName).toBe("Dynamica Training Range");
     expect(state.missionKind).toBe("holdTheLine");
     expect(state.win.kind).toBe("holdTheLine");
   });

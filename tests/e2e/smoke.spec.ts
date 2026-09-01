@@ -137,7 +137,7 @@ test("returns from the operations map with Escape", async ({ page }) => {
 test("keeps the unified menu and operations chrome inside the desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "GENESIS" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "DYNAMICA" })).toBeVisible();
   await expect(page.getByTestId("menu-dashboard")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Main menu" })).toBeVisible();
   await expect(page.getByTestId("menu-dashboard").getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);
@@ -422,7 +422,7 @@ test("downloads a valid deterministic M4A when native AAC is supported", async (
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("genesis-protocol-0421-mission-01.m4a");
+  expect(download.suggestedFilename()).toBe("dynamica-command-0421-mission-01.m4a");
   const path = await download.path();
   expect(path).not.toBeNull();
   const file = await readFile(path!);

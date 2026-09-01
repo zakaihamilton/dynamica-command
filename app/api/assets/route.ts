@@ -13,7 +13,7 @@ export function GET(request: Request) {
 
   return Response.json({
     apiVersion: ASSET_API_VERSION,
-    name: "Genesis Protocol Asset Bay",
+    name: "Dynamica Command Asset Bay",
     categories: ASSET_API_CATEGORIES,
     count: filtered.length,
     assets: filtered.map((asset) => toAssetApiItem(asset, request.url)),

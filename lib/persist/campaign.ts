@@ -4,7 +4,7 @@ import { formatSeed } from "../seed/rng";
 import { isRecord, readPersistedEnvelope } from "./utils";
 
 export const CAMPAIGN_PROGRESS_VERSION = 1 as const;
-export const CAMPAIGN_PREFIX = "genesis-protocol:campaign:";
+export const CAMPAIGN_PREFIX = "dynamica-command:campaign:";
 
 export function campaignKey(seed: number): string {
   return `${CAMPAIGN_PREFIX}${formatSeed(seed)}`;

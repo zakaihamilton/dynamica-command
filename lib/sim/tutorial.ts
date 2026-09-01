@@ -3,7 +3,7 @@ import type { SimState } from "../types";
 
 export function createTutorialMission(seed: number): SimState {
   const state = createMission({ seed, missionIndex: 0 });
-  state.missionName = "Genesis Training Range";
+  state.missionName = "Dynamica Training Range";
   state.missionKind = "holdTheLine";
   state.tutorialStage = "select";
   state.win = { kind: "holdTheLine", ticks: 12 * 60 * 60 };

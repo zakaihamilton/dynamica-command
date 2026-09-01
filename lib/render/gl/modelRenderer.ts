@@ -80,7 +80,7 @@ export function draw3dModel(
   const cos = Math.cos(yawAngle);
   const sin = Math.sin(yawAngle);
 
-  // Isometric projection constants matching Genesis Protocol's tile ratio (2:1)
+  // Isometric projection constants matching Dynamica Command's tile ratio (2:1)
   const isoX = 20 * scale;
   const isoY = 10 * scale;
   const isoZ = 16 * scale;

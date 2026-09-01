@@ -194,7 +194,7 @@ describe("game lifecycle hooks", () => {
   });
 
   it("cleans up stale same-URL sentinels when the mission guard is disabled", async () => {
-    const sentinelKey = "__genesisMissionBackSentinel";
+    const sentinelKey = "__dynamicaCommandMissionBackSentinel";
     window.history.replaceState({ [sentinelKey]: true, route: "mission" }, "", "/play?seed=0421&mission=0");
     const missionUrl = window.location.href;
     const replaceState = vi.spyOn(window.history, "replaceState");

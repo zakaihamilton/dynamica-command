@@ -5,7 +5,7 @@ import { generateFactions } from "@/lib/gen/factions";
 const ASSET_BAY_PALETTE = generateFactions(421)[0].palette;
 
 export const metadata: Metadata = {
-  title: "Asset Bay | Genesis Protocol",
+  title: "Asset Bay | Dynamica Command",
   description: "Public generated asset browser and preview API.",
   robots: {
     index: false,

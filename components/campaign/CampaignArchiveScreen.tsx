@@ -102,10 +102,10 @@ export function CampaignArchiveScreen() {
       <div className={styles.scanlines} />
 
       <div className={styles.uiLayer}>
-        <header className={styles.topbar} aria-label="Genesis campaign archive status">
+        <header className={styles.topbar} aria-label="Dynamica campaign archive status">
           <div className={styles.topbarBrand}>
-            <span className={styles.brandMark}>GP</span>
-            <span>GENESIS PROTOCOL</span>
+            <span className={styles.brandMark}>DC</span>
+            <span>DYNAMICA COMMAND</span>
             <span className={styles.topbarDivider}>/</span>
             <span className={styles.topbarMuted}>CAMPAIGN ARCHIVE</span>
           </div>
@@ -118,7 +118,7 @@ export function CampaignArchiveScreen() {
         <div className={styles.content}>
           <MetalPanel as="section" className={styles.panel} data-testid="campaign-archive" aria-labelledby="load-mission-title">
             <header className={styles.header}>
-              <ConsoleLabel>Genesis command // Campaign archive</ConsoleLabel>
+              <ConsoleLabel>Dynamica command // Campaign archive</ConsoleLabel>
               <h1 id="load-mission-title" className={styles.title}>Load mission</h1>
               <p className={styles.subtitle}>SELECT A SAVED THEATER</p>
               <p className={styles.copy}>Resume a local mission, inspect its operations map, or remove an archive you no longer need.</p>
@@ -139,7 +139,7 @@ export function CampaignArchiveScreen() {
               <ConsoleLabel as="h2">Campaign archive</ConsoleLabel>
               <div className={styles.archiveControls}>
                 <span className={styles.archiveStatus}>{saves.length ? "READY TO RESUME" : "ARCHIVE EMPTY"}</span>
-                <ConsoleButton muted className={styles.importButton} onClick={() => importInputRef.current?.click()} tooltip="Import a validated Genesis Protocol JSON save">
+                <ConsoleButton muted className={styles.importButton} onClick={() => importInputRef.current?.click()} tooltip="Import a validated Dynamica Command JSON save">
                   IMPORT SAVE
                 </ConsoleButton>
                 <input
@@ -147,7 +147,7 @@ export function CampaignArchiveScreen() {
                   className={styles.hiddenInput}
                   type="file"
                   accept="application/json,.json"
-                  aria-label="Choose a Genesis Protocol save file"
+                  aria-label="Choose a Dynamica Command save file"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = "";

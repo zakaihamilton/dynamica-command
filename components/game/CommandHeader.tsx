@@ -9,10 +9,10 @@ export function CommandHeader({ factionName, onPause }: { factionName: string; o
       data-tooltip="Open pause menu"
       data-shortcut={SHORTCUT.pause}
       onClick={onPause}
-      aria-label="Open Genesis Command pause menu"
+      aria-label="Open Dynamica Command pause menu"
       aria-keyshortcuts="Escape"
     >
-      <p className={styles.title}>GENESIS COMMAND</p>
+      <p className={styles.title}>DYNAMICA COMMAND</p>
       <p className={styles.faction}>{factionName}</p>
     </button>
   );

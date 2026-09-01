@@ -18,7 +18,7 @@ export function MenuMainPanel({
       <div className={styles.panelHeader}>
         <div className={styles.panelHeading}>
           <div>
-            <ConsoleLabel>Genesis command // Main menu</ConsoleLabel>
+            <ConsoleLabel>Dynamica command // Main menu</ConsoleLabel>
             <h2 id="main-menu-title" className={styles.title}>Main menu</h2>
           </div>
           <span className={styles.status}>READY</span>

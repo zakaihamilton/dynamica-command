@@ -17,7 +17,7 @@ vi.mock("@/lib/audio/music", () => ({ setMusicEnabled: vi.fn() }));
 vi.mock("@/lib/audio/synth", () => ({ setSfxEnabled: vi.fn(), beep: vi.fn() }));
 vi.mock("@/lib/audio/mixer", () => ({ setAudioLevels: vi.fn() }));
 vi.mock("@/components/menu/MenuBackdrop", () => ({ MenuBackdrop: () => <div data-testid="menu-backdrop" /> }));
-vi.mock("@/components/menu/MenuHero", () => ({ MenuHero: () => <h1>Genesis Protocol</h1> }));
+vi.mock("@/components/menu/MenuHero", () => ({ MenuHero: () => <h1>Dynamica Command</h1> }));
 vi.mock("@/components/menu/MenuMainPanel", () => ({
   MenuMainPanel: ({ onNewGame, onLoadMission, onOptions }: { onNewGame: () => void; onLoadMission: () => void; onOptions: () => void }) => (
     <div><button onClick={onNewGame}>NEW GAME</button><button onClick={onLoadMission}>LOAD MISSION</button><button onClick={onOptions}>OPTIONS</button></div>

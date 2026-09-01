@@ -30,7 +30,7 @@ export function NewGameSetup({
   return (
     <MetalPanel as="section" className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title" data-testid="deploy-screen">
       <div className={styles.intro}>
-        <ConsoleLabel>Genesis command // Deployment</ConsoleLabel>
+        <ConsoleLabel>Dynamica command // Deployment</ConsoleLabel>
         <h2 id="new-game-title" className={styles.title}>New theater</h2>
         <p className={styles.copy}>
           Every four-digit seed writes a different war. Roll a fresh theater or enter a code to return to one you already know.

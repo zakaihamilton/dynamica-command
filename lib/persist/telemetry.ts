@@ -2,7 +2,7 @@ import { safeSetItem, type StorageAdapter } from "./save";
 import type { MissionKind, SimState } from "../types";
 import { isRecord, readPersistedEnvelope } from "./utils";
 
-export const TELEMETRY_KEY = "genesis-protocol:telemetry";
+export const TELEMETRY_KEY = "dynamica-command:telemetry";
 export const TELEMETRY_VERSION = 1 as const;
 export const TELEMETRY_MAX_RECORDS = 128;
 

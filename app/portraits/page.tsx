@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PortraitGallery } from "@/components/portraits/PortraitGallery";
 
 export const metadata: Metadata = {
-  title: "Portrait Lab | Genesis Protocol",
+  title: "Portrait Lab | Dynamica Command",
   description: "Hidden portrait calibration gallery.",
 };
 
