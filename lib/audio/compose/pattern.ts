@@ -204,12 +204,12 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const dropHats = thinBar && dropTexture && !hookSection;
     const dropPulse = thinBar && dropTexture && !hookSection;
     const denseBar = cue === "victory" || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
-    const hole = holdBass;
+    const hole = holdBass && phraseBar < 8;
     const fullDrums = !sparse && denseBar && (cue === "victory" || (!hole && (!intro || phraseBar >= 8)));
     const lightDrums = sparse && !hole && (!intro || phraseBar >= 8);
     let usePulse = arrangement.pulseEnabled[sectionIndex]!;
     if (intro && phraseBar < 8) usePulse = false;
-    if (hole && phraseBar < 12) usePulse = false;
+    if (hole) usePulse = false;
     if (dropPulse) usePulse = false;
     const phraseSlot = phraseBar % 4;
     const response = phraseSlot === 1 || phraseSlot === 2;
@@ -420,6 +420,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     bassRiffC: [...bassRiffC],
     bassRiffD: [...bassRiffD],
     motif,
+    developmentMotif,
     hook,
   };
 

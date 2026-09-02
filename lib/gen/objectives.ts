@@ -1,4 +1,3 @@
-import { NEW_MISSION_KINDS, WIN_KIND_ORDER } from "../catalog";
 import { createRng, type Rng } from "../seed/rng";
 import type { BuildingKind, MissionDef, MissionKind, SecondaryObjective, UnitKind, WinCategory } from "../types";
 import {
@@ -163,8 +162,4 @@ export function generateWinCategory(
   }
 }
 
-export function pickMissionKinds(seed: number): MissionKind[] {
-  const rng = createRng(seed, "win-order");
-  const classic = rng.shuffle(WIN_KIND_ORDER).slice(0, 4);
-  return rng.shuffle([...NEW_MISSION_KINDS, ...classic]);
-}
+export { pickMissionKinds } from "./missionOrder";

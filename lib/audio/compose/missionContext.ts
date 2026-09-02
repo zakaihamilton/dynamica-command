@@ -1,5 +1,5 @@
-import { pickMissionKinds } from "../../gen/objectives";
 import { pickMissionBiomes } from "../../gen/names";
+import { pickMissionKinds } from "../../gen/missionOrder";
 import type { BiomeName, MissionKind } from "../../types";
 import { createRng, type Rng } from "../../seed/rng";
 import type {
@@ -17,13 +17,24 @@ export type MusicMissionContext = {
 
 const BIOME_STYLES: Record<BiomeName, readonly MusicStyleName[]> = {
   "ash plains": ["foundry-stomp", "industrial-march", "cinematic-tension"],
-  "volcanic shelf": ["foundry-stomp", "industrial-march", "cinematic-tension"],
-  "rust canyons": ["industrial-march", "foundry-stomp", "chrome-fanfare"],
+  "volcanic shelf": ["foundry-stomp", "night-raid", "acid-grid"],
+  "rust canyons": ["industrial-march", "chrome-fanfare", "signal-chase"],
   "crystal flats": ["glass-chime", "neon-arpeggio", "chrome-fanfare"],
   "glass desert": ["acid-grid", "glass-chime", "signal-chase"],
   "tundra grid": ["ice-protocol", "low-orbit", "cinematic-tension"],
-  "jungle wreckage": ["night-raid", "orbital-drift", "signal-chase"],
-  "salt marshes": ["orbital-drift", "low-orbit", "night-raid"],
+  "jungle wreckage": ["night-raid", "orbital-drift", "neon-arpeggio"],
+  "salt marshes": ["orbital-drift", "low-orbit", "ice-protocol"],
+};
+
+const BIOME_STYLES_SECONDARY: Record<BiomeName, readonly MusicStyleName[]> = {
+  "ash plains": ["chrome-fanfare", "signal-chase", "night-raid"],
+  "volcanic shelf": ["industrial-march", "cinematic-tension", "foundry-stomp"],
+  "rust canyons": ["foundry-stomp", "cinematic-tension", "acid-grid"],
+  "crystal flats": ["acid-grid", "orbital-drift", "signal-chase"],
+  "glass desert": ["neon-arpeggio", "night-raid", "chrome-fanfare"],
+  "tundra grid": ["orbital-drift", "glass-chime", "cinematic-tension"],
+  "jungle wreckage": ["low-orbit", "acid-grid", "signal-chase"],
+  "salt marshes": ["night-raid", "cinematic-tension", "glass-chime"],
 };
 
 const KIND_STYLES: Partial<Record<MissionKind, readonly MusicStyleName[]>> = {
@@ -77,6 +88,7 @@ export function campaignMusicContexts(seed: number): MusicMissionContext[] {
 export function styleAffinityScore(name: MusicStyleName, ctx: MusicMissionContext): number {
   let score = 0;
   if (ctx.biome && BIOME_STYLES[ctx.biome]?.includes(name)) score += 4;
+  if (ctx.biome && BIOME_STYLES_SECONDARY[ctx.biome]?.includes(name)) score += 2;
   if (ctx.missionKind && KIND_STYLES[ctx.missionKind]?.includes(name)) score += 3;
   return score;
 }
@@ -103,6 +115,54 @@ export function pickBestByScore<T>(
     }
   }
   return best;
+}
+
+export function assignCampaignItems<T>(
+  items: readonly T[],
+  contexts: readonly MusicMissionContext[],
+  scoreOf: (item: T, ctx: MusicMissionContext) => number,
+  rng: Rng,
+): T[] {
+  const remaining = [...items];
+  const pending = contexts.map((_, index) => index);
+  const slots: (T | undefined)[] = contexts.map(() => undefined);
+  while (pending.length > 0) {
+    let target = pending[0]!;
+    let fewestPrimary = Infinity;
+    for (const index of pending) {
+      const ctx = contexts[index]!;
+      const primaryCount = remaining.filter((item) => scoreOf(item, ctx) >= 4).length;
+      if (primaryCount < fewestPrimary || (primaryCount === fewestPrimary && index < target)) {
+        fewestPrimary = primaryCount;
+        target = index;
+      }
+    }
+    const ctx = contexts[target]!;
+    const pick = pickBestByScore(remaining, (item) => scoreOf(item, ctx), rng.fork(String(target)));
+    slots[target] = pick;
+    remaining.splice(remaining.indexOf(pick), 1);
+    pending.splice(pending.indexOf(target), 1);
+  }
+  return slots as T[];
+}
+
+export function pickAssignedItem<T>(
+  items: readonly T[],
+  contexts: readonly MusicMissionContext[],
+  missionIndex: number,
+  scoreOf: (item: T, ctx: MusicMissionContext) => number,
+  rng: Rng,
+  fallbackCtx: MusicMissionContext,
+): T {
+  const assigned = assignCampaignItems(items, contexts, scoreOf, rng);
+  if (missionIndex >= 0 && missionIndex < assigned.length) return assigned[missionIndex]!;
+  const used = new Set(assigned);
+  const leftover = items.filter((item) => !used.has(item));
+  return pickBestByScore(
+    leftover.length > 0 ? leftover : items,
+    (item) => scoreOf(item, fallbackCtx),
+    rng.fork(String(missionIndex)),
+  );
 }
 
 export function applyMissionTints(style: MusicStyleProfile, ctx: MusicMissionContext): MusicStyleProfile {

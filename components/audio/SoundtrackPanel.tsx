@@ -29,7 +29,7 @@ export function SoundtrackPanel({
         <h2 id="soundtrack-title" className={styles.title}>Mission soundtrack</h2>
         <p className={styles.meta}>Seed {formatSeed(seed)} {"//"} Mission {missionIndex + 1}</p>
         <p className={styles.description}>
-          Render the complete adaptive command score as a standalone M4A file. The download is generated from this mission seed and does not include battlefield effects.
+          Render the complete adaptive command score as a standalone M4A file (~4 minutes at typical tempo). The download is generated from this mission seed and does not include battlefield effects. Browser rendering can take a while.
         </p>
         <div className={styles.readout} aria-live="polite">
           <span className={styles.status}>{status}</span>

@@ -399,6 +399,7 @@ export type MusicTheme = {
   bassRiffC: BassHit[];
   bassRiffD: BassHit[];
   motif: MusicMotif;
+  developmentMotif: MusicMotif;
   hook: MusicMotif;
 };
 

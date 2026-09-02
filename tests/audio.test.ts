@@ -16,6 +16,7 @@ import { spatialAudioForWorld } from "../lib/audio/spatial";
 import { createCamera } from "../lib/iso";
 import { createCampaign } from "../lib/gen/campaign";
 import { pickMissionBiomes } from "../lib/gen/names";
+import { styleAffinityScore } from "../lib/audio/compose/missionContext";
 
 describe("generated audio", () => {
   afterEach(() => {
@@ -90,8 +91,10 @@ describe("generated audio", () => {
       }
     }
 
-    const volcanicFamilies = ["foundry-stomp", "industrial-march", "cinematic-tension"];
+    const volcanicFamilies = ["foundry-stomp", "night-raid", "acid-grid"];
     const tundraFamilies = ["ice-protocol", "low-orbit", "cinematic-tension"];
+    const volcanicOrSecondary = [...volcanicFamilies, "industrial-march", "cinematic-tension"];
+    const tundraOrSecondary = [...tundraFamilies, "orbital-drift", "glass-chime"];
     for (let seed = 0; seed < 48; seed++) {
       const biomes = pickMissionBiomes(seed);
       if (biomes[0] === "volcanic shelf") {
@@ -99,6 +102,25 @@ describe("generated audio", () => {
       }
       if (biomes[0] === "tundra grid") {
         expect(tundraFamilies).toContain(composeMusic(seed, "mission", 0).style.name);
+      }
+      const volcanicIndex = biomes.indexOf("volcanic shelf");
+      if (volcanicIndex >= 0) {
+        expect(volcanicOrSecondary).toContain(composeMusic(seed, "mission", volcanicIndex).style.name);
+      }
+      const tundraIndex = biomes.indexOf("tundra grid");
+      if (tundraIndex >= 0) {
+        expect(tundraOrSecondary).toContain(composeMusic(seed, "mission", tundraIndex).style.name);
+      }
+    }
+
+    for (const seed of [0, 21, 421, 1994, 7777]) {
+      const campaign = createCampaign(seed);
+      for (const mission of campaign.missions) {
+        const pattern = composeMusic(seed, "mission", mission.index);
+        expect(styleAffinityScore(pattern.style.name, {
+          biome: mission.biome,
+          missionKind: mission.kind,
+        })).toBeGreaterThan(0);
       }
     }
 
@@ -238,6 +260,7 @@ describe("generated audio", () => {
       const pattern = composeMusic(seed, "mission", 3);
       const sectionNotes = (name: string, lane: "melody" | "pulse" | "counter") => sectionNotesFor(pattern, name, lane);
       expect(pattern.theme.hook).not.toEqual(pattern.motif);
+      expect(pattern.theme.developmentMotif.degrees.length).toBeGreaterThan(4);
       expect(pattern.motif.rhythm.some((step) => step % 2 === 1)).toBe(true);
       expect(["pulse", "march", "shuffle", "half-time"]).toContain(pattern.theme.groove);
       expect(["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic"]).toContain(pattern.scaleName);
@@ -333,6 +356,19 @@ describe("generated audio", () => {
       const end = section.endBar * STEPS_PER_BAR;
       return pattern.drums.filter((event) => event.kind === kind && event.step >= start && event.step < end).length;
     };
+    const sectionHalfHits = (
+      pattern: ReturnType<typeof composeMusic>,
+      name: string,
+      kind: "kick" | "snare" | "hat",
+      half: "first" | "second",
+    ) => {
+      const section = pattern.sections.find((entry) => entry.name === name);
+      if (!section) return 0;
+      const mid = section.startBar + 8;
+      const start = (half === "first" ? section.startBar : mid) * STEPS_PER_BAR;
+      const end = (half === "first" ? mid : section.endBar) * STEPS_PER_BAR;
+      return pattern.drums.filter((event) => event.kind === kind && event.step >= start && event.step < end).length;
+    };
     let sawDrop = false;
     let sawEcho = false;
     for (const seed of [0, 1, 7, 21, 421, 999, 2000, 9999]) {
@@ -341,8 +377,8 @@ describe("generated audio", () => {
         if (pattern.style.arrangement.name === "double-drop") {
           sawDrop = true;
           const grooveKicks = sectionHits(pattern, "groove", "kick");
-          expect(sectionHits(pattern, "escalation", "kick")).toBeLessThan(grooveKicks / 3);
-          expect(sectionHits(pattern, "breakdown", "kick")).toBeLessThan(grooveKicks / 3);
+          expect(sectionHalfHits(pattern, "escalation", "kick", "first")).toBeLessThan(grooveKicks / 3);
+          expect(sectionHalfHits(pattern, "breakdown", "kick", "first")).toBeLessThan(grooveKicks / 3);
           const escalation = pattern.sections.find((section) => section.name === "escalation")!;
           expect(pattern.notes.pulse.some((note) =>
             note.step >= escalation.startBar * STEPS_PER_BAR && note.step < escalation.endBar * STEPS_PER_BAR,

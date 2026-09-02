@@ -18,6 +18,7 @@ import {
   assignmentRng,
   campaignMusicContexts,
   musicMissionContext,
+  pickAssignedItem,
   pickBestByScore,
   styleAffinityScore,
 } from "./missionContext";
@@ -770,42 +771,18 @@ const ARRANGEMENTS: readonly MusicArrangementProfile[] = [
 
 function arrangementFor(cue: MusicCue, seed: number, missionIndex: number): MusicArrangementProfile {
   const tieRng = assignmentRng(seed, cue, "music-arrangement-order");
-  if (missionIndex < 0) {
-    const ctx = musicMissionContext(seed, missionIndex);
-    return pickBestByScore(ARRANGEMENTS, (item) => arrangementAffinityScore(item.name, ctx), tieRng.fork("tutorial"));
+  const ctx = musicMissionContext(seed, missionIndex);
+  if (cue !== "mission" || missionIndex < 0) {
+    return pickBestByScore(ARRANGEMENTS, (item) => arrangementAffinityScore(item.name, ctx), tieRng.fork(String(missionIndex)));
   }
-  if (cue !== "mission") {
-    const ctx = musicMissionContext(seed, missionIndex);
-    return pickBestByScore(
-      ARRANGEMENTS,
-      (item) => arrangementAffinityScore(item.name, ctx),
-      tieRng.fork(`${cue}:${missionIndex}`),
-    );
-  }
-  const contexts = campaignMusicContexts(seed);
-  const used = new Set<string>();
-  let chosen = ARRANGEMENTS[0]!;
-  const last = Math.min(missionIndex, Math.max(0, contexts.length - 1));
-  for (let index = 0; index <= last; index++) {
-    const remaining = ARRANGEMENTS.filter((item) => !used.has(item.name));
-    const pool = remaining.length > 0 ? remaining : ARRANGEMENTS;
-    const pick = pickBestByScore(
-      pool,
-      (item) => arrangementAffinityScore(item.name, contexts[index] ?? {}),
-      tieRng.fork(String(index)),
-    );
-    used.add(pick.name);
-    chosen = pick;
-  }
-  if (missionIndex >= contexts.length) {
-    const remaining = ARRANGEMENTS.filter((item) => !used.has(item.name));
-    return pickBestByScore(
-      remaining.length > 0 ? remaining : ARRANGEMENTS,
-      (item) => arrangementAffinityScore(item.name, musicMissionContext(seed, missionIndex)),
-      tieRng.fork(String(missionIndex)),
-    );
-  }
-  return chosen;
+  return pickAssignedItem(
+    ARRANGEMENTS,
+    campaignMusicContexts(seed),
+    missionIndex,
+    (item, mission) => arrangementAffinityScore(item.name, mission),
+    tieRng,
+    ctx,
+  );
 }
 
 const BASS_RIFF_FAMILIES: Record<MusicBassRiffFamily, readonly (readonly BassHit[])[]> = {
@@ -877,34 +854,18 @@ function stylePoolFor(cue: MusicCue): readonly StyleBlueprint[] {
 function selectStyleBlueprint(cue: MusicCue, seed: number, missionIndex: number): StyleBlueprint {
   const pool = stylePoolFor(cue);
   const tieRng = assignmentRng(seed, cue, "music-style-order");
+  const ctx = musicMissionContext(seed, Math.max(0, missionIndex));
   if (cue !== "mission" || missionIndex < 0) {
-    const ctx = musicMissionContext(seed, Math.max(0, missionIndex));
-    return pickBestByScore(pool, (item) => styleAffinityScore(item.name, ctx), tieRng.fork(`${missionIndex}`));
+    return pickBestByScore(pool, (item) => styleAffinityScore(item.name, ctx), tieRng.fork(String(missionIndex)));
   }
-  const contexts = campaignMusicContexts(seed);
-  const used = new Set<MusicStyleName>();
-  let chosen = pool[0]!;
-  const last = Math.min(missionIndex, Math.max(0, contexts.length - 1));
-  for (let index = 0; index <= last; index++) {
-    const remaining = pool.filter((item) => !used.has(item.name));
-    const candidates = remaining.length > 0 ? remaining : pool;
-    const pick = pickBestByScore(
-      candidates,
-      (item) => styleAffinityScore(item.name, contexts[index] ?? {}),
-      tieRng.fork(String(index)),
-    );
-    used.add(pick.name);
-    chosen = pick;
-  }
-  if (missionIndex >= contexts.length) {
-    const remaining = pool.filter((item) => !used.has(item.name));
-    return pickBestByScore(
-      remaining.length > 0 ? remaining : pool,
-      (item) => styleAffinityScore(item.name, musicMissionContext(seed, missionIndex)),
-      tieRng.fork(String(missionIndex)),
-    );
-  }
-  return chosen;
+  return pickAssignedItem(
+    pool,
+    campaignMusicContexts(seed),
+    missionIndex,
+    (item, mission) => styleAffinityScore(item.name, mission),
+    tieRng,
+    ctx,
+  );
 }
 
 export function createMusicStyle(cue: MusicCue, rng: Rng, seed = 0, missionIndex = 0): MusicStyleProfile {
