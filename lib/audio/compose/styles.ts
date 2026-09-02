@@ -519,7 +519,7 @@ const STYLE_BLUEPRINTS: readonly StyleBlueprint[] = [
   },
 ];
 
-const MELODY_DEFAULT = [false, true, true, true, false, true, true, true] as const;
+const MELODY_DEFAULT = [true, true, true, true, false, true, true, true] as const;
 const PULSE_DEFAULT = [true, true, true, true, true, true, true, true] as const;
 const COUNTER_DEFAULT = [false, false, false, true, false, false, true, false] as const;
 const HOLD_DEFAULT = [false, false, false, false, true, false, false, false] as const;
