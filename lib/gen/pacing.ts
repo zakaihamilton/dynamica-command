@@ -50,3 +50,6 @@ export function formatMissionMinutesFromTicks(ticks: number): string {
 
 export const MIN_MISSION_TICKS = minutesToTicks(MIN_MISSION_MINUTES);
 export const MAX_MISSION_TICKS = minutesToTicks(MAX_MISSION_MINUTES);
+export const MAX_DEADLINE_TICKS = minutesToTicks(MAX_DEADLINE_MINUTES);
+/** Longest player-facing fail-deadline, including escort staging. */
+export const MAX_OPERATION_TICKS = minutesToTicks(MAX_DEADLINE_MINUTES + CONVOY_STAGING_MINUTES);

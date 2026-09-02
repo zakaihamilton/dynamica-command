@@ -3,7 +3,7 @@ import { cpus } from "node:os";
 import { Worker } from "node:worker_threads";
 import { createCampaign } from "../gen/campaign";
 import { generateMap, type GeneratedMap } from "../gen/map";
-import { MAX_MISSION_TICKS } from "../gen/pacing";
+import { MAX_MISSION_TICKS, MAX_OPERATION_TICKS } from "../gen/pacing";
 import { formatSeed } from "../seed/rng";
 import { createMissionFromData, tick } from "./api";
 import { CompetentCommander } from "./commander";
@@ -145,7 +145,7 @@ function runOne(
 
 export function runBalanceJob(job: BalanceRunJob, onRecord?: (record: BalanceRecordWithScenario) => void): BalanceRecordWithScenario[] {
   const strategy = job.strategy ?? "competent";
-  const maxTicks = job.maxTicks ?? MAX_MISSION_TICKS;
+  const maxTicks = job.maxTicks ?? MAX_OPERATION_TICKS;
   const campaigns = new Map<number, Campaign>();
   const maps = new Map<string, GeneratedMap>();
   const records: BalanceRecordWithScenario[] = [];

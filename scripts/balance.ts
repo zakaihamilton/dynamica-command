@@ -1,5 +1,5 @@
 import { performance } from "node:perf_hooks";
-import { MAX_MISSION_TICKS } from "../lib/gen/pacing";
+import { MAX_OPERATION_TICKS } from "../lib/gen/pacing";
 import {
   balanceScenarios,
   defaultBalanceJobs,
@@ -17,7 +17,7 @@ function arg(name: string, fallback: string): string {
 const from = Number(arg("from", "0"));
 const to = Number(arg("to", "99"));
 const missionArg = arg("mission", "all");
-const maxTicks = Number(arg("ticks", String(MAX_MISSION_TICKS)));
+const maxTicks = Number(arg("ticks", String(MAX_OPERATION_TICKS)));
 const strategyArg = arg("strategy", "competent");
 const details = arg("details", "false") === "true";
 const shouldCheck = arg("check", "false") === "true";

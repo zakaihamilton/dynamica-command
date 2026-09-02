@@ -5,7 +5,7 @@ import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../li
 import { formatHoldClock, inspect, objectiveProgress, evaluateObjectives } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
 import { generateWinCategory, missionDurationMinutesFor, missionTimeLimitClock, missionTimeLimitLabel, missionTimeLimitTicks, secondaryObjectivesForMissionSeed } from "../lib/gen/objectives";
-import { formatMissionClock, formatMissionClockFromTicks, minutesToTicks } from "../lib/gen/pacing";
+import { formatMissionClock, formatMissionClockFromTicks, MAX_OPERATION_TICKS, minutesToTicks } from "../lib/gen/pacing";
 import { missionObjectives } from "../lib/gen/story";
 
 describe("win categories", () => {
@@ -222,6 +222,7 @@ describe("generated mission pacing", () => {
         const minute = minutesToTicks(1);
         expect(mission.win.ticks % minute).toBe(0);
         expect((missionTimeLimitTicks(mission.win) ?? 0) % minute).toBe(0);
+        expect(missionTimeLimitTicks(mission.win) ?? 0).toBeLessThanOrEqual(MAX_OPERATION_TICKS);
         expect(duration).toBe((missionTimeLimitTicks(mission.win) ?? 0) / minute);
       }
     }
