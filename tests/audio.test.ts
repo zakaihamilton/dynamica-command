@@ -9,7 +9,7 @@ import {
 } from "../lib/audio/compose";
 import { exportMissionSoundtrack, missionSoundtrackFilename, supportsM4aExport } from "../lib/audio/export";
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../lib/audio/music";
-import { beep, isSfxEnabled, playSfx, setSfxEnabled } from "../lib/audio/synth";
+import { beep, isSfxEnabled, MAX_SFX_QUEUE_S, playSfx, scheduleSfxTime, setSfxEnabled } from "../lib/audio/synth";
 import { beepForCommands } from "../lib/audio/uiOrders";
 import { spatialAudioForWorld } from "../lib/audio/spatial";
 import { createCamera } from "../lib/iso";
@@ -352,8 +352,15 @@ describe("generated audio", () => {
       playSfx("smallArms", { pan: -0.8 });
       playSfx("antiArmor");
       playSfx("cannon", { pan: 0.8 });
+      playSfx("turret");
       playSfx("impact");
+      playSfx("impactFlesh");
+      playSfx("impactMetal");
       playSfx("destruction", { heavy: true });
+      playSfx("wreckHuman");
+      playSfx("wreckVehicle");
+      playSfx("heal");
+      playSfx("repair");
       playSfx("contact");
       playSfx("warning");
       setMusicIntensity("critical");
@@ -380,7 +387,32 @@ describe("generated audio", () => {
     camera.y = 80;
     expect(spatialAudioForWorld(0, 0, camera, 800, 500).pan).toBeLessThanOrEqual(0.85);
     expect(spatialAudioForWorld(0, 0, camera, 800, 500).pan).toBeGreaterThanOrEqual(-0.85);
-    expect(spatialAudioForWorld(6, 6, camera, 800, 500).audible).toBe(true);
+    const near = spatialAudioForWorld(6, 6, camera, 800, 500);
+    const far = spatialAudioForWorld(12, 0, camera, 800, 500);
+    expect(near.audible).toBe(true);
+    expect(far.audible).toBe(true);
+    expect(near.gain).toBeGreaterThanOrEqual(0.95);
+    expect(far.gain).toBeGreaterThanOrEqual(0.68);
+    expect(near.gain).toBeGreaterThan(far.gain);
+  });
+
+  it("staggers same-kind shots instead of dropping a volley", () => {
+    expect(scheduleSfxTime(1, Number.NEGATIVE_INFINITY, 0.045)).toBe(1);
+    expect(scheduleSfxTime(1, 1, 0.045)).toBeCloseTo(1.045);
+    expect(scheduleSfxTime(1, 1, 0)).toBe(1);
+
+    const starts: number[] = [];
+    let previous = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < 20; i++) {
+      const start = scheduleSfxTime(1, previous, 0.045);
+      if (start === null) break;
+      starts.push(start);
+      previous = start;
+    }
+    expect(starts[0]).toBe(1);
+    expect(starts.length).toBeGreaterThan(5);
+    expect(starts.at(-1)! - 1).toBeLessThanOrEqual(MAX_SFX_QUEUE_S);
+    expect(scheduleSfxTime(1, previous, 0.045)).toBeNull();
   });
 
   it("tracks the music enable flag without requiring an audio device", () => {

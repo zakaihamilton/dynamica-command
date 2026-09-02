@@ -411,6 +411,7 @@ export type SimEvent =
   | {
       type: "combat";
       owner: Owner;
+      attackerKind: UnitKind | BuildingKind;
       weapon: WeaponType;
       x: number;
       y: number;
