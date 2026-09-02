@@ -2,7 +2,7 @@ import {
   unitSprite,
 } from "@/lib/gen/assets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
-import { TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/iso";
+import { TILE_H, tileToScreen, type Camera } from "@/lib/iso";
 import { animFrame, toFacing, unitMovementOffset } from "@/lib/render/anim";
 import { rasterize } from "@/lib/render/sprites";
 import { CINEMA_SCROLL_PAD, scrollLayerBlitOffset, scrollLayerPaintCamera } from "@/lib/render/scrollLayer";
@@ -10,7 +10,7 @@ import { terrainColors } from "@/lib/render/terrainMaterials";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
 import type { Facing } from "@/lib/types";
 import { type Actor, type CinemaScene, type Shot } from "./scene";
-import { tileKind, cinemaCamera, cinemaOrigin, paintCinemaTile, paintCinemaStatic } from "./paint";
+import { cinemaCamera, cinemaOrigin, paintCinemaStatic } from "./paint";
 
 type CinemaTerrainCache = {
   canvas: HTMLCanvasElement | null;
@@ -32,7 +32,7 @@ function ensureCinemaTerrain(scene: CinemaScene, w: number, h: number): CinemaTe
   if (typeof document === "undefined") return null;
   const pad = CINEMA_SCROLL_PAD;
   const origin = cinemaOrigin(w, h);
-  const sizeKey = `${w}x${h}`;
+  const sizeKey = `${scene.seed}:${w}x${h}`;
   if (!cinemaTerrain.canvas) cinemaTerrain.canvas = document.createElement("canvas");
   const canvas = cinemaTerrain.canvas;
   const bw = w + pad * 2;
@@ -44,7 +44,8 @@ function ensureCinemaTerrain(scene: CinemaScene, w: number, h: number): CinemaTe
   canvas.height = bh;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
   ctx.clearRect(0, 0, bw, bh);
   const paintCam = scrollLayerPaintCamera({ x: origin.x, y: origin.y, zoom: 0.92 }, pad);
   paintCinemaStatic(ctx, scene, paintCam, bw, bh);
@@ -101,7 +102,7 @@ export function renderCinemaFrame(
   const useTerrainCache = options?.useTerrainCache ?? true;
   const preview = !paintAmbient;
 
-  ctx.imageSmoothingEnabled = preview;
+  ctx.imageSmoothingEnabled = true;
   if (preview && "imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
 
   if (preview) {
@@ -126,17 +127,6 @@ export function renderCinemaFrame(
     ctx.drawImage(cached.canvas, blit.x, blit.y);
   } else {
     paintCinemaStatic(ctx, scene, cam, w, h);
-  }
-
-  const margin = TILE_W * cam.zoom;
-  for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
-      if (tileKind(map.tiles[y * map.width + x]!) !== "resource") continue;
-      const elev = map.heights[y * map.width + x] ?? 1;
-      const s = tileToScreen(x, y, cam, elev);
-      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
-      paintCinemaTile(ctx, scene, cam, x, y, "resource", t);
-    }
   }
 
   const profile0 = generateVisualProfile(scene.seed, 0);
