@@ -11,6 +11,7 @@ import {
 } from "../../anim";
 import { TILE_H, tileToScreen, type Camera } from "../../../iso";
 import { drawSprite, isRasterReady, rasterize } from "../../sprites";
+import { drawUnitIffMarker } from "../../iff";
 import { drawUnitShadow, paintUnitMovementFx } from "../../unitMotion";
 import { computeUnitDynamicTransform, updateUnitHistory } from "../../gl/unitTransformTracker";
 import { isPerfHudEnabled, type WorldPhaseTimings } from "../../perfHud";
@@ -179,6 +180,19 @@ export function renderEntityPhase(
       );
     }
 
+    if (e.class === "unit") {
+      drawUnitIffMarker(
+        ctx,
+        e.kind as UnitKind,
+        groundX,
+        groundY,
+        z,
+        entityAlpha,
+        e.owner,
+        e.neutral === true,
+      );
+    }
+
     const spriteReady = !spec.imageSrc || isRasterReady(spec);
     const spriteAlpha = entityAlpha;
     if (spriteReady && isExtractableUnit(state, e)) {
@@ -232,7 +246,19 @@ export function renderEntityPhase(
       const barW = Math.max(16, Math.round(Math.min(spec.w * 0.75, 24) * z));
       const meterY = Math.round(dy - 7 * z);
       const centerX = Math.round(dx + (spec.w * z) / 2);
-      drawUnitHealthMeter(ctx, centerX, meterY, e.hp, e.maxHp, z, spriteAlpha, isSelected, barW);
+      drawUnitHealthMeter(
+        ctx,
+        centerX,
+        meterY,
+        e.hp,
+        e.maxHp,
+        z,
+        spriteAlpha,
+        isSelected,
+        barW,
+        e.owner,
+        e.neutral === true,
+      );
 
       if ((e.suppression ?? 0) > 0) {
         const suppW = barW;

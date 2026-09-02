@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { drawUnitHealthMeter, healthMeterColors } from "../lib/render/renderOverlays";
+import { iffColors } from "../lib/render/iff";
 
 describe("health meter colors", () => {
   it("returns green tier for health ratio > 0.5", () => {
@@ -64,12 +65,14 @@ describe("drawUnitHealthMeter canvas rendering", () => {
     expect(ctx.save).toHaveBeenCalled();
     expect(ctx.restore).toHaveBeenCalled();
     expect(ctx.createLinearGradient).toHaveBeenCalledWith(90, 50, 90, 54);
+    expect(ctx.strokeStyle).toBe(iffColors(0).frame);
     // strokeRect for border
     expect(ctx.strokeRect).toHaveBeenCalledWith(89.5, 49.5, 21, 5);
-    // fillRect calls: frame, track, fill, gloss line
+    // fillRect calls: frame, track, fill, gloss line, IFF pip
     expect(ctx.fillRect).toHaveBeenCalledWith(89, 49, 22, 6); // frame
     expect(ctx.fillRect).toHaveBeenCalledWith(90, 50, 20, 4); // track
     expect(ctx.fillRect).toHaveBeenCalledWith(90, 50, 20, 4); // fill
+    expect(ctx.fillRect).toHaveBeenCalledWith(89, 50, 2, 4); // ally pip
   });
 
   it("renders proportional fill for damaged unit", () => {
@@ -95,5 +98,23 @@ describe("drawUnitHealthMeter canvas rendering", () => {
     expect(ctx.globalAlpha).toBe(0.75);
     // Zoom 2 should result in width around 40px and height 7px
     expect(ctx.fillRect).toHaveBeenCalledWith(179, 99, 42, 9);
+  });
+
+  it("colors the frame and pip by owner, and gold for neutrals", () => {
+    const ally = createMockCtx();
+    drawUnitHealthMeter(ally, 100, 50, 100, 100, 1, 1, false, 20, 0);
+    expect(ally.strokeStyle).toBe(iffColors(0).frame);
+    expect(ally.fillStyle).toBe(iffColors(0).pip);
+
+    const enemy = createMockCtx();
+    drawUnitHealthMeter(enemy, 100, 50, 100, 100, 1, 1, false, 20, 1);
+    expect(enemy.strokeStyle).toBe(iffColors(1).frame);
+    expect(enemy.fillStyle).toBe(iffColors(1).pip);
+
+    const neutral = createMockCtx();
+    drawUnitHealthMeter(neutral, 100, 50, 100, 100, 1, 1, false, 20, 0, true);
+    expect(neutral.strokeStyle).toBe(iffColors(0, true).frame);
+    expect(neutral.fillStyle).toBe(iffColors(0, true).pip);
+    expect(neutral.fillStyle).not.toBe(iffColors(1).pip);
   });
 });

@@ -44,6 +44,23 @@ describe("cinematic visual profiles", () => {
     expect(new Set(buildings.map((spec) => spec.imageTint ?? spec.svg)).size).toBe(3);
   });
 
+  it("tints live units and finished buildings from each faction palette", () => {
+    const [ally, enemy] = generateFactions(421);
+    const profile = generateVisualProfile(421, 0);
+    const units = [
+      unitSprite("tank", ally.palette, { facing: 2, variant: 9, profile }),
+      unitSprite("tank", enemy.palette, { facing: 2, variant: 9, profile }),
+    ];
+    const buildings = [
+      buildingSprite("factory", ally.palette, { variant: 9, profile }),
+      buildingSprite("factory", enemy.palette, { variant: 9, profile }),
+    ];
+    expect(units[0]!.imageTint).not.toBe(units[1]!.imageTint);
+    expect(buildings[0]!.imageTint).not.toBe(buildings[1]!.imageTint);
+    expect(units[0]!.imageTint).toMatch(/^hsla\(/);
+    expect(buildings[0]!.imageTint).toBe(units[0]!.imageTint);
+  });
+
   it("bundles every declared raster plate and texture locally", () => {
     const assets = [
       ...Object.values(RASTER_ART),

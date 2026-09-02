@@ -69,6 +69,9 @@ describe("tactical roster", () => {
     expect(actions.issueTargetCommand).toHaveBeenCalledWith("attack", enemy.id);
     expect(camera.centerSelection).toHaveBeenCalled();
     expect(screen.getByTestId("tactical-roster")).toHaveTextContent("Coords 1, 1");
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[0]).toHaveAttribute("data-owner", "0");
+    expect(rows[1]).toHaveAttribute("data-owner", "1");
   });
 
   it("rejects commands when the selected unit type is ineligible", () => {

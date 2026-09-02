@@ -1,3 +1,6 @@
+import type { Owner } from "../../types";
+import { iffColors } from "../iff";
+
 export function healthMeterColors(ratio: number): { top: string; bottom: string } {
   if (ratio > 0.5) {
     return { top: "#4ade80", bottom: "#16a34a" };
@@ -18,6 +21,8 @@ export function drawUnitHealthMeter(
   alpha = 1,
   isSelected = false,
   barWidth?: number,
+  owner: Owner = 0,
+  neutral = false,
 ): void {
   if (maxHp <= 0 || hp <= 0) return;
   const ratio = Math.max(0, Math.min(1, hp / maxHp));
@@ -25,6 +30,8 @@ export function drawUnitHealthMeter(
   const h = Math.max(3, Math.round(3.5 * z));
   const x = Math.round(centerX - w / 2);
   const y = Math.round(topY);
+  const pipW = Math.max(2, Math.round(2 * z));
+  const iff = iffColors(owner, neutral);
 
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -32,7 +39,7 @@ export function drawUnitHealthMeter(
   ctx.fillStyle = "rgba(8, 12, 14, 0.9)";
   ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
 
-  ctx.strokeStyle = isSelected ? "rgba(245, 230, 168, 0.95)" : "rgba(30, 38, 44, 0.9)";
+  ctx.strokeStyle = iff.frame;
   ctx.lineWidth = 1;
   ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
 
@@ -53,6 +60,9 @@ export function drawUnitHealthMeter(
       ctx.fillRect(x, y, fillW, 1);
     }
   }
+
+  ctx.fillStyle = iff.pip;
+  ctx.fillRect(x - 1, y, pipW, h);
 
   if (isSelected) {
     ctx.fillStyle = "#f5e6a8";
