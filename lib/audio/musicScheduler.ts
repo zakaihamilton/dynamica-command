@@ -6,7 +6,7 @@ import {
   disconnectGraph,
   layerMultiplier,
   masterGain,
-  PHRASE_STEPS,
+  padGainFor,
   SCHEDULE_AHEAD_S,
   SCHEDULER_MS,
   stemBus,
@@ -42,20 +42,28 @@ import {
 
 export function applyIntensityAt(audio: AudioGraphContext, g: MusicGraph, value: MusicIntensity, time: number, isDucked = ducked): void {
   const t = Math.max(time, audio.currentTime);
-  const ramp = value === "critical" ? 0.11 : 0.22;
+  const ramp = value === "critical" ? 0.08 : 0.16;
   const set = (node: GainNode, target: number) => {
     node.gain.setTargetAtTime(target, t, ramp);
   };
   set(g.master, masterGain(value, isDucked));
-  set(g.bassBus, value === "calm" ? 0.9 : value === "critical" ? 1.06 : 0.94);
-  set(g.rhythmBus, value === "calm" ? 0.7 : value === "critical" ? 1.04 : 0.84);
-  set(g.harmonyBus, value === "calm" ? 0.68 : value === "critical" ? 0.78 : 0.72);
-  set(g.pulseBus, value === "calm" ? 0.78 : value === "critical" ? 1 : 0.86);
-  set(g.leadBus, value === "calm" ? 0.9 : value === "critical" ? 1.12 : 0.96);
-  set(g.counterBus, value === "calm" ? 0.42 : value === "critical" ? 0.82 : 0.56);
-  set(g.fxBus, value === "critical" ? 0.84 : value === "engaged" ? 0.52 : 0.32);
+  set(g.bassBus, value === "calm" ? 0.92 : value === "critical" ? 1.12 : 1);
+  set(g.rhythmBus, value === "calm" ? 0.78 : value === "critical" ? 1.14 : 0.96);
+  set(g.harmonyBus, value === "calm" ? 0.72 : value === "critical" ? 0.52 : 0.62);
+  set(g.pulseBus, value === "calm" ? 0.82 : value === "critical" ? 1.08 : 0.94);
+  set(g.leadBus, value === "calm" ? 0.94 : value === "critical" ? 1.2 : 1.04);
+  set(g.counterBus, value === "calm" ? 0.48 : value === "critical" ? 0.9 : 0.64);
+  set(g.fxBus, value === "critical" ? 0.92 : value === "engaged" ? 0.58 : 0.36);
   g.highpass.frequency.setTargetAtTime(value === "critical" ? 54 : 38, t, ramp);
   g.padFilter.frequency.setTargetAtTime(value === "critical" ? 1_550 : value === "engaged" ? 1_150 : 880, t, ramp);
+  g.padBase = padGainFor(value);
+  set(g.padGain, g.padBase);
+}
+
+export function shouldApplyPendingIntensity(step: number, pending: MusicIntensity | null): boolean {
+  if (!pending) return false;
+  if (pending === "critical") return true;
+  return step % STEPS_PER_BAR === 0;
 }
 
 function duckPad(audio: AudioGraphContext, g: MusicGraph, time: number): void {
@@ -143,7 +151,7 @@ function tickScheduler(): void {
   let n = nextNoteTime;
   let s = step;
   while (n < audio.currentTime + SCHEDULE_AHEAD_S) {
-    if (s % PHRASE_STEPS === 0) applyPendingIntensityAtPhraseBoundary(audio, g);
+    if (shouldApplyPendingIntensity(s, pendingIntensity)) applyPendingIntensityAtPhraseBoundary(audio, g);
     scheduleStep(audio, g, p, n, s, intensity);
     n += stepDuration;
     s = (s + 1) % p.steps;
