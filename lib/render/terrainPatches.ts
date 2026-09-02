@@ -11,7 +11,7 @@ export function tintGroundPatches(
 ): Rgb {
   const macro = fbm(mapX * 0.11, mapY * 0.11, salt + 311);
   const detail = fbm(mapX * 0.48, mapY * 0.48, salt + 347);
-  let out = mixRgb(color, mats.patchA, 0.1 + macro * 0.26);
+  const out = mixRgb(color, mats.patchA, 0.1 + macro * 0.26);
   const fleck = Math.max(0, detail - 0.52) * 0.65;
   return mixRgb(out, mats.patchB, fleck);
 }

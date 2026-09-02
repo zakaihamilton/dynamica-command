@@ -1,4 +1,4 @@
-import type { BiomeName } from "./types";
+import type { BiomeName } from "../types";
 
 export type BlockerPropKind =
   | "boulder"
