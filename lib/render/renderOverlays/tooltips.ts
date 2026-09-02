@@ -8,6 +8,7 @@ import { isExtractableUnit, isLockedContactUnit } from "../renderCombat";
 import type { BuildingKind, Entity, SimState, UnitKind } from "../../types";
 import { SceneryMemo } from "../sceneryMemo";
 import type { RenderExtras } from "./types";
+import { chromeMonoFont } from "../../ui/chromeFont";
 
 const sceneryMemo = new SceneryMemo();
 
@@ -88,7 +89,7 @@ export function drawTooltip(
   anchorAbove = false,
 ): void {
   const pad = 8;
-  ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = chromeMonoFont(12);
   let textW = 0;
   for (const l of lines) textW = Math.max(textW, ctx.measureText(l).width);
   const width = Math.min(260, textW + pad * 2);

@@ -51,7 +51,7 @@
 .title {
   margin: 0;
   font-size: 0.875rem;
-  font-weight: 900;
+  font-weight: 800;
   letter-spacing: 0.22em;
   color: var(--chrome-text);
   font-family: var(--font-ui);
@@ -80,7 +80,7 @@
   padding: 0 0.25rem;
   background: var(--chrome-steel-lo);
   color: var(--chrome-muted);
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.48rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;

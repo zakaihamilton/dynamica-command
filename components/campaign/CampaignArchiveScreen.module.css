@@ -53,7 +53,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.15em;
@@ -133,8 +133,8 @@
   color: var(--chrome-text);
   font-family: var(--font-display);
   font-size: clamp(2rem, 5vw, 3.6rem);
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   line-height: 0.95;
   text-transform: uppercase;
 }
@@ -144,7 +144,7 @@
   color: var(--chrome-cyan);
   font-size: clamp(0.75rem, 1.7vw, 1rem);
   font-weight: 800;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.12em;
 }
 
 .copy {
@@ -205,7 +205,7 @@
 
 .archiveStatus {
   color: var(--chrome-cyan);
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.52rem;
   font-weight: 700;
   letter-spacing: 0.1em;

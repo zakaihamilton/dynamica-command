@@ -34,9 +34,9 @@
 .title {
   margin: 0.55rem 0 0;
   font-size: clamp(1.35rem, 4vw, 1.875rem);
-  font-weight: 900;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   color: var(--chrome-text);
 }
 

@@ -43,7 +43,7 @@
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--chrome-muted);
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
 }
 
 .group {

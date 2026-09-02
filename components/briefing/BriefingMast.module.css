@@ -20,15 +20,15 @@
   margin: 0.5rem 0 0;
   font-size: 1.875rem;
   font-family: var(--font-display);
-  font-weight: 900;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   color: var(--chrome-text);
 }
 
 .world {
   margin: 0.5rem 0 0;
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.18em;
