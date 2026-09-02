@@ -66,7 +66,6 @@ export function MenuScreen() {
         onChange={controller.setCode}
         onRandomize={controller.randomize}
         onLaunch={controller.launch}
-        onOperations={controller.openOperations}
         onToggleSound={controller.toggleSound}
         onToggleMusic={controller.toggleMusic}
         onToggleTacticalRoster={controller.toggleTacticalRoster}

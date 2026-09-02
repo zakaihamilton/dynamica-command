@@ -17,7 +17,6 @@ export function MenuOverlay({
   onChange,
   onRandomize,
   onLaunch,
-  onOperations,
   onToggleSound,
   onToggleMusic,
   onToggleTacticalRoster,
@@ -33,7 +32,6 @@ export function MenuOverlay({
   onChange: (value: string) => void;
   onRandomize: () => void;
   onLaunch: () => void;
-  onOperations?: () => void;
   onToggleSound: () => void;
   onToggleMusic: () => void;
   onToggleTacticalRoster?: () => void;
@@ -54,7 +52,6 @@ export function MenuOverlay({
             onChange={onChange}
             onRandomize={onRandomize}
             onLaunch={onLaunch}
-            onOperations={onOperations}
             onBack={onBack}
           />
         </div>

@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { createCampaign } from "@/lib/gen/campaign";
 import { cachedLocalStorage } from "@/lib/persist/save";
 import { defaultSettings, readSettings, type GameSettings } from "@/lib/persist/settings";
-import { formatSeed, parseSeed } from "@/lib/seed/rng";
+import { parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import type { MenuView } from "./MenuOverlay";
@@ -43,15 +43,6 @@ export function useMenuController() {
   const openLoadMission = useCallback(() => router.push("/load"), [router]);
   const openTutorial = useCallback(() => router.push(tutorialPath()), [router]);
 
-  const openOperations = useCallback(() => {
-    const seed = parseSeed(code);
-    if (seed === null || code.length < 4) {
-      setError("Enter a 4-digit seed before opening the operations map.");
-      return;
-    }
-    setError("");
-    router.push(`/campaign?seed=${formatSeed(seed)}`);
-  }, [code, router]);
   const randomize = useCallback(() => {
     setCode(rollSeed());
     setError("");
@@ -103,7 +94,6 @@ export function useMenuController() {
     openTutorial,
     openLoadMission,
     openOptions,
-    openOperations,
     randomize,
     launch,
     toggleSound,

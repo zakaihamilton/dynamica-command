@@ -50,7 +50,7 @@ seed 0421
        └─ map (size, heightmap, resources, bases)
 ```
 
-Share a seed to share a universe. **Load Mission** lists named save slots and autosaves on this device, and each campaign has an **operations map**. From New Game, enter or roll a seed and choose Operations map to inspect the theater before deployment. Select an operation to preview its primary and secondary objectives, expected duration, map scale, and unlocks before deploying. Unlocked operations launch from their briefing; completed operations can be replayed for better medals and scores.
+Share a seed to share a universe. **Load Mission** lists named save slots and autosaves on this device, and each campaign has an **operations map**. Select an operation to preview its primary and secondary objectives, expected duration, map scale, and unlocks before deploying. Unlocked operations launch from their briefing; completed operations can be replayed for better medals and scores.
 
 ## Campaign
 

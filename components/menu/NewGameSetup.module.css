@@ -83,8 +83,7 @@
 }
 
 .launch,
-.back,
-.operations {
+.back {
   width: 100%;
   text-align: left;
 }
@@ -95,10 +94,6 @@
     linear-gradient(105deg, color-mix(in srgb, var(--chrome-cyan) 24%, transparent), transparent 32%),
     linear-gradient(color-mix(in srgb, var(--chrome-steel-hi) 70%, var(--chrome-cyan-dim)), var(--chrome-steel));
   border-color: color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-bevel));
-}
-
-.operations {
-  color: var(--chrome-cyan);
 }
 
 .back {

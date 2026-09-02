@@ -293,8 +293,7 @@ describe("MenuOverlay", () => {
 });
 
 describe("NewGameSetup", () => {
-  it("exposes the operations map action for the current seed", () => {
-    const onOperations = vi.fn();
+  it("does not expose an operations map action", () => {
     render(
       <NewGameSetup
         code="0421"
@@ -304,13 +303,12 @@ describe("NewGameSetup", () => {
         onChange={vi.fn()}
         onRandomize={vi.fn()}
         onLaunch={vi.fn()}
-        onOperations={onOperations}
         onBack={vi.fn()}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Operations map" }));
-    expect(onOperations).toHaveBeenCalledOnce();
+    expect(screen.getByRole("dialog", { name: "New theater" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Operations map" })).toBeNull();
   });
 });
 
