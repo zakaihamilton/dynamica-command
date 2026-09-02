@@ -276,7 +276,7 @@ function paintShroudLayer(
   ctx.restore();
 }
 
-export const WATER_COVER = 1.24;
+export const WATER_COVER = TERRAIN_COVER;
 
 export function paintTerrainWorld(
   ctx: CanvasRenderingContext2D,
