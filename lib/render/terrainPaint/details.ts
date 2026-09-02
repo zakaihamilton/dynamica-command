@@ -1,5 +1,5 @@
 import { TILE_H } from "../../iso";
-import type { BiomeName, SimState } from "../../types";
+import type { SimState } from "../../types";
 import { fogAt } from "../../sim/fog";
 import { biomeMaterials, fogTerrainGain, oreCrystalCluster, tileVariant } from "../terrainAtlas";
 import type { BiomeMaterials } from "../terrainMaterials";
@@ -311,7 +311,7 @@ function paintBlocker(
 
 export function drawBlockerProp(
   ctx: CanvasRenderingContext2D,
-  state: { seed: number; biome: BiomeName },
+  state: SimState,
   x: number,
   y: number,
   sx: number,

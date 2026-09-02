@@ -7,14 +7,14 @@ import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { expandIsoDiamond, HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/iso";
 import { isoDiamondPath } from "@/lib/render/isoDiamond";
 import { rasterize } from "@/lib/render/sprites";
-import { biomeMaterials, getTerrainAtlas, tileVariant, type AtlasWorld } from "@/lib/render/terrainAtlas";
+import { biomeMaterials, getTerrainAtlas, tileVariant } from "@/lib/render/terrainAtlas";
 import { drawElevationFaces } from "@/lib/render/terrainPaint/cliffs";
 import { TERRAIN_COVER } from "@/lib/render/terrainPaint/constants";
 import { drawBlockerProp } from "@/lib/render/terrainPaint/details";
 import { drawTerrainScatter } from "@/lib/render/terrainPaint/scatter";
 import { drawAtlasDiamond } from "@/lib/render/terrainPaint/tile";
 import { paintWorldGroundSprite } from "@/lib/render/terrainPaint/worldGround";
-import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
+import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, type SimState } from "@/lib/types";
 import type { CinemaScene } from "./scene";
 
 export function tileKind(tile: number): "clear" | "water" | "resource" | "blocked" {
@@ -36,7 +36,7 @@ export function cinemaOrigin(w: number, h: number): { x: number; y: number } {
   return { x: w * 0.52, y: h * 0.08 };
 }
 
-export function cinemaGroundWorld(scene: CinemaScene): AtlasWorld {
+export function cinemaGroundWorld(scene: CinemaScene): SimState {
   return {
     seed: scene.seed,
     biome: scene.map.biome,
@@ -46,7 +46,7 @@ export function cinemaGroundWorld(scene: CinemaScene): AtlasWorld {
     heights: scene.map.heights,
     surfaces: scene.map.surfaces,
     resourceAmount: scene.map.resourceAmount,
-  };
+  } as SimState;
 }
 
 function wetBankColors(
