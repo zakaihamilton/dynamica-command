@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { evaluateObjectives, objectiveProgress } from "../lib/sim/objectives";
 import { createTutorialMission, enterTutorialStage, tutorialMoveTile, tutorialPrompt } from "../lib/sim/tutorial";
+import { addBuilding, makeFixture } from "../lib/sim/fixtures";
 import { isWalkable } from "../lib/sim/world";
 
 describe("tutorial", () => {
@@ -106,5 +107,25 @@ describe("tutorial", () => {
     expect(building!.hp).toBe(Math.max(1, Math.floor(full / 2)));
     enterTutorialStage(state, "repair");
     expect(building!.hp).toBe(Math.max(1, Math.floor(full / 2)));
+  });
+
+  it("does not damage another building if one is already damaged", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const yard = addBuilding(state, 0, "constructionYard", 2, 2);
+    const power = addBuilding(state, 0, "power", 6, 2);
+    power.hp = power.maxHp - 4;
+    enterTutorialStage(state, "repair");
+    expect(yard.hp).toBe(yard.maxHp);
+    expect(power.hp).toBe(power.maxHp - 4);
+  });
+
+  it("does not halve a second full building on re-entry", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const yard = addBuilding(state, 0, "constructionYard", 2, 2);
+    const power = addBuilding(state, 0, "power", 6, 2);
+    enterTutorialStage(state, "repair");
+    expect([yard, power].filter((building) => building.hp < building.maxHp)).toHaveLength(1);
+    enterTutorialStage(state, "repair");
+    expect([yard, power].filter((building) => building.hp < building.maxHp)).toHaveLength(1);
   });
 });

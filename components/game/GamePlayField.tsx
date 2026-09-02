@@ -17,6 +17,7 @@ export function GamePlayField({
   campaign,
   state,
   tutorial,
+  paused = false,
   onPointerDown,
   onPointerMove,
   onPointerLeave,
@@ -39,6 +40,7 @@ export function GamePlayField({
   campaign: Campaign;
   state: SimState;
   tutorial: boolean;
+  paused?: boolean;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
@@ -88,7 +90,7 @@ export function GamePlayField({
         onRetry={onRetry}
         onMenu={onMenu}
       />
-      {tutorial ? (
+      {tutorial && !paused ? (
         <TutorialOverlay
           prompt={tutorialPrompt(state)}
           complete={state.tutorialStage === "complete"}

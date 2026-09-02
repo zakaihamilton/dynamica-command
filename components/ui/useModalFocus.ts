@@ -36,18 +36,25 @@ export function useModalFocus(active: boolean, resetKey?: string | number): RefO
       }
       const first = items[0]!;
       const last = items[items.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) {
+      const activeEl = document.activeElement;
+      const inside = activeEl instanceof Node && node.contains(activeEl);
+      if (!inside) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
+      if (event.shiftKey && activeEl === first) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && activeEl === last) {
         event.preventDefault();
         first.focus();
       }
     };
 
-    node.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     return () => {
-      node.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
       if (previous?.isConnected) previous.focus();
     };
   }, [active, resetKey]);

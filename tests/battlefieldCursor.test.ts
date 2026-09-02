@@ -58,6 +58,8 @@ describe("battlefieldCursor", () => {
 
     expect(battlefieldCursor(cursorOpts(state, { hoverEntity: infantry }))).toBe("pointer");
     expect(battlefieldCursor(cursorOpts(state, { hoverEntity: enemy, selectedIds: [infantry.id] }))).toBe("crosshair");
+    expect(battlefieldCursor(cursorOpts(state, { hoverEntity: enemy }))).toBe("not-allowed");
+    expect(battlefieldCursor(cursorOpts(state, { hoverEntity: enemy, selectedIds: [harvester.id] }))).toBe("not-allowed");
     expect(battlefieldCursor(cursorOpts(state, {
       hoverTile: { x: 5, y: 5 },
       selectedIds: [harvester.id],

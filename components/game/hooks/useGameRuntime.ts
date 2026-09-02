@@ -14,6 +14,7 @@ import { useGameSession } from "./useGameSession";
 import { useGameSelection } from "./useGameSelection";
 import { useGameRuntimeState } from "./useGameRuntimeState";
 import { clearRenderSessionCaches } from "@/lib/render/sessionCache";
+import type { PauseView } from "@/lib/ui/shortcuts";
 
 export function useGameRuntime({
   seed,
@@ -86,10 +87,13 @@ export function useGameRuntime({
   const actions = useGameActions({ stateRef, cmdQ, selected, selectedIds });
   const {
     place,
+    placeKind,
     setPlaceKind,
     repair,
+    repairMode,
     setRepairMode,
     sell,
+    sellMode,
     setSellMode,
     mobileCommand,
     setMobileCommandState,
@@ -107,13 +111,17 @@ export function useGameRuntime({
     stateRef,
     camRef,
     selectedRef: selected,
+    selectedIds,
     commitSelection,
     cmdQRef: cmdQ,
     placeRef: place,
+    placeKind,
     setPlaceKind,
     repairRef: repair,
+    repairMode,
     setRepairMode,
     sellRef: sell,
+    sellMode,
     setSellMode,
     clearTools,
     mobileCommandRef: mobileCommand,
@@ -177,9 +185,9 @@ export function useGameRuntime({
   });
   const { openPauseMenu: openMissionPause } = session;
 
-  const openPauseMenu = useCallback(() => {
+  const openPauseMenu = useCallback((view: PauseView = "main") => {
     resetTransientMobileUi();
-    openMissionPause();
+    openMissionPause(view);
   }, [openMissionPause, resetTransientMobileUi]);
 
   const closeMobilePanel = useCallback(() => {
@@ -285,6 +293,7 @@ export function useGameRuntime({
       campaign,
       state,
       tutorial,
+      paused,
       onPointerDown: onDown,
       onPointerMove: onMove,
       onPointerLeave: onLeave,

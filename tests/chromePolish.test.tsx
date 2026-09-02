@@ -23,9 +23,18 @@ describe("product chrome", () => {
     expect(screen.getByTestId("home-link")).toHaveAttribute("href", "/");
   });
 
-  it("sets the document title", () => {
-    render(<DocumentTitle title="Seed 0421 · Operation 1 | Dynamica Command" />);
+  it("sets the document title and restores the previous title on unmount", () => {
+    document.title = "Dynamica Command";
+    const { unmount } = render(<DocumentTitle title="Seed 0421 · Operation 1 | Dynamica Command" />);
     expect(document.title).toBe("Seed 0421 · Operation 1 | Dynamica Command");
+    unmount();
+    expect(document.title).toBe("Dynamica Command");
+  });
+
+  it("sets a not-found document title", () => {
+    document.title = "Dynamica Command";
+    render(<NotFound />);
+    expect(document.title).toBe("Signal not found | Dynamica Command");
   });
 
   it("labels the HUD as an operation instead of a level", () => {

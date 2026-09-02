@@ -43,13 +43,14 @@ export function tutorialMoveTile(state: SimState): { x: number; y: number } | nu
 export function enterTutorialStage(state: SimState, stage: TutorialStage): void {
   state.tutorialStage = stage;
   if (stage !== "repair") return;
-  const building = state.entities.find(
+  const buildings = state.entities.filter(
     (entity) =>
       entity.hp > 0 &&
       entity.owner === 0 &&
       entity.class === "building" &&
-      entity.constructing === 0 &&
-      entity.hp === entity.maxHp,
+      entity.constructing === 0,
   );
+  if (buildings.some((entity) => entity.hp < entity.maxHp)) return;
+  const building = buildings[0];
   if (building) building.hp = Math.max(1, Math.floor(building.maxHp / 2));
 }

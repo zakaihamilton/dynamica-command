@@ -68,6 +68,7 @@ export function Battlefield({
         className={styles.canvas}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
+        onPointerEnter={onPointerMove}
         onPointerLeave={onPointerLeave}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}

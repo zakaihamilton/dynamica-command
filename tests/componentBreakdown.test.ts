@@ -260,7 +260,8 @@ describe("keyboard command dispatch", () => {
     applyGameCommand({ type: "resultMenu" }, next);
     applyGameCommand({ type: "controls" }, next);
     expect(next.openPauseMenu).toHaveBeenCalledTimes(2);
-    expect(next.setPauseView).toHaveBeenCalledWith("controls");
+    expect(next.openPauseMenu).toHaveBeenNthCalledWith(2, "controls");
+    expect(next.setPauseView).not.toHaveBeenCalledWith("controls");
     expect(next.resumeMission).toHaveBeenCalledOnce();
     expect(next.setActiveTab).toHaveBeenCalledWith("production");
     expect(next.activateCameo).toHaveBeenCalledWith("construction", 1, false);

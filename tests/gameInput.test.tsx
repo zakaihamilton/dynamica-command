@@ -15,6 +15,7 @@ function testCanvas() {
   const canvas = {
     width: 800,
     height: 600,
+    style: { cursor: "" },
     getBoundingClientRect: () => ({ left: 10, top: 20, width: 800, height: 600 }) as DOMRect,
     setPointerCapture: vi.fn(),
     hasPointerCapture: vi.fn(() => true),
@@ -39,33 +40,41 @@ function pointerEvent(canvas: HTMLCanvasElement, overrides: Partial<PointerEvent
   } as unknown as PointerEvent<HTMLCanvasElement>;
 }
 
-function renderInput(canvas: HTMLCanvasElement) {
+function renderInput(
+  canvas: HTMLCanvasElement,
+  overrides: { repairMode?: boolean; repairRef?: { current: boolean } } = {},
+) {
   const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
   const commitSelection = vi.fn();
   const applyEdgePan = vi.fn();
   const clearTools = vi.fn();
-  const { result } = renderHook(() => useGameInput({
-    stateRef: useRef(state),
-    camRef: useRef(createCamera()),
-    selectedRef: useRef(new Set<number>()),
-    commitSelection,
-    cmdQRef: useRef<Command[]>([]),
-    placeRef: useRef<BuildingKind | null>(null),
-    setPlaceKind: vi.fn(),
-    repairRef: useRef(false),
-    setRepairMode: vi.fn(),
-    sellRef: useRef(false),
-    setSellMode: vi.fn(),
-    clearTools,
-    mobileCommandRef: useRef(null),
-    setMobileCommandState: vi.fn(),
-    pausedRef: useRef(false),
-    panAvailRef: useRef({ left: true, right: true, up: true, down: true }),
-    applyEdgePan,
-    selectionModeRef: useRef(false),
-    setSelectionMode: vi.fn(),
-  }));
-  return { result, canvas, commitSelection, applyEdgePan, clearTools };
+  const repairRef = overrides.repairRef ?? { current: overrides.repairMode ?? false };
+  const { result, rerender } = renderHook(
+    (props: { repairMode: boolean }) => useGameInput({
+      stateRef: useRef(state),
+      camRef: useRef(createCamera()),
+      selectedRef: useRef(new Set<number>()),
+      commitSelection,
+      cmdQRef: useRef<Command[]>([]),
+      placeRef: useRef<BuildingKind | null>(null),
+      setPlaceKind: vi.fn(),
+      repairRef,
+      repairMode: props.repairMode,
+      setRepairMode: vi.fn(),
+      sellRef: useRef(false),
+      setSellMode: vi.fn(),
+      clearTools,
+      mobileCommandRef: useRef(null),
+      setMobileCommandState: vi.fn(),
+      pausedRef: useRef(false),
+      panAvailRef: useRef({ left: true, right: true, up: true, down: true }),
+      applyEdgePan,
+      selectionModeRef: useRef(false),
+      setSelectionMode: vi.fn(),
+    }),
+    { initialProps: { repairMode: overrides.repairMode ?? false } },
+  );
+  return { result, canvas, commitSelection, applyEdgePan, clearTools, repairRef, rerender };
 }
 
 describe("desktop marquee pointer lifecycle", () => {
@@ -100,6 +109,23 @@ describe("desktop marquee pointer lifecycle", () => {
     expect(result.current.boxRef.current).toBeNull();
     expect(applyEdgePan).toHaveBeenLastCalledWith(null);
     expect(clearTools).toHaveBeenCalledOnce();
+  });
+});
+
+describe("battlefield cursor", () => {
+  it("updates the canvas cursor when repair mode turns on without another pointer move", () => {
+    const canvas = testCanvas();
+    const repairRef = { current: false };
+    const { result, rerender } = renderInput(canvas, { repairRef });
+
+    act(() => {
+      result.current.onMove(pointerEvent(canvas, { buttons: 0 }));
+    });
+    expect(canvas.style.cursor).toBe("crosshair");
+
+    repairRef.current = true;
+    rerender({ repairMode: true });
+    expect(canvas.style.cursor).toBe("not-allowed");
   });
 });
 

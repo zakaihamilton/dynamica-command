@@ -37,11 +37,13 @@ export function battlefieldCursor({
     return hoverEntity.owner === 0 && canSell(hoverEntity) ? "pointer" : "not-allowed";
   }
   if (hoverEntity?.owner === 0) return "pointer";
-  const selectedCombat = selectedIds.some((id) => {
-    const entity = state.entities.find((item) => item.id === id && item.hp > 0 && item.owner === 0 && item.class === "unit");
-    return Boolean(entity && !SUPPORT_KINDS.has(entity.kind));
-  });
-  if (hoverEntity && hoverEntity.owner === 1 && selectedCombat) return "crosshair";
+  if (hoverEntity && hoverEntity.owner === 1) {
+    const selectedCombat = selectedIds.some((id) => {
+      const entity = state.entities.find((item) => item.id === id && item.hp > 0 && item.owner === 0 && item.class === "unit");
+      return Boolean(entity && !SUPPORT_KINDS.has(entity.kind));
+    });
+    return selectedCombat ? "crosshair" : "not-allowed";
+  }
   if (hoverTile && state.tiles[hoverTile.y * state.width + hoverTile.x] === TILE_RESOURCE) {
     const harvesting = selectedIds.some((id) => {
       const entity = state.entities.find((item) => item.id === id);

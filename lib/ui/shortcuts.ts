@@ -151,6 +151,7 @@ export function gameCommandFromKey(
   if (ctx.paused) {
     if (ctx.pauseView === "soundtrack") {
       if (isEscape(e)) return { type: "pauseBack" };
+      if (isF1(e) && !ctrl) return { type: "controls" };
       return null;
     }
     if (ctrl) return null;

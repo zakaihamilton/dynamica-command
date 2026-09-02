@@ -1,4 +1,4 @@
-import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "react";
+import { useCallback, useLayoutEffect, useRef, type MutableRefObject, type PointerEvent } from "react";
 import { beep } from "@/lib/audio/synth";
 import { beepForCommands } from "@/lib/audio/uiOrders";
 import { pickTile } from "@/lib/render/renderer";
@@ -18,13 +18,17 @@ export function useGameInput({
   stateRef,
   camRef,
   selectedRef,
+  selectedIds,
   commitSelection,
   cmdQRef,
   placeRef,
+  placeKind,
   setPlaceKind,
   repairRef,
+  repairMode,
   setRepairMode,
   sellRef,
+  sellMode,
   setSellMode,
   clearTools,
   mobileCommandRef,
@@ -38,13 +42,17 @@ export function useGameInput({
   stateRef: MutableRefObject<SimState>;
   camRef: MutableRefObject<Camera>;
   selectedRef: MutableRefObject<Set<number>>;
+  selectedIds?: readonly number[];
   commitSelection: (ids: number[]) => void;
   cmdQRef: MutableRefObject<Command[]>;
   placeRef: MutableRefObject<BuildingKind | null>;
+  placeKind?: BuildingKind | null;
   setPlaceKind: (v: BuildingKind | null) => void;
   repairRef: MutableRefObject<boolean>;
+  repairMode?: boolean;
   setRepairMode: (v: boolean) => void;
   sellRef: MutableRefObject<boolean>;
+  sellMode?: boolean;
   setSellMode: (v: boolean) => void;
   clearTools: () => void;
   mobileCommandRef: MutableRefObject<MobileCommand | null>;
@@ -59,6 +67,32 @@ export function useGameInput({
   const cursorRef = useRef<{ x: number; y: number } | null>(null);
   const boxRef = useRef<SelectionBox | null>(null);
   const commandMarkerRef = useRef<CommandMarker | null>(null);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+
+  const syncCursor = useCallback((canvas?: HTMLCanvasElement | null) => {
+    if (canvas) canvasElRef.current = canvas;
+    const target = canvasElRef.current;
+    if (!target?.style) return;
+    const s = stateRef.current;
+    if (!s) {
+      target.style.cursor = "";
+      return;
+    }
+    const tile = hoverRef.current;
+    target.style.cursor = battlefieldCursor({
+      state: s,
+      hoverTile: tile,
+      hoverEntity: tile ? entityAt(s, tile.x, tile.y) : undefined,
+      selectedIds: [...selectedRef.current],
+      placeKind: placeRef.current,
+      repairMode: repairRef.current,
+      sellMode: sellRef.current,
+    });
+  }, [placeRef, repairRef, selectedRef, sellRef, stateRef]);
+
+  useLayoutEffect(() => {
+    syncCursor();
+  }, [placeKind, repairMode, sellMode, selectedIds, syncCursor]);
 
   const markUnitCommand = useCallback((s: SimState, p: { x: number; y: number }, commands: Command[]) => {
     const kind = commandMarkerKind(commands);
@@ -72,6 +106,7 @@ export function useGameInput({
     if (repairRef.current || sellRef.current) {
       clearTools();
       beep("cancel");
+      syncCursor();
       return;
     }
     const ids = [...selectedRef.current];
@@ -83,7 +118,7 @@ export function useGameInput({
     setMobileCommandState(null);
     const kind = beepForCommands(commands);
     if (kind) beep(kind);
-  }, [camRef, clearTools, cmdQRef, markUnitCommand, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState]);
+  }, [camRef, clearTools, cmdQRef, markUnitCommand, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState, syncCursor]);
 
   const { beginTouch, moveTouch, endTouch, cancelTouch } = useTouchGestures({
     camRef,
@@ -117,9 +152,11 @@ export function useGameInput({
       setSellMode(false);
     }
     if (effect.beep) beep(effect.beep);
-  }, [cmdQRef, commitSelection, markUnitCommand, mobileCommandRef, placeRef, repairRef, sellRef, setMobileCommandState, setPlaceKind, setRepairMode, setSelectionMode, setSellMode, stateRef]);
+    syncCursor(event.currentTarget);
+  }, [cmdQRef, commitSelection, markUnitCommand, mobileCommandRef, placeRef, repairRef, sellRef, setMobileCommandState, setPlaceKind, setRepairMode, setSelectionMode, setSellMode, stateRef, syncCursor]);
 
   const onDown = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
+    canvasElRef.current = e.currentTarget;
     const p = canvasPointerPos(e);
     if (e.pointerType === "touch") {
       beginTouch(e, p);
@@ -146,18 +183,7 @@ export function useGameInput({
     if (e.pointerType === "touch" && moveTouch(e, p)) return;
     cursorRef.current = p;
     if (s) hoverRef.current = pickTile(s, p.x, p.y, camRef.current);
-    if (s && e.currentTarget.style) {
-      const tile = hoverRef.current;
-      e.currentTarget.style.cursor = battlefieldCursor({
-        state: s,
-        hoverTile: tile,
-        hoverEntity: tile ? entityAt(s, tile.x, tile.y) : undefined,
-        selectedIds: [...selectedRef.current],
-        placeKind: placeRef.current,
-        repairMode: repairRef.current,
-        sellMode: sellRef.current,
-      });
-    }
+    syncCursor(e.currentTarget);
     if (e.pointerType !== "touch" && boxRef.current && e.buttons === 1) {
       boxRef.current.x1 = p.x;
       boxRef.current.y1 = p.y;
@@ -168,7 +194,7 @@ export function useGameInput({
         ? null
         : panDirFromPointer(e.clientX - r.left, e.clientY - r.top, r.width, r.height, EDGE_PAN_BAND, panAvailRef.current),
     );
-  }, [applyEdgePan, camRef, moveTouch, panAvailRef, pausedRef, placeRef, repairRef, selectedRef, sellRef, stateRef]);
+  }, [applyEdgePan, camRef, moveTouch, panAvailRef, pausedRef, stateRef, syncCursor]);
 
   const onLeave = useCallback((e?: PointerEvent<HTMLCanvasElement>) => {
     cursorRef.current = null;
@@ -230,6 +256,7 @@ export function useGameInput({
     clearTools();
     setSelectionMode(false);
     applyEdgePan(null);
+    if (e.currentTarget.style) e.currentTarget.style.cursor = "";
   }, [applyEdgePan, cancelTouch, clearTools, mobileCommandRef, setMobileCommandState, setSelectionMode]);
 
   const resetInput = useCallback(() => {

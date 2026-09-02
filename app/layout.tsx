@@ -7,7 +7,16 @@ import styles from "./layout.module.css";
 
 const DESCRIPTION = "Seeded isometric RTS — one 4-digit code writes the war.";
 
+const metadataBase = new URL(
+  process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000",
+);
+
 export const metadata: Metadata = {
+  metadataBase,
   title: "Dynamica Command",
   description: DESCRIPTION,
   openGraph: {

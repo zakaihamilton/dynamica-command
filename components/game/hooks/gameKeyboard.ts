@@ -5,7 +5,7 @@ import type { CommandTab, GameCommand, PauseView } from "@/lib/ui/shortcuts";
 
 export type GameCommandHandlers = {
   activeTab: CommandTab;
-  openPauseMenu: () => void;
+  openPauseMenu: (view?: PauseView) => void;
   resumeMission: () => void;
   setPauseView: (view: PauseView) => void;
   setPauseNotice: (notice: string) => void;
@@ -65,9 +65,7 @@ export function applyGameCommand(command: GameCommand, handlers: GameCommandHand
     handlers.setPauseView("options");
     handlers.setPauseNotice("");
   } else if (command.type === "controls") {
-    handlers.openPauseMenu();
-    handlers.setPauseView("controls");
-    handlers.setPauseNotice("");
+    handlers.openPauseMenu("controls");
   } else if (command.type === "menu") handlers.onNavigateHome();
   else if (command.type === "toggleSound") handlers.toggleSound();
   else if (command.type === "toggleMusic") handlers.toggleMusic();

@@ -23,7 +23,7 @@ export function PauseMenu({
   onLoad,
   onBriefing,
   onRestart,
-  onControls = () => {},
+      onControls,
   onSoundtrack,
   onOptions,
   onMenu,
@@ -44,7 +44,7 @@ export function PauseMenu({
   onLoad: () => void;
   onBriefing: () => void;
   onRestart: () => void;
-  onControls?: () => void;
+  onControls: () => void;
   onSoundtrack: () => void;
   onOptions: () => void;
   onMenu: () => void;
