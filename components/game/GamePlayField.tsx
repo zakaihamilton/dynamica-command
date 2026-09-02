@@ -20,6 +20,7 @@ export function GamePlayField({
   paused = false,
   onPointerDown,
   onPointerMove,
+  onPointerEnter,
   onPointerLeave,
   onPointerUp,
   onPointerCancel,
@@ -43,6 +44,7 @@ export function GamePlayField({
   paused?: boolean;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onPointerMove: PointerEventHandler<HTMLCanvasElement>;
+  onPointerEnter: PointerEventHandler<HTMLCanvasElement>;
   onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
   onPointerUp: PointerEventHandler<HTMLCanvasElement>;
   onPointerCancel: PointerEventHandler<HTMLCanvasElement>;
@@ -77,6 +79,7 @@ export function GamePlayField({
       biome={state.biome}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
+      onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}

@@ -110,6 +110,34 @@ describe("desktop marquee pointer lifecycle", () => {
     expect(applyEdgePan).toHaveBeenLastCalledWith(null);
     expect(clearTools).toHaveBeenCalledOnce();
   });
+
+  it("keeps a click-sized marquee when pointerenter fires with captured-button coordinates", () => {
+    const canvas = testCanvas();
+    const { result } = renderInput(canvas);
+
+    act(() => {
+      result.current.onDown(pointerEvent(canvas, { clientX: 120, clientY: 140 }));
+    });
+    expect(result.current.boxRef.current).toMatchObject({ x0: 110, y0: 120, x1: 110, y1: 120 });
+
+    act(() => {
+      result.current.onEnter(pointerEvent(canvas, {
+        type: "pointerenter",
+        clientX: 10,
+        clientY: 20,
+        buttons: 1,
+      }));
+      result.current.onMove(pointerEvent(canvas, {
+        type: "pointerenter",
+        clientX: 10,
+        clientY: 20,
+        buttons: 1,
+      }));
+    });
+
+    expect(result.current.boxRef.current).toMatchObject({ x0: 110, y0: 120, x1: 110, y1: 120 });
+    expect(canvas.style.cursor).toBe("crosshair");
+  });
 });
 
 describe("battlefield cursor", () => {
@@ -163,5 +191,24 @@ describe("touch gesture lifecycle", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("does not treat a captured pointerenter as a touch pan that swallows the tap", () => {
+    const canvas = testCanvas();
+    const { result, commitSelection } = renderInput(canvas);
+
+    act(() => {
+      result.current.onDown(pointerEvent(canvas, { pointerType: "touch", clientX: 120, clientY: 140 }));
+      result.current.onEnter(pointerEvent(canvas, {
+        pointerType: "touch",
+        type: "pointerenter",
+        clientX: 10,
+        clientY: 20,
+        buttons: 1,
+      }));
+      result.current.onUp(pointerEvent(canvas, { pointerType: "touch", clientX: 120, clientY: 140, buttons: 0 }));
+    });
+
+    expect(commitSelection).toHaveBeenCalledOnce();
   });
 });

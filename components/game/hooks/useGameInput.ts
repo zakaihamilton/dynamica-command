@@ -177,7 +177,28 @@ export function useGameInput({
     };
   }, [beginTouch, camRef]);
 
+  const hoverAtPointer = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
+    const p = canvasPointerPos(e);
+    const s = stateRef.current;
+    cursorRef.current = p;
+    if (s) hoverRef.current = pickTile(s, p.x, p.y, camRef.current);
+    syncCursor(e.currentTarget);
+    return p;
+  }, [camRef, stateRef, syncCursor]);
+
+  // Pointerenter is hover/cursor only. After setPointerCapture, browsers can emit a
+  // pointerenter with stale coordinates; treating that as a move turned taps into
+  // marquee-drags or pans and dropped the selection.
+  const onEnter = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
+    canvasElRef.current = e.currentTarget;
+    hoverAtPointer(e);
+  }, [hoverAtPointer]);
+
   const onMove = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
+    if (e.type === "pointerenter") {
+      hoverAtPointer(e);
+      return;
+    }
     const p = canvasPointerPos(e);
     const s = stateRef.current;
     if (e.pointerType === "touch" && moveTouch(e, p)) return;
@@ -194,7 +215,7 @@ export function useGameInput({
         ? null
         : panDirFromPointer(e.clientX - r.left, e.clientY - r.top, r.width, r.height, EDGE_PAN_BAND, panAvailRef.current),
     );
-  }, [applyEdgePan, camRef, moveTouch, panAvailRef, pausedRef, stateRef, syncCursor]);
+  }, [applyEdgePan, camRef, hoverAtPointer, moveTouch, panAvailRef, pausedRef, stateRef, syncCursor]);
 
   const onLeave = useCallback((e?: PointerEvent<HTMLCanvasElement>) => {
     cursorRef.current = null;
@@ -274,6 +295,7 @@ export function useGameInput({
     commandMarkerRef,
     resetInput,
     onDown,
+    onEnter,
     onMove,
     onLeave,
     onUp,
