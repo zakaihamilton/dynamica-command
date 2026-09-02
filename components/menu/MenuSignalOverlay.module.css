@@ -60,10 +60,13 @@
 }
 
 .lock {
+  --lock-size: 2.35rem;
+  --lock-feed-w: 15rem;
+  --lock-feed-h: 9.5rem;
   z-index: 3;
   box-sizing: border-box;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: var(--lock-size);
+  height: var(--lock-size);
   opacity: 0.88;
   background:
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left top / 0.55rem 1.5px no-repeat,
@@ -78,6 +81,7 @@
   transition:
     width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
     height 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    translate 0.38s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.25s ease;
 }
 
@@ -107,11 +111,12 @@
 
 .lock[data-expanded="true"] {
   z-index: 5;
-  width: 15rem;
-  height: 9.5rem;
+  width: var(--lock-feed-w);
+  height: var(--lock-feed-h);
   overflow: hidden;
   opacity: 1;
   animation: none;
+  translate: calc((var(--lock-size) - var(--lock-feed-w)) / 2) calc((var(--lock-size) - var(--lock-feed-h)) / 2);
   background:
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left top / 0.7rem 1.5px no-repeat,
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left top / 1.5px 0.7rem no-repeat,
@@ -187,6 +192,11 @@
     );
   }
 
+  .lock {
+    --lock-feed-w: 10.5rem;
+    --lock-feed-h: 6.6rem;
+  }
+
   .lock[data-lock="a"] {
     left: 8%;
     top: 10%;
@@ -200,11 +210,6 @@
   .lock[data-lock="c"] {
     left: 38%;
     top: 7%;
-  }
-
-  .lock[data-expanded="true"] {
-    width: 10.5rem;
-    height: 6.6rem;
   }
 }
 
