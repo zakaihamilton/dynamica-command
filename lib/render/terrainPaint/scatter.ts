@@ -12,7 +12,7 @@ import {
 import { blockerPropKind, type BlockerPropKind } from "../../gen/terrainDecorKinds";
 import { biomeMaterials, tileVariant } from "../terrainAtlas";
 import type { BiomeMaterials } from "../terrainMaterials";
-import { mixRgb, rgbOf, withAlpha } from "./style";
+import { fillPoly, mixRgb, rgbOf, withAlpha } from "./style";
 
 export { blockerPropKind };
 export type { BlockerPropKind };
@@ -144,14 +144,6 @@ function shadow(ctx: CanvasRenderingContext2D, z: number, rx: number, ry: number
   ctx.fill();
 }
 
-function fillPoly(ctx: CanvasRenderingContext2D, pts: number[]): void {
-  ctx.beginPath();
-  ctx.moveTo(pts[0]!, pts[1]!);
-  for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i]!, pts[i + 1]!);
-  ctx.closePath();
-  ctx.fill();
-}
-
 function drawPebble(
   ctx: CanvasRenderingContext2D,
   mats: BiomeMaterials,
@@ -209,7 +201,7 @@ function drawPebbleCluster(
   scale: number,
   variant: number,
 ): void {
-  const n = 3 + (variant % 2);
+  const n = 2 + (variant % 2);
   const sizes = [1.05, 0.72, 0.58, 0.46];
   for (let i = 0; i < n; i++) {
     ctx.save();

@@ -59,12 +59,12 @@ import { fogIndex, makeFog } from "../lib/sim/fog";
 
 function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
   const rect = atlasRectForTile(tileX, tileY, atlas.mapWidth);
-  let min = 510;
-  let max = 0;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
   for (let ly = 0; ly < rect.sh; ly++) {
     for (let lx = 0; lx < rect.sw; lx++) {
       const i = ((rect.sy + ly) * atlas.width + (rect.sx + lx)) * 4;
-      const gold = (atlas.data[i] ?? 0) + (atlas.data[i + 1] ?? 0);
+      const gold = (atlas.data[i] ?? 0) + (atlas.data[i + 1] ?? 0) - (atlas.data[i + 2] ?? 0);
       if (gold < min) min = gold;
       if (gold > max) max = gold;
     }
@@ -173,6 +173,7 @@ describe("seeded terrain atlas", () => {
     const concrete = atlasPixelAtTile(atlas, 7, 7);
     expect(water[2]).toBeGreaterThan(water[0]);
     expect(sampleTerrainMaterial(state, 1, 1).water).toBe(true);
+    expect(atlasCellGoldSpread(atlas, 2, 2)).toBeGreaterThan(atlasCellGoldSpread(atlas, 0, 0));
     expect(atlasCellGoldSpread(atlas, 2, 2)).toBeGreaterThan(atlasCellGoldSpread(atlas, 7, 7));
     expect(atlasPixelAtTile(atlas, 2, 2)).not.toEqual(ground);
     expect(high[0] + high[1] + high[2]).toBeGreaterThan(ground[0] + ground[1] + ground[2]);
@@ -808,8 +809,9 @@ describe("tile sprite blockers", () => {
     expect(jungle.shapes).not.toEqual(desert.shapes);
     expect(tundra.shapes).not.toEqual(jungle.shapes);
     expect(tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes).toEqual(jungle.shapes);
-    expect(jungle.shapes.length).toBeGreaterThan(6);
-    expect(desert.shapes.length).toBeGreaterThan(6);
+    expect(jungle.shapes.filter((shape) => shape.type === "ellipse").length).toBeGreaterThanOrEqual(6);
+    expect(tundra.shapes.filter((shape) => shape.type === "poly" && (shape.points?.length ?? 0) === 6).length).toBeGreaterThanOrEqual(5);
+    expect(desert.shapes.filter((shape) => shape.type === "poly").length).toBeGreaterThanOrEqual(4);
   });
 });
 
