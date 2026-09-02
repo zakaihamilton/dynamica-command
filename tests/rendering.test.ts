@@ -38,7 +38,10 @@ import { spriteCacheKey, terrainContentKey } from "../lib/render/renderer";
 import { minimapCacheKeys, MINIMAP_OVERLAY_TICK_SHIFT } from "../lib/render/minimap";
 import { hash2 } from "../lib/render/terrainMaterials";
 import { hashNoise, valueNoise } from "../lib/gen/map/noise";
-import { isoDiamondPath } from "../lib/render/isoDiamond";
+import { isoDiamondPath, roundedIsoDiamondPath } from "../lib/render/isoDiamond";
+import { paintShroudMaskTile, shroudCornerRadii } from "../lib/render/terrainPaint/tile";
+import { SHROUD_COVER, SHROUD_CORE_COVER, SHROUD_CORNER_RADIUS_FRAC, SHROUD_FILL, SHROUD_RGB } from "../lib/render/terrainPaint/constants";
+import { fogIndex, makeFog } from "../lib/sim/fog";
 
 function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
   const rect = atlasRectForTile(tileX, tileY, atlas.mapWidth);
@@ -75,6 +78,39 @@ describe("seeded terrain atlas", () => {
     expect(ctx.lineTo).toHaveBeenNthCalledWith(2, 10, 24);
     expect(ctx.lineTo).toHaveBeenNthCalledWith(3, 6, 22);
     expect(ctx.closePath).toHaveBeenCalledOnce();
+  });
+
+  it("rounds iso diamond corners with arcTo and stays off the raw tips", () => {
+    const ctx = {
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arcTo: vi.fn(),
+      closePath: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+    roundedIsoDiamondPath(ctx, 10, 20, 8, 4, 1.2);
+
+    expect(ctx.lineTo).not.toHaveBeenCalled();
+    expect(ctx.arcTo).toHaveBeenCalledTimes(4);
+    expect(ctx.moveTo).not.toHaveBeenCalledWith(10, 20);
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(1, 10, 20, 14, 22, 1.2);
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(2, 14, 22, 10, 24, 1.2);
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(3, 10, 24, 6, 22, 1.2);
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(4, 6, 22, 10, 20, 1.2);
+    expect(ctx.closePath).toHaveBeenCalledOnce();
+  });
+
+  it("clamps rounded-diamond radius to half of each edge", () => {
+    const ctx = {
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arcTo: vi.fn(),
+      closePath: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+    roundedIsoDiamondPath(ctx, 10, 20, 8, 4, 100);
+    const clamped = Math.hypot(4, 2) / 2;
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(1, 10, 20, 14, 22, clamped);
   });
 
   it("scopes raster fallback cache keys to the active mission session", () => {
@@ -230,6 +266,89 @@ describe("seeded terrain atlas", () => {
     expect(terrainLayoutSignature(state.tiles, state.surfaces)).not.toBe(layoutBefore);
     expect(terrainAtlasKey(state)).not.toBe(before);
     expect(getTerrainAtlas(state)).not.toBe(atlas);
+  });
+});
+
+describe("shroud corner rounding", () => {
+  const explored = (fog: number) => fog >= 1;
+
+  it("rounds every corner of an isolated explored tile", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    state.fog = makeFog(8, 8, 0);
+    state.fog[fogIndex(state, 4, 4)!] = 2;
+    expect(shroudCornerRadii(state, 4, 4, 12, explored)).toEqual([12, 12, 12, 12]);
+  });
+
+  it("keeps interior corners sharp so adjacent stamps stay sealed", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    expect(shroudCornerRadii(state, 4, 4, 12, explored)).toEqual([0, 0, 0, 0]);
+  });
+
+  it("rounds only the outer corner of an explored block", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    state.fog = makeFog(8, 8, 0);
+    for (let y = 2; y <= 4; y++) {
+      for (let x = 2; x <= 4; x++) {
+        state.fog[fogIndex(state, x, y)!] = 2;
+      }
+    }
+    expect(shroudCornerRadii(state, 2, 2, 12, explored)).toEqual([12, 0, 0, 0]);
+  });
+
+  function mockStampCtx() {
+    const addColorStop = vi.fn();
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arc: vi.fn(),
+      arcTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      createRadialGradient: vi.fn(() => ({ addColorStop })),
+      globalAlpha: 1,
+      fillStyle: "",
+    };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, addColorStop, scale: ctx.scale, arcTo: ctx.arcTo };
+  }
+
+  it("derives the shroud fill hex from SHROUD_RGB", () => {
+    expect(SHROUD_FILL).toBe("#080d11");
+    expect(SHROUD_RGB).toEqual({ r: 8, g: 13, b: 17 });
+  });
+
+  it("punches a black radial feather and honors sharp interior core corners", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    const { ctx, addColorStop, arcTo } = mockStampCtx();
+    paintShroudMaskTile(ctx, 100, 50, TILE_W, TILE_H, 0, 0, 0, 1, 1, 4, 4, 0, state);
+    expect(addColorStop).toHaveBeenNthCalledWith(1, 0, "rgba(0,0,0,1)");
+    expect(addColorStop).toHaveBeenNthCalledWith(2, 0.7, "rgba(0,0,0,1)");
+    expect(addColorStop).toHaveBeenNthCalledWith(3, 1, "rgba(0,0,0,0)");
+    expect(arcTo).toHaveBeenCalledTimes(4);
+    expect(arcTo.mock.calls.every((call) => call[4] === 0)).toBe(true);
+  });
+
+  it("rounds the core of an isolated explored tile instead of flooring a minimum radius", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    state.fog = makeFog(8, 8, 0);
+    state.fog[fogIndex(state, 4, 4)!] = 2;
+    const { ctx, arcTo } = mockStampCtx();
+    paintShroudMaskTile(ctx, 100, 50, TILE_W, TILE_H, 0, 0, 0, 1, 1, 4, 4, 0, state);
+    const coverH = TILE_H * SHROUD_COVER;
+    const expected = SHROUD_CORNER_RADIUS_FRAC * coverH * SHROUD_CORE_COVER;
+    expect(arcTo.mock.calls[0]?.[4]).toBeCloseTo(expected);
+    expect(arcTo.mock.calls.every((call) => (call[4] as number) > 0)).toBe(true);
+  });
+
+  it("keeps partial-fog stamps at tile cover instead of expanding into unexplored cells", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    const { ctx, scale } = mockStampCtx();
+    paintShroudMaskTile(ctx, 100, 50, TILE_W, TILE_H, 0, 0, 0, 0.55, 1, 4, 4, 0, state);
+    expect(scale).toHaveBeenCalledWith(TILE_W * 0.42, TILE_W * 0.42);
   });
 });
 

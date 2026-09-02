@@ -29,7 +29,7 @@ export function SoundtrackPanel({
         <h2 id="soundtrack-title" className={styles.title}>Mission soundtrack</h2>
         <p className={styles.meta}>Seed {formatSeed(seed)} {"//"} Mission {missionIndex + 1}</p>
         <p className={styles.description}>
-          {"Download this mission's music as a standalone file. It doesn't include battlefield sound effects."}
+          {"Download this mission's music as a standalone file (~4 minutes). It doesn't include battlefield sound effects. Preparing it can take a while."}
         </p>
         <div className={styles.readout} aria-live="polite">
           <span className={styles.status}>{status}</span>
