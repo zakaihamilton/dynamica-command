@@ -58,6 +58,7 @@ describe("cinematic visual profiles", () => {
     expect(units[0]!.imageTint).not.toBe(units[1]!.imageTint);
     expect(buildings[0]!.imageTint).not.toBe(buildings[1]!.imageTint);
     expect(units[0]!.imageTint).toMatch(/^hsla\(/);
+    expect(units[0]!.imageTint).toMatch(/\/ 0\.14\)$/);
     expect(buildings[0]!.imageTint).toBe(units[0]!.imageTint);
   });
 
