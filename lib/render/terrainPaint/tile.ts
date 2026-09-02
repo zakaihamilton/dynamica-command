@@ -1,9 +1,11 @@
 import { tileCliffGeometry } from "../../gen/assets";
 import { expandIsoDiamond, isoAtlasTransform } from "../../iso";
 import { atlasRectForTile, fogTerrainGain, type TerrainAtlas } from "../terrainAtlas";
-import { TERRAIN_COVER, SHROUD_FILL } from "./constants";
-import { isoDiamondPath } from "../isoDiamond";
+import { SHROUD_FILL, SHROUD_COVER, SHROUD_CORNER_RADIUS_FRAC } from "./constants";
+import { roundedIsoDiamondPath, type IsoDiamondCornerRadii } from "../isoDiamond";
 import { fillElevationPoly } from "./cliffs";
+import { fogAt } from "../../sim/fog";
+import type { SimState } from "../../types";
 
 export function paintShroudCliffs(
   ctx: CanvasRenderingContext2D,
@@ -26,6 +28,28 @@ export function paintShroudCliffs(
   if (geo.wedge) fillElevationPoly(ctx, sx, sy, geo.wedge, undefined, seal);
 }
 
+function shroudStampRadius(w: number, h: number): number {
+  return SHROUD_CORNER_RADIUS_FRAC * Math.min(w, h);
+}
+
+export function shroudCornerRadii(
+  state: SimState,
+  tileX: number,
+  tileY: number,
+  radius: number,
+  occupied: (fog: number) => boolean,
+): IsoDiamondCornerRadii {
+  const on = (dx: number, dy: number) => occupied(fogAt(state, tileX + dx, tileY + dy));
+  const outer = (dx1: number, dy1: number, dx2: number, dy2: number, dx3: number, dy3: number) =>
+    on(dx1, dy1) || on(dx2, dy2) || on(dx3, dy3) ? 0 : radius;
+  return [
+    outer(-1, 0, 0, -1, -1, -1),
+    outer(1, 0, 0, -1, 1, -1),
+    outer(1, 0, 0, 1, 1, 1),
+    outer(-1, 0, 0, 1, -1, 1),
+  ];
+}
+
 export function paintShroudMaskTile(
   ctx: CanvasRenderingContext2D,
   sx: number,
@@ -40,6 +64,7 @@ export function paintShroudMaskTile(
   tileX: number,
   tileY: number,
   seed: number,
+  state: SimState,
 ): void {
   const shroudGain = fogTerrainGain(0);
   if (gain <= shroudGain + 0.005) return;
@@ -51,8 +76,10 @@ export function paintShroudMaskTile(
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.lineWidth = Math.max(1.35, 1.25 * z);
-  const cover = expandIsoDiamond(sx, sy, tw, th, srcAlpha >= 0.98 ? TERRAIN_COVER : 1);
-  isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
+  const cover = expandIsoDiamond(sx, sy, tw, th, srcAlpha >= 0.98 ? SHROUD_COVER : 1);
+  const radius = shroudStampRadius(cover.w, cover.h);
+  const radii = shroudCornerRadii(state, tileX, tileY, radius, (fog) => fog >= 1);
+  roundedIsoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h, radii);
   ctx.fill();
   if (srcAlpha >= 0.98) ctx.stroke();
   paintShroudCliffs(ctx, sx, sy, tw, th, dropE, dropS, step, tileX, tileY, seed, srcAlpha >= 0.98);
@@ -72,6 +99,7 @@ export function paintShroudOverlay(
   tileX: number,
   tileY: number,
   seed: number,
+  state: SimState,
 ): void {
   if (gain >= 0.98) return;
   ctx.save();
@@ -81,8 +109,10 @@ export function paintShroudOverlay(
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.lineWidth = Math.max(1.35, 1.25 * z);
-  const cover = expandIsoDiamond(sx, sy, tw, th, TERRAIN_COVER);
-  isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
+  const cover = expandIsoDiamond(sx, sy, tw, th, SHROUD_COVER);
+  const radius = shroudStampRadius(cover.w, cover.h);
+  const radii = shroudCornerRadii(state, tileX, tileY, radius, (fog) => fog < 2);
+  roundedIsoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h, radii);
   ctx.fill();
   ctx.stroke();
   paintShroudCliffs(ctx, sx, sy, tw, th, dropE, dropS, step, tileX, tileY, seed, true);

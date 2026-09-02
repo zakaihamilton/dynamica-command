@@ -38,7 +38,9 @@ import { spriteCacheKey, terrainContentKey } from "../lib/render/renderer";
 import { minimapCacheKeys, MINIMAP_OVERLAY_TICK_SHIFT } from "../lib/render/minimap";
 import { hash2 } from "../lib/render/terrainMaterials";
 import { hashNoise, valueNoise } from "../lib/gen/map/noise";
-import { isoDiamondPath } from "../lib/render/isoDiamond";
+import { isoDiamondPath, roundedIsoDiamondPath } from "../lib/render/isoDiamond";
+import { shroudCornerRadii } from "../lib/render/terrainPaint/tile";
+import { fogIndex, makeFog } from "../lib/sim/fog";
 
 function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
   const rect = atlasRectForTile(tileX, tileY, atlas.mapWidth);
@@ -75,6 +77,39 @@ describe("seeded terrain atlas", () => {
     expect(ctx.lineTo).toHaveBeenNthCalledWith(2, 10, 24);
     expect(ctx.lineTo).toHaveBeenNthCalledWith(3, 6, 22);
     expect(ctx.closePath).toHaveBeenCalledOnce();
+  });
+
+  it("rounds iso diamond corners with arcTo and stays off the raw tips", () => {
+    const ctx = {
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arcTo: vi.fn(),
+      closePath: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+    roundedIsoDiamondPath(ctx, 10, 20, 8, 4, 1.2);
+
+    expect(ctx.lineTo).not.toHaveBeenCalled();
+    expect(ctx.arcTo).toHaveBeenCalledTimes(4);
+    expect(ctx.moveTo).not.toHaveBeenCalledWith(10, 20);
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(1, 10, 20, 14, 22, 1.2);
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(2, 14, 22, 10, 24, 1.2);
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(3, 10, 24, 6, 22, 1.2);
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(4, 6, 22, 10, 20, 1.2);
+    expect(ctx.closePath).toHaveBeenCalledOnce();
+  });
+
+  it("clamps rounded-diamond radius to half of each edge", () => {
+    const ctx = {
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arcTo: vi.fn(),
+      closePath: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+    roundedIsoDiamondPath(ctx, 10, 20, 8, 4, 100);
+    const clamped = Math.hypot(4, 2) / 2;
+    expect(ctx.arcTo).toHaveBeenNthCalledWith(1, 10, 20, 14, 22, clamped);
   });
 
   it("scopes raster fallback cache keys to the active mission session", () => {
@@ -230,6 +265,33 @@ describe("seeded terrain atlas", () => {
     expect(terrainLayoutSignature(state.tiles, state.surfaces)).not.toBe(layoutBefore);
     expect(terrainAtlasKey(state)).not.toBe(before);
     expect(getTerrainAtlas(state)).not.toBe(atlas);
+  });
+});
+
+describe("shroud corner rounding", () => {
+  const explored = (fog: number) => fog >= 1;
+
+  it("rounds every corner of an isolated explored tile", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    state.fog = makeFog(8, 8, 0);
+    state.fog[fogIndex(state, 4, 4)!] = 2;
+    expect(shroudCornerRadii(state, 4, 4, 12, explored)).toEqual([12, 12, 12, 12]);
+  });
+
+  it("keeps interior corners sharp so adjacent stamps stay sealed", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    expect(shroudCornerRadii(state, 4, 4, 12, explored)).toEqual([0, 0, 0, 0]);
+  });
+
+  it("rounds only the outer corner of an explored block", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    state.fog = makeFog(8, 8, 0);
+    for (let y = 2; y <= 4; y++) {
+      for (let x = 2; x <= 4; x++) {
+        state.fog[fogIndex(state, x, y)!] = 2;
+      }
+    }
+    expect(shroudCornerRadii(state, 2, 2, 12, explored)).toEqual([12, 0, 0, 0]);
   });
 });
 

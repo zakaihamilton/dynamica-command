@@ -227,7 +227,7 @@ function paintShroudLayer(
     const s = tileToScreen(x, y, cam, scenery.elev);
     const dropE = Math.max(0, scenery.elev - memoScenery(state, x + 1, y).elev);
     const dropS = Math.max(0, scenery.elev - memoScenery(state, x, y + 1).elev);
-    painter(target, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y));
+    painter(target, s.x, s.y, tw, th, dropE, dropS, step, smoothFogGain(state, x, y), z, x, y, tileVariant(state.seed, x, y), state);
   });
   if (typeof document === "undefined") {
     paintVisibleShroud(ctx, paintShroudOverlay);
