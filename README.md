@@ -54,7 +54,7 @@ Share a seed to share a universe. Resume from the menu lists every local save, a
 
 ## Campaign
 
-Eight missions, about **5–20 minutes** each (later missions run longer). Generated mission windows use whole-minute amounts; the live battlefield clock remains precise to the second. Sabotage operations have an **8–20 minute** window. Every seed always includes the four scenario kinds (`escort`, `sabotage`, `rescue`, `extraction`) plus four of the eight classic win categories:
+Eight missions, about **5–20 minutes** each for classic and hold-the-line operations (later missions run longer). Fail-deadline scenario missions (`escort`, `sabotage`, `rescue`, `extraction`) use a longer casual window: **10–30 minutes** of active time (sabotage **12–30**), plus a 7-minute convoy staging period on escorts. Generated mission windows use whole-minute amounts; the live battlefield clock remains precise to the second. Every seed always includes the four scenario kinds (`escort`, `sabotage`, `rescue`, `extraction`) plus four of the eight classic win categories:
 
 | Category | You win by… |
 | --- | --- |

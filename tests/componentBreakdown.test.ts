@@ -281,7 +281,7 @@ describe("production and overlay helpers", () => {
   it("shows the escort total limit separately from convoy departure", () => {
     const escort = createMission({ seed: 421, missionIndex: 2 });
     expect(playFieldStatus(escort)).toMatchObject({
-      timeRemaining: "Time remaining 15:00",
+      timeRemaining: "Time remaining 20:00",
       convoyDeparture: "Convoy departs in 07:00",
     });
   });
