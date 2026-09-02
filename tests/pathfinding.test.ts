@@ -151,6 +151,25 @@ describe("pathfinding", () => {
     expect(Math.round(b.x) === 3 && Math.round(b.y) === 2).toBe(false);
   });
 
+  it("lets a second unit settle beside a claimed destination", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const a = addUnit(s, 0, "infantry", 2, 2);
+    const b = addUnit(s, 0, "infantry", 4, 2);
+    issue(s, { type: "move", unitIds: [a.id], x: 3, y: 2 });
+    issue(s, { type: "move", unitIds: [b.id], x: 3, y: 2 });
+    for (let i = 0; i < 400; i++) tick(s);
+    expect(unitAt(s, 3, 2)?.id).toBe(a.id);
+    expect(b.idle).toBe(true);
+    expect(b.path.length).toBe(0);
+    const settledX = b.x;
+    const settledY = b.y;
+    for (let i = 0; i < 24; i++) tick(s);
+    expect(b.x).toBe(settledX);
+    expect(b.y).toBe(settledY);
+    expect(b.idle).toBe(true);
+  });
+
   it("reroutes a combat unit when another unit steps into its existing route", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
     addBuilding(s, 0, "constructionYard", 0, 0);
