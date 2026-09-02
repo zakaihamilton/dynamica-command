@@ -203,7 +203,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const miniFill = thinBar && halfPhrase === 3 && !intro && !holdBass && miniRoll < 0.55;
     const dropHats = thinBar && dropTexture && !hookSection;
     const dropPulse = thinBar && dropTexture && !hookSection;
-    const denseBar = cue === "victory" || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
+    const denseBar = cue === "victory" || bar === MUSIC_BARS - 1 || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
     const hole = holdBass && phraseBar < 8;
     const fullDrums = !sparse && denseBar && (cue === "victory" || (!hole && (!intro || phraseBar >= 4)));
     const lightDrums = sparse && !hole && (!intro || phraseBar >= 4);

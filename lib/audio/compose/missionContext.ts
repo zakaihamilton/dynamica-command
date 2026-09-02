@@ -87,7 +87,7 @@ export function campaignMusicContexts(seed: number): MusicMissionContext[] {
 
 export function styleAffinityScore(name: MusicStyleName, ctx: MusicMissionContext): number {
   let score = 0;
-  if (ctx.biome && BIOME_STYLES[ctx.biome]?.includes(name)) score += 4;
+  if (ctx.biome && BIOME_STYLES[ctx.biome]?.includes(name)) score += 6;
   if (ctx.biome && BIOME_STYLES_SECONDARY[ctx.biome]?.includes(name)) score += 2;
   if (ctx.missionKind && KIND_STYLES[ctx.missionKind]?.includes(name)) score += 3;
   return score;
@@ -131,7 +131,7 @@ export function assignCampaignItems<T>(
     let fewestPrimary = Infinity;
     for (const index of pending) {
       const ctx = contexts[index]!;
-      const primaryCount = remaining.filter((item) => scoreOf(item, ctx) >= 4).length;
+      const primaryCount = remaining.filter((item) => scoreOf(item, ctx) >= 6).length;
       if (primaryCount < fewestPrimary || (primaryCount === fewestPrimary && index < target)) {
         fewestPrimary = primaryCount;
         target = index;

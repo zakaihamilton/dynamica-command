@@ -1,6 +1,4 @@
 import {
-  STEPS_PER_BAR,
-  BARS_PER_SECTION,
   type MusicDrumEvent,
   type MusicIntensity,
   type MusicNoteEvent,
@@ -25,7 +23,6 @@ export const CROSSFADE_S = 0.55;
 export const SCHEDULE_AHEAD_S = 0.22;
 export const SCHEDULER_MS = 25;
 export const ATTACK_S = 0.012;
-export const PHRASE_STEPS = STEPS_PER_BAR * BARS_PER_SECTION;
 
 export const INTENSITY_MULTIPLIER: Record<MusicIntensity, number> = {
   calm: 0.88,

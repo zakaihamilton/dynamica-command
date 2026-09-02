@@ -238,6 +238,9 @@ export function placePhraseFill(
   }
   const fillSteps = options.finalBar ? [6, 8, 10, 11, 12, 13, 14, 15] : [8, 10, 12, 13, 14, 15];
   for (const step of fillSteps) drumEventUnique(drums, origin + step, step >= 12 ? "tom" : "snare", step >= 12 ? 0.74 : 0.6, step >= 12);
+  if (options.finalBar) {
+    for (const step of [13, 15]) drumEventUnique(drums, origin + step, "snare", 0.7, true);
+  }
 }
 
 export function wrapDegree(scale: readonly number[], degree: number): number {
