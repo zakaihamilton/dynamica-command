@@ -42,6 +42,7 @@ export {
   sampleTerrainMaterial,
   atlasPixelAtTile,
 } from "./terrainAtlasBake";
+export { tintGroundPatches, applyBiomeGroundPattern } from "./terrainPatches";
 export type { TerrainAtlasData } from "./terrainAtlasBake";
 
 export type TerrainAtlas = TerrainAtlasData & {

@@ -115,6 +115,50 @@ export function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palet
   }
   if (density >= 4 && pick(v, 261, 5) === 0) paintBiomeSignature(shapes, biome, p, v, cx, cy);
   if (pick(v, 262, 8) === 0) paintBiomeLandmark(shapes, biome, p, v, cx, cy);
+  paintBiomeGroundMotif(shapes, biome, p, v, cx, cy);
+}
+
+function paintBiomeGroundMotif(
+  shapes: ShapeSpec[],
+  biome: BiomeName,
+  p: Palette,
+  v: number,
+  cx: number,
+  cy: number,
+): void {
+  const marks = biome === "jungle wreckage" || biome === "salt marshes" ? 2 + pick(v, 330, 2)
+    : biome === "glass desert" || biome === "volcanic shelf" ? 1 + pick(v, 330, 2)
+      : 1 + pick(v, 330, 1);
+  for (let i = 0; i < marks; i++) {
+    const ox = signed(v, 332 + i, 12);
+    const oy = signed(v, 340 + i, 4);
+    if (biome === "tundra grid") {
+      shapes.push(poly(
+        [cx + ox - 4, cy + oy + 1, cx + ox - 1, cy + oy - 3, cx + ox + 4, cy + oy, cx + ox + 1, cy + oy + 2],
+        mixHex(p.light, "#d4eeee", 0.4),
+        p.dark,
+        1,
+      ));
+    } else if (biome === "crystal flats") {
+      shapes.push(poly(
+        [cx + ox - 2, cy + oy + 2, cx + ox, cy + oy - 5, cx + ox + 2, cy + oy + 1],
+        mixHex(p.accent, p.light, 0.35),
+        p.dark,
+        1,
+      ));
+    } else if (biome === "volcanic shelf") {
+      shapes.push(ell(cx + ox - 2, cy + oy, 5, 2, mixHex(p.dark, "#9f3024", i % 2 ? 0.35 : 0.08)));
+    } else if (biome === "jungle wreckage" || biome === "salt marshes") {
+      if (i === 0 && pick(v, 348, 3) === 0) pushBush(shapes, cx + ox, cy + oy, v + i, biome);
+      else shapes.push(ell(cx + ox - 2, cy + oy, 5 + pick(v, 350 + i, 4), 2, i % 2 ? p.accent : p.dark));
+    } else if (biome === "rust canyons") {
+      shapes.push(line(cx + ox - 5, cy + oy, cx + ox + 5, cy + oy + 1, mixHex(p.dark, "#c16f3d", 0.35), 2));
+    } else if (biome === "glass desert") {
+      shapes.push(ell(cx + ox - 4, cy + oy, 8, 3, i % 2 ? p.light : p.dark));
+    } else {
+      shapes.push(ell(cx + ox - 3, cy + oy, 6, 2, i % 2 ? p.light : p.dark));
+    }
+  }
 }
 
 export function paintRoad(shapes: ShapeSpec[], biome: BiomeName, v: number, surfaceMask: number): void {
