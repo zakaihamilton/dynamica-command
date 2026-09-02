@@ -11,7 +11,7 @@ import { drawConcreteSlab } from "../terrainPlates";
 import { isoDiamondPath } from "../isoDiamond";
 import { paintShroudOverlay, paintShroudMaskTile, drawAtlasDiamond } from "./tile";
 import { smoothFogGain, drawBlockerProp, drawOreCrystals } from "./details";
-import { SHROUD_FILL, TERRAIN_COVER } from "./constants";
+import { SHROUD_FILL, SHROUD_RGB, TERRAIN_COVER } from "./constants";
 import { drawElevationFaces } from "./cliffs";
 
 const sceneryMemo = new SceneryMemo();
@@ -248,7 +248,7 @@ function paintShroudLayer(
   fog.globalAlpha = 1;
   fog.clearRect(0, 0, w, h);
   const overlay = 1 - fogTerrainGain(0);
-  fog.fillStyle = `rgba(8, 13, 17, ${overlay})`;
+  fog.fillStyle = `rgba(${SHROUD_RGB.r}, ${SHROUD_RGB.g}, ${SHROUD_RGB.b}, ${overlay})`;
   fog.fillRect(0, 0, w, h);
   fog.globalCompositeOperation = "destination-out";
   paintVisibleShroud(fog, paintShroudMaskTile);
@@ -256,7 +256,6 @@ function paintShroudLayer(
   fog.globalAlpha = 1;
   ctx.save();
   ctx.globalCompositeOperation = "source-over";
-  ctx.filter = `blur(${Math.max(5, 0.3 * th)}px)`;
   ctx.drawImage(shroudMask, 0, 0);
   ctx.restore();
 }

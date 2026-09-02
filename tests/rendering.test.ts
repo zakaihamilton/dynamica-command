@@ -39,7 +39,8 @@ import { minimapCacheKeys, MINIMAP_OVERLAY_TICK_SHIFT } from "../lib/render/mini
 import { hash2 } from "../lib/render/terrainMaterials";
 import { hashNoise, valueNoise } from "../lib/gen/map/noise";
 import { isoDiamondPath, roundedIsoDiamondPath } from "../lib/render/isoDiamond";
-import { shroudCornerRadii } from "../lib/render/terrainPaint/tile";
+import { paintShroudMaskTile, shroudCornerRadii } from "../lib/render/terrainPaint/tile";
+import { SHROUD_COVER, SHROUD_CORE_COVER, SHROUD_CORNER_RADIUS_FRAC, SHROUD_FILL, SHROUD_RGB } from "../lib/render/terrainPaint/constants";
 import { fogIndex, makeFog } from "../lib/sim/fog";
 
 function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
@@ -292,6 +293,62 @@ describe("shroud corner rounding", () => {
       }
     }
     expect(shroudCornerRadii(state, 2, 2, 12, explored)).toEqual([12, 0, 0, 0]);
+  });
+
+  function mockStampCtx() {
+    const addColorStop = vi.fn();
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arc: vi.fn(),
+      arcTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      createRadialGradient: vi.fn(() => ({ addColorStop })),
+      globalAlpha: 1,
+      fillStyle: "",
+    };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, addColorStop, scale: ctx.scale, arcTo: ctx.arcTo };
+  }
+
+  it("derives the shroud fill hex from SHROUD_RGB", () => {
+    expect(SHROUD_FILL).toBe("#080d11");
+    expect(SHROUD_RGB).toEqual({ r: 8, g: 13, b: 17 });
+  });
+
+  it("punches a black radial feather and honors sharp interior core corners", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    const { ctx, addColorStop, arcTo } = mockStampCtx();
+    paintShroudMaskTile(ctx, 100, 50, TILE_W, TILE_H, 0, 0, 0, 1, 1, 4, 4, 0, state);
+    expect(addColorStop).toHaveBeenNthCalledWith(1, 0, "rgba(0,0,0,1)");
+    expect(addColorStop).toHaveBeenNthCalledWith(2, 0.7, "rgba(0,0,0,1)");
+    expect(addColorStop).toHaveBeenNthCalledWith(3, 1, "rgba(0,0,0,0)");
+    expect(arcTo).toHaveBeenCalledTimes(4);
+    expect(arcTo.mock.calls.every((call) => call[4] === 0)).toBe(true);
+  });
+
+  it("rounds the core of an isolated explored tile instead of flooring a minimum radius", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    state.fog = makeFog(8, 8, 0);
+    state.fog[fogIndex(state, 4, 4)!] = 2;
+    const { ctx, arcTo } = mockStampCtx();
+    paintShroudMaskTile(ctx, 100, 50, TILE_W, TILE_H, 0, 0, 0, 1, 1, 4, 4, 0, state);
+    const coverH = TILE_H * SHROUD_COVER;
+    const expected = SHROUD_CORNER_RADIUS_FRAC * coverH * SHROUD_CORE_COVER;
+    expect(arcTo.mock.calls[0]?.[4]).toBeCloseTo(expected);
+    expect(arcTo.mock.calls.every((call) => (call[4] as number) > 0)).toBe(true);
+  });
+
+  it("keeps partial-fog stamps at tile cover instead of expanding into unexplored cells", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    const { ctx, scale } = mockStampCtx();
+    paintShroudMaskTile(ctx, 100, 50, TILE_W, TILE_H, 0, 0, 0, 0.55, 1, 4, 4, 0, state);
+    expect(scale).toHaveBeenCalledWith(TILE_W * 0.42, TILE_W * 0.42);
   });
 });
 
