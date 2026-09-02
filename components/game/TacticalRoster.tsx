@@ -121,7 +121,13 @@ export function TacticalRoster({
           const name = labelFor(entity.kind);
           const oreField = terrainAccess(state, ex, ey).label === "Ore field";
           return (
-            <div key={entity.id} className={`${styles.entity} ${isSelected ? styles.selected : ""}`} role="listitem" data-selected={isSelected}>
+            <div
+              key={entity.id}
+              className={`${styles.entity} ${isSelected ? styles.selected : ""}`}
+              role="listitem"
+              data-selected={isSelected}
+              data-owner={entity.neutral ? "neutral" : String(entity.owner)}
+            >
               <div className={styles.entityInfo}>
                 <strong>{name}</strong>
                 <span>{faction} · Health {entity.hp}/{entity.maxHp} · {entityStatus(entity)}</span>

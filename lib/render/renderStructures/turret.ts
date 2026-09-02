@@ -1,6 +1,7 @@
 import { tileToScreen, type Camera } from "../../iso";
 import { lerpAngle } from "../gl/glMath";
 import type { Entity, SimState } from "../../types";
+import { iffColors } from "../iff";
 import { entityElev } from "../renderPicking";
 import { buildTurretHeadModel, type UnitModel } from "../gl/modelLoader";
 import { drawCachedTurretModel } from "../gl/turretRaster";
@@ -61,13 +62,14 @@ export function drawTurretCannon(
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
 
+  const iff = iffColors(e.owner);
   ctx.save();
 
   if (target && target.hp > 0) {
     const b = tileToScreen(target.x, target.y, cam, entityElev(state, target));
     const muzzleX = mountX + cos * (24 * z - recoil);
     const muzzleY = mountY + sin * (24 * z - recoil);
-    ctx.strokeStyle = e.owner === 0 ? "rgba(70, 220, 255, 0.4)" : "rgba(255, 70, 50, 0.45)";
+    ctx.strokeStyle = iff.laser;
     ctx.lineWidth = Math.max(1, 1.2 * z);
     ctx.setLineDash([4 * z, 4 * z]);
     ctx.beginPath();
@@ -76,7 +78,7 @@ export function drawTurretCannon(
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = e.owner === 0 ? "#46e2ff" : "#ff4d36";
+    ctx.fillStyle = iff.hex;
     ctx.beginPath();
     ctx.arc(b.x, b.y + 6 * z, 2 * z, 0, Math.PI * 2);
     ctx.fill();
@@ -116,10 +118,7 @@ export function drawTurretCannon(
     const targetY = b.y + 6 * z;
 
     ctx.save();
-    const laserColor = e.owner === 0 ? "rgba(70, 226, 255, 0.45)" : "rgba(255, 77, 54, 0.45)";
-    const laserGlow = e.owner === 0 ? "#46e2ff" : "#ff4d36";
-
-    ctx.strokeStyle = laserColor;
+    ctx.strokeStyle = iff.laser;
     ctx.lineWidth = Math.max(1, 1.2 * z);
     ctx.setLineDash([4 * z, 4 * z]);
 
@@ -131,12 +130,11 @@ export function drawTurretCannon(
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = "rgba(70, 226, 255, 0.28)";
-    if (e.owner !== 0) ctx.fillStyle = "rgba(255, 77, 54, 0.28)";
+    ctx.fillStyle = iff.laserFill;
     ctx.beginPath();
     ctx.arc(b.x, targetY, 4.2 * z, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = laserGlow;
+    ctx.fillStyle = iff.hex;
     ctx.beginPath();
     ctx.arc(b.x, targetY, 2.5 * z, 0, Math.PI * 2);
     ctx.fill();
