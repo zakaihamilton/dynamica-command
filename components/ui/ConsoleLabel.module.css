@@ -1,7 +1,7 @@
 .label {
   display: block;
   color: var(--chrome-muted);
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.22em;

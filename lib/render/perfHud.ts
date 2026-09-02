@@ -1,3 +1,5 @@
+import { chromeMonoFont } from "../ui/chromeFont";
+
 export type WorldPhaseTimings = {
   terrain: number;
   fx: number;
@@ -72,7 +74,7 @@ export function drawPerfHud(
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
   ctx.shadowBlur = 0;
-  ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = chromeMonoFont(12);
   const padX = 8;
   const width = Math.ceil(ctx.measureText(line).width) + padX * 2;
   const height = 22;

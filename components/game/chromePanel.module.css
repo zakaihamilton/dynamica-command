@@ -55,9 +55,9 @@
   z-index: 1;
   display: block;
   color: #f6de7a;
-  font-family: var(--font-geist-mono), "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 1.22rem;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.08em;
   line-height: 1;

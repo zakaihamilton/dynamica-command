@@ -18,8 +18,8 @@
   margin: 0.5rem 0 0;
   font-family: var(--font-display);
   font-size: 1.15rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--chrome-text);
 }

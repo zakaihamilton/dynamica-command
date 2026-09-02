@@ -1,10 +1,8 @@
 .html {
   height: 100%;
-  --font-display: Georgia, "Times New Roman", serif;
-  --font-ui: Arial, Helvetica, sans-serif;
-  --font-geist-sans: var(--font-ui);
-  --font-geist-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono",
-    "Courier New", monospace;
+  --font-display: var(--font-barlow-condensed, "Arial Narrow"), "Arial Narrow", sans-serif;
+  --font-ui: var(--font-barlow, system-ui), system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono, ui-monospace), ui-monospace, monospace;
   --chrome-void: #05080e;
   --chrome-bg: #070b12;
   --chrome-steel-lo: #121820;
@@ -50,6 +48,7 @@
   color: var(--chrome-text);
   font-family: var(--font-ui);
   letter-spacing: 0.01em;
+  font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
 

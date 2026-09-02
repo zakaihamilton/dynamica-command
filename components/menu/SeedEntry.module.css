@@ -27,7 +27,7 @@
   justify-content: center;
   border: 1px solid var(--chrome-inset);
   background: var(--chrome-steel-lo);
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 1.875rem;
   color: var(--chrome-cyan);
   box-shadow: inset 1px 1px var(--chrome-void), inset -1px -1px var(--chrome-bevel);
@@ -64,7 +64,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.025em;

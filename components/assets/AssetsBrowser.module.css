@@ -20,9 +20,9 @@
   margin: 0.25rem 0 0;
   font-size: 1.5rem;
   font-family: var(--font-display);
-  font-weight: 900;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   color: var(--chrome-text);
 }
 
@@ -43,7 +43,7 @@
   right: 0;
   bottom: 0;
   color: var(--chrome-muted);
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.5rem;
   letter-spacing: 0.12em;
 }

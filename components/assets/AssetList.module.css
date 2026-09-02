@@ -29,7 +29,7 @@
 
 .count {
   color: var(--chrome-cyan);
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.55rem;
   letter-spacing: 0.08em;
 }
