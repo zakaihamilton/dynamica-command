@@ -132,6 +132,8 @@ describe("CampaignArchiveScreen", () => {
     expect(screen.getByTestId("campaign-archive")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Load mission" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "IMPORT SAVE" })).toBeNull();
+    expect(screen.queryByText("Stored slots")).toBeNull();
+    expect(screen.queryByText("Damaged saves")).toBeNull();
     expect(screen.getByText("No save slots.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Return to menu" }));
     expect(router.push).toHaveBeenCalledWith("/");
