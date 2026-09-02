@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { drawUnitHealthMeter, entityHasWorldHealthMeter, healthMeterColors } from "../lib/render/renderOverlays";
+import { drawUnitHealthMeter, entityHasWorldHealthMeter, healthMeterColors, worldHealthMeterLayout } from "../lib/render/renderOverlays";
 
 describe("health meter colors", () => {
   it("returns green tier for health ratio > 0.5", () => {
@@ -116,5 +116,22 @@ describe("entityHasWorldHealthMeter", () => {
     expect(entityHasWorldHealthMeter({ class: "building", kind: "barracks" })).toBe(false);
     expect(entityHasWorldHealthMeter({ class: "building", kind: "factory" })).toBe(false);
     expect(entityHasWorldHealthMeter({ class: "building", kind: "objective" })).toBe(false);
+  });
+});
+
+describe("worldHealthMeterLayout", () => {
+  it("places unit meters above the sprite top", () => {
+    const layout = worldHealthMeterLayout({ kind: "infantry" }, { w: 24 }, 100, 80, 200, 1);
+    expect(layout.centerX).toBe(112);
+    expect(layout.meterY).toBe(73);
+    expect(layout.barW).toBe(18);
+  });
+
+  it("places turret meters just above the 3D cannon instead of the padded sprite top", () => {
+    const layout = worldHealthMeterLayout({ kind: "turret" }, { w: 84 }, 40, 10, 200, 1);
+    expect(layout.centerX).toBe(82);
+    expect(layout.meterY).toBe(190);
+    expect(layout.barW).toBe(24);
+    expect(layout.meterY).toBeGreaterThan(10);
   });
 });
