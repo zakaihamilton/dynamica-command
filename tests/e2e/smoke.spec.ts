@@ -44,6 +44,16 @@ async function nextFrame(page: Page) {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 }
 
+async function loadSelectedPauseSlot(page: Page, notice: RegExp) {
+  await page.getByRole("button", { name: "Load Mission" }).click();
+  await expect(page.getByRole("heading", { name: "Load mission" })).toBeVisible();
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  const confirmation = page.getByRole("dialog", { name: "Load mission?" });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole("button", { name: "Load mission" }).click();
+  await expect(page.getByRole("status")).toContainText(notice);
+}
+
 async function browserSupportsNativeAac(page: Page): Promise<boolean> {
   return page.evaluate(async () => {
     if (typeof window.AudioEncoder === "undefined" || typeof window.AudioData === "undefined") return false;
@@ -535,13 +545,7 @@ test("loads the last save from the pause menu", async ({ page }) => {
 
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("pause-menu")).toBeVisible();
-  await page.getByRole("button", { name: "Load Mission" }).click();
-  await expect(page.getByRole("heading", { name: "Load mission" })).toBeVisible();
-  await page.getByRole("button", { name: "Load" }).click();
-  const confirmation = page.getByRole("dialog", { name: "Load mission?" });
-  await expect(confirmation).toBeVisible();
-  await confirmation.getByRole("button", { name: "Load mission" }).click();
-  await expect(page.getByRole("status")).toContainText(/Loaded the autosave/);
+  await loadSelectedPauseSlot(page, /Loaded the autosave/);
   await page.getByRole("button", { name: "Resume Mission" }).click();
   await expect(page.getByTestId("credits")).toHaveText("9,876");
 });
@@ -556,9 +560,7 @@ test("resumes the active mission after refreshing the window", async ({ page }) 
   }, { key: saveKey(421), raw: saveEnvelope(state) });
 
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Load Mission" }).click();
-  await page.getByRole("dialog", { name: "Load mission?" }).getByRole("button", { name: "Load mission" }).click();
-  await expect(page.getByRole("status")).toContainText(/Loaded the last save/);
+  await loadSelectedPauseSlot(page, /Loaded the autosave/);
   await page.getByRole("button", { name: "Resume Mission" }).click();
 
   await page.reload();
@@ -576,9 +578,7 @@ test("starts a new same-seed mission after reloading before a fresh launch", asy
   }, { key: saveKey(421), raw: saveEnvelope(state) });
 
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Load Mission" }).click();
-  await page.getByRole("dialog", { name: "Load mission?" }).getByRole("button", { name: "Load mission" }).click();
-  await expect(page.getByRole("status")).toContainText(/Loaded the last save/);
+  await loadSelectedPauseSlot(page, /Loaded the autosave/);
   await page.getByRole("button", { name: "Resume Mission" }).click();
 
   await page.reload();
