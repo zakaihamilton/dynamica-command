@@ -70,7 +70,20 @@
 }
 
 .titlePlate {
+  position: relative;
   padding: 0.7rem 0.8rem 0.75rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .worldName {
@@ -111,13 +124,19 @@
 .factions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 0.75rem 1.1rem;
   margin-top: 0.45rem;
 }
 
 .faction {
   min-width: 0;
-  padding: 0.2rem 0 0;
+  padding: 0.4rem 0.5rem 0.5rem;
+  border: 1px solid var(--chrome-line);
+  background: color-mix(in srgb, var(--chrome-steel-lo) 40%, transparent);
+}
+
+.faction[data-side="hostile"] {
+  border-color: color-mix(in srgb, var(--chrome-alert) 32%, var(--chrome-line));
 }
 
 .factionName {

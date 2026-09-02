@@ -42,9 +42,14 @@ function TheaterDossierLive({ campaign }: { campaign: Campaign }) {
       data-testid="theater-dossier"
       style={{ "--theater-art": `url("${biomeArt(campaign.world.biome)}")` } as CSSProperties}
     >
-      <header className={cx(styles.glass, styles.titlePlate)} aria-label={setting} title={setting}>
+      <header className={cx(styles.glass, styles.titlePlate)} title={setting}>
         <ConsoleLabel>Theater {formatSeed(campaign.seedNumber)}</ConsoleLabel>
-        <h3 className={styles.worldName}>{campaign.world.name}</h3>
+        <h3 className={styles.worldName} aria-describedby="theater-setting">
+          {campaign.world.name}
+        </h3>
+        <p id="theater-setting" className={styles.srOnly}>
+          {campaign.world.tone} · {campaign.world.conflict}
+        </p>
         <ul className={styles.chips}>
           <li className={styles.chip}>{campaign.world.era}</li>
           <li className={styles.chip}>{biomeLabel(campaign.world.biome)}</li>
@@ -77,20 +82,28 @@ function TheaterDossierLive({ campaign }: { campaign: Campaign }) {
           Operation slate
         </ConsoleLabel>
         <ol className={styles.opsGrid} aria-label={`${campaign.missions.length} operations`}>
-          {campaign.missions.map((mission) => (
-            <li
-              key={mission.index}
-              className={cx(styles.op, mission.index === 0 && styles.opLead)}
-              style={{ "--op-art": `url("${biomeArt(mission.biome)}")` } as CSSProperties}
-            >
-              <span className={styles.opStrip} aria-hidden="true" />
-              <span className={styles.opBody}>
-                <span className={styles.opIndex}>{String(mission.index + 1).padStart(2, "0")}</span>
-                <span className={styles.opName}>{mission.name}</span>
-              </span>
-              {mission.index === 0 ? <span className={styles.objective}>{objectiveHeadline(mission.win)}</span> : null}
-            </li>
-          ))}
+          {campaign.missions.map((mission) => {
+            const objective = mission.index === 0 ? objectiveHeadline(mission.win) : null;
+            return (
+              <li
+                key={mission.index}
+                className={cx(styles.op, mission.index === 0 && styles.opLead)}
+                title={mission.name}
+                style={{ "--op-art": `url("${biomeArt(mission.biome)}")` } as CSSProperties}
+              >
+                <span className={styles.opStrip} aria-hidden="true" />
+                <span className={styles.opBody}>
+                  <span className={styles.opIndex}>{String(mission.index + 1).padStart(2, "0")}</span>
+                  <span className={styles.opName}>{mission.name}</span>
+                </span>
+                {objective ? (
+                  <span className={styles.objective} title={objective}>
+                    {objective}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       </section>
 

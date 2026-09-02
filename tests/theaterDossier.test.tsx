@@ -9,6 +9,7 @@ import { TheaterDossier } from "../components/menu/TheaterDossier";
 import { campaignScaleLabel, theaterArchiveLabel } from "../components/campaign/campaignSummary";
 import { createCampaign } from "../lib/gen/campaign";
 import { biomeLabel, characterLabel } from "../lib/gen/names";
+import { objectiveHeadline } from "../lib/gen/story";
 import { completeMission, freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
 import { localStorageAdapter } from "../lib/persist/save";
 
@@ -25,8 +26,11 @@ describe("TheaterDossier", () => {
     render(<TheaterDossier campaign={campaign} />);
 
     const dossier = screen.getByTestId("theater-dossier");
-    expect(dossier).toHaveTextContent(campaign.world.name);
-    expect(screen.getByLabelText(setting)).toHaveAttribute("title", setting);
+    expect(screen.getByRole("heading", { name: campaign.world.name })).toBeVisible();
+    expect(screen.getByTitle(setting)).toHaveAttribute("title", setting);
+    expect(screen.queryByLabelText(setting)).toBeNull();
+    expect(dossier).toHaveTextContent(campaign.world.tone);
+    expect(dossier).toHaveTextContent(campaign.world.conflict);
     expect(dossier).toHaveTextContent(campaign.world.era);
     expect(dossier).toHaveTextContent(biomeLabel(campaign.world.biome));
     expect(dossier).toHaveTextContent(campaign.factions[0].name);
@@ -40,7 +44,9 @@ describe("TheaterDossier", () => {
     );
     for (const mission of campaign.missions) {
       expect(dossier).toHaveTextContent(mission.name);
+      expect(screen.getByTitle(mission.name)).toHaveAttribute("title", mission.name);
     }
+    expect(screen.getByTitle(objectiveHeadline(campaign.missions[0].win))).toBeInTheDocument();
     expect(screen.getByLabelText(campaignScaleLabel(campaign))).toBeVisible();
     expect(screen.getByLabelText(theaterArchiveLabel(campaign, freshCampaignProgress(421)))).toBeVisible();
     expect(dossier).toHaveTextContent("0/8");
