@@ -210,10 +210,6 @@ export function renderEntityPhase(
       drawTurretCannon(ctx, e, s, z, state, cam, timeMs, targetEntity);
     }
     if (uAnim?.pose === "work") drawHarvestFx(ctx, state, e, cam, timeMs);
-    if (uAnim?.pose === "attack" && recoil > 0.45) {
-      ctx.fillStyle = "#fff4c4";
-      ctx.fillRect(Math.round(s.x + dir.x * 16 * z - 2), Math.round(s.y + dir.y * 16 * z), 4, 4);
-    }
 
     if (selected.has(e.id)) {
       const pulse = selectionPulse(timeMs);

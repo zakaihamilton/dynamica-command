@@ -188,6 +188,64 @@ describe("pointer-up policy", () => {
       sellMode: false,
     })).toEqual({ clearBox: true, select: [] });
   });
+
+  it("beeps only when a selection actually gains units", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const unit = addUnit(state, 0, "infantry", 2, 2);
+    const cam = createCamera();
+    const screen = tileToScreen(unit.x, unit.y, cam, heightAt(state, unit.x, unit.y));
+
+    expect(resolvePointerUp({
+      pointerType: "mouse",
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      p: { x: 0, y: 0 },
+      state,
+      cam,
+      selectedIds: [],
+      box: null,
+      selectionMode: false,
+      mobileCommand: null,
+      placeKind: null,
+      repairMode: false,
+      sellMode: false,
+    }).beep).toBeUndefined();
+
+    expect(resolvePointerUp({
+      pointerType: "mouse",
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      p: screen,
+      state,
+      cam,
+      selectedIds: [],
+      box: null,
+      selectionMode: false,
+      mobileCommand: null,
+      placeKind: null,
+      repairMode: false,
+      sellMode: false,
+    })).toMatchObject({ select: [unit.id], beep: "select" });
+
+    expect(resolvePointerUp({
+      pointerType: "mouse",
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      p: { x: screen.x + 40, y: screen.y + 40 },
+      state,
+      cam,
+      selectedIds: [],
+      box: { x0: screen.x - 20, y0: screen.y - 20, x1: screen.x + 20, y1: screen.y + 20 },
+      selectionMode: false,
+      mobileCommand: null,
+      placeKind: null,
+      repairMode: false,
+      sellMode: false,
+    })).toMatchObject({ select: [unit.id], beep: "select" });
+  });
 });
 
 describe("keyboard command dispatch", () => {
@@ -200,7 +258,10 @@ describe("keyboard command dispatch", () => {
     applyGameCommand({ type: "repair" }, next);
     applyGameCommand({ type: "cancelTool" }, next);
     applyGameCommand({ type: "resultMenu" }, next);
-    expect(next.openPauseMenu).toHaveBeenCalledOnce();
+    applyGameCommand({ type: "controls" }, next);
+    expect(next.openPauseMenu).toHaveBeenCalledTimes(2);
+    expect(next.openPauseMenu).toHaveBeenNthCalledWith(2, "controls");
+    expect(next.setPauseView).not.toHaveBeenCalledWith("controls");
     expect(next.resumeMission).toHaveBeenCalledOnce();
     expect(next.setActiveTab).toHaveBeenCalledWith("production");
     expect(next.activateCameo).toHaveBeenCalledWith("construction", 1, false);

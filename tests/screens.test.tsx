@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BriefingScreen } from "../components/briefing/BriefingScreen";
@@ -9,7 +9,8 @@ import { CampaignCompleteScreen } from "../components/campaign/CampaignCompleteS
 import { MenuScreen } from "../components/menu/MenuScreen";
 import overlayStyles from "../components/menu/MenuSignalOverlay.module.css";
 import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
-import { localStorageAdapter } from "../lib/persist/save";
+import { localStorageAdapter, serializeSaveExport, writeSave } from "../lib/persist/save";
+import { makeFixture } from "../lib/sim/fixtures";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 
@@ -134,6 +135,28 @@ describe("CampaignArchiveScreen", () => {
     expect(screen.getByText("No saved campaigns.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Return to menu" }));
     expect(router.push).toHaveBeenCalledWith("/");
+  });
+
+  it("cancels an open delete dialog with Escape instead of leaving", async () => {
+    writeSave(localStorageAdapter(), makeFixture({ seed: 421, win: { kind: "annihilate" } }));
+    render(<CampaignArchiveScreen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Delete .* campaign/ })).toBeVisible());
+    fireEvent.click(screen.getByRole("button", { name: /Delete .* campaign/ }));
+    expect(screen.getByRole("dialog", { name: "Delete campaign?" })).toBeVisible();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Delete campaign?" })).toBeNull();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("cancels an open import dialog with Escape instead of leaving", async () => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const file = new File([serializeSaveExport(state, freshCampaignProgress(421))], "save.json", { type: "application/json" });
+    render(<CampaignArchiveScreen />);
+    fireEvent.change(screen.getByLabelText("Choose a Dynamica Command save file"), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Import save?" })).toBeVisible());
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Import save?" })).toBeNull();
+    expect(router.push).not.toHaveBeenCalled();
   });
 });
 

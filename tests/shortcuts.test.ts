@@ -43,6 +43,7 @@ describe("shortcut matching", () => {
     expect(gameCommandFromKey({ key: "r" }, play)).toEqual({ type: "repair" });
     expect(gameCommandFromKey({ key: "f" }, play)).toEqual({ type: "sell" });
     expect(gameCommandFromKey({ key: "x" }, play)).toEqual({ type: "stop" });
+    expect(gameCommandFromKey({ key: "F1" }, play)).toEqual({ type: "controls" });
     expect(gameCommandFromKey({ key: "Escape" }, { ...play, toolActive: true })).toEqual({ type: "cancelTool" });
     expect(gameCommandFromKey({ key: "s" }, play)).toBeNull();
     expect(gameCommandFromKey({ key: "2" }, play)).toEqual({ type: "cameo", index: 1, cancel: false });
@@ -52,10 +53,14 @@ describe("shortcut matching", () => {
   it("routes pause-menu letters and pops nested pause views", () => {
     const paused = { ...play, paused: true };
     expect(gameCommandFromKey({ key: "Escape" }, paused)).toEqual({ type: "resume" });
+    expect(gameCommandFromKey({ key: "F1" }, paused)).toEqual({ type: "controls" });
     expect(gameCommandFromKey({ key: "s" }, paused)).toEqual({ type: "save" });
     expect(gameCommandFromKey({ key: "r" }, paused)).toEqual({ type: "restart" });
     expect(gameCommandFromKey({ key: "m" }, paused)).toEqual({ type: "menu" });
     expect(gameCommandFromKey({ key: "Escape" }, { ...paused, pauseView: "options" })).toEqual({ type: "pauseBack" });
+    expect(gameCommandFromKey({ key: "F1" }, { ...paused, pauseView: "options" })).toEqual({ type: "controls" });
+    expect(gameCommandFromKey({ key: "Escape" }, { ...paused, pauseView: "controls" })).toEqual({ type: "pauseBack" });
+    expect(gameCommandFromKey({ key: "F1" }, { ...paused, pauseView: "controls" })).toEqual({ type: "pauseBack" });
     expect(gameCommandFromKey({ key: "m" }, { ...paused, pauseView: "options" })).toEqual({ type: "toggleSound" });
     expect(gameCommandFromKey({ key: "u" }, { ...paused, pauseView: "options" })).toEqual({ type: "toggleMusic" });
     expect(gameCommandFromKey({ key: "a" }, paused)).toBeNull();

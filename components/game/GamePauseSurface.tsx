@@ -35,6 +35,10 @@ export function GamePauseSurface({
       onLoad={session.loadMission}
       onBriefing={session.viewMissionBriefing}
       onRestart={session.restartMission}
+      onControls={() => {
+        setView("controls");
+        setNotice("");
+      }}
       onSoundtrack={() => {
         setView("soundtrack");
         setNotice("");

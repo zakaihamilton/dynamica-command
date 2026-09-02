@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { DocumentTitle } from "@/components/ui/DocumentTitle";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { MenuHero } from "./MenuHero";
 import { MenuMainPanel } from "./MenuMainPanel";
@@ -17,6 +18,7 @@ export function MenuScreen() {
       className={styles.screen}
       style={{ "--scene-art": `url("${RASTER_ART.menu}")` } as CSSProperties}
     >
+      <DocumentTitle title="Dynamica Command" />
       <div className={styles.scene} />
       <MenuSignalOverlay />
       <div className={styles.vignette} />

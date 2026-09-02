@@ -7,6 +7,7 @@ import { consumeFreshLaunchIntent } from "@/lib/persist/navigation";
 import type { SaveSession } from "@/lib/persist/save";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { SimState } from "@/lib/types";
+import type { PauseView } from "@/lib/ui/shortcuts";
 import { useMissionConfirmation } from "./useMissionConfirmation";
 import { useMissionPersistence, type MissionPersistenceParams } from "./useMissionPersistence";
 import { useMissionRoutes } from "./useMissionRoutes";
@@ -127,10 +128,10 @@ export function useGameSession({
     };
   }, [backGuard.leave]);
 
-  const openPauseMenu = useCallback(() => {
+  const openPauseMenu = useCallback((view: PauseView = "main") => {
     pausedRef.current = true;
     setPaused(true);
-    setPauseView("main");
+    setPauseView(view);
     setPauseNotice("");
   }, [pausedRef, setPaused, setPauseNotice, setPauseView]);
 

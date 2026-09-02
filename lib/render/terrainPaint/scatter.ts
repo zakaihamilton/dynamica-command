@@ -9,9 +9,13 @@ import {
   TILE_RESOURCE,
   TILE_WATER,
 } from "../../types";
+import { blockerPropKind, type BlockerPropKind } from "../../gen/terrainDecorKinds";
 import { biomeMaterials, tileVariant } from "../terrainAtlas";
 import type { BiomeMaterials } from "../terrainMaterials";
 import { mixRgb, rgbOf, withAlpha } from "./style";
+
+export { blockerPropKind };
+export type { BlockerPropKind };
 
 export type ScatterKind =
   | "pebble"
@@ -41,18 +45,6 @@ export type ScatterWorld = {
   heights: number[];
   surfaces: SurfaceKind[];
 };
-
-export type BlockerPropKind =
-  | "boulder"
-  | "tree"
-  | "pine"
-  | "deadTree"
-  | "crystalOutcrop"
-  | "wreckage"
-  | "spire"
-  | "sandstone"
-  | "deadShrub"
-  | "snowRock";
 
 export const LUSH_SCATTER: ReadonlySet<ScatterKind> = new Set(["tuft", "shrub", "reed"]);
 export const ARID_SCATTER: ReadonlySet<ScatterKind> = new Set(["pebble", "pebbleCluster", "debris", "cinder"]);
@@ -143,28 +135,6 @@ export function scatterForTile(
   if (surf === SURFACE_CONCRETE) return [];
   if (surf === SURFACE_ROAD) return roadItems(v);
   return groundItems(state.biome, v);
-}
-
-export function blockerPropKind(biome: BiomeName, variant: number): BlockerPropKind {
-  const roll = variant % 8;
-  switch (biome) {
-    case "jungle wreckage":
-      return roll === 0 ? "boulder" : "tree";
-    case "salt marshes":
-      return roll <= 1 ? "boulder" : "tree";
-    case "tundra grid":
-      return roll <= 2 ? "snowRock" : "pine";
-    case "glass desert":
-      return roll <= 3 ? "sandstone" : "deadShrub";
-    case "crystal flats":
-      return roll <= 1 ? "boulder" : "crystalOutcrop";
-    case "rust canyons":
-      return roll <= 2 ? "boulder" : "wreckage";
-    case "volcanic shelf":
-      return roll <= 2 ? "boulder" : "spire";
-    default:
-      return roll === 0 ? "deadTree" : "boulder";
-  }
 }
 
 function shadow(ctx: CanvasRenderingContext2D, z: number, rx: number, ry: number, dy = 5): void {

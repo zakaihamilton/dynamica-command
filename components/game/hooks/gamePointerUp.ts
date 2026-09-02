@@ -51,6 +51,15 @@ function selectableIds(state: SimState, hit: SimState["entities"][number] | unde
   return hit && hit.owner === 0 && (!hit.neutral || isContactTarget(state, hit)) ? [hit.id] : [];
 }
 
+function selectEffect(ids: number[], extra: Omit<PointerUpEffect, "select" | "clearBox" | "beep"> = {}): PointerUpEffect {
+  return {
+    clearBox: true,
+    select: ids,
+    ...(ids.length ? { beep: "select" as const } : {}),
+    ...extra,
+  };
+}
+
 export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
   const {
     pointerType,
@@ -73,21 +82,15 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
   if (pointerType === "touch" && selectionMode) {
     const drag = box && selectionBoxDistance(box, cam) > DRAG_THRESHOLD;
     if (drag && box) {
-      return {
-        clearBox: true,
+      return selectEffect(selectionIdsInBox(state, cam, box, false), {
         // Explicit mobile marquee selection includes every friendly unit in the box,
         // including harvesters; desktop drag-selection keeps its existing filtering.
-        select: selectionIdsInBox(state, cam, box, false),
         endSelectionMode: true,
-        beep: "select",
-      };
+      });
     }
-    return {
-      clearBox: true,
-      select: selectableIds(state, pickSelectableEntity(state, p.x, p.y, tx, ty, cam)),
+    return selectEffect(selectableIds(state, pickSelectableEntity(state, p.x, p.y, tx, ty, cam)), {
       endSelectionMode: true,
-      beep: "select",
-    };
+    });
   }
 
   if (pointerType === "touch" && mobileCommand) {
@@ -138,7 +141,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
 
   const drag = box && selectionBoxDistance(box, cam) > DRAG_THRESHOLD;
   if (drag && box) {
-    return { clearBox: true, select: selectionIdsInBox(state, cam, box, true) };
+    return selectEffect(selectionIdsInBox(state, cam, box, true));
   }
 
   const hit = pickSelectableEntity(state, p.x, p.y, tx, ty, cam);
@@ -155,7 +158,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
     if (supportOrders.length) {
       return { clearBox: true, commands: supportOrders, beep: beepForCommands(supportOrders) };
     }
-    return { clearBox: true, select: [hit.id], beep: "select" };
+    return selectEffect([hit.id]);
   }
   if (pointerType === "touch" && selectedIds.length > 0 && hit?.owner === 1 && !hit.neutral) {
     const commands: Command[] = [{ type: "attack", unitIds: selectedIds, targetId: hit.id }];
@@ -165,5 +168,5 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
       beep: beepForCommands(commands),
     };
   }
-  return { clearBox: true, select: selectableIds(state, hit), beep: "select" };
+  return selectEffect(selectableIds(state, hit));
 }

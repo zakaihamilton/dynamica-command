@@ -248,6 +248,22 @@ describe("SeedEntry", () => {
     expect(onLaunch).toHaveBeenCalledOnce();
     await user.click(screen.getByRole("button", { name: "Roll" }));
     expect(onRandomize).toHaveBeenCalledOnce();
+    expect(screen.queryByText("placeholder")).toBeNull();
+  });
+
+  it("keeps seed status height without a placeholder word", () => {
+    render(
+      <SeedEntry
+        code="12"
+        error=""
+        previewLine="Preview"
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onLaunch={vi.fn()}
+      />,
+    );
+    expect(document.body.textContent).not.toContain("placeholder");
   });
 });
 
@@ -349,6 +365,7 @@ describe("PauseMenu", () => {
     const onResume = vi.fn();
     const onSoundtrack = vi.fn();
     const onOptions = vi.fn();
+    const onControls = vi.fn();
     const onBack = vi.fn();
     const props = {
       view: "main" as const,
@@ -361,6 +378,7 @@ describe("PauseMenu", () => {
       onLoad: vi.fn(),
       onBriefing: vi.fn(),
       onRestart: vi.fn(),
+      onControls,
       onSoundtrack,
       onOptions,
       onMenu: vi.fn(),
@@ -371,13 +389,22 @@ describe("PauseMenu", () => {
     };
     const { rerender } = render(<PauseMenu {...props} />);
     expect(screen.getByTestId("pause-menu")).toHaveTextContent("Mission saved.");
+    expect(screen.getByText("Mission")).toBeVisible();
+    expect(screen.getByText("Operation")).toBeVisible();
+    expect(screen.getByText("Theater")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Resume Mission" }));
     expect(onResume).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Assets" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Controls" }));
+    expect(onControls).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole("button", { name: "Soundtrack" }));
     expect(onSoundtrack).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole("button", { name: "Options" }));
     expect(onOptions).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Main Menu" })).toBeVisible();
+
+    rerender(<PauseMenu {...props} view="controls" notice="" />);
+    expect(screen.getByTestId("pause-controls")).toBeVisible();
 
     rerender(<PauseMenu {...props} view="soundtrack" notice="" />);
     fireEvent.click(screen.getByRole("button", { name: "Close soundtrack" }));
@@ -403,6 +430,7 @@ describe("MissionConfirmation", () => {
     );
 
     expect(screen.getByRole("dialog", { name: "Restart mission?" })).toHaveTextContent("Restart this mission");
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     fireEvent.click(screen.getByRole("button", { name: "Restart mission" }));
     expect(onCancel).toHaveBeenCalledOnce();

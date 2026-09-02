@@ -90,11 +90,6 @@
   color: var(--chrome-muted);
 }
 
-.missing {
-  padding: 2rem;
-  color: var(--chrome-text);
-}
-
 @media (min-width: 640px) {
   .portraits {
     grid-template-columns: 1fr 1fr;

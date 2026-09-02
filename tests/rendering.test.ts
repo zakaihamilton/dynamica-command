@@ -11,6 +11,7 @@ import {
   withAlpha,
 } from "../lib/render/terrainPaint";
 import { generateMap } from "../lib/gen/map";
+import { tileSprite } from "../lib/gen/assets";
 import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../lib/iso";
 import {
   ATLAS_CELL,
@@ -31,6 +32,8 @@ import {
   sampleTerrainMaterial,
   terrainAtlasKey,
   biomeMaterials,
+  tintGroundPatches,
+  applyBiomeGroundPattern,
   type TerrainAtlasData,
 } from "../lib/render/terrainAtlas";
 import {
@@ -735,3 +738,67 @@ describe("terrain scatter artifacts", () => {
     expect(alpha).toBe(0.4);
   });
 });
+
+describe("biome ground patches", () => {
+  it("keeps patch sampling deterministic and biome-specific", () => {
+    const mats = biomeMaterials("ash plains");
+    const a = tintGroundPatches(mats.mid, mats, 4.2, 7.1, 41);
+    expect(tintGroundPatches(mats.mid, mats, 4.2, 7.1, 41)).toEqual(a);
+    expect(tintGroundPatches(mats.mid, mats, 12.5, 3.2, 41)).not.toEqual(a);
+
+    const jungle = biomeMaterials("jungle wreckage");
+    const desert = biomeMaterials("glass desert");
+    const jungleTint = tintGroundPatches(jungle.mid, jungle, 5, 5, 41);
+    const desertTint = tintGroundPatches(desert.mid, desert, 5, 5, 41);
+    expect(jungleTint).not.toEqual(desertTint);
+    expect(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle))
+      .toEqual(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle));
+    expect(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle))
+      .not.toEqual(applyBiomeGroundPattern(desert.mid, "glass desert", 5.25, 5.25, 41, desert));
+  });
+
+  it("varies open ground across tiles and biomes while leaving water and pads alone", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    const origin = sampleTerrainMaterial(state, 2, 2);
+    let differ = 0;
+    for (let y = 1; y < 11; y++) {
+      for (let x = 1; x < 11; x++) {
+        const sample = sampleTerrainMaterial(state, x, y);
+        if (sample.water || sample.ore || sample.elev !== origin.elev) continue;
+        if (sample.r !== origin.r || sample.g !== origin.g || sample.b !== origin.b) differ += 1;
+      }
+    }
+    expect(differ).toBeGreaterThan(0);
+
+    const jungle = { ...state, biome: "jungle wreckage" as BiomeName };
+    const desert = { ...state, biome: "glass desert" as BiomeName };
+    expect(sampleTerrainMaterial(jungle, 4, 4)).not.toEqual(sampleTerrainMaterial(desert, 4, 4));
+    expect(atlasPixelAtTile(bakeTerrainAtlasData(jungle), 4, 4))
+      .not.toEqual(atlasPixelAtTile(bakeTerrainAtlasData(desert), 4, 4));
+
+    setTile(state, 1, 1, TILE_WATER);
+    state.surfaces[6 * state.width + 6] = SURFACE_ROAD;
+    state.surfaces[7 * state.width + 7] = SURFACE_CONCRETE;
+    const atlas = bakeTerrainAtlasData(state);
+    const water = atlasPixelAtTile(atlas, 1, 1);
+    expect(water[2]).toBeGreaterThan(water[0]);
+    expect(sampleTerrainMaterial(state, 1, 1).water).toBe(true);
+    expect(atlasPixelAtTile(atlas, 6, 6)).not.toEqual(atlasPixelAtTile(atlas, 0, 0));
+    const [r, g, b] = atlasPixelAtTile(atlas, 7, 7);
+    expect(Math.abs(r - 89)).toBeLessThan(22);
+    expect(Math.abs(g - 104)).toBeLessThan(22);
+    expect(Math.abs(b - 117)).toBeLessThan(22);
+  });
+});
+
+describe("tile sprite blockers", () => {
+  it("paints biome-specific blocker silhouettes", () => {
+    const jungle = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 });
+    const desert = tileSprite("blocked", 1, { biome: "glass desert", variant: 3 });
+    const tundra = tileSprite("blocked", 1, { biome: "tundra grid", variant: 3 });
+    expect(jungle.shapes).not.toEqual(desert.shapes);
+    expect(tundra.shapes).not.toEqual(jungle.shapes);
+    expect(tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes).toEqual(jungle.shapes);
+  });
+});
+
