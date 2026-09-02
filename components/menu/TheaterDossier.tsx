@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { campaignScaleLabel, theaterArchiveLabel } from "@/components/campaign/campaignSummary";
+import { campaignScaleLabel, campaignSummary, theaterArchiveLabel } from "@/components/campaign/campaignSummary";
 import { useCampaignProgress } from "@/components/campaign/useCampaignProgress";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { biomeLabel, characterLabel } from "@/lib/gen/names";
@@ -28,71 +28,88 @@ export function TheaterDossier({ campaign }: { campaign: Campaign | null }) {
 
 function TheaterDossierLive({ campaign }: { campaign: Campaign }) {
   const progress = useCampaignProgress(campaign.seedNumber);
+  const summary = campaignSummary(campaign, progress);
   const archive = theaterArchiveLabel(campaign, progress);
   const scale = campaignScaleLabel(campaign);
+  const mapSizes = [...new Set(campaign.missions.map((mission) => mission.mapSize))];
+  const setting = `${campaign.world.tone} · ${campaign.world.conflict} · ${campaign.world.era} · ${biomeLabel(campaign.world.biome)}`;
+  const archiveMark = `${summary.completed}/${campaign.missions.length}`;
+  const archiveHint = summary.isComplete ? "Complete" : summary.completed > 0 ? "Launch → Op 1" : null;
 
   return (
-    <aside className={styles.dossier} data-testid="theater-dossier">
-      <header
-        className={styles.hero}
-        style={{ "--theater-art": `url("${biomeArt(campaign.world.biome)}")` } as CSSProperties}
-      >
+    <aside
+      className={styles.dossier}
+      data-testid="theater-dossier"
+      style={{ "--theater-art": `url("${biomeArt(campaign.world.biome)}")` } as CSSProperties}
+    >
+      <header className={cx(styles.glass, styles.titlePlate)} aria-label={setting} title={setting}>
         <ConsoleLabel>Theater {formatSeed(campaign.seedNumber)}</ConsoleLabel>
         <h3 className={styles.worldName}>{campaign.world.name}</h3>
-        <p className={styles.meta}>
-          {campaign.world.tone} · {campaign.world.conflict} · {campaign.world.era} · {biomeLabel(campaign.world.biome)}
-        </p>
+        <ul className={styles.chips}>
+          <li className={styles.chip}>{campaign.world.era}</li>
+          <li className={styles.chip}>{biomeLabel(campaign.world.biome)}</li>
+        </ul>
       </header>
 
-      <section className={styles.section} aria-labelledby="theater-factions">
-        <ConsoleLabel as="h4" id="theater-factions">Belligerents</ConsoleLabel>
+      <section className={cx(styles.glass, styles.plate)} aria-labelledby="theater-factions">
+        <ConsoleLabel as="h4" id="theater-factions">
+          Belligerents
+        </ConsoleLabel>
         <div className={styles.factions}>
           <FactionCard faction={campaign.factions[0]} side="Allied" />
-          <span className={styles.versus}>vs</span>
           <FactionCard faction={campaign.factions[1]} side="Hostile" />
         </div>
       </section>
 
-      <section className={styles.section} aria-labelledby="theater-staff">
-        <ConsoleLabel as="h4" id="theater-staff">Command staff</ConsoleLabel>
+      <section className={cx(styles.glass, styles.plate)} aria-labelledby="theater-staff">
+        <ConsoleLabel as="h4" id="theater-staff">
+          Command staff
+        </ConsoleLabel>
         <ul className={styles.staff}>
-          <StaffRow channel="Command" who={campaign.characters.commander} />
-          <StaffRow channel="Advisor" who={campaign.characters.advisor} />
-          <StaffRow channel="Enemy" who={campaign.characters.enemyLeader} />
+          <StaffChip channel="Command" who={campaign.characters.commander} />
+          <StaffChip channel="Advisor" who={campaign.characters.advisor} />
+          <StaffChip channel="Enemy" who={campaign.characters.enemyLeader} />
         </ul>
       </section>
 
-      <section className={styles.section} aria-labelledby="theater-ops">
-        <ConsoleLabel as="h4" id="theater-ops">Operation slate</ConsoleLabel>
-        <ol className={styles.slate} aria-label={`${campaign.missions.length} operations`}>
+      <section className={cx(styles.glass, styles.plate)} aria-labelledby="theater-ops">
+        <ConsoleLabel as="h4" id="theater-ops">
+          Operation slate
+        </ConsoleLabel>
+        <ol className={styles.opsGrid} aria-label={`${campaign.missions.length} operations`}>
           {campaign.missions.map((mission) => (
             <li
               key={mission.index}
               className={cx(styles.op, mission.index === 0 && styles.opLead)}
+              style={{ "--op-art": `url("${biomeArt(mission.biome)}")` } as CSSProperties}
             >
-              <span className={styles.opIndex}>{String(mission.index + 1).padStart(2, "0")}</span>
+              <span className={styles.opStrip} aria-hidden="true" />
               <span className={styles.opBody}>
+                <span className={styles.opIndex}>{String(mission.index + 1).padStart(2, "0")}</span>
                 <span className={styles.opName}>{mission.name}</span>
-                <span className={styles.opMeta}>
-                  {biomeLabel(mission.biome)} · {mission.mapSize}×{mission.mapSize}
-                </span>
-                {mission.index === 0 ? (
-                  <span className={styles.opObjective}>{objectiveHeadline(mission.win)}</span>
-                ) : null}
               </span>
+              {mission.index === 0 ? <span className={styles.objective}>{objectiveHeadline(mission.win)}</span> : null}
             </li>
           ))}
         </ol>
       </section>
 
-      <footer className={styles.readout}>
-        <div>
-          <span>Campaign scale</span>
-          <strong>{scale}</strong>
+      <footer className={cx(styles.glass, styles.footer)}>
+        <div className={styles.scale} role="group" aria-label={scale}>
+          {mapSizes.map((size) => (
+            <span key={size} className={styles.pip}>
+              {size}
+            </span>
+          ))}
         </div>
-        <div>
-          <span>Local archive</span>
-          <strong>{archive}</strong>
+        <div className={styles.archive} role="group" aria-label={archive}>
+          <div className={styles.archiveTrack} aria-hidden="true">
+            <div
+              className={styles.archiveFill}
+              style={{ width: `${(summary.completed / campaign.missions.length) * 100}%` }}
+            />
+          </div>
+          <p className={styles.archiveLine}>{archiveHint ? `${archiveMark} · ${archiveHint}` : archiveMark}</p>
         </div>
       </footer>
     </aside>
@@ -102,22 +119,25 @@ function TheaterDossierLive({ campaign }: { campaign: Campaign }) {
 function FactionCard({ faction, side }: { faction: Faction; side: "Allied" | "Hostile" }) {
   return (
     <div className={styles.faction} data-side={side.toLowerCase()}>
-      <span className={styles.factionSide}>{side}</span>
       <strong className={styles.factionName}>{faction.name}</strong>
-      <span className={styles.swatches} aria-hidden="true">
-        <span style={{ background: faction.palette.primary }} />
-        <span style={{ background: faction.palette.accent }} />
-        <span style={{ background: faction.palette.dark }} />
-      </span>
+      <span className={styles.stance}>{side}</span>
+      <span
+        className={styles.paletteBar}
+        aria-hidden="true"
+        style={{
+          background: `linear-gradient(90deg, ${faction.palette.primary} 0 33.34%, ${faction.palette.accent} 33.34% 66.67%, ${faction.palette.dark} 66.67% 100%)`,
+        }}
+      />
     </div>
   );
 }
 
-function StaffRow({ channel, who }: { channel: string; who: Character }) {
+function StaffChip({ channel, who }: { channel: string; who: Character }) {
+  const name = characterLabel(who);
   return (
-    <li className={styles.staffRow}>
-      <span>{channel}</span>
-      <strong>{characterLabel(who)}</strong>
+    <li className={styles.staffChip} title={name}>
+      <span className={styles.staffPip}>{channel}</span>
+      <strong className={styles.staffName}>{name}</strong>
     </li>
   );
 }

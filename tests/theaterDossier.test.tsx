@@ -6,9 +6,9 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NewGameSetup } from "../components/menu/NewGameSetup";
 import { TheaterDossier } from "../components/menu/TheaterDossier";
-import { campaignScaleLabel } from "../components/campaign/campaignSummary";
+import { campaignScaleLabel, theaterArchiveLabel } from "../components/campaign/campaignSummary";
 import { createCampaign } from "../lib/gen/campaign";
-import { characterLabel } from "../lib/gen/names";
+import { biomeLabel, characterLabel } from "../lib/gen/names";
 import { completeMission, freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
 import { localStorageAdapter } from "../lib/persist/save";
 
@@ -21,24 +21,29 @@ beforeEach(() => {
 describe("TheaterDossier", () => {
   it("renders seed 0421 world identity, factions, staff, and eight operations", () => {
     const campaign = createCampaign(421);
+    const setting = `${campaign.world.tone} · ${campaign.world.conflict} · ${campaign.world.era} · ${biomeLabel(campaign.world.biome)}`;
     render(<TheaterDossier campaign={campaign} />);
 
     const dossier = screen.getByTestId("theater-dossier");
     expect(dossier).toHaveTextContent(campaign.world.name);
-    expect(dossier).toHaveTextContent(campaign.world.tone);
-    expect(dossier).toHaveTextContent(campaign.world.conflict);
+    expect(screen.getByLabelText(setting)).toHaveAttribute("title", setting);
+    expect(dossier).toHaveTextContent(campaign.world.era);
+    expect(dossier).toHaveTextContent(biomeLabel(campaign.world.biome));
     expect(dossier).toHaveTextContent(campaign.factions[0].name);
     expect(dossier).toHaveTextContent(campaign.factions[1].name);
     expect(dossier).toHaveTextContent(characterLabel(campaign.characters.commander));
     expect(dossier).toHaveTextContent(characterLabel(campaign.characters.advisor));
     expect(dossier).toHaveTextContent(characterLabel(campaign.characters.enemyLeader));
     expect(screen.getByText("Enemy")).toBeVisible();
-    expect(screen.getByRole("list", { name: `${campaign.missions.length} operations` }).querySelectorAll("li")).toHaveLength(campaign.missions.length);
+    expect(screen.getByRole("list", { name: `${campaign.missions.length} operations` }).querySelectorAll("li")).toHaveLength(
+      campaign.missions.length,
+    );
     for (const mission of campaign.missions) {
       expect(dossier).toHaveTextContent(mission.name);
     }
-    expect(dossier).toHaveTextContent(campaignScaleLabel(campaign));
-    expect(dossier).toHaveTextContent("Unrecorded on this device");
+    expect(screen.getByLabelText(campaignScaleLabel(campaign))).toBeVisible();
+    expect(screen.getByLabelText(theaterArchiveLabel(campaign, freshCampaignProgress(421)))).toBeVisible();
+    expect(dossier).toHaveTextContent("0/8");
   });
 
   it("shows an empty state without a theater code", () => {
@@ -49,20 +54,24 @@ describe("TheaterDossier", () => {
   });
 
   it("reports local archive progress for a started campaign", () => {
+    const campaign = createCampaign(421);
     const progress = completeMission(completeMission(freshCampaignProgress(421), 0, 2, 400), 1, 1, 200);
     writeCampaignProgress(localStorageAdapter(), progress);
-    render(<TheaterDossier campaign={createCampaign(421)} />);
-    expect(screen.getByText("2/8 operations complete · Launch opens operation 1")).toBeVisible();
+    render(<TheaterDossier campaign={campaign} />);
+    expect(screen.getByLabelText(theaterArchiveLabel(campaign, progress))).toBeVisible();
+    expect(screen.getByText("2/8 · Launch → Op 1")).toBeVisible();
   });
 
   it("reports a completed campaign archive", () => {
+    const campaign = createCampaign(421);
     let progress = freshCampaignProgress(421);
     for (let index = 0; index < 8; index += 1) {
       progress = completeMission(progress, index, 1, 100);
     }
     writeCampaignProgress(localStorageAdapter(), progress);
-    render(<TheaterDossier campaign={createCampaign(421)} />);
-    expect(screen.getByText("Campaign complete · 8/8 operations")).toBeVisible();
+    render(<TheaterDossier campaign={campaign} />);
+    expect(screen.getByLabelText(theaterArchiveLabel(campaign, progress))).toBeVisible();
+    expect(screen.getByText("8/8 · Complete")).toBeVisible();
   });
 });
 
