@@ -354,6 +354,10 @@
     grid-template-columns: 1fr;
   }
 
+  .staffChip {
+    flex: 1 1 100%;
+  }
+
   .worldName {
     font-size: 1.35rem;
   }
