@@ -24,7 +24,7 @@ const DEFAULT_PROFILE: FactionVisualProfile = {
 };
 
 const FAMILY_LIGHTNESS = [0, -8, 7] as const;
-const RASTER_TINT_ALPHA = 0.26;
+const RASTER_TINT_ALPHA = 0.14;
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
