@@ -82,9 +82,9 @@ function drawBoulder(
 
 function drawCanopyTree(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
   const lean = ((v % 5) - 2) * z * 0.55;
-  const dark = mixRgb(mats.blocked, mats.dark, 0.22);
-  const mid = liftGreen(mixRgb(mats.blocked, mats.light, 0.28), 22);
-  const hi = mixRgb(mats.light, mats.high, 0.45);
+  const dark = mixRgb(mats.high, mats.blocked, 0.28);
+  const mid = liftGreen(mats.high, 28);
+  const hi = mats.light;
   blobShadow(ctx, z, 18, 5.4);
   ctx.strokeStyle = rgbOf(mixRgb(mats.dark, { r: 62, g: 42, b: 28 }, 0.45));
   ctx.lineWidth = Math.max(2.4, 3.8 * z);
@@ -111,8 +111,8 @@ function drawCanopyTree(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: 
 
 function drawPine(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
   const lean = ((v % 3) - 1) * z * 0.3;
-  const needle = mixRgb(mats.blocked, { r: 48, g: 82, b: 72 }, 0.45);
-  const dark = mixRgb(mats.dark, needle, 0.3);
+  const needle = mixRgb(mats.high, { r: 48, g: 96, b: 62 }, 0.35);
+  const dark = mixRgb(mats.mid, needle, 0.4);
   blobShadow(ctx, z, 14, 4.6);
   ctx.strokeStyle = rgbOf(mats.dark);
   ctx.lineWidth = Math.max(1.8, 2.8 * z);

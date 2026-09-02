@@ -259,9 +259,9 @@ function drawShrub(
   variant: number,
 ): void {
   const s = z * scale;
-  const dark = mixRgb(mats.blocked, mats.dark, 0.35);
-  const mid = mixRgb(mats.blocked, mats.light, 0.28);
-  const hi = mixRgb(mats.light, mats.high, 0.4);
+  const dark = mixRgb(mats.high, mats.blocked, 0.32);
+  const mid = mixRgb(mats.high, mats.light, 0.35);
+  const hi = mats.light;
   shadow(ctx, s, 8.2, 2.6, 3.2);
   ctx.fillStyle = rgbOf(dark);
   ctx.beginPath();
