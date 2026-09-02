@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Dynamica Command">
-  <rect width="32" height="32" rx="7" fill="#070b12"/>
+  <rect width="32" height="32" fill="#070b12"/>
   <rect x="1.4" y="1.4" width="29.2" height="29.2" rx="5.8" fill="none" stroke="#3a4d5e" stroke-width="1.4"/>
   <rect x="3.35" y="3.35" width="25.3" height="25.3" rx="4.1" fill="none" stroke="#5ce1e6" stroke-width="1"/>
   <path fill="#5ce1e6" fill-rule="evenodd" d="M6.2 8.15h4A5.4 7.85 0 0 1 10.2 23.85h-4zm3.15 2.45v10.8h1a2.85 5.3 0 0 0 0-10.8z"/>

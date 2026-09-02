@@ -36,11 +36,17 @@ describe("PWA icons and manifest", () => {
     ]);
   });
 
-  it.each(ICONS)("%s is %d px", async (file, size) => {
-    const meta = await sharp(resolve(process.cwd(), file)).metadata();
+  it.each(ICONS)("%s is %d px and fully opaque", async (file, size) => {
+    const path = resolve(process.cwd(), file);
+    const meta = await sharp(path).metadata();
     expect(meta.width).toBe(size);
     expect(meta.height).toBe(size);
-    expect(meta.hasAlpha).toBe(true);
+    const { data } = await sharp(path).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let transparent = 0;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 255) transparent += 1;
+    }
+    expect(transparent).toBe(0);
   });
 
   it("ships a 16 and 32 px favicon.ico for the browser tab", () => {
