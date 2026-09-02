@@ -37,5 +37,7 @@ describe("faction raster tints", () => {
     expect(a.imageTint).not.toBe(b.imageTint);
     expect(a.imageTint).toMatch(/^hsla\(/);
     expect(b.imageTint).toMatch(/^hsla\(/);
+    expect(a.imageTint).toMatch(/\/ 0\.14\)$/);
+    expect(b.imageTint).toMatch(/\/ 0\.14\)$/);
   });
 });
