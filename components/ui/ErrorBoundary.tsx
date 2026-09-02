@@ -1,8 +1,8 @@
 "use client";
 
 import { Component, type ReactNode } from "react";
-import Link from "next/link";
-import styles from "./ErrorBoundary.module.css";
+import { ConsoleButton } from "./ConsoleButton";
+import { ConsoleNotice, ConsoleNoticeLink } from "./ConsoleNotice";
 
 type ErrorBoundaryProps = {
   children: ReactNode;
@@ -28,21 +28,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div className={styles.fallback} role="alert" data-testid="screen-error">
-          <p className={styles.eyebrow}>{this.props.eyebrow ?? "Transmission interrupted"}</p>
-          <h2 className={styles.title}>{this.props.title ?? "Something went wrong"}</h2>
-          <p className={styles.detail}>
-            {this.state.error?.message || "An unexpected error occurred."}
-          </p>
-          <div className={styles.actions}>
-            <button type="button" className={styles.retry} onClick={() => this.setState({ hasError: false, error: null })}>
-              Try again
-            </button>
-            <Link href="/" className={styles.home}>
-              Return to menu
-            </Link>
-          </div>
-        </div>
+        <ConsoleNotice
+          eyebrow={this.props.eyebrow ?? "Transmission interrupted"}
+          title={this.props.title ?? "Something went wrong"}
+          detail={this.state.error?.message || "An unexpected error occurred."}
+          testId="screen-error"
+        >
+          <ConsoleButton onClick={() => this.setState({ hasError: false, error: null })}>
+            Try again
+          </ConsoleButton>
+          <ConsoleNoticeLink href="/" muted testId="home-link">
+            Return to menu
+          </ConsoleNoticeLink>
+        </ConsoleNotice>
       );
     }
     return this.props.children;

@@ -1,8 +1,12 @@
+"use client";
+
 import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { useModalFocus } from "@/components/ui/useModalFocus";
 import type { AudioVolumeKey } from "@/lib/audio/mixer";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { PauseView } from "@/lib/ui/shortcuts";
+import { PauseControls } from "./PauseControls";
 import { PauseMainMenu } from "./PauseMainMenu";
 import { PauseOptions } from "./PauseOptions";
 import styles from "./PauseMenu.module.css";
@@ -19,6 +23,7 @@ export function PauseMenu({
   onLoad,
   onBriefing,
   onRestart,
+      onControls,
   onSoundtrack,
   onOptions,
   onMenu,
@@ -39,6 +44,7 @@ export function PauseMenu({
   onLoad: () => void;
   onBriefing: () => void;
   onRestart: () => void;
+  onControls: () => void;
   onSoundtrack: () => void;
   onOptions: () => void;
   onMenu: () => void;
@@ -48,12 +54,20 @@ export function PauseMenu({
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
 }) {
+  const dialogRef = useModalFocus(view !== "soundtrack", view, "dialog");
   return (
     <div className={styles.overlay} data-testid="pause-menu">
       {view === "soundtrack" ? (
         <SoundtrackPanel seed={seed} missionIndex={missionIndex} onClose={onBack} />
       ) : (
-        <MetalPanel className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="pause-title">
+        <MetalPanel
+          ref={dialogRef}
+          tabIndex={-1}
+          className={styles.dialog}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pause-title"
+        >
           {view === "main" ? (
             <PauseMainMenu
               onResume={onResume}
@@ -62,10 +76,13 @@ export function PauseMenu({
               onLoad={onLoad}
               onBriefing={onBriefing}
               onRestart={onRestart}
+              onControls={onControls}
               onSoundtrack={onSoundtrack}
               onOptions={onOptions}
               onMenu={onMenu}
             />
+          ) : view === "controls" ? (
+            <PauseControls onBack={onBack} />
           ) : (
             <PauseOptions
               settings={settings}

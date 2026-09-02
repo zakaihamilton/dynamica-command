@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
+import { DocumentTitle } from "@/components/ui/DocumentTitle";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { createCampaign } from "@/lib/gen/campaign";
 import { missionDurationMinutesFor, missionTimeLimitLabel, secondaryObjectivesForMissionSeed } from "@/lib/gen/objectives";
@@ -164,6 +165,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
       className={`${styles.screen} ${operations ? styles.operationsScreen : ""}`}
       style={{ "--scene-art": `url("${RASTER_ART.victory}")` } as React.CSSProperties}
     >
+      <DocumentTitle title={`Seed ${formatSeed(seed)} · ${operations ? "Operations" : "Campaign Record"} | Dynamica Command`} />
       <div className={styles.vignette} />
       <div className={styles.content}>
         <MetalPanel className={`${styles.panel} ${operations ? styles.operationsPanel : ""}`} data-testid={operations ? "operations-panel" : undefined}>

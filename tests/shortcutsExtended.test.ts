@@ -30,9 +30,10 @@ describe("shortcuts uncovered branches", () => {
     expect(gameCommandFromKey({ key: "s", metaKey: true }, paused)).toBeNull();
   });
 
-  it("ignores keys in soundtrack pause view except Escape", () => {
+  it("ignores keys in soundtrack pause view except Escape and F1", () => {
     const soundtrack = { ...play, paused: true, pauseView: "soundtrack" as const };
     expect(gameCommandFromKey({ key: "Escape" }, soundtrack)).toEqual({ type: "pauseBack" });
+    expect(gameCommandFromKey({ key: "F1" }, soundtrack)).toEqual({ type: "controls" });
     expect(gameCommandFromKey({ key: "s" }, soundtrack)).toBeNull();
   });
 

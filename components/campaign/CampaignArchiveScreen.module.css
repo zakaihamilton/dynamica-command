@@ -240,7 +240,7 @@
 }
 
 .importError {
-  color: #ffb08a;
+  color: var(--chrome-warning);
   background: color-mix(in srgb, var(--chrome-alert) 10%, transparent);
 }
 
@@ -258,7 +258,7 @@
   padding: 0.65rem;
   border: 1px solid color-mix(in srgb, var(--chrome-alert) 55%, var(--chrome-inset));
   background: color-mix(in srgb, var(--chrome-alert) 10%, var(--chrome-void));
-  color: #ffb08a;
+  color: var(--chrome-warning);
   font-size: 0.68rem;
 }
 

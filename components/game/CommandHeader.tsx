@@ -6,11 +6,11 @@ export function CommandHeader({ factionName, onPause }: { factionName: string; o
     <button
       type="button"
       className={styles.header}
-      data-tooltip="Open pause menu"
+      data-tooltip="Pause menu · F1 for controls"
       data-shortcut={SHORTCUT.pause}
       onClick={onPause}
-      aria-label="Open Dynamica Command pause menu"
-      aria-keyshortcuts="Escape"
+      aria-label="Open Dynamica Command pause menu. F1 for controls"
+      aria-keyshortcuts="Escape F1"
     >
       <p className={styles.title}>DYNAMICA COMMAND</p>
       <p className={styles.faction}>{factionName}</p>

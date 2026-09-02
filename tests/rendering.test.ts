@@ -2,7 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import { addUnit, makeFixture, setTile } from "../lib/sim/fixtures";
 import { minimapRegionForCell, terrainColors } from "../lib/render/minimap";
 import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../lib/types";
+import type { BiomeName } from "../lib/types";
+import {
+  ARID_SCATTER,
+  LUSH_SCATTER,
+  blockerPropKind,
+  scatterForTile,
+  withAlpha,
+} from "../lib/render/terrainPaint";
 import { generateMap } from "../lib/gen/map";
+import { tileSprite } from "../lib/gen/assets";
 import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../lib/iso";
 import {
   ATLAS_CELL,
@@ -23,12 +32,15 @@ import {
   sampleTerrainMaterial,
   terrainAtlasKey,
   biomeMaterials,
+  tintGroundPatches,
+  applyBiomeGroundPattern,
   type TerrainAtlasData,
 } from "../lib/render/terrainAtlas";
 import {
   oreGlint,
   oreSparkle,
   waterCaustic,
+  waterRippleCrests,
   weatherKindForBiome,
   weatherParticleAt,
   visibleFxTileCoords,
@@ -201,6 +213,37 @@ describe("seeded terrain atlas", () => {
     expect(atlasPixelAtTile(atlas, 3, 3)[2]).toBeGreaterThan(atlasPixelAtTile(atlas, 3, 3)[0]);
     expect(cellLum(3, 3)).toBeLessThan(cellLum(2, 2));
     expect(cellLum(3, 3)).toBeLessThan(cellLum(2, 3));
+  });
+
+  it("keeps adjacent interior water pixels close across tile seams", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    for (let y = 1; y <= 10; y++) {
+      for (let x = 1; x <= 10; x++) setTile(state, x, y, TILE_WATER);
+    }
+    const atlas = bakeTerrainAtlasData(state);
+    const pixel = (tx: number, ty: number, lx: number, ly: number): [number, number, number] => {
+      const rect = atlasRectForTile(tx, ty, atlas.mapWidth);
+      const i = ((rect.sy + ly) * atlas.width + (rect.sx + lx)) * 4;
+      return [atlas.data[i] ?? 0, atlas.data[i + 1] ?? 0, atlas.data[i + 2] ?? 0];
+    };
+    const dist = (a: [number, number, number], b: [number, number, number]) => (
+      Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])
+    );
+    const mid = ATLAS_CELL >> 1;
+    const left = pixel(5, 5, ATLAS_CELL - 1, mid);
+    const right = pixel(6, 5, 0, mid);
+    const inlandA = pixel(5, 5, mid, mid);
+    const inlandB = pixel(5, 5, mid + 1, mid);
+    const seam = dist(left, right);
+    const inland = dist(inlandA, inlandB);
+    const seamChannel = Math.max(
+      Math.abs(left[0] - right[0]),
+      Math.abs(left[1] - right[1]),
+      Math.abs(left[2] - right[2]),
+    );
+    expect(seamChannel).toBeLessThan(8);
+    expect(seam).toBeLessThan(14);
+    expect(seam).toBeLessThanOrEqual(inland + 6);
   });
 
   it("bakes a dark grout seam around each concrete pad", () => {
@@ -515,6 +558,20 @@ describe("terrain weather and water motion", () => {
     expect(waterFxNeedsClip(state, 3, 3)).toBe(false);
     expect(waterFxNeedsClip(state, 2, 3)).toBe(true);
   });
+
+  it("places ripple crests that continue across neighboring tiles", () => {
+    const wavelength = 2;
+    const phase = 0.5;
+    const a = waterRippleCrests(9, 11, wavelength, phase);
+    const b = waterRippleCrests(10, 12, wavelength, phase);
+    expect(a.some((k) => Math.abs(k - 10.5) < 1e-9)).toBe(true);
+    expect(b.some((k) => Math.abs(k - 10.5) < 1e-9)).toBe(true);
+    const across = waterRippleCrests(1, 3, 2, 0.5);
+    const next = waterRippleCrests(2, 4, 2, 0.5);
+    expect(across.some((k) => Math.abs(k - 2.5) < 1e-9)).toBe(true);
+    expect(next.some((k) => Math.abs(k - 2.5) < 1e-9)).toBe(true);
+    expect(waterRippleCrests(9, 11, wavelength, phase + 0.8)).not.toEqual(a);
+  });
 });
 
 describe("terrain scroll cache key", () => {
@@ -577,3 +634,171 @@ describe("minimap classification", () => {
     expect(selected.overlayKey).not.toBe(next.overlayKey);
   });
 });
+
+function collectScatter(state: ReturnType<typeof makeFixture>) {
+  const items = [];
+  for (let y = 0; y < state.height; y++) {
+    for (let x = 0; x < state.width; x++) {
+      items.push(...scatterForTile(state, x, y));
+    }
+  }
+  return items;
+}
+
+describe("terrain scatter artifacts", () => {
+  it("is deterministic for a seed and cell", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    const a = scatterForTile(state, 4, 5);
+    expect(scatterForTile(state, 4, 5)).toEqual(a);
+    expect(a.length).toBeLessThanOrEqual(3);
+    const here = collectScatter(state);
+    const other = collectScatter({ ...state, seed: 3209 });
+    expect(here.length).toBeGreaterThan(0);
+    expect(JSON.stringify(other)).not.toBe(JSON.stringify(here));
+  });
+
+  it("varies across neighboring cells and biomes", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    const signatures = new Set<string>();
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        signatures.add(JSON.stringify(scatterForTile(state, x, y)));
+      }
+    }
+    expect(signatures.size).toBeGreaterThan(8);
+    const jungle = { ...state, biome: "jungle wreckage" as BiomeName };
+    expect(JSON.stringify(collectScatter(jungle))).not.toBe(JSON.stringify(collectScatter(state)));
+  });
+
+  it("skips water, concrete, ore, and blocked tiles", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    setTile(state, 1, 1, TILE_WATER);
+    setTile(state, 2, 2, TILE_RESOURCE, 800);
+    setTile(state, 3, 3, TILE_BLOCKED);
+    state.surfaces[4 * state.width + 4] = SURFACE_CONCRETE;
+    expect(scatterForTile(state, 1, 1)).toEqual([]);
+    expect(scatterForTile(state, 2, 2)).toEqual([]);
+    expect(scatterForTile(state, 3, 3)).toEqual([]);
+    expect(scatterForTile(state, 4, 4)).toEqual([]);
+  });
+
+  it("keeps roads sparse and prefers biome-appropriate clutter", () => {
+    const ground = makeFixture({ width: 16, height: 16, win: { kind: "annihilate" }, seed: 832 });
+    const road = makeFixture({ width: 16, height: 16, win: { kind: "annihilate" }, seed: 832 });
+    road.surfaces.fill(SURFACE_ROAD);
+    expect(collectScatter(road).length).toBeLessThan(collectScatter(ground).length);
+
+    const jungle = { ...ground, biome: "jungle wreckage" as BiomeName };
+    const desert = { ...ground, biome: "glass desert" as BiomeName };
+    const lushCount = collectScatter(jungle).filter((item) => LUSH_SCATTER.has(item.kind)).length;
+    const jungleArid = collectScatter(jungle).filter((item) => ARID_SCATTER.has(item.kind)).length;
+    const aridCount = collectScatter(desert).filter((item) => ARID_SCATTER.has(item.kind)).length;
+    const desertLush = collectScatter(desert).filter((item) => LUSH_SCATTER.has(item.kind)).length;
+    expect(lushCount).toBeGreaterThan(jungleArid);
+    expect(aridCount).toBeGreaterThan(desertLush);
+    expect(aridCount).toBeGreaterThan(0);
+  });
+
+  it("keeps blocker props deterministic and biome-keyed", () => {
+    expect(blockerPropKind("ash plains", 9)).toBe(blockerPropKind("ash plains", 9));
+    const jungle = new Set(Array.from({ length: 40 }, (_, v) => blockerPropKind("jungle wreckage", v)));
+    const desert = new Set(Array.from({ length: 40 }, (_, v) => blockerPropKind("glass desert", v)));
+    const tundra = new Set(Array.from({ length: 40 }, (_, v) => blockerPropKind("tundra grid", v)));
+    expect(jungle.has("tree")).toBe(true);
+    expect(desert.has("sandstone") || desert.has("deadShrub")).toBe(true);
+    expect(tundra.has("pine") || tundra.has("snowRock")).toBe(true);
+    expect(blockerPropKind("jungle wreckage", 3)).not.toBe(blockerPropKind("glass desert", 3));
+  });
+
+  it("is deterministic on skirt samples", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    const skirt = scatterForTile(state, -1, 2);
+    expect(scatterForTile(state, -1, 2)).toEqual(skirt);
+    expect(skirt.length).toBeLessThanOrEqual(3);
+  });
+
+  it("honors an explicit tile kind so callers can reuse scenery samples", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    expect(scatterForTile(state, 0, 0, TILE_WATER)).toEqual([]);
+    expect(scatterForTile(state, 0, 0, TILE_BLOCKED)).toEqual([]);
+  });
+
+  it("multiplies parent canvas alpha instead of resetting it", () => {
+    const stack: number[] = [];
+    let alpha = 0.4;
+    const ctx = {
+      get globalAlpha() { return alpha; },
+      set globalAlpha(value: number) { alpha = value; },
+      save() { stack.push(alpha); },
+      restore() { alpha = stack.pop() ?? 1; },
+    } as CanvasRenderingContext2D;
+    withAlpha(ctx, 0.5, () => {
+      expect(alpha).toBeCloseTo(0.2);
+    });
+    expect(alpha).toBe(0.4);
+  });
+});
+
+describe("biome ground patches", () => {
+  it("keeps patch sampling deterministic and biome-specific", () => {
+    const mats = biomeMaterials("ash plains");
+    const a = tintGroundPatches(mats.mid, mats, 4.2, 7.1, 41);
+    expect(tintGroundPatches(mats.mid, mats, 4.2, 7.1, 41)).toEqual(a);
+    expect(tintGroundPatches(mats.mid, mats, 12.5, 3.2, 41)).not.toEqual(a);
+
+    const jungle = biomeMaterials("jungle wreckage");
+    const desert = biomeMaterials("glass desert");
+    const jungleTint = tintGroundPatches(jungle.mid, jungle, 5, 5, 41);
+    const desertTint = tintGroundPatches(desert.mid, desert, 5, 5, 41);
+    expect(jungleTint).not.toEqual(desertTint);
+    expect(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle))
+      .toEqual(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle));
+    expect(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle))
+      .not.toEqual(applyBiomeGroundPattern(desert.mid, "glass desert", 5.25, 5.25, 41, desert));
+  });
+
+  it("varies open ground across tiles and biomes while leaving water and pads alone", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    const origin = sampleTerrainMaterial(state, 2, 2);
+    let differ = 0;
+    for (let y = 1; y < 11; y++) {
+      for (let x = 1; x < 11; x++) {
+        const sample = sampleTerrainMaterial(state, x, y);
+        if (sample.water || sample.ore || sample.elev !== origin.elev) continue;
+        if (sample.r !== origin.r || sample.g !== origin.g || sample.b !== origin.b) differ += 1;
+      }
+    }
+    expect(differ).toBeGreaterThan(0);
+
+    const jungle = { ...state, biome: "jungle wreckage" as BiomeName };
+    const desert = { ...state, biome: "glass desert" as BiomeName };
+    expect(sampleTerrainMaterial(jungle, 4, 4)).not.toEqual(sampleTerrainMaterial(desert, 4, 4));
+    expect(atlasPixelAtTile(bakeTerrainAtlasData(jungle), 4, 4))
+      .not.toEqual(atlasPixelAtTile(bakeTerrainAtlasData(desert), 4, 4));
+
+    setTile(state, 1, 1, TILE_WATER);
+    state.surfaces[6 * state.width + 6] = SURFACE_ROAD;
+    state.surfaces[7 * state.width + 7] = SURFACE_CONCRETE;
+    const atlas = bakeTerrainAtlasData(state);
+    const water = atlasPixelAtTile(atlas, 1, 1);
+    expect(water[2]).toBeGreaterThan(water[0]);
+    expect(sampleTerrainMaterial(state, 1, 1).water).toBe(true);
+    expect(atlasPixelAtTile(atlas, 6, 6)).not.toEqual(atlasPixelAtTile(atlas, 0, 0));
+    const [r, g, b] = atlasPixelAtTile(atlas, 7, 7);
+    expect(Math.abs(r - 89)).toBeLessThan(22);
+    expect(Math.abs(g - 104)).toBeLessThan(22);
+    expect(Math.abs(b - 117)).toBeLessThan(22);
+  });
+});
+
+describe("tile sprite blockers", () => {
+  it("paints biome-specific blocker silhouettes", () => {
+    const jungle = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 });
+    const desert = tileSprite("blocked", 1, { biome: "glass desert", variant: 3 });
+    const tundra = tileSprite("blocked", 1, { biome: "tundra grid", variant: 3 });
+    expect(jungle.shapes).not.toEqual(desert.shapes);
+    expect(tundra.shapes).not.toEqual(jungle.shapes);
+    expect(tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes).toEqual(jungle.shapes);
+  });
+});
+

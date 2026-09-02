@@ -557,7 +557,7 @@ test("starts a new same-seed mission after reloading before a fresh launch", asy
   await page.reload();
   await expect(page.getByTestId("credits")).toHaveText("9,876");
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Escape to Menu" }).click();
+  await page.getByRole("button", { name: "Main Menu" }).click();
   await page.getByRole("dialog", { name: "Leave mission?" }).getByRole("button", { name: "Leave mission" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId("menu-dashboard")).toBeVisible();

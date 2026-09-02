@@ -10,6 +10,7 @@ import {
 } from "../lib/audio/compose";
 import { exportMissionSoundtrack, missionSoundtrackFilename, supportsM4aExport } from "../lib/audio/export";
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../lib/audio/music";
+import { shouldApplyPendingIntensity } from "../lib/audio/musicScheduler";
 import { beep, isSfxEnabled, MAX_SFX_QUEUE_S, playSfx, scheduleSfxTime, setSfxEnabled } from "../lib/audio/synth";
 import { beepForCommands } from "../lib/audio/uiOrders";
 import { spatialAudioForWorld } from "../lib/audio/spatial";
@@ -195,6 +196,28 @@ describe("generated audio", () => {
     }
   });
 
+  it("starts mission grooves with drums, pulse, and melody before the first verse ends", () => {
+    for (const seed of [0, 421, 9999]) {
+      const pattern = composeMusic(seed, "mission", 3);
+      const fromBar = (bar: number) => bar * STEPS_PER_BAR;
+      expect(pattern.kick.slice(fromBar(4), fromBar(16)).some(Boolean)).toBe(true);
+      if (pattern.style.arrangement.pulseEnabled[0]) {
+        expect(pattern.arp.slice(fromBar(4), fromBar(16)).some((note) => note !== null)).toBe(true);
+      }
+      if (pattern.style.arrangement.melodyEnabled[0]) {
+        expect(pattern.melody.slice(fromBar(8), fromBar(16)).some((note) => note !== null)).toBe(true);
+      }
+    }
+  });
+
+  it("applies combat intensity on bar boundaries and critical immediately", () => {
+    expect(shouldApplyPendingIntensity(0, "engaged")).toBe(true);
+    expect(shouldApplyPendingIntensity(1, "engaged")).toBe(false);
+    expect(shouldApplyPendingIntensity(STEPS_PER_BAR, "calm")).toBe(true);
+    expect(shouldApplyPendingIntensity(7, "critical")).toBe(true);
+    expect(shouldApplyPendingIntensity(3, null)).toBe(false);
+  });
+
   it("keeps victory drums active through the breakdown", () => {
     const pattern = composeMusic(421, "victory");
     const breakdownStart = 64 * STEPS_PER_BAR;
@@ -207,11 +230,11 @@ describe("generated audio", () => {
 
   it("keeps cue tempos in upbeat 80s ranges and fills long-form lanes", () => {
     const ranges = {
-      menu: [112, 124],
-      briefing: [104, 116],
-      mission: [110, 134],
-      victory: [124, 132],
-      defeat: [88, 98],
+      menu: [118, 130],
+      briefing: [108, 122],
+      mission: [124, 144],
+      victory: [128, 140],
+      defeat: [92, 104],
     } as const;
     for (const seed of [0, 1, 421, 9999]) {
       for (const [cue, [lo, hi]] of Object.entries(ranges)) {

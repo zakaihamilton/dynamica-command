@@ -6,7 +6,7 @@ import { drawCombatEffects, drawFxLayer } from "../../renderCombat";
 import { drawCommandMarker, drawSelectBox } from "../../renderOverlays";
 import type { RenderExtras } from "../../renderOverlays";
 import { facingFor as resolveFacing } from "../../renderEntities";
-import { entityById } from "../cache";
+import { drawList, entityById } from "../cache";
 import { renderTerrainPhase } from "./terrain";
 import { renderEntityPhase } from "./entities";
 import { renderHoverPhase } from "./hover";
@@ -49,7 +49,7 @@ export function renderWorld(
   lap("entities");
 
   const timeMs = animClock(state.tick, clock);
-  drawCombatEffects(ctx, state, cam, [], entityById, (st: SimState, ent: Entity) => resolveFacing(st, ent, entityById), clock);
+  drawCombatEffects(ctx, state, cam, drawList, entityById, (st: SimState, ent: Entity) => resolveFacing(st, ent, entityById), clock);
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
   drawSelectBox(ctx, extras.selectBox);
   drawCommandMarker(ctx, state, cam, extras.commandMarker, timeMs);

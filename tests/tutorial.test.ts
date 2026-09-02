@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { evaluateObjectives, objectiveProgress } from "../lib/sim/objectives";
-import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
+import { createTutorialMission, enterTutorialStage, tutorialMoveTile, tutorialPrompt } from "../lib/sim/tutorial";
+import { addBuilding, makeFixture } from "../lib/sim/fixtures";
+import { isWalkable } from "../lib/sim/world";
 
 describe("tutorial", () => {
   it("creates a seed 0000 training mission with no time limit", () => {
@@ -38,7 +40,7 @@ describe("tutorial", () => {
   it("returns the move prompt for the move stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "move";
-    expect(tutorialPrompt(state)).toBe("Move the selected unit to the highlighted ground.");
+    expect(tutorialPrompt(state)).toBe("Move the selected unit to the highlighted ground (right click).");
   });
 
   it("returns the harvest prompt for the harvest stage", () => {
@@ -50,25 +52,25 @@ describe("tutorial", () => {
   it("returns the build prompt for the build stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "build";
-    expect(tutorialPrompt(state)).toBe("Open Construction and place a Power Plant.");
+    expect(tutorialPrompt(state)).toBe("Open Construction (Q) and place a Power Plant.");
   });
 
   it("returns the produce prompt for the produce stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "produce";
-    expect(tutorialPrompt(state)).toBe("Open Production and train Infantry.");
+    expect(tutorialPrompt(state)).toBe("Open Production (E) and train Infantry.");
   });
 
   it("returns the attack prompt for the attack stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "attack";
-    expect(tutorialPrompt(state)).toBe("Use attack-move to advance while fighting, or attack an enemy unit.");
+    expect(tutorialPrompt(state)).toBe("Use attack-move (Ctrl + right click) to advance while fighting, or attack an enemy unit.");
   });
 
   it("returns the repair prompt for the repair stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "repair";
-    expect(tutorialPrompt(state)).toBe("Use Repair on a damaged structure.");
+    expect(tutorialPrompt(state)).toBe("Use Repair (R) on a damaged structure.");
   });
 
   it("returns the complete prompt for the complete stage", () => {
@@ -81,5 +83,49 @@ describe("tutorial", () => {
     const state = createTutorialMission();
     state.tutorialStage = undefined;
     expect(tutorialPrompt(state)).toBe("Training complete. Return to the command desk when ready.");
+  });
+
+  it("highlights a nearby walkable tile during the move stage", () => {
+    const state = createTutorialMission();
+    expect(tutorialMoveTile(state)).toBeNull();
+    enterTutorialStage(state, "move");
+    const tile = tutorialMoveTile(state);
+    const infantry = state.entities.find((entity) => entity.owner === 0 && entity.kind === "infantry" && entity.hp > 0);
+    expect(tile).not.toBeNull();
+    expect(infantry).toBeDefined();
+    expect(tile).not.toEqual({ x: Math.round(infantry!.x), y: Math.round(infantry!.y) });
+    expect(isWalkable(state, tile!.x, tile!.y)).toBe(true);
+  });
+
+  it("damages a finished friendly building when the repair stage begins", () => {
+    const state = createTutorialMission();
+    const building = state.entities.find((entity) => entity.owner === 0 && entity.class === "building" && entity.constructing === 0 && entity.hp === entity.maxHp);
+    expect(building).toBeDefined();
+    const full = building!.hp;
+    enterTutorialStage(state, "repair");
+    expect(state.tutorialStage).toBe("repair");
+    expect(building!.hp).toBe(Math.max(1, Math.floor(full / 2)));
+    enterTutorialStage(state, "repair");
+    expect(building!.hp).toBe(Math.max(1, Math.floor(full / 2)));
+  });
+
+  it("does not damage another building if one is already damaged", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const yard = addBuilding(state, 0, "constructionYard", 2, 2);
+    const power = addBuilding(state, 0, "power", 6, 2);
+    power.hp = power.maxHp - 4;
+    enterTutorialStage(state, "repair");
+    expect(yard.hp).toBe(yard.maxHp);
+    expect(power.hp).toBe(power.maxHp - 4);
+  });
+
+  it("does not halve a second full building on re-entry", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const yard = addBuilding(state, 0, "constructionYard", 2, 2);
+    const power = addBuilding(state, 0, "power", 6, 2);
+    enterTutorialStage(state, "repair");
+    expect([yard, power].filter((building) => building.hp < building.maxHp)).toHaveLength(1);
+    enterTutorialStage(state, "repair");
+    expect([yard, power].filter((building) => building.hp < building.maxHp)).toHaveLength(1);
   });
 });

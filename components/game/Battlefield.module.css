@@ -72,11 +72,16 @@
 }
 
 .mission {
-  margin-top: 0.25rem;
+  margin-top: 0.35rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--chrome-body);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--chrome-gold);
 }
 
 .objective {

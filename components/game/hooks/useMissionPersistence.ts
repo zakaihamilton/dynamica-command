@@ -9,7 +9,7 @@ import {
 import type { SaveSession } from "@/lib/persist/save";
 import { readCampaignProgress } from "@/lib/persist/campaign";
 import { createMission } from "@/lib/sim/api";
-import { createTutorialMission } from "@/lib/sim/tutorial";
+import { createTutorialMission, enterTutorialStage } from "@/lib/sim/tutorial";
 import type { Command, SimState } from "@/lib/types";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { FxBurst } from "@/lib/render/fx";
@@ -158,7 +158,7 @@ export function useMissionPersistence({
     const stages: NonNullable<SimState["tutorialStage"]>[] = ["select", "move", "harvest", "build", "produce", "attack", "repair", "complete"];
     const current = stateRef.current.tutorialStage ?? "select";
     const next = stages[Math.min(stages.length - 1, stages.indexOf(current) + 1)]!;
-    stateRef.current.tutorialStage = next;
+    enterTutorialStage(stateRef.current, next);
     setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
   }, [setState, stateRef]);
 

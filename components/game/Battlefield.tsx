@@ -27,6 +27,7 @@ export function Battlefield({
   children,
   onPointerDown,
   onPointerMove,
+  onPointerEnter,
   onPointerLeave,
   onPointerUp,
   onPointerCancel,
@@ -50,6 +51,7 @@ export function Battlefield({
   children?: ReactNode;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onPointerMove: PointerEventHandler<HTMLCanvasElement>;
+  onPointerEnter: PointerEventHandler<HTMLCanvasElement>;
   onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
   onPointerUp: PointerEventHandler<HTMLCanvasElement>;
   onPointerCancel: PointerEventHandler<HTMLCanvasElement>;
@@ -68,6 +70,7 @@ export function Battlefield({
         className={styles.canvas}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
+        onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}

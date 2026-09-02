@@ -35,6 +35,8 @@ import {
   drawRescueHalo,
   drawUnitGlow,
   drawUnitHealthMeter,
+  entityHasWorldHealthMeter,
+  worldHealthMeterLayout,
 } from "../../renderOverlays";
 import {
   constructionStage,
@@ -210,10 +212,6 @@ export function renderEntityPhase(
       drawTurretCannon(ctx, e, s, z, state, cam, timeMs, targetEntity);
     }
     if (uAnim?.pose === "work") drawHarvestFx(ctx, state, e, cam, timeMs);
-    if (uAnim?.pose === "attack" && recoil > 0.45) {
-      ctx.fillStyle = "#fff4c4";
-      ctx.fillRect(Math.round(s.x + dir.x * 16 * z - 2), Math.round(s.y + dir.y * 16 * z), 4, 4);
-    }
 
     if (selected.has(e.id)) {
       const pulse = selectionPulse(timeMs);
@@ -231,14 +229,12 @@ export function renderEntityPhase(
       ctx.globalAlpha = 1;
     }
 
-    if (e.class === "unit") {
+    if (entityHasWorldHealthMeter(e)) {
       const isSelected = selected.has(e.id);
-      const barW = Math.max(16, Math.round(Math.min(spec.w * 0.75, 24) * z));
-      const meterY = Math.round(dy - 7 * z);
-      const centerX = Math.round(dx + (spec.w * z) / 2);
+      const { barW, meterY, centerX } = worldHealthMeterLayout(e, spec, dx, dy, s.y, z);
       drawUnitHealthMeter(ctx, centerX, meterY, e.hp, e.maxHp, z, spriteAlpha, isSelected, barW);
 
-      if ((e.suppression ?? 0) > 0) {
+      if (e.class === "unit" && (e.suppression ?? 0) > 0) {
         const suppW = barW;
         const suppX = Math.round(centerX - suppW / 2);
         const suppY = meterY + Math.max(3, Math.round(3.5 * z)) + 2;

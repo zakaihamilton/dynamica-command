@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { useModalFocus } from "@/components/ui/useModalFocus";
 import type { listSaves } from "@/lib/persist/save";
 import { formatMissionDuration } from "@/lib/sim/debrief";
 import styles from "./ResumeList.module.css";
@@ -26,6 +27,19 @@ export function ResumeList({
   onDelete: (seed: string) => void;
 }) {
   const [pendingDelete, setPendingDelete] = useState<Save | null>(null);
+  const deleteDialogRef = useModalFocus(Boolean(pendingDelete), pendingDelete?.seed, "dialog");
+
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setPendingDelete(null);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [pendingDelete]);
 
   return (
     <>
@@ -76,6 +90,8 @@ export function ResumeList({
       {pendingDelete ? (
         <div className={styles.confirmOverlay}>
           <MetalPanel
+            ref={deleteDialogRef}
+            tabIndex={-1}
             className={styles.confirmDialog}
             role="dialog"
             aria-modal="true"

@@ -17,8 +17,10 @@ export function GamePlayField({
   campaign,
   state,
   tutorial,
+  paused = false,
   onPointerDown,
   onPointerMove,
+  onPointerEnter,
   onPointerLeave,
   onPointerUp,
   onPointerCancel,
@@ -39,8 +41,10 @@ export function GamePlayField({
   campaign: Campaign;
   state: SimState;
   tutorial: boolean;
+  paused?: boolean;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onPointerMove: PointerEventHandler<HTMLCanvasElement>;
+  onPointerEnter: PointerEventHandler<HTMLCanvasElement>;
   onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
   onPointerUp: PointerEventHandler<HTMLCanvasElement>;
   onPointerCancel: PointerEventHandler<HTMLCanvasElement>;
@@ -75,6 +79,7 @@ export function GamePlayField({
       biome={state.biome}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
+      onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
@@ -88,7 +93,7 @@ export function GamePlayField({
         onRetry={onRetry}
         onMenu={onMenu}
       />
-      {tutorial ? (
+      {tutorial && !paused ? (
         <TutorialOverlay
           prompt={tutorialPrompt(state)}
           complete={state.tutorialStage === "complete"}

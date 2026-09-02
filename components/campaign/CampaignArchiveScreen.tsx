@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
+import { DocumentTitle } from "@/components/ui/DocumentTitle";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { cachedLocalStorage, hasSaveForSeed, listSaves, listUnreadableSaves, parseSaveExport, removeSave, type ParsedSaveExport } from "@/lib/persist/save";
@@ -40,16 +41,25 @@ export function CampaignArchiveScreen() {
     return () => cancelAnimationFrame(frame);
   }, [refreshSaves]);
 
+  const cancelImport = useCallback(() => {
+    setImportPreview(null);
+    setImportError("");
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
+      if (importPreview) {
+        cancelImport();
+        return;
+      }
       router.push("/");
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [router]);
+  }, [cancelImport, importPreview, router]);
 
   const deleteSave = useCallback((seed: string) => {
     removeSave(cachedLocalStorage(), Number(seed));
@@ -86,17 +96,13 @@ export function CampaignArchiveScreen() {
     refreshSaves();
   }, [importPreview, refreshSaves]);
 
-  const cancelImport = useCallback(() => {
-    setImportPreview(null);
-    setImportError("");
-  }, []);
-
   return (
     <main
       className={styles.screen}
       style={{ "--scene-art": `url("${RASTER_ART.menu}")` } as React.CSSProperties}
       data-testid="campaign-archive-screen"
     >
+      <DocumentTitle title="Campaign Archive | Dynamica Command" />
       <MenuBackdrop />
       <div className={styles.vignette} />
       <div className={styles.scanlines} />
