@@ -87,14 +87,14 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
   await openBriefing(page);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();
   await expect(page.getByTestId("mission-objectives")).toContainText(/construction yard/i);
-  await expect(page.getByTestId("mission-objectives")).toContainText("9 min");
+  await expect(page.getByTestId("mission-objectives")).toContainText("12 min");
 
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
   await expect(page.getByTestId("seed")).toHaveText("Seed 0421");
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await expect(page.getByTestId("credits")).toBeVisible();
-  await expect(page.getByTestId("time-remaining")).toHaveText(/Time remaining 08:\d{2}/);
+  await expect(page.getByTestId("time-remaining")).toHaveText(/Time remaining 1[12]:\d{2}/);
 });
 
 test("opens the operations map and launches an available mission", async ({ page }) => {
@@ -107,7 +107,7 @@ test("opens the operations map and launches an available mission", async ({ page
   await page.getByTestId("mission-card-0").click();
   await expect(page.getByTestId("mission-detail")).toContainText("Secondary objectives");
   await expect(page.getByTestId("mission-detail")).toContainText("Time limit");
-  await expect(page.getByTestId("mission-detail")).toContainText("9 min");
+  await expect(page.getByTestId("mission-detail")).toContainText("12 min");
   await page.getByTestId("launch-selected-mission").click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
 });

@@ -4,9 +4,12 @@ import type { BuildingKind, MissionDef, MissionKind, SecondaryObjective, UnitKin
 import {
   CONVOY_STAGING_MINUTES,
   CONVOY_STAGING_TICKS,
+  DEADLINE_DURATION_MULT,
   formatMissionClockFromTicks,
   formatMissionMinutesFromTicks,
-  MAX_MISSION_MINUTES,
+  MAX_DEADLINE_MINUTES,
+  MIN_DEADLINE_MINUTES,
+  MIN_SABOTAGE_MINUTES,
   minutesToTicks,
   missionDurationMinutes,
 } from "./pacing";
@@ -22,10 +25,15 @@ function baseMissionDurationMinutes(seed: number, missionIndex: number, kind: Mi
   return missionDurationMinutes(missionIndex, rng.fork("duration"));
 }
 
+function clampDeadlineMinutes(minutes: number, minMinutes: number): number {
+  return Math.min(MAX_DEADLINE_MINUTES, Math.max(minMinutes, minutes));
+}
+
 function activeMissionDurationMinutes(kind: MissionKind, minutes: number): number {
-  if (kind === "escort" || kind === "rescue") return Math.max(6, minutes - 1);
-  if (kind === "sabotage") return Math.min(MAX_MISSION_MINUTES, Math.max(8, minutes + 3));
-  if (kind === "extraction") return Math.max(6, minutes);
+  const scaled = Math.round(minutes * DEADLINE_DURATION_MULT);
+  if (kind === "escort" || kind === "rescue") return clampDeadlineMinutes(scaled - 1, MIN_DEADLINE_MINUTES);
+  if (kind === "sabotage") return clampDeadlineMinutes(scaled + 3, MIN_SABOTAGE_MINUTES);
+  if (kind === "extraction") return clampDeadlineMinutes(scaled, MIN_DEADLINE_MINUTES);
   return minutes;
 }
 

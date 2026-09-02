@@ -5,7 +5,7 @@ import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../li
 import { formatHoldClock, inspect, objectiveProgress, evaluateObjectives } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
 import { generateWinCategory, missionDurationMinutesFor, missionTimeLimitClock, missionTimeLimitLabel, missionTimeLimitTicks, secondaryObjectivesForMissionSeed } from "../lib/gen/objectives";
-import { formatMissionClock, formatMissionClockFromTicks, minutesToTicks } from "../lib/gen/pacing";
+import { formatMissionClock, formatMissionClockFromTicks, MAX_OPERATION_TICKS, minutesToTicks } from "../lib/gen/pacing";
 import { missionObjectives } from "../lib/gen/story";
 
 describe("win categories", () => {
@@ -225,30 +225,44 @@ describe("generated mission pacing", () => {
         const minute = minutesToTicks(1);
         expect(mission.win.ticks % minute).toBe(0);
         expect((missionTimeLimitTicks(mission.win) ?? 0) % minute).toBe(0);
+        expect(missionTimeLimitTicks(mission.win) ?? 0).toBeLessThanOrEqual(MAX_OPERATION_TICKS);
         expect(duration).toBe((missionTimeLimitTicks(mission.win) ?? 0) / minute);
       }
     }
   });
 
-  it("gives sabotage missions an eight-to-twenty-minute operation window", () => {
+  it("gives sabotage missions a twelve-to-thirty-minute operation window", () => {
     const minute = minutesToTicks(1);
     for (let seed = 0; seed < 40; seed++) {
       for (let missionIndex = 0; missionIndex < 8; missionIndex++) {
         const win = generateWinCategory(seed, missionIndex, "sabotage");
-        expect(win.ticks! / minute).toBeGreaterThanOrEqual(8);
-        expect(win.ticks! / minute).toBeLessThanOrEqual(20);
+        expect(win.ticks! / minute).toBeGreaterThanOrEqual(12);
+        expect(win.ticks! / minute).toBeLessThanOrEqual(30);
       }
     }
 
-    expect(generateWinCategory(421, 0, "sabotage").ticks).toBe(minutesToTicks(9));
+    expect(generateWinCategory(421, 0, "sabotage").ticks).toBe(minutesToTicks(12));
+  });
+
+  it("gives escort, rescue, and extraction a ten-to-thirty-minute active window", () => {
+    const minute = minutesToTicks(1);
+    for (let seed = 0; seed < 40; seed++) {
+      for (let missionIndex = 0; missionIndex < 8; missionIndex++) {
+        for (const kind of ["escort", "rescue", "extraction"] as const) {
+          const minutes = generateWinCategory(seed, missionIndex, kind).ticks! / minute;
+          expect(minutes).toBeGreaterThanOrEqual(10);
+          expect(minutes).toBeLessThanOrEqual(30);
+        }
+      }
+    }
   });
 
   it("gives extraction missions a full rounded operation window", () => {
     const campaign = createCampaign(5);
     const extraction = campaign.missions[6]!;
     expect(extraction.win.kind).toBe("extraction");
-    expect(extraction.win.ticks).toBe(minutesToTicks(18));
-    expect(missionDurationMinutesFor(5, 6, "extraction")).toBe(18);
+    expect(extraction.win.ticks).toBe(minutesToTicks(27));
+    expect(missionDurationMinutesFor(5, 6, "extraction")).toBe(27);
   });
 });
 
@@ -309,7 +323,7 @@ describe("mission briefing objectives", () => {
     const campaign = createCampaign(421);
     const sabotage = campaign.missions.find((mission) => mission.win.kind === "sabotage");
     expect(sabotage).toBeDefined();
-    expect(missionObjectives(sabotage!, campaign)[0]?.text).toContain("within 9 min");
+    expect(missionObjectives(sabotage!, campaign)[0]?.text).toContain("within 12 min");
 
     const hold = campaign.missions.find((mission) => mission.win.kind === "holdTheLine");
     expect(hold).toBeDefined();

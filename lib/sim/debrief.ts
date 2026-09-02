@@ -1,5 +1,5 @@
 import { TICKS_PER_SECOND } from "../catalog";
-import { formatMissionMinutesFromTicks } from "../gen/pacing";
+import { formatMissionMinutesFromTicks, MAX_MISSION_TICKS } from "../gen/pacing";
 import { objectiveHeadline } from "../gen/story";
 import type { Owner, SimState } from "../types";
 import { objectiveProgress, secondaryProgress } from "./objectives";
@@ -37,15 +37,23 @@ export function missionMedals(state: SimState): number {
   return 1 + (allSecondaries ? 1 : 0) + (state.losses.units[0] === 0 ? 1 : 0);
 }
 
+const SPEED_BONUS_PER_SECOND = 10;
+
+/** Remaining-time bonus, scaled to a 20-minute window so longer casual clocks do not inflate scores. */
+function remainingTimeBonus(state: SimState): number {
+  const deadline = state.runtime?.deadline;
+  if (deadline === undefined || deadline <= 0) return 0;
+  const remaining = Math.max(0, deadline - state.tick);
+  const normalizedRemaining = remaining * MAX_MISSION_TICKS / deadline;
+  return Math.floor(Math.min(normalizedRemaining, MAX_MISSION_TICKS) / TICKS_PER_SECOND) * SPEED_BONUS_PER_SECOND;
+}
+
 export function missionScore(state: SimState): number {
   if (state.result !== "won") return 0;
   const completedSecondaries = secondaryProgress(state).filter((objective) => objective.completed).length;
-  const remaining = state.runtime?.deadline !== undefined
-    ? Math.max(0, state.runtime.deadline - state.tick)
-    : 0;
   return Math.max(
     0,
-    1000 + state.creditsEarned[0] + completedSecondaries * 250 + Math.floor(remaining / TICKS_PER_SECOND) * 10
+    1000 + state.creditsEarned[0] + completedSecondaries * 250 + remainingTimeBonus(state)
       - state.losses.units[0] * 100 - state.losses.buildings[0] * 200,
   );
 }
