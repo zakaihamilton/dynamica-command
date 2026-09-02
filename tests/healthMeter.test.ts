@@ -72,7 +72,7 @@ describe("drawUnitHealthMeter canvas rendering", () => {
     expect(ctx.fillRect).toHaveBeenCalledWith(89, 49, 22, 6); // frame
     expect(ctx.fillRect).toHaveBeenCalledWith(90, 50, 20, 4); // track
     expect(ctx.fillRect).toHaveBeenCalledWith(90, 50, 20, 4); // fill
-    expect(ctx.fillRect).toHaveBeenCalledWith(89, 50, 2, 4); // ally pip
+    expect(ctx.fillRect).toHaveBeenCalledWith(89, 50, 3, 4); // ally pip
   });
 
   it("renders proportional fill for damaged unit", () => {

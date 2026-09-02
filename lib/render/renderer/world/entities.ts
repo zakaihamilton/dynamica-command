@@ -180,19 +180,6 @@ export function renderEntityPhase(
       );
     }
 
-    if (e.class === "unit") {
-      drawUnitIffMarker(
-        ctx,
-        e.kind as UnitKind,
-        groundX,
-        groundY,
-        z,
-        entityAlpha,
-        e.owner,
-        e.neutral === true,
-      );
-    }
-
     const spriteReady = !spec.imageSrc || isRasterReady(spec);
     const spriteAlpha = entityAlpha;
     if (spriteReady && isExtractableUnit(state, e)) {
@@ -215,6 +202,19 @@ export function renderEntityPhase(
         timeMs,
         e.id,
         spriteAlpha,
+      );
+    }
+
+    if (e.class === "unit") {
+      drawUnitIffMarker(
+        ctx,
+        e.kind as UnitKind,
+        groundX,
+        groundY,
+        z,
+        entityAlpha,
+        e.owner,
+        e.neutral === true,
       );
     }
 

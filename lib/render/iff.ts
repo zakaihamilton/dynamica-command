@@ -22,20 +22,20 @@ const ALLY_IFF: IffColors = {
   hex: ALLY_IFF_HEX,
   laser: "rgba(70, 226, 255, 0.45)",
   laserFill: "rgba(70, 226, 255, 0.28)",
-  fill: "rgba(70, 226, 255, 0.16)",
-  stroke: "rgba(70, 226, 255, 0.72)",
+  fill: "rgba(70, 226, 255, 0.2)",
+  stroke: "rgba(90, 236, 255, 0.95)",
   pip: ALLY_IFF_HEX,
-  frame: "rgba(70, 226, 255, 0.9)",
+  frame: "rgba(70, 226, 255, 0.95)",
 };
 
 const ENEMY_IFF: IffColors = {
   hex: ENEMY_IFF_HEX,
   laser: "rgba(255, 77, 54, 0.45)",
   laserFill: "rgba(255, 77, 54, 0.28)",
-  fill: "rgba(255, 77, 54, 0.18)",
-  stroke: "rgba(255, 77, 54, 0.75)",
+  fill: "rgba(255, 90, 54, 0.24)",
+  stroke: "rgba(255, 96, 64, 0.98)",
   pip: ENEMY_IFF_HEX,
-  frame: "rgba(255, 77, 54, 0.9)",
+  frame: "rgba(255, 96, 64, 0.95)",
 };
 
 const NEUTRAL_IFF: IffColors = {
@@ -70,13 +70,13 @@ export function drawUnitIffMarker(
   const { radX, radY } = unitShadowRadii(kind, scale);
   ctx.save();
   ctx.beginPath();
-  ctx.ellipse(cx, groundY, radX * 1.08, radY * 1.12, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, groundY, radX * 1.42, radY * 1.48, 0, 0, Math.PI * 2);
   ctx.fillStyle = iff.fill;
-  ctx.globalAlpha = alpha * 0.4;
+  ctx.globalAlpha = alpha * 0.55;
   ctx.fill();
   ctx.strokeStyle = iff.stroke;
-  ctx.lineWidth = Math.max(1.25, 1.55 * scale);
-  ctx.globalAlpha = alpha * 0.85;
+  ctx.lineWidth = Math.max(2, 2.15 * scale);
+  ctx.globalAlpha = alpha * 0.95;
   ctx.stroke();
   ctx.restore();
 }

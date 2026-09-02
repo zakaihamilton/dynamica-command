@@ -65,7 +65,7 @@ describe("drawUnitIffMarker", () => {
     drawUnitIffMarker(ally, "tank", 40, 80, 1, 1, 0);
     drawUnitIffMarker(enemy, "tank", 40, 80, 1, 1, 1);
 
-    expect(ally.ellipse).toHaveBeenCalledWith(40, 80, radX * 1.08, radY * 1.12, 0, 0, Math.PI * 2);
+    expect(ally.ellipse).toHaveBeenCalledWith(40, 80, radX * 1.42, radY * 1.48, 0, 0, Math.PI * 2);
     expect(ally.strokes).toContain(iffColors(0).stroke);
     expect(ally.fills).toContain(iffColors(0).fill);
     expect(enemy.strokes).toContain(iffColors(1).stroke);

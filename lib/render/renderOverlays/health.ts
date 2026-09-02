@@ -30,7 +30,7 @@ export function drawUnitHealthMeter(
   const h = Math.max(3, Math.round(3.5 * z));
   const x = Math.round(centerX - w / 2);
   const y = Math.round(topY);
-  const pipW = Math.max(2, Math.round(2 * z));
+  const pipW = Math.max(3, Math.round(2.5 * z));
   const iff = iffColors(owner, neutral);
 
   ctx.save();
