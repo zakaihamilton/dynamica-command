@@ -462,8 +462,9 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
             }
           }
           const px = col * ATLAS_CELL + lx;
-          const grainScale = same === CONCRETE_CELL_CLASS ? 5 : same === WATER_CELL_CLASS ? 3 : 16;
-          const grain = (hash2(px, py, salt) - 0.5) * grainScale;
+          const grainScale = same === CONCRETE_CELL_CLASS ? 5 : same === WATER_CELL_CLASS ? 3 : same === GROUND_CELL_CLASS ? 22 : 16;
+          let grain = (hash2(px, py, salt) - 0.5) * grainScale;
+          if (same === GROUND_CELL_CLASS) grain += (hash2(px, py, salt + 91) - 0.5) * 7;
           const o = (py * width + px) * 4;
           if (same === WATER_CELL_CLASS) {
             data[o] = clampByte(r + grain * 0.35);

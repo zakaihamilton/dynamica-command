@@ -13,6 +13,8 @@ function createMockCtx(): CanvasRenderingContext2D {
     fillStyle: "",
     strokeStyle: "",
     lineWidth: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -41,7 +43,7 @@ describe("cliff canvas painting", () => {
     const ctx = createMockCtx();
     drawElevationFaces(ctx, 100, 50, 64, 32, 16, 2, 2, 421, cliffFaces("ash plains", 3), 4, 7);
 
-    expect(ctx.fill).toHaveBeenCalledTimes(6);
+    expect(ctx.fill).toHaveBeenCalledTimes(8);
     expect(ctx.stroke).toHaveBeenCalled();
     expect(ctx.beginPath).toHaveBeenCalled();
   });

@@ -7,6 +7,8 @@ import {
   ARID_SCATTER,
   LUSH_SCATTER,
   blockerPropKind,
+  drawBlockerProp,
+  drawTerrainScatter,
   scatterForTile,
   withAlpha,
 } from "../lib/render/terrainPaint";
@@ -755,6 +757,12 @@ describe("biome ground patches", () => {
       .toEqual(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle));
     expect(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle))
       .not.toEqual(applyBiomeGroundPattern(desert.mid, "glass desert", 5.25, 5.25, 41, desert));
+    const jungleMarks = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      const sample = applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5 + i * 0.08, 5.2, 41, jungle);
+      jungleMarks.add(`${sample.r|0},${sample.g|0},${sample.b|0}`);
+    }
+    expect(jungleMarks.size).toBeGreaterThan(1);
   });
 
   it("varies open ground across tiles and biomes while leaving water and pads alone", () => {
@@ -799,6 +807,73 @@ describe("tile sprite blockers", () => {
     expect(jungle.shapes).not.toEqual(desert.shapes);
     expect(tundra.shapes).not.toEqual(jungle.shapes);
     expect(tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes).toEqual(jungle.shapes);
+    expect(jungle.shapes.length).toBeGreaterThan(6);
+    expect(desert.shapes.length).toBeGreaterThan(6);
+  });
+});
+
+function createPaintMock() {
+  const ops: string[] = [];
+  const stack: number[] = [];
+  let alpha = 1;
+  const ctx = {
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
+    get globalAlpha() { return alpha; },
+    set globalAlpha(value: number) { alpha = value; },
+    save() { stack.push(alpha); },
+    restore() { alpha = stack.pop() ?? 1; },
+    translate() {},
+    beginPath() {},
+    moveTo() {},
+    lineTo() {},
+    quadraticCurveTo() {},
+    closePath() {},
+    fill() { ops.push(`fill:${ctx.fillStyle}`); },
+    stroke() { ops.push(`stroke:${ctx.strokeStyle}`); },
+    ellipse() {},
+  };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, ops };
+}
+
+describe("terrain adornment painting", () => {
+  it("paints layered scatter and blocker props deterministically", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    let scatterTile = { x: 0, y: 0 };
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        if (scatterForTile(state, x, y).length > 0) {
+          scatterTile = { x, y };
+          break;
+        }
+      }
+    }
+    const scatterA = createPaintMock();
+    drawTerrainScatter(scatterA.ctx, state, scatterTile.x, scatterTile.y, 40, 40, 1);
+    const scatterB = createPaintMock();
+    drawTerrainScatter(scatterB.ctx, state, scatterTile.x, scatterTile.y, 40, 40, 1);
+    expect(scatterA.ops.length).toBeGreaterThan(4);
+    expect(scatterB.ops).toEqual(scatterA.ops);
+
+    const jungle = { ...state, biome: "jungle wreckage" as BiomeName };
+    const desert = { ...state, biome: "glass desert" as BiomeName };
+    const tundra = { ...state, biome: "tundra grid" as BiomeName };
+    const junglePaint = createPaintMock();
+    const desertPaint = createPaintMock();
+    const tundraPaint = createPaintMock();
+    drawBlockerProp(junglePaint.ctx, jungle, 4, 4, 40, 40, 1);
+    drawBlockerProp(desertPaint.ctx, desert, 4, 4, 40, 40, 1);
+    drawBlockerProp(tundraPaint.ctx, tundra, 4, 4, 40, 40, 1);
+    expect(junglePaint.ops.length).toBeGreaterThan(6);
+    expect(desertPaint.ops.length).toBeGreaterThan(6);
+    expect(tundraPaint.ops.length).toBeGreaterThan(6);
+    expect(junglePaint.ops).not.toEqual(desertPaint.ops);
+    const jungleAgain = createPaintMock();
+    drawBlockerProp(jungleAgain.ctx, jungle, 4, 4, 40, 40, 1);
+    expect(jungleAgain.ops).toEqual(junglePaint.ops);
   });
 });
 
