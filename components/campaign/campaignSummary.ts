@@ -12,6 +12,21 @@ export function campaignSummary(campaign: Campaign, progress: CampaignProgress) 
   };
 }
 
+export function campaignScaleLabel(campaign: Campaign): string {
+  const sizes = [...new Set(campaign.missions.map((mission) => mission.mapSize))];
+  return `${campaign.missions.length} operations · maps ${sizes.join(" → ")} · opposition escalates`;
+}
+
+export function theaterArchiveLabel(campaign: Campaign, progress: CampaignProgress): string {
+  const summary = campaignSummary(campaign, progress);
+  const total = campaign.missions.length;
+  if (summary.isComplete) return `Campaign complete · ${summary.completed}/${total} operations`;
+  if (summary.completed > 0) {
+    return `${summary.completed}/${total} operations complete · Launch opens operation 1`;
+  }
+  return "Unrecorded on this device";
+}
+
 export function missionMedalDisplay(medals: number) {
   return `${"★".repeat(medals)}${"☆".repeat(Math.max(0, 3 - medals))}`;
 }

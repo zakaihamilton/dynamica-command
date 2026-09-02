@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { campaignSummary } from "@/components/campaign/campaignSummary";
+import { campaignScaleLabel, theaterArchiveLabel } from "@/components/campaign/campaignSummary";
 import { useCampaignProgress } from "@/components/campaign/useCampaignProgress";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { biomeLabel, characterLabel } from "@/lib/gen/names";
@@ -18,7 +18,7 @@ export function TheaterDossier({ campaign }: { campaign: Campaign | null }) {
       <aside className={cx(styles.dossier, styles.empty)} data-testid="theater-dossier">
         <ConsoleLabel>Theater dossier</ConsoleLabel>
         <p className={styles.awaiting}>Awaiting a 4-digit theater code</p>
-        <p className={styles.awaitingHint}>Roll a fresh theater or enter a known code to authorize this war.</p>
+        <p className={styles.awaitingHint}>Enter all four digits to preview this theater.</p>
       </aside>
     );
   }
@@ -28,12 +28,8 @@ export function TheaterDossier({ campaign }: { campaign: Campaign | null }) {
 
 function TheaterDossierLive({ campaign }: { campaign: Campaign }) {
   const progress = useCampaignProgress(campaign.seedNumber);
-  const summary = campaignSummary(campaign, progress);
-  const archive = summary.isComplete
-    ? `Campaign complete · ${summary.completed}/8 operations`
-    : summary.completed > 0
-      ? `${summary.completed}/8 operations complete`
-      : "Unrecorded on this device";
+  const archive = theaterArchiveLabel(campaign, progress);
+  const scale = campaignScaleLabel(campaign);
 
   return (
     <aside className={styles.dossier} data-testid="theater-dossier">
@@ -59,16 +55,16 @@ function TheaterDossierLive({ campaign }: { campaign: Campaign }) {
 
       <section className={styles.section} aria-labelledby="theater-staff">
         <ConsoleLabel as="h4" id="theater-staff">Command staff</ConsoleLabel>
-        <ul className={styles.staff} aria-label="Command staff">
+        <ul className={styles.staff}>
           <StaffRow channel="Command" who={campaign.characters.commander} />
           <StaffRow channel="Advisor" who={campaign.characters.advisor} />
-          <StaffRow channel="Hostile" who={campaign.characters.enemyLeader} />
+          <StaffRow channel="Enemy" who={campaign.characters.enemyLeader} />
         </ul>
       </section>
 
       <section className={styles.section} aria-labelledby="theater-ops">
         <ConsoleLabel as="h4" id="theater-ops">Operation slate</ConsoleLabel>
-        <ol className={styles.slate} aria-label="Eight operations">
+        <ol className={styles.slate} aria-label={`${campaign.missions.length} operations`}>
           {campaign.missions.map((mission) => (
             <li
               key={mission.index}
@@ -92,7 +88,7 @@ function TheaterDossierLive({ campaign }: { campaign: Campaign }) {
       <footer className={styles.readout}>
         <div>
           <span>Campaign scale</span>
-          <strong>8 operations · maps 48 → 72 → 96 · opposition escalates</strong>
+          <strong>{scale}</strong>
         </div>
         <div>
           <span>Local archive</span>
@@ -108,7 +104,6 @@ function FactionCard({ faction, side }: { faction: Faction; side: "Allied" | "Ho
     <div className={styles.faction} data-side={side.toLowerCase()}>
       <span className={styles.factionSide}>{side}</span>
       <strong className={styles.factionName}>{faction.name}</strong>
-      <span className={styles.factionAdj}>{faction.adjective}</span>
       <span className={styles.swatches} aria-hidden="true">
         <span style={{ background: faction.palette.primary }} />
         <span style={{ background: faction.palette.accent }} />

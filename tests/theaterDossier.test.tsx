@@ -6,6 +6,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NewGameSetup } from "../components/menu/NewGameSetup";
 import { TheaterDossier } from "../components/menu/TheaterDossier";
+import { campaignScaleLabel } from "../components/campaign/campaignSummary";
 import { createCampaign } from "../lib/gen/campaign";
 import { characterLabel } from "../lib/gen/names";
 import { completeMission, freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
@@ -31,25 +32,27 @@ describe("TheaterDossier", () => {
     expect(dossier).toHaveTextContent(characterLabel(campaign.characters.commander));
     expect(dossier).toHaveTextContent(characterLabel(campaign.characters.advisor));
     expect(dossier).toHaveTextContent(characterLabel(campaign.characters.enemyLeader));
-    expect(screen.getByRole("list", { name: "Eight operations" }).querySelectorAll("li")).toHaveLength(8);
+    expect(screen.getByText("Enemy")).toBeVisible();
+    expect(screen.getByRole("list", { name: `${campaign.missions.length} operations` }).querySelectorAll("li")).toHaveLength(campaign.missions.length);
     for (const mission of campaign.missions) {
       expect(dossier).toHaveTextContent(mission.name);
     }
-    expect(dossier).toHaveTextContent("8 operations · maps 48 → 72 → 96 · opposition escalates");
+    expect(dossier).toHaveTextContent(campaignScaleLabel(campaign));
     expect(dossier).toHaveTextContent("Unrecorded on this device");
   });
 
   it("shows an empty state without a theater code", () => {
     render(<TheaterDossier campaign={null} />);
     expect(screen.getByText("Awaiting a 4-digit theater code")).toBeVisible();
-    expect(screen.queryByRole("list", { name: "Eight operations" })).toBeNull();
+    expect(screen.getByText("Enter all four digits to preview this theater.")).toBeVisible();
+    expect(screen.queryByRole("list", { name: "8 operations" })).toBeNull();
   });
 
   it("reports local archive progress for a started campaign", () => {
     const progress = completeMission(completeMission(freshCampaignProgress(421), 0, 2, 400), 1, 1, 200);
     writeCampaignProgress(localStorageAdapter(), progress);
     render(<TheaterDossier campaign={createCampaign(421)} />);
-    expect(screen.getByText("2/8 operations complete")).toBeVisible();
+    expect(screen.getByText("2/8 operations complete · Launch opens operation 1")).toBeVisible();
   });
 
   it("reports a completed campaign archive", () => {
@@ -83,5 +86,6 @@ describe("NewGameSetup dossier", () => {
     expect(screen.getByRole("button", { name: "Launch" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Roll" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
+    expect(screen.getByLabelText("Four digit theater seed")).toHaveFocus();
   });
 });

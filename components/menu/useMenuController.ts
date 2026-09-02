@@ -27,7 +27,7 @@ export function useMenuController() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  const preview = useMemo(() => {
+  const campaign = useMemo(() => {
     const seed = parseSeed(code);
     if (seed === null || code.length < 4) return null;
     return createCampaign(seed);
@@ -87,7 +87,7 @@ export function useMenuController() {
     view,
     settings,
     inputRef,
-    campaign: preview,
+    campaign,
     openNewGame,
     openTutorial,
     openLoadMission,

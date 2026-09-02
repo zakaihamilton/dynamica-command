@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campaignSummary, missionMedalDisplay } from "../components/campaign/campaignSummary";
+import { campaignScaleLabel, campaignSummary, missionMedalDisplay, theaterArchiveLabel } from "../components/campaign/campaignSummary";
 import { mobileCommandLabel } from "../components/game/MobileTouchControls";
 import { contextOrders, isContactTarget, mobileCommandOrders } from "../components/game/hooks/gameInputOrders";
 import { menuLaunchPath } from "../components/menu/menuLaunch";
@@ -24,6 +24,12 @@ describe("campaign summary policy", () => {
 
     expect(summary).toMatchObject({ completed: 2, totalMedals: 5, possibleMedals: 24, isComplete: false });
     expect(missionMedalDisplay(2)).toBe("★★☆");
+    expect(campaignScaleLabel(campaign)).toBe("8 operations · maps 48 → 72 → 96 · opposition escalates");
+    expect(theaterArchiveLabel(campaign, progress)).toBe("2/8 operations complete · Launch opens operation 1");
+    expect(theaterArchiveLabel(campaign, freshCampaignProgress(421))).toBe("Unrecorded on this device");
+    expect(theaterArchiveLabel(campaign, { ...progress, completedMissions: [0, 1, 2, 3, 4, 5, 6, 7] })).toBe(
+      "Campaign complete · 8/8 operations",
+    );
   });
 });
 

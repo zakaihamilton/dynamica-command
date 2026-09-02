@@ -60,6 +60,7 @@
 
 .worldName {
   margin: 0.45rem 0 0;
+  overflow-wrap: anywhere;
   color: var(--chrome-text);
   font-family: var(--font-display);
   font-size: clamp(1.55rem, 2.6vw, 2.15rem);
@@ -137,13 +138,6 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1.15;
-  text-transform: uppercase;
-}
-
-.factionAdj {
-  color: var(--chrome-muted);
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 

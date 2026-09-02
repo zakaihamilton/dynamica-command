@@ -1,7 +1,10 @@
+"use client";
+
 import type { RefObject } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { useModalFocus } from "@/components/ui/useModalFocus";
 import type { Campaign } from "@/lib/types";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import { SeedEntry } from "./SeedEntry";
@@ -27,8 +30,18 @@ export function NewGameSetup({
   onLaunch: () => void;
   onBack: () => void;
 }) {
+  const dialogRef = useModalFocus(true, "new-game", "first");
+
   return (
-    <MetalPanel as="section" className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title" data-testid="deploy-screen">
+    <MetalPanel
+      ref={dialogRef}
+      as="section"
+      className={styles.dialog}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-game-title"
+      data-testid="deploy-screen"
+    >
       <div className={styles.control}>
         <ConsoleLabel>Dynamica command // Theater authorization</ConsoleLabel>
         <h2 id="new-game-title" className={styles.title}>New theater</h2>
