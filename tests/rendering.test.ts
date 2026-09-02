@@ -8,6 +8,7 @@ import {
   LUSH_SCATTER,
   blockerPropKind,
   scatterForTile,
+  withAlpha,
 } from "../lib/render/terrainPaint";
 import { generateMap } from "../lib/gen/map";
 import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../lib/iso";
@@ -546,5 +547,26 @@ describe("terrain scatter artifacts", () => {
     const skirt = scatterForTile(state, -1, 2);
     expect(scatterForTile(state, -1, 2)).toEqual(skirt);
     expect(skirt.length).toBeLessThanOrEqual(3);
+  });
+
+  it("honors an explicit tile kind so callers can reuse scenery samples", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    expect(scatterForTile(state, 0, 0, TILE_WATER)).toEqual([]);
+    expect(scatterForTile(state, 0, 0, TILE_BLOCKED)).toEqual([]);
+  });
+
+  it("multiplies parent canvas alpha instead of resetting it", () => {
+    const stack: number[] = [];
+    let alpha = 0.4;
+    const ctx = {
+      get globalAlpha() { return alpha; },
+      set globalAlpha(value: number) { alpha = value; },
+      save() { stack.push(alpha); },
+      restore() { alpha = stack.pop() ?? 1; },
+    } as CanvasRenderingContext2D;
+    withAlpha(ctx, 0.5, () => {
+      expect(alpha).toBeCloseTo(0.2);
+    });
+    expect(alpha).toBe(0.4);
   });
 });

@@ -10,7 +10,8 @@ import {
   TILE_WATER,
 } from "../../types";
 import { biomeMaterials, tileVariant } from "../terrainAtlas";
-import type { BiomeMaterials, Rgb } from "../terrainMaterials";
+import type { BiomeMaterials } from "../terrainMaterials";
+import { mixRgb, rgbOf, withAlpha } from "./style";
 
 export type ScatterKind =
   | "pebble"
@@ -57,7 +58,7 @@ export const LUSH_SCATTER: ReadonlySet<ScatterKind> = new Set(["tuft", "shrub", 
 export const ARID_SCATTER: ReadonlySet<ScatterKind> = new Set(["pebble", "pebbleCluster", "debris", "cinder"]);
 
 const POOLS: Record<BiomeName, ScatterKind[]> = {
-  "jungle wreckage": ["tuft", "shrub", "shrub", "shrub", "tuft", "reed", "pebble"],
+  "jungle wreckage": ["tuft", "tuft", "shrub", "reed", "pebble", "tuft", "pebble"],
   "salt marshes": ["tuft", "reed", "reed", "shrub", "shrub", "pebble"],
   "ash plains": ["pebble", "pebble", "tuft", "pebbleCluster", "tuft"],
   "crystal flats": ["crystalChip", "crystalChip", "pebble", "pebbleCluster"],
@@ -125,18 +126,22 @@ function roadItems(v: number): ScatterItem[] {
   }];
 }
 
-export function scatterForTile(state: ScatterWorld, x: number, y: number): ScatterItem[] {
+export function scatterForTile(
+  state: ScatterWorld,
+  x: number,
+  y: number,
+  tileKind?: number,
+  surface?: SurfaceKind,
+): ScatterItem[] {
   const v = tileVariant(state.seed, x, y);
-  if (x >= 0 && y >= 0 && x < state.width && y < state.height) {
-    const i = y * state.width + x;
-    const tile = state.tiles[i] ?? TILE_CLEAR;
-    const surface = state.surfaces[i] ?? 0;
-    if (tile === TILE_WATER || tile === TILE_RESOURCE || tile === TILE_BLOCKED) return [];
-    if (surface === SURFACE_CONCRETE) return [];
-    if (surface === SURFACE_ROAD) return roadItems(v);
-    return groundItems(state.biome, v);
-  }
-  if (sceneryAt(state, x, y).kind !== TILE_CLEAR) return [];
+  const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
+  const tile = tileKind ?? (
+    inMap ? (state.tiles[y * state.width + x] ?? TILE_CLEAR) : sceneryAt(state, x, y).kind
+  );
+  const surf = surface ?? (inMap ? (state.surfaces[y * state.width + x] ?? 0) : 0);
+  if (tile === TILE_WATER || tile === TILE_RESOURCE || tile === TILE_BLOCKED) return [];
+  if (surf === SURFACE_CONCRETE) return [];
+  if (surf === SURFACE_ROAD) return roadItems(v);
   return groundItems(state.biome, v);
 }
 
@@ -160,19 +165,6 @@ export function blockerPropKind(biome: BiomeName, variant: number): BlockerPropK
     default:
       return roll === 0 ? "deadTree" : "boulder";
   }
-}
-
-function rgbOf(c: Rgb): string {
-  return `rgb(${c.r},${c.g},${c.b})`;
-}
-
-function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
-  const u = t < 0 ? 0 : t > 1 ? 1 : t;
-  return {
-    r: Math.round(a.r + (b.r - a.r) * u),
-    g: Math.round(a.g + (b.g - a.g) * u),
-    b: Math.round(a.b + (b.b - a.b) * u),
-  };
 }
 
 function shadow(ctx: CanvasRenderingContext2D, z: number, rx: number, ry: number, dy = 5): void {
@@ -203,12 +195,12 @@ function drawPebble(
   ctx.lineTo(-4.0 * s, 2.8 * s);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = rgbOf(hi);
-  ctx.globalAlpha = 0.45;
-  ctx.beginPath();
-  ctx.ellipse(-0.6 * s, -1.2 * s, 2.2 * s, 1.1 * s, -0.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  withAlpha(ctx, 0.45, () => {
+    ctx.fillStyle = rgbOf(hi);
+    ctx.beginPath();
+    ctx.ellipse(-0.6 * s, -1.2 * s, 2.2 * s, 1.1 * s, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+  });
 }
 
 function drawPebbleCluster(
@@ -241,12 +233,12 @@ function drawTuft(
   shadow(ctx, s, 5.4, 1.7, 2.4);
   ctx.lineCap = "round";
   for (let i = 0; i < blades; i++) {
-    const lean = ((i - (blades - 1) / 2) * 2.1 + ((variant >> i) % 3 - 1) * 0.55) * s;
+    const lean = ((i - (blades - 1) / 2) * 1.7 + ((variant >>> i) % 3 - 1) * 0.45) * s;
     ctx.strokeStyle = i === 1 ? rgbOf(tip) : rgbOf(stem);
-    ctx.lineWidth = Math.max(0.9, 1.25 * s);
+    ctx.lineWidth = Math.max(0.85, 1.05 * s);
     ctx.beginPath();
-    ctx.moveTo(i * 0.55 * s, 2.2 * s);
-    ctx.lineTo(lean, -6.2 * s - (i % 2) * 1.4 * s);
+    ctx.moveTo(i * 0.45 * s, 1.8 * s);
+    ctx.lineTo(lean, -4.8 * s - (i % 2) * 1.1 * s);
     ctx.stroke();
   }
 }
@@ -262,22 +254,22 @@ function drawShrub(
   const dark = mixRgb(mats.high, mats.blocked, 0.32);
   const mid = mixRgb(mats.high, mats.light, 0.35);
   const hi = mats.light;
-  shadow(ctx, s, 8.2, 2.6, 3.2);
+  shadow(ctx, s, 5.8, 1.9, 2.4);
   ctx.fillStyle = rgbOf(dark);
   ctx.beginPath();
-  ctx.ellipse(-2.4 * s, -4.4 * s, 8.4 * s, 5.4 * s, 0, 0, Math.PI * 2);
+  ctx.ellipse(-1.8 * s, -2.4 * s, 5.6 * s, 3.2 * s, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = rgbOf(mid);
   ctx.beginPath();
-  ctx.ellipse(2.8 * s, -5.4 * s, 6.8 * s, 4.6 * s, 0.15, 0, Math.PI * 2);
+  ctx.ellipse(2.0 * s, -3.0 * s, 4.4 * s, 2.6 * s, 0.15, 0, Math.PI * 2);
   ctx.fill();
   if (variant % 2 === 0) {
-    ctx.fillStyle = rgbOf(hi);
-    ctx.globalAlpha = 0.5;
-    ctx.beginPath();
-    ctx.ellipse(0.8 * s, -6.6 * s, 3.4 * s, 2.2 * s, -0.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    withAlpha(ctx, 0.5, () => {
+      ctx.fillStyle = rgbOf(hi);
+      ctx.beginPath();
+      ctx.ellipse(0.6 * s, -3.8 * s, 2.2 * s, 1.4 * s, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 }
 
@@ -333,14 +325,14 @@ function drawCrystalChip(
   ctx.fillStyle = rgbOf(dark);
   ctx.beginPath();
   ctx.moveTo(-2.6 * s, 1.8 * s);
-  ctx.lineTo(lean, -7.2 * s);
+  ctx.lineTo(lean, -4.6 * s);
   ctx.lineTo(2.8 * s, 1.5 * s);
   ctx.closePath();
   ctx.fill();
   ctx.fillStyle = rgbOf(gem);
   ctx.beginPath();
   ctx.moveTo(-0.6 * s, 0.9 * s);
-  ctx.lineTo(lean * 0.6, -6.6 * s);
+  ctx.lineTo(lean * 0.6, -4.2 * s);
   ctx.lineTo(1.8 * s, 0.6 * s);
   ctx.closePath();
   ctx.fill();
@@ -365,7 +357,7 @@ function drawReed(
     ctx.lineWidth = Math.max(0.85, 1.05 * s);
     ctx.beginPath();
     ctx.moveTo(x, 2.4 * s);
-    ctx.lineTo(x + ((variant >> i) % 3 - 1) * 0.7 * s, -7.4 * s - (i % 2) * 1.4 * s);
+    ctx.lineTo(x + ((variant >>> i) % 3 - 1) * 0.55 * s, -5.0 * s - (i % 2) * 1.0 * s);
     ctx.stroke();
   }
 }
@@ -386,12 +378,12 @@ function drawCinder(
   ctx.ellipse(0, 0.5 * s, 4.0 * s, 2.1 * s, 0, 0, Math.PI * 2);
   ctx.fill();
   if (variant % 3 !== 0) {
-    ctx.fillStyle = rgbOf(ember);
-    ctx.globalAlpha = 0.7;
-    ctx.beginPath();
-    ctx.ellipse(0.5 * s, -0.3 * s, 1.7 * s, 1.05 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    withAlpha(ctx, 0.7, () => {
+      ctx.fillStyle = rgbOf(ember);
+      ctx.beginPath();
+      ctx.ellipse(0.5 * s, -0.3 * s, 1.7 * s, 1.05 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 }
 
@@ -480,8 +472,10 @@ export function drawTerrainScatter(
   sx: number,
   sy: number,
   z: number,
+  tileKind?: number,
+  surface?: SurfaceKind,
 ): void {
-  const items = scatterForTile(state, x, y);
+  const items = scatterForTile(state, x, y, tileKind, surface);
   if (items.length === 0) return;
   const mats = biomeMaterials(state.biome);
   ctx.save();

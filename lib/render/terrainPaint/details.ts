@@ -2,9 +2,10 @@ import { TILE_H } from "../../iso";
 import type { SimState } from "../../types";
 import { fogAt } from "../../sim/fog";
 import { biomeMaterials, fogTerrainGain, oreCrystalCluster, tileVariant } from "../terrainAtlas";
-import type { BiomeMaterials, Rgb } from "../terrainMaterials";
+import type { BiomeMaterials } from "../terrainMaterials";
 import { tileToScreen, type Camera } from "../../iso";
 import { blockerPropKind, type BlockerPropKind } from "./scatter";
+import { mixRgb, rgbOf, withAlpha } from "./style";
 
 export function smoothFogGain(state: SimState, x: number, y: number): number {
   let sum = 0;
@@ -18,20 +19,7 @@ export function smoothFogGain(state: SimState, x: number, y: number): number {
   return sum / count;
 }
 
-function rgbOf(c: Rgb): string {
-  return `rgb(${c.r},${c.g},${c.b})`;
-}
-
-function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
-  const u = t < 0 ? 0 : t > 1 ? 1 : t;
-  return {
-    r: Math.round(a.r + (b.r - a.r) * u),
-    g: Math.round(a.g + (b.g - a.g) * u),
-    b: Math.round(a.b + (b.b - a.b) * u),
-  };
-}
-
-function liftGreen(c: Rgb, amount: number): Rgb {
+function liftGreen(c: { r: number; g: number; b: number }, amount: number): { r: number; g: number; b: number } {
   return { r: c.r, g: Math.min(255, c.g + amount), b: c.b };
 }
 
@@ -68,16 +56,16 @@ function drawBoulder(
   ctx.lineTo(-9 * z, 5 * z);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = rgbOf(snowCap ? mixRgb(mats.light, { r: 236, g: 244, b: 246 }, 0.55) : mats.light);
-  ctx.globalAlpha = snowCap ? 0.82 : 0.55;
-  ctx.beginPath();
-  ctx.moveTo(-3 * z, -11 * z);
-  ctx.lineTo(12 * z, -1 * z);
-  ctx.lineTo(4 * z, 1 * z);
-  ctx.lineTo(-7 * z, -6 * z);
-  ctx.closePath();
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  withAlpha(ctx, snowCap ? 0.82 : 0.55, () => {
+    ctx.fillStyle = rgbOf(snowCap ? mixRgb(mats.light, { r: 236, g: 244, b: 246 }, 0.55) : mats.light);
+    ctx.beginPath();
+    ctx.moveTo(-3 * z, -11 * z);
+    ctx.lineTo(12 * z, -1 * z);
+    ctx.lineTo(4 * z, 1 * z);
+    ctx.lineTo(-7 * z, -6 * z);
+    ctx.closePath();
+    ctx.fill();
+  });
 }
 
 function drawCanopyTree(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
@@ -101,12 +89,12 @@ function drawCanopyTree(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: 
   ctx.beginPath();
   ctx.ellipse(5 * z + lean, -21 * z, 13 * z, 8.6 * z, 0.12, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = rgbOf(hi);
-  ctx.globalAlpha = 0.5;
-  ctx.beginPath();
-  ctx.ellipse(2 * z + lean, -24 * z, 7.2 * z, 4.4 * z, -0.2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  withAlpha(ctx, 0.5, () => {
+    ctx.fillStyle = rgbOf(hi);
+    ctx.beginPath();
+    ctx.ellipse(2 * z + lean, -24 * z, 7.2 * z, 4.4 * z, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+  });
 }
 
 function drawPine(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
@@ -164,7 +152,7 @@ function drawCrystalOutcrop(ctx: CanvasRenderingContext2D, mats: BiomeMaterials,
   ];
   for (let i = 0; i < shards.length; i++) {
     const shard = shards[i]!;
-    const twist = ((v >> (i * 2)) % 5 - 2) * 0.4;
+    const twist = ((v >>> (i * 2)) % 5 - 2) * 0.4;
     ctx.fillStyle = rgbOf(i === 1 ? gem : dark);
     ctx.beginPath();
     ctx.moveTo((shard.lean - shard.half) * z, 3 * z);
@@ -173,15 +161,15 @@ function drawCrystalOutcrop(ctx: CanvasRenderingContext2D, mats: BiomeMaterials,
     ctx.closePath();
     ctx.fill();
   }
-  ctx.fillStyle = rgbOf(mixRgb(gem, { r: 230, g: 255, b: 248 }, 0.4));
-  ctx.globalAlpha = 0.45;
-  ctx.beginPath();
-  ctx.moveTo(1 * z, -2 * z);
-  ctx.lineTo(2 * z, -16 * z);
-  ctx.lineTo(4.5 * z, -1 * z);
-  ctx.closePath();
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  withAlpha(ctx, 0.45, () => {
+    ctx.fillStyle = rgbOf(mixRgb(gem, { r: 230, g: 255, b: 248 }, 0.4));
+    ctx.beginPath();
+    ctx.moveTo(1 * z, -2 * z);
+    ctx.lineTo(2 * z, -16 * z);
+    ctx.lineTo(4.5 * z, -1 * z);
+    ctx.closePath();
+    ctx.fill();
+  });
 }
 
 function drawWreckage(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
@@ -226,25 +214,25 @@ function drawSpire(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: numbe
   ctx.lineTo(-4 * z, 7 * z);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = rgbOf(glow);
-  ctx.globalAlpha = 0.55;
-  ctx.beginPath();
-  ctx.moveTo(-1 * z, 2 * z);
-  ctx.lineTo(-1.4 * z, -14 * z);
-  ctx.lineTo(1.6 * z, -6 * z);
-  ctx.closePath();
-  ctx.fill();
-  ctx.globalAlpha = 1;
-  if (v % 2 === 0) {
-    ctx.fillStyle = rgbOf(mats.light);
-    ctx.globalAlpha = 0.28;
+  withAlpha(ctx, 0.55, () => {
+    ctx.fillStyle = rgbOf(glow);
     ctx.beginPath();
-    ctx.moveTo(-2 * z, -10 * z);
-    ctx.lineTo(-2 * z, -16 * z);
-    ctx.lineTo(0.6 * z, -11 * z);
+    ctx.moveTo(-1 * z, 2 * z);
+    ctx.lineTo(-1.4 * z, -14 * z);
+    ctx.lineTo(1.6 * z, -6 * z);
     ctx.closePath();
     ctx.fill();
-    ctx.globalAlpha = 1;
+  });
+  if (v % 2 === 0) {
+    withAlpha(ctx, 0.28, () => {
+      ctx.fillStyle = rgbOf(mats.light);
+      ctx.beginPath();
+      ctx.moveTo(-2 * z, -10 * z);
+      ctx.lineTo(-2 * z, -16 * z);
+      ctx.lineTo(0.6 * z, -11 * z);
+      ctx.closePath();
+      ctx.fill();
+    });
   }
 }
 
@@ -268,15 +256,15 @@ function drawDeadShrub(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: n
   ctx.moveTo(0, -6 * z);
   ctx.lineTo(2 * z, -12 * z);
   ctx.stroke();
-  ctx.fillStyle = rgbOf(dust);
-  ctx.globalAlpha = 0.55;
-  ctx.beginPath();
-  ctx.ellipse(-4 * z, -7 * z, 3.2 * z, 1.6 * z, -0.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(4.2 * z, -8 * z, 2.8 * z, 1.4 * z, 0.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  withAlpha(ctx, 0.55, () => {
+    ctx.fillStyle = rgbOf(dust);
+    ctx.beginPath();
+    ctx.ellipse(-4 * z, -7 * z, 3.2 * z, 1.6 * z, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(4.2 * z, -8 * z, 2.8 * z, 1.4 * z, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  });
 }
 
 function paintBlocker(
@@ -347,8 +335,7 @@ export function rgbMix(
   b: { r: number; g: number; b: number },
   t: number,
 ): string {
-  const u = t < 0 ? 0 : t > 1 ? 1 : t;
-  return `rgb(${Math.round(a.r + (b.r - a.r) * u)},${Math.round(a.g + (b.g - a.g) * u)},${Math.round(a.b + (b.b - a.b) * u)})`;
+  return rgbOf(mixRgb(a, b, t));
 }
 
 export function drawOreCrystals(
