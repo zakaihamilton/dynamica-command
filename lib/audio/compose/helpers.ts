@@ -38,14 +38,14 @@ export function musicLabel(cue: MusicCue, missionIndex: number): string {
 export function bpmFor(cue: MusicCue, roll: number, missionIndex: number, style?: MusicStyleProfile): number {
   const mission = Math.max(0, missionIndex);
   const [min, max, base] = cue === "menu"
-    ? [112, 124, 112 + (roll % 13)]
+    ? [118, 130, 118 + (roll % 13)]
     : cue === "briefing"
-      ? [104, 116, 104 + (roll % 13)]
+      ? [108, 122, 108 + (roll % 15)]
       : cue === "mission"
-        ? [110, 134, 118 + ((roll + mission) % 11)]
+        ? [124, 144, 130 + ((roll + mission) % 11)]
         : cue === "victory"
-          ? [124, 132, 124 + (roll % 9)]
-          : [88, 98, 88 + (roll % 11)];
+          ? [128, 140, 128 + (roll % 13)]
+          : [92, 104, 92 + (roll % 13)];
   return Math.max(min, Math.min(max, base + (style?.tempoBias ?? 0)));
 }
 
@@ -149,13 +149,14 @@ export function grooveHits(groove: MusicGroove, variation: 0 | 1, variant: 0 | 1
 }
 
 export function sectionEnergy(name: MusicSectionName): number {
-  if (name === "intro" || name === "breakdown") return 0.24;
-  if (name === "groove") return 0.55;
-  if (name === "hook") return 0.72;
-  if (name === "development") return 0.62;
-  if (name === "escalation") return 0.78;
+  if (name === "intro") return 0.45;
+  if (name === "breakdown") return 0.4;
+  if (name === "groove") return 0.62;
+  if (name === "hook") return 0.78;
+  if (name === "development") return 0.68;
+  if (name === "escalation") return 0.86;
   if (name === "climax") return 1;
-  return 0.86;
+  return 0.9;
 }
 
 export function isSparseCue(cue: MusicCue): boolean {

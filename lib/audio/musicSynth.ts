@@ -27,7 +27,7 @@ export function playSynthTone(
   const attack = Math.min(lead ? 0.02 : bass ? 0.004 : pulse ? 0.003 : ATTACK_S, duration * 0.22);
   const release = Math.min(bass ? 0.07 : pulse ? 0.045 : lead ? 0.22 : 0.18, duration * (pulse ? 0.55 : 0.4));
   const end = time + Math.max(duration, attack + release + 0.02);
-  const peak = Math.max(0.006, velocity * (accent ? 0.2 : pulse ? 0.12 : 0.15));
+  const peak = Math.max(0.006, velocity * (accent ? 0.26 : pulse ? 0.16 : 0.2));
 
   filter.type = "lowpass";
   filter.Q.setValueAtTime(bass ? 1.8 : lead || pulse ? 1.35 : 1.05, time);

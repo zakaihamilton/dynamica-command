@@ -38,33 +38,33 @@ const BIOME_STYLES_SECONDARY: Record<BiomeName, readonly MusicStyleName[]> = {
 };
 
 const KIND_STYLES: Partial<Record<MissionKind, readonly MusicStyleName[]>> = {
-  harvestQuota: ["orbital-drift", "low-orbit", "ice-protocol", "cinematic-tension"],
-  forceQuota: ["chrome-fanfare", "neon-arpeggio", "orbital-drift"],
-  structureQuota: ["cinematic-tension", "low-orbit", "industrial-march"],
+  harvestQuota: ["chrome-fanfare", "neon-arpeggio", "orbital-drift", "signal-chase"],
+  forceQuota: ["chrome-fanfare", "neon-arpeggio", "signal-chase"],
+  structureQuota: ["industrial-march", "chrome-fanfare", "cinematic-tension"],
   holdTheLine: ["cinematic-tension", "industrial-march", "foundry-stomp"],
   sabotage: ["acid-grid", "signal-chase", "night-raid"],
   destroyMarked: ["signal-chase", "acid-grid", "night-raid"],
   razeAll: ["foundry-stomp", "industrial-march", "signal-chase"],
   annihilate: ["foundry-stomp", "signal-chase", "night-raid"],
   decapitate: ["industrial-march", "cinematic-tension", "foundry-stomp"],
-  escort: ["orbital-drift", "low-orbit", "neon-arpeggio"],
-  rescue: ["orbital-drift", "ice-protocol", "low-orbit"],
-  extraction: ["low-orbit", "orbital-drift", "glass-chime"],
+  escort: ["neon-arpeggio", "signal-chase", "chrome-fanfare"],
+  rescue: ["neon-arpeggio", "night-raid", "orbital-drift"],
+  extraction: ["signal-chase", "neon-arpeggio", "glass-chime"],
 };
 
 const KIND_ARRANGEMENTS: Partial<Record<MissionKind, readonly MusicArrangementName[]>> = {
-  harvestQuota: ["slow-burn", "wide-open", "ghost-signal", "half-time-break"],
+  harvestQuota: ["forward-drive", "wide-open", "command-theme", "half-time-break"],
   forceQuota: ["forward-drive", "command-theme", "wide-open", "anthem-lift"],
-  structureQuota: ["slow-burn", "command-theme", "wide-open", "inverted-hold"],
+  structureQuota: ["command-theme", "forward-drive", "wide-open", "inverted-hold"],
   holdTheLine: ["bass-siege", "command-theme", "anthem-lift", "half-time-break"],
   sabotage: ["syncopated-strike", "call-and-echo", "echo-canon", "drums-out"],
   destroyMarked: ["syncopated-strike", "forward-drive", "melody-late", "call-and-echo"],
   razeAll: ["panic-run", "bass-siege", "double-drop", "forward-drive"],
   annihilate: ["panic-run", "double-drop", "bass-siege", "drums-out"],
   decapitate: ["bass-siege", "panic-run", "anthem-lift", "double-drop"],
-  escort: ["ghost-signal", "wide-open", "command-theme", "call-and-echo"],
-  rescue: ["ghost-signal", "slow-burn", "echo-canon", "wide-open"],
-  extraction: ["command-theme", "wide-open", "melody-late", "ghost-signal"],
+  escort: ["command-theme", "forward-drive", "wide-open", "call-and-echo"],
+  rescue: ["forward-drive", "command-theme", "echo-canon", "wide-open"],
+  extraction: ["command-theme", "forward-drive", "melody-late", "anthem-lift"],
 };
 
 export function musicMissionContext(seed: number, missionIndex: number): MusicMissionContext {
@@ -180,20 +180,19 @@ export function applyMissionTints(style: MusicStyleProfile, ctx: MusicMissionCon
     next.cutoffMin *= 1.08;
     next.cutoffMax *= 1.1;
   } else if (biome === "tundra grid") {
-    next.reverbSeconds *= 1.18;
-    next.reverbWet = Math.min(0.5, next.reverbWet + 0.06);
-    next.drumDensity *= 0.86;
+    next.reverbSeconds *= 1.1;
+    next.reverbWet = Math.min(0.46, next.reverbWet + 0.04);
+    next.drumDensity *= 0.94;
   } else if (biome === "jungle wreckage" || biome === "salt marshes") {
     next.delayFeedback = Math.min(0.55, next.delayFeedback + 0.06);
     next.delayWet = Math.min(0.5, next.delayWet + 0.05);
   }
 
   if (kind === "harvestQuota" || kind === "forceQuota" || kind === "structureQuota") {
-    next.drumDensity *= 0.84;
-    next.tempoBias -= 2;
-  } else if (kind === "holdTheLine") {
+    next.drumDensity *= 0.92;
     next.tempoBias -= 1;
-    next.drumDensity *= 0.95;
+  } else if (kind === "holdTheLine") {
+    next.drumDensity *= 0.98;
   } else if (kind === "sabotage" || kind === "destroyMarked") {
     next.tempoBias += 2;
     next.drumDensity = Math.min(1, next.drumDensity * 1.06);
@@ -201,8 +200,8 @@ export function applyMissionTints(style: MusicStyleProfile, ctx: MusicMissionCon
     next.tempoBias += 3;
     next.drumDensity = Math.min(1, next.drumDensity * 1.12);
   } else if (kind === "escort" || kind === "rescue" || kind === "extraction") {
-    next.drumDensity *= 0.9;
-    next.reverbWet = Math.min(0.5, next.reverbWet + 0.04);
+    next.drumDensity *= 0.96;
+    next.reverbWet = Math.min(0.46, next.reverbWet + 0.03);
     next.counterChance = Math.min(1, next.counterChance + 0.08);
   }
   return next;
