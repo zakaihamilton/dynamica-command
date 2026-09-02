@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
@@ -31,6 +31,9 @@ export function NewGameSetup({
   onBack: () => void;
 }) {
   const dialogRef = useModalFocus(true, "new-game", "first");
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [inputRef]);
 
   return (
     <MetalPanel
