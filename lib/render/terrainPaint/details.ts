@@ -2,7 +2,9 @@ import { TILE_H } from "../../iso";
 import type { SimState } from "../../types";
 import { fogAt } from "../../sim/fog";
 import { biomeMaterials, fogTerrainGain, oreCrystalCluster, tileVariant } from "../terrainAtlas";
+import type { BiomeMaterials, Rgb } from "../terrainMaterials";
 import { tileToScreen, type Camera } from "../../iso";
+import { blockerPropKind, type BlockerPropKind } from "./scatter";
 
 export function smoothFogGain(state: SimState, x: number, y: number): number {
   let sum = 0;
@@ -16,6 +18,309 @@ export function smoothFogGain(state: SimState, x: number, y: number): number {
   return sum / count;
 }
 
+function rgbOf(c: Rgb): string {
+  return `rgb(${c.r},${c.g},${c.b})`;
+}
+
+function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
+  const u = t < 0 ? 0 : t > 1 ? 1 : t;
+  return {
+    r: Math.round(a.r + (b.r - a.r) * u),
+    g: Math.round(a.g + (b.g - a.g) * u),
+    b: Math.round(a.b + (b.b - a.b) * u),
+  };
+}
+
+function liftGreen(c: Rgb, amount: number): Rgb {
+  return { r: c.r, g: Math.min(255, c.g + amount), b: c.b };
+}
+
+function blobShadow(ctx: CanvasRenderingContext2D, z: number, rx: number, ry: number, dy = 6): void {
+  ctx.fillStyle = "rgba(6,10,12,0.38)";
+  ctx.beginPath();
+  ctx.ellipse(0, dy * z, rx * z, ry * z, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawBoulder(
+  ctx: CanvasRenderingContext2D,
+  mats: BiomeMaterials,
+  z: number,
+  lush: boolean,
+  snowCap: boolean,
+): void {
+  const body = lush ? liftGreen(mats.blocked, 18) : mats.blocked;
+  blobShadow(ctx, z, 16, 5);
+  ctx.fillStyle = rgbOf(mats.dark);
+  ctx.beginPath();
+  ctx.moveTo(-14 * z, 2 * z);
+  ctx.lineTo(13 * z, 3 * z);
+  ctx.lineTo(9 * z, 9 * z);
+  ctx.lineTo(-11 * z, 8 * z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = rgbOf(body);
+  ctx.beginPath();
+  ctx.moveTo(-12 * z, 2 * z);
+  ctx.lineTo(-3 * z, -11 * z);
+  ctx.lineTo(12 * z, -1 * z);
+  ctx.lineTo(8 * z, 5 * z);
+  ctx.lineTo(-9 * z, 5 * z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = rgbOf(snowCap ? mixRgb(mats.light, { r: 236, g: 244, b: 246 }, 0.55) : mats.light);
+  ctx.globalAlpha = snowCap ? 0.82 : 0.55;
+  ctx.beginPath();
+  ctx.moveTo(-3 * z, -11 * z);
+  ctx.lineTo(12 * z, -1 * z);
+  ctx.lineTo(4 * z, 1 * z);
+  ctx.lineTo(-7 * z, -6 * z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawCanopyTree(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
+  const lean = ((v % 5) - 2) * z * 0.45;
+  const dark = mixRgb(mats.blocked, mats.dark, 0.28);
+  const mid = liftGreen(mixRgb(mats.blocked, mats.light, 0.22), 16);
+  const hi = mixRgb(mats.light, mats.high, 0.4);
+  blobShadow(ctx, z, 13, 4.2);
+  ctx.strokeStyle = rgbOf(mixRgb(mats.dark, mats.blocked, 0.2));
+  ctx.lineWidth = Math.max(1.6, 2.6 * z);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(0, 5 * z);
+  ctx.lineTo(lean, -12 * z);
+  ctx.stroke();
+  ctx.fillStyle = rgbOf(dark);
+  ctx.beginPath();
+  ctx.ellipse(-7 * z + lean * 0.25, -12 * z, 12 * z, 7.2 * z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = rgbOf(mid);
+  ctx.beginPath();
+  ctx.ellipse(3 * z + lean, -14 * z, 10 * z, 6.4 * z, 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = rgbOf(hi);
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.ellipse(1 * z + lean, -16 * z, 5.2 * z, 3.2 * z, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawPine(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
+  const lean = ((v % 3) - 1) * z * 0.25;
+  const needle = mixRgb(mats.blocked, { r: 48, g: 82, b: 72 }, 0.45);
+  const dark = mixRgb(mats.dark, needle, 0.3);
+  blobShadow(ctx, z, 11, 3.6);
+  ctx.strokeStyle = rgbOf(mats.dark);
+  ctx.lineWidth = Math.max(1.4, 2.1 * z);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(0, 5 * z);
+  ctx.lineTo(lean, -6 * z);
+  ctx.stroke();
+  for (let i = 0; i < 3; i++) {
+    const w = (12 - i * 3) * z;
+    const y = (-4 - i * 6) * z;
+    ctx.fillStyle = rgbOf(i === 2 ? mixRgb(needle, mats.light, 0.18) : dark);
+    ctx.beginPath();
+    ctx.moveTo(-w + lean, y + 6 * z);
+    ctx.lineTo(lean, y - 5 * z);
+    ctx.lineTo(w + lean, y + 6 * z);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawDeadTree(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
+  const wood = mixRgb(mats.dark, mats.blocked, 0.25);
+  blobShadow(ctx, z, 10, 3.4);
+  ctx.strokeStyle = rgbOf(wood);
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(1.5, 2.3 * z);
+  ctx.beginPath();
+  ctx.moveTo(0, 5 * z);
+  ctx.lineTo(((v % 5) - 2) * z * 0.3, -14 * z);
+  ctx.stroke();
+  ctx.lineWidth = Math.max(1.1, 1.5 * z);
+  ctx.beginPath();
+  ctx.moveTo(-0.4 * z, -6 * z);
+  ctx.lineTo(-6 * z, -11 * z);
+  ctx.moveTo(0.6 * z, -8 * z);
+  ctx.lineTo(5.5 * z, -12 * z);
+  ctx.stroke();
+}
+
+function drawCrystalOutcrop(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
+  const gem = mixRgb(mats.ore, mats.light, 0.42);
+  const dark = mixRgb(mats.dark, mats.ore, 0.38);
+  blobShadow(ctx, z, 12, 4);
+  const shards = [
+    { lean: -6, rise: 14, half: 4.2 },
+    { lean: 2, rise: 18, half: 3.4 },
+    { lean: 8, rise: 11, half: 3.8 },
+  ];
+  for (let i = 0; i < shards.length; i++) {
+    const shard = shards[i]!;
+    const twist = ((v >> (i * 2)) % 5 - 2) * 0.4;
+    ctx.fillStyle = rgbOf(i === 1 ? gem : dark);
+    ctx.beginPath();
+    ctx.moveTo((shard.lean - shard.half) * z, 3 * z);
+    ctx.lineTo((shard.lean + twist) * z, -shard.rise * z);
+    ctx.lineTo((shard.lean + shard.half) * z, 2.4 * z);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.fillStyle = rgbOf(mixRgb(gem, { r: 230, g: 255, b: 248 }, 0.4));
+  ctx.globalAlpha = 0.45;
+  ctx.beginPath();
+  ctx.moveTo(1 * z, -2 * z);
+  ctx.lineTo(2 * z, -16 * z);
+  ctx.lineTo(4.5 * z, -1 * z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawWreckage(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
+  const rust = mixRgb(mats.ore, mats.blocked, 0.28);
+  const iron = mixRgb(mats.dark, mats.blocked, 0.15);
+  blobShadow(ctx, z, 14, 4.4);
+  ctx.fillStyle = rgbOf(iron);
+  ctx.beginPath();
+  ctx.moveTo(-12 * z, 3 * z);
+  ctx.lineTo(4 * z, -6 * z);
+  ctx.lineTo(13 * z, 1 * z);
+  ctx.lineTo(8 * z, 7 * z);
+  ctx.lineTo(-9 * z, 7 * z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = rgbOf(rust);
+  ctx.beginPath();
+  ctx.moveTo(-6 * z, 1 * z);
+  ctx.lineTo(7 * z, -4 * z);
+  ctx.lineTo(10 * z, 2 * z);
+  ctx.lineTo(-3 * z, 5 * z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = rgbOf(mixRgb(mats.light, rust, 0.4));
+  ctx.lineWidth = Math.max(0.8, 1.1 * z);
+  ctx.beginPath();
+  ctx.moveTo(-8 * z, 2 * z);
+  ctx.lineTo(6 * z, -2 * z + (v % 3) * z * 0.4);
+  ctx.stroke();
+}
+
+function drawSpire(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
+  const rock = mixRgb(mats.blocked, mats.dark, 0.2);
+  const glow = mixRgb(mats.ore, { r: 210, g: 80, b: 36 }, 0.4);
+  blobShadow(ctx, z, 10, 3.6);
+  ctx.fillStyle = rgbOf(rock);
+  ctx.beginPath();
+  ctx.moveTo(-7 * z, 5 * z);
+  ctx.lineTo(-2 * z, -16 * z);
+  ctx.lineTo(3 * z, -8 * z);
+  ctx.lineTo(8 * z, 5 * z);
+  ctx.lineTo(-4 * z, 7 * z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = rgbOf(glow);
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.moveTo(-1 * z, 2 * z);
+  ctx.lineTo(-1.4 * z, -14 * z);
+  ctx.lineTo(1.6 * z, -6 * z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  if (v % 2 === 0) {
+    ctx.fillStyle = rgbOf(mats.light);
+    ctx.globalAlpha = 0.28;
+    ctx.beginPath();
+    ctx.moveTo(-2 * z, -10 * z);
+    ctx.lineTo(-2 * z, -16 * z);
+    ctx.lineTo(0.6 * z, -11 * z);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawDeadShrub(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
+  const wood = mixRgb(mats.dark, mats.blocked, 0.2);
+  const dust = mixRgb(mats.light, mats.blocked, 0.35);
+  blobShadow(ctx, z, 11, 3.5);
+  ctx.strokeStyle = rgbOf(wood);
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(1.2, 1.7 * z);
+  ctx.beginPath();
+  ctx.moveTo(0, 5 * z);
+  ctx.lineTo(((v % 3) - 1) * z * 0.4, -8 * z);
+  ctx.stroke();
+  ctx.lineWidth = Math.max(0.9, 1.15 * z);
+  ctx.beginPath();
+  ctx.moveTo(-0.6 * z, -3 * z);
+  ctx.lineTo(-7 * z, -8 * z);
+  ctx.moveTo(0.5 * z, -4 * z);
+  ctx.lineTo(6.5 * z, -9 * z);
+  ctx.moveTo(0, -6 * z);
+  ctx.lineTo(2 * z, -12 * z);
+  ctx.stroke();
+  ctx.fillStyle = rgbOf(dust);
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.ellipse(-4 * z, -7 * z, 3.2 * z, 1.6 * z, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(4.2 * z, -8 * z, 2.8 * z, 1.4 * z, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function paintBlocker(
+  ctx: CanvasRenderingContext2D,
+  kind: BlockerPropKind,
+  mats: BiomeMaterials,
+  z: number,
+  v: number,
+  lush: boolean,
+): void {
+  switch (kind) {
+    case "tree":
+      drawCanopyTree(ctx, mats, z, v);
+      return;
+    case "pine":
+      drawPine(ctx, mats, z, v);
+      return;
+    case "deadTree":
+      drawDeadTree(ctx, mats, z, v);
+      return;
+    case "crystalOutcrop":
+      drawCrystalOutcrop(ctx, mats, z, v);
+      return;
+    case "wreckage":
+      drawWreckage(ctx, mats, z, v);
+      return;
+    case "spire":
+      drawSpire(ctx, mats, z, v);
+      return;
+    case "deadShrub":
+      drawDeadShrub(ctx, mats, z, v);
+      return;
+    case "sandstone":
+      drawBoulder(ctx, mats, z, false, false);
+      return;
+    case "snowRock":
+      drawBoulder(ctx, mats, z, false, true);
+      return;
+    case "boulder":
+      drawBoulder(ctx, mats, z, lush, false);
+      return;
+  }
+}
+
 export function drawBlockerProp(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -27,46 +332,13 @@ export function drawBlockerProp(
 ): void {
   const v = tileVariant(state.seed, x, y);
   const mats = biomeMaterials(state.biome);
-  const lush = state.biome === "jungle wreckage" || state.biome === "salt marshes";
+  const kind = blockerPropKind(state.biome, v);
   const ox = ((v % 7) - 3) * z * 0.4;
   const oy = ((Math.floor(v / 11) % 5) - 2) * z * 0.2;
-  const body = lush
-    ? `rgb(${mats.blocked.r},${Math.min(255, mats.blocked.g + 18)},${mats.blocked.b})`
-    : `rgb(${mats.blocked.r},${mats.blocked.g},${mats.blocked.b})`;
-  const top = `rgb(${mats.light.r},${mats.light.g},${mats.light.b})`;
-  const side = `rgb(${mats.dark.r},${mats.dark.g},${mats.dark.b})`;
   ctx.save();
   ctx.translate(sx + ox, sy + TILE_H * z * 0.42 + oy);
-  ctx.fillStyle = "rgba(6,10,12,0.38)";
-  ctx.beginPath();
-  ctx.ellipse(0, 6 * z, 16 * z, 5 * z, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = side;
-  ctx.beginPath();
-  ctx.moveTo(-14 * z, 2 * z);
-  ctx.lineTo(13 * z, 3 * z);
-  ctx.lineTo(9 * z, 9 * z);
-  ctx.lineTo(-11 * z, 8 * z);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = body;
-  ctx.beginPath();
-  ctx.moveTo(-12 * z, 2 * z);
-  ctx.lineTo(-3 * z, -11 * z);
-  ctx.lineTo(12 * z, -1 * z);
-  ctx.lineTo(8 * z, 5 * z);
-  ctx.lineTo(-9 * z, 5 * z);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = top;
-  ctx.globalAlpha = 0.55;
-  ctx.beginPath();
-  ctx.moveTo(-3 * z, -11 * z);
-  ctx.lineTo(12 * z, -1 * z);
-  ctx.lineTo(4 * z, 1 * z);
-  ctx.lineTo(-7 * z, -6 * z);
-  ctx.closePath();
-  ctx.fill();
+  const lush = state.biome === "jungle wreckage" || state.biome === "salt marshes";
+  paintBlocker(ctx, kind, mats, z, v, lush);
   ctx.restore();
 }
 

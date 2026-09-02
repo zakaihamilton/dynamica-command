@@ -11,6 +11,7 @@ import { drawConcreteSlab } from "../terrainPlates";
 import { isoDiamondPath } from "../isoDiamond";
 import { paintShroudOverlay, paintShroudMaskTile, drawAtlasDiamond } from "./tile";
 import { smoothFogGain, drawBlockerProp, drawOreCrystals } from "./details";
+import { drawTerrainScatter } from "./scatter";
 import { SHROUD_FILL, TERRAIN_COVER } from "./constants";
 import { drawElevationFaces } from "./cliffs";
 
@@ -123,8 +124,8 @@ function paintCellProps(
   x: number,
   y: number,
 ): void {
+  if (fogAt(state, x, y) === 0) return;
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
-  if (!inMap || fogAt(state, x, y) === 0) return;
   const scenery = memoScenery(state, x, y);
   const elev = scenery.elev;
   const s = tileToScreen(x, y, cam, elev);
@@ -135,9 +136,10 @@ function paintCellProps(
   if (scenery.kind === TILE_BLOCKED && !isMountainScenery(scenery)) {
     drawBlockerProp(ctx, state, x, y, s.x, s.y, z);
   }
-  if (state.tiles[y * state.width + x] === TILE_RESOURCE) {
+  if (inMap && state.tiles[y * state.width + x] === TILE_RESOURCE) {
     drawOreCrystals(ctx, state, cam, x, y, elev, z);
   }
+  drawTerrainScatter(ctx, state, x, y, s.x, s.y, z);
   ctx.restore();
 }
 
