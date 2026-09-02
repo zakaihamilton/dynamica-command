@@ -11,7 +11,7 @@ describe("player-facing copy helpers", () => {
 
   it("maps loss reasons without leaking internal keys", () => {
     expect(lossReasonLabel("deadline")).toBe("Time ran out.");
-    expect(lossReasonLabel("yardDestroyed")).toBe("The Construction Yard was destroyed.");
+    expect(lossReasonLabel("yardDestroyed")).toBe("The Command HQ was destroyed.");
     expect(lossReasonLabel("objectiveTargetLost")).toBe("The convoy was lost.");
     expect(lossReasonLabel("objectiveTargetLost", "extraction")).toBe("The cargo was lost.");
     expect(lossReasonLabel("objectiveTargetLost", "rescue")).toBe("A stranded unit was lost.");

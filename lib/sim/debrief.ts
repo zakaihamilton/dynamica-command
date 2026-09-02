@@ -1,4 +1,4 @@
-import { TICKS_PER_SECOND } from "../catalog";
+import { labelFor, TICKS_PER_SECOND } from "../catalog";
 import { formatMissionMinutesFromTicks, MAX_MISSION_TICKS } from "../gen/pacing";
 import { objectiveHeadline } from "../gen/story";
 import type { LossReason, MissionKind, Owner, SimState } from "../types";
@@ -65,7 +65,7 @@ export function lossReasonLabel(reason?: LossReason, missionKind?: MissionKind):
     if (missionKind === "rescue") return "A stranded unit was lost.";
     return "The convoy was lost.";
   }
-  if (reason === "yardDestroyed") return "The Construction Yard was destroyed.";
+  if (reason === "yardDestroyed") return `The ${labelFor("constructionYard")} was destroyed.`;
   return "Mission failed.";
 }
 

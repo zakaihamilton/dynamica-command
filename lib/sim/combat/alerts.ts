@@ -1,3 +1,4 @@
+import { labelFor } from "../../catalog";
 import type { Entity, SimEvent, SimState } from "../../types";
 
 export type AlertCategory = "yard" | "convoy" | "harvester" | "building" | "unit";
@@ -52,7 +53,7 @@ export function flushPlayerAlerts(state: SimState, pending: PendingAlerts, event
 }
 
 function alertEvent(category: AlertCategory): SimEvent {
-  if (category === "yard") return { type: "alert", kind: "warning", text: "Construction yard under attack" };
+  if (category === "yard") return { type: "alert", kind: "warning", text: `${labelFor("constructionYard")} under attack` };
   if (category === "convoy") return { type: "alert", kind: "contact", text: "Convoy under attack" };
   if (category === "harvester") return { type: "alert", kind: "contact", text: "Harvester under attack" };
   if (category === "building") return { type: "alert", kind: "contact", text: "Base under attack" };

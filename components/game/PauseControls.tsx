@@ -7,7 +7,7 @@ const ROWS: { label: string; keys: string }[] = [
   { label: "Pause / resume", keys: SHORTCUT.pause },
   { label: "Controls", keys: SHORTCUT.controls },
   { label: "Pan camera", keys: "WASD / arrows" },
-  { label: "Jump to yard", keys: SHORTCUT.home },
+  { label: "Jump to Command HQ", keys: SHORTCUT.home },
   { label: "Center selection", keys: SHORTCUT.center },
   { label: "Construction / production / selected", keys: `${SHORTCUT.construction} / ${SHORTCUT.production} / ${SHORTCUT.selected}` },
   { label: "Cameos", keys: SHORTCUT.cameo.join("–") },

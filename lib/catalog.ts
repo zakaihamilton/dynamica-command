@@ -206,11 +206,11 @@ export const UNIT_LABELS: Record<UnitKind, string> = {
 };
 
 export const BUILDING_LABELS: Record<BuildingKind, string> = {
-  constructionYard: "Construction Yard",
+  constructionYard: "Command HQ",
   power: "Power Plant",
   refinery: "Refinery",
   barracks: "Barracks",
-  factory: "War Factory",
+  factory: "Vehicle Plant",
   turret: "Gun Turret",
   objective: "Marked Structure",
 };

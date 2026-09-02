@@ -295,7 +295,7 @@ describe("mission briefing objectives", () => {
     for (const mission of campaign.missions) {
       const objectives = missionObjectives(mission, campaign);
       expect(objectives.length).toBeGreaterThanOrEqual(2);
-      expect(objectives.some((item) => /construction yard/i.test(item.text))).toBe(true);
+      expect(objectives.some((item) => /command hq/i.test(item.text))).toBe(true);
       expect(objectives[0]!.text.toLowerCase()).not.toContain("lorem");
       if (mission.win.kind === "harvestQuota") {
         expect(objectives[0]!.text).toContain(String(mission.win.target));
@@ -351,7 +351,7 @@ describe("mission briefing dialogue", () => {
       }
       const joined = mission.briefing.map((line) => line.text).join(" ");
       expect(joined).not.toContain(mission.name);
-      expect(joined.toLowerCase()).toContain("construction yard");
+      expect(joined.toLowerCase()).toContain("command hq");
     }
   });
 
@@ -367,7 +367,7 @@ describe("mission briefing dialogue", () => {
       for (const mission of campaign.missions) {
         const joined = mission.briefing.map((line) => line.text).join(" ");
         for (const label of labels) expect(joined).toContain(label);
-        expect(joined.toLowerCase()).toContain("construction yard");
+        expect(joined.toLowerCase()).toContain("command hq");
         expect(joined).not.toMatch(/under strength|levy|form up|right of it/i);
         for (const line of mission.briefing) {
           expect(line.text).toMatch(/[.!?]$/);
