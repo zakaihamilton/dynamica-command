@@ -77,5 +77,6 @@ describe("soundtrack export cancellation", () => {
 
     expect(audioMock.downloadMusicExport).toHaveBeenCalledOnce();
     expect(result.current.exportState).toBe("complete");
+    expect(result.current.status).toBe("Soundtrack saved.");
   });
 });

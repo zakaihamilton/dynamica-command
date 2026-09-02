@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadMusicExport, exportMissionSoundtrack, supportsM4aExport } from "@/lib/audio/export";
 
+const SOUNDTRACK_CANCELLED = "Download cancelled. You can start again when ready.";
+
 function soundtrackExportErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) return "Couldn't download the soundtrack.";
   if (/AAC|M4A|WebCodecs|resampling|encoder|Offline audio/i.test(error.message)) {
@@ -74,7 +76,7 @@ export function useSoundtrackExport({
     setDraining(true);
     setExportState("idle");
     setProgress(0);
-    setStatus("Download cancelled. You can start again when ready.");
+    setStatus(SOUNDTRACK_CANCELLED);
   }, []);
 
   const exportTrack = async () => {
@@ -108,13 +110,13 @@ export function useSoundtrackExport({
       downloadMusicExport(result);
       setExportState("complete");
       setProgress(1);
-      setStatus(`Downloaded ${result.filename}`);
+      setStatus("Soundtrack saved.");
     } catch (error) {
       if (controller.signal.aborted) {
         if (exportAbortController.current === controller && exportTaskId.current === taskId && mounted.current) {
           setExportState("idle");
           setProgress(0);
-          setStatus("Download cancelled. You can start it again when ready.");
+          setStatus(SOUNDTRACK_CANCELLED);
         }
         return;
       }

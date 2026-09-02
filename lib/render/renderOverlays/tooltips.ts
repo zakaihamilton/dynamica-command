@@ -67,7 +67,7 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     lines.push(`Under construction (${Math.ceil(e.constructing / TICKS_PER_SECOND)}s)`);
   }
   if (e.producing) {
-    lines.push(`Producing ${labelFor(e.producing.kind)} (${Math.ceil(e.producing.remaining / TICKS_PER_SECOND)}s)`);
+    lines.push(`Training ${labelFor(e.producing.kind)} (${Math.ceil(e.producing.remaining / TICKS_PER_SECOND)}s)`);
     const queued = e.queue?.length ?? 0;
     if (queued > 0) lines.push(`In queue: ${queued}`);
   }

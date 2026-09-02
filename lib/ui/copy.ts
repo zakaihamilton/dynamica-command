@@ -1,5 +1,7 @@
-import type { Formation, LossReason, SimState, Stance } from "@/lib/types";
+import type { Formation, SimState, Stance } from "@/lib/types";
 import { FORMATION_OPTIONS, STANCE_OPTIONS } from "./orders";
+
+export { lossReasonLabel } from "../sim/debrief";
 
 const REJECTION_MESSAGES: Record<string, string> = {
   "unit unavailable": "This unit isn't available yet.",
@@ -32,13 +34,6 @@ export function commandRejectionMessage(reason: string): string {
   const training = /^training step: (.+)$/.exec(reason);
   if (training) return TRAINING_STEP_MESSAGES[training[1]!] ?? "Finish the current training step first.";
   return "That order couldn't be completed.";
-}
-
-export function lossReasonLabel(reason?: LossReason): string {
-  if (reason === "deadline") return "Time ran out.";
-  if (reason === "objectiveTargetLost") return "The convoy was lost.";
-  if (reason === "yardDestroyed") return "The Construction Yard was destroyed.";
-  return "Mission failed.";
 }
 
 export function saveResultLabel(result: SimState["result"]): string {
