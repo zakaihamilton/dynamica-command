@@ -73,9 +73,6 @@ export function CampaignArchiveScreen() {
     router.push(`/play?seed=${entry.seed}&resume=1`);
   }, [router]);
 
-  const damagedCount = unreadableSaves.length + unreadableSlots.length;
-  const slotCount = entries.filter((entry) => entry.kind === "slot").length;
-
   return (
     <main
       className={styles.screen}
@@ -108,17 +105,6 @@ export function CampaignArchiveScreen() {
               <p className={styles.subtitle}>SELECT A SAVE SLOT</p>
               <p className={styles.copy}>Resume a named save or an autosave, inspect its operations map, or remove a slot you no longer need.</p>
             </header>
-
-            <div className={styles.summary} aria-label="Campaign archive summary">
-              <div>
-                <span>Stored slots</span>
-                <strong>{slotCount}</strong>
-              </div>
-              <div>
-                <span>Damaged saves</span>
-                <strong className={damagedCount ? styles.alertValue : undefined}>{damagedCount}</strong>
-              </div>
-            </div>
 
             <div className={styles.archiveHeader}>
               <ConsoleLabel as="h2">Save slots</ConsoleLabel>
