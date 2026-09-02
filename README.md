@@ -1,6 +1,6 @@
 # Dynamica Command
 
-Dynamica Command is a browser **Command & Conquer–like** RTS. Enter a **4-digit seed** (`0000`–`9999`) to create a full campaign: factions, characters, story, maps, and objectives. The same code always creates the same campaign. Progress saves in this browser — no account required.
+Dynamica Command is a browser **seeded isometric RTS**. Enter a **4-digit seed** (`0000`–`9999`) to create a full campaign: factions, characters, story, maps, and objectives. The same code always creates the same campaign. Progress saves in this browser — no account required.
 
 **[Play from source](#run)** · [github.com/zakaihamilton/dynamica-command](https://github.com/zakaihamilton/dynamica-command)
 
@@ -63,21 +63,21 @@ Eight missions, about **5–20 minutes** each for classic and hold-the-line oper
 | Structure quota | Completing N buildings |
 | Destroy marked | Destroying 1–3 tagged enemy structures |
 | Raze all | Destroying every enemy building |
-| Decapitate | Destroying the enemy Construction Yard |
+| Decapitate | Destroying the enemy Command HQ |
 | Annihilate | Wiping out enemy units and buildings |
-| Hold the line | Surviving a timer with your Construction Yard standing |
+| Hold the line | Surviving a timer with your Command HQ standing |
 | Escort | Walking marked allies into a zone |
 | Sabotage | Destroying marked structures before a deadline |
 | Rescue | Freeing stranded units by reaching them |
-| Extraction | Bringing cargo units back to your yard |
+| Extraction | Bringing cargo units back to your HQ |
 
-Lose if your Construction Yard falls. Hold, escort, sabotage, rescue, and extraction also fail when their timer expires. Escort, extraction, and rescue fail immediately if a Convoy Truck, unextracted cargo unit, or unrescued stranded unit is destroyed. Briefings show portraits of your commander, advisor, and the enemy leader, and name the objective.
+Lose if your Command HQ falls. Hold, escort, sabotage, rescue, and extraction also fail when their timer expires. Escort, extraction, and rescue fail immediately if a Convoy Truck, unextracted cargo unit, or unrescued stranded unit is destroyed. Briefings show portraits of your commander, advisor, and the enemy leader, and name the objective.
 
 ### Loop
 
-Harvest ore → spend credits and power → place buildings → train units → fight. From the first mission, Barracks can train Field Medics and War Factories can produce Repair Trucks. Escort missions use durable, unarmed Convoy Trucks as their marked targets. Medics heal infantry and Repair Trucks repair vehicles on their own, or you can send them with a right-click. Stop holds them in place. Damaged buildings can be repaired from the sidebar wrench for a fraction of their build cost, or **sold** with the scrap tool (`F`) for a partial refund. The enemy expands, guards its yard, raids Harvesters, uses support units, and falls back when battered. Maps grow from small early theaters to large late ones, with **valleys, plains, hills, and mountains**. Units can climb one height step; a two-level drop is a cliff. Buildings need flat ground (no water, no overlap, one height).
+Harvest ore → spend credits and power → place buildings → train units → fight. From the first mission, Barracks can train Field Medics and Vehicle Plants can produce Repair Trucks. Escort missions use durable, unarmed Convoy Trucks as their marked targets. Medics heal infantry and Repair Trucks repair vehicles on their own, or you can send them with a right-click. Stop holds them in place. Damaged buildings can be repaired from the sidebar wrench for a fraction of their build cost, or **sold** with the scrap tool (`F`) for a partial refund. The enemy expands, guards its HQ, raids Harvesters, uses support units, and falls back when battered. Maps grow from small early theaters to large late ones, with **valleys, plains, hills, and mountains**. Units can climb one height step; a two-level drop is a cliff. Buildings need flat ground (no water, no overlap, one height).
 
-Each mission allows at most one Barracks and one War Factory. Hover a unit or building for health, faction, and extras such as Harvester cargo or a marked target.
+Each mission allows at most one Barracks and one Vehicle Plant. Hover a unit or building for health, faction, and extras such as Harvester cargo or a marked target.
 
 ### Controls
 
@@ -95,7 +95,7 @@ Each mission allows at most one Barracks and one War Factory. Hover a unit or bu
 | WASD / arrows | Pan |
 | Q / E / T | Construction / production / selected tabs |
 | 1–5 | Sidebar cameo (Ctrl+1–5 cancels) |
-| H / Home | Jump to Construction Yard |
+| H / Home | Jump to Command HQ |
 | Space | Center camera on selection |
 | Esc | Pause, or cancel place/repair/sell |
 | Hover | Tooltip on the unit or building under the cursor (shortcuts appear in HUD tips) |

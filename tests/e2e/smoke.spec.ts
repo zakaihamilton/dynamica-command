@@ -96,7 +96,7 @@ test("new game launch goes to briefing without training", async ({ page }) => {
 test("launches a seeded campaign from menu to battlefield", async ({ page }) => {
   await openBriefing(page);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();
-  await expect(page.getByTestId("mission-objectives")).toContainText(/construction yard/i);
+  await expect(page.getByTestId("mission-objectives")).toContainText(/command hq/i);
   await expect(page.getByTestId("mission-objectives")).toContainText("12 min");
 
   await page.getByRole("button", { name: "Launch" }).click();
@@ -232,7 +232,7 @@ test("keeps Asset Bay selection synchronized with category filters", async ({ pa
   await expect(browser.getByRole("button", { name: "Buildings" })).toHaveAttribute("aria-pressed", "true");
   await expect(list.getByRole("option")).toHaveCount(7);
   await expect(list.locator('[aria-selected="true"]')).toHaveCount(1);
-  await expect(page.getByLabel("Construction Yard preview")).toBeVisible();
+  await expect(page.getByLabel("Command HQ preview")).toBeVisible();
 
   await page.keyboard.press("ArrowDown");
   await expect(list.locator('[aria-selected="true"]')).toHaveCount(1);

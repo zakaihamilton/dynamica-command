@@ -7,7 +7,6 @@ import { formatMissionMinutesFromTicks } from "./pacing";
 function countedLabel(kind: UnitKind | BuildingKind, count: number): string {
   const label = labelFor(kind).toLowerCase();
   if (count === 1) return label;
-  if (kind === "factory") return "war factories";
   if (kind === "barracks") return "barracks";
   if (kind === "infantry") return "infantry";
   if (kind === "antiArmor") return "anti-armor units";
@@ -39,7 +38,7 @@ function objectivePhrase(win: WinCategory): string {
     case "razeAll":
       return "level every enemy building";
     case "decapitate":
-      return "destroy the enemy Construction Yard";
+      return `destroy the enemy ${labelFor("constructionYard")}`;
     case "annihilate":
       return "wipe out every enemy unit and building";
     case "holdTheLine":
@@ -91,7 +90,7 @@ export function missionObjectives(
       case "razeAll":
         return `Level every ${them.name} building`;
       case "decapitate":
-        return `Destroy the ${them.name} Construction Yard`;
+        return `Destroy the ${them.name} ${labelFor("constructionYard")}`;
       case "annihilate":
         return `Wipe out all ${them.name} forces`;
       case "holdTheLine":
@@ -110,7 +109,7 @@ export function missionObjectives(
   })();
   return [
     { id: "win", text: winText },
-    { id: "yard", text: "Protect our Construction Yard" },
+    { id: "yard", text: `Protect our ${labelFor("constructionYard")}` },
     {
       id: "theater",
       text: `Hold ${place} against the ${them.name}`,
@@ -179,7 +178,7 @@ export function generateBriefing(
       case "razeAll":
         return `No occupation this time. The ${them.name} built hard across ${place}; command wants every structure gone. Leave ${foe} nothing worth garrisoning in the ${biome}.`;
       case "decapitate":
-        return `Every ${them.name} operation routes through a single construction yard under ${foe}'s banner in the ${biome}. Find it and cut it out of ${place} — without it they cannot rebuild.`;
+        return `Every ${them.name} operation routes through a single ${labelFor("constructionYard")} under ${foe}'s banner in the ${biome}. Find it and cut it out of ${place} — without it they cannot rebuild.`;
       case "annihilate":
         return `This ends at ${place}. Every ${them.name} unit, every structure — gone from the ${biome}. ${foe} does not get a second base or a third chance.`;
       case "holdTheLine":
@@ -200,31 +199,31 @@ export function generateBriefing(
   const orders = (() => {
     switch (win.kind) {
       case "harvestQuota":
-        return `Then the ore comes out first. Get your harvesters rolling, screen the refineries, and keep the construction yard protected — no ore, no war.`;
+        return `Then the ore comes out first. Get your harvesters rolling, screen the refineries, and keep the ${labelFor("constructionYard")} protected — no ore, no war.`;
       case "forceQuota":
-        return `Then we out-produce them. Train those units fast, cover the construction yard while they come online, and make ${foe} pay for every probe against your lines.`;
+        return `Then we out-produce them. Train those units fast, cover the ${labelFor("constructionYard")} while they come online, and make ${foe} pay for every probe against your lines.`;
       case "structureQuota":
-        return `Break ground now. I want those structures up before the ${them.name} crests the ridge, turrets covering the approaches, and the construction yard defended around the clock.`;
+        return `Break ground now. I want those structures up before the ${them.name} crests the ridge, turrets covering the approaches, and the ${labelFor("constructionYard")} defended around the clock.`;
       case "destroyMarked":
-        return `Strike the marked targets hard and fast — in, out, done. Keep the construction yard standing while you do it. Losing it loses ${place}.`;
+        return `Strike the marked targets hard and fast — in, out, done. Keep the ${labelFor("constructionYard")} standing while you do it. Losing it loses ${place}.`;
       case "razeAll":
-        return `Total demolition, then. Nothing of theirs stays upright across ${place}. Ours stays up — starting with the construction yard.`;
+        return `Total demolition, then. Nothing of theirs stays upright across ${place}. Ours stays up — starting with the ${labelFor("constructionYard")}.`;
       case "decapitate":
-        return `One target matters. Their construction yard falls today — cut the head off and the rest is cleanup at ${place}. Guard ours until then.`;
+        return `One target matters. Their ${labelFor("constructionYard")} falls today — cut the head off and the rest is cleanup at ${place}. Guard ours until then.`;
       case "annihilate":
-        return `Understood. Nothing walks away and nothing stands. Shield the construction yard while you finish the ${them.name} off.`;
+        return `Understood. Nothing walks away and nothing stands. Shield the ${labelFor("constructionYard")} while you finish the ${them.name} off.`;
       case "holdTheLine":
-        return `Then we plant our boots. The line holds for ${holdDurationLabel(win.ticks ?? 0)} — not a second less — and the construction yard holds with it.`;
+        return `Then we plant our boots. The line holds for ${holdDurationLabel(win.ticks ?? 0)} — not a second less — and the ${labelFor("constructionYard")} holds with it.`;
       case "escort":
-        return `The convoy reaches extraction. Screen the route, keep escorts tight, and cover the construction yard until the last wheel clears ${place}.`;
+        return `The convoy reaches extraction. Screen the route, keep escorts tight, and cover the ${labelFor("constructionYard")} until the last wheel clears ${place}.`;
       case "sabotage":
-        return `Quiet work, loud exit. All of those systems go dark before the deadline — and if the construction yard is threatened, the yard wins.`;
+        return `Quiet work, loud exit. All of those systems go dark before the deadline — and if the ${labelFor("constructionYard")} is threatened, the HQ wins.`;
       case "rescue":
-        return `We bring our people home. Fast in, faster out — and the construction yard stays untouchable until they are aboard.`;
+        return `We bring our people home. Fast in, faster out — and the ${labelFor("constructionYard")} stays untouchable until they are aboard.`;
       case "extraction":
-        return `Load everything. Nothing of ours stays on ${place} for ${foe} to catalogue. The construction yard stands until the last lift clears.`;
+        return `Load everything. Nothing of ours stays on ${place} for ${foe} to catalogue. The ${labelFor("constructionYard")} stands until the last lift clears.`;
       default:
-        return `Proceed as briefed. Protect the construction yard, complete the objective, and give ${foe} no openings. Good hunting.`;
+        return `Proceed as briefed. Protect the ${labelFor("constructionYard")}, complete the objective, and give ${foe} no openings. Good hunting.`;
     }
   })();
 
@@ -241,7 +240,7 @@ export function generateBriefing(
       case "razeAll":
         return `Burn whatever you can reach, ${you}. The ${them.name} buries arsonists where they stand.`;
       case "decapitate":
-        return `Our construction yard sits behind three lines of steel, ${you}. Bring a map. You will want it for the retreat.`;
+        return `Our ${labelFor("constructionYard")} sits behind three lines of steel, ${you}. Bring a map. You will want it for the retreat.`;
       case "annihilate":
         return `You want everything dead, ${you}? Bold words from someone so exposed. The ${them.name} digs graves in pairs.`;
       case "holdTheLine":
