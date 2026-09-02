@@ -1,3 +1,9 @@
+import type { Entity } from "../../types";
+
+export function entityHasWorldHealthMeter(e: Pick<Entity, "class" | "kind">): boolean {
+  return e.class === "unit" || (e.class === "building" && e.kind === "turret");
+}
+
 export function healthMeterColors(ratio: number): { top: string; bottom: string } {
   if (ratio > 0.5) {
     return { top: "#4ade80", bottom: "#16a34a" };

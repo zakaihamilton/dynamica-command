@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { drawUnitHealthMeter, healthMeterColors } from "../lib/render/renderOverlays";
+import { drawUnitHealthMeter, entityHasWorldHealthMeter, healthMeterColors } from "../lib/render/renderOverlays";
 
 describe("health meter colors", () => {
   it("returns green tier for health ratio > 0.5", () => {
@@ -95,5 +95,26 @@ describe("drawUnitHealthMeter canvas rendering", () => {
     expect(ctx.globalAlpha).toBe(0.75);
     // Zoom 2 should result in width around 40px and height 7px
     expect(ctx.fillRect).toHaveBeenCalledWith(179, 99, 42, 9);
+  });
+});
+
+describe("entityHasWorldHealthMeter", () => {
+  it("shows the world meter for units", () => {
+    expect(entityHasWorldHealthMeter({ class: "unit", kind: "infantry" })).toBe(true);
+    expect(entityHasWorldHealthMeter({ class: "unit", kind: "tank" })).toBe(true);
+    expect(entityHasWorldHealthMeter({ class: "unit", kind: "harvester" })).toBe(true);
+  });
+
+  it("shows the world meter for turret buildings", () => {
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "turret" })).toBe(true);
+  });
+
+  it("hides the world meter for other buildings", () => {
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "constructionYard" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "power" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "refinery" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "barracks" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "factory" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "objective" })).toBe(false);
   });
 });
