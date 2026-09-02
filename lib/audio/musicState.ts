@@ -29,6 +29,7 @@ export type MusicGraph = {
   leadBus: GainNode;
   counterBus: GainNode;
   fxBus: GainNode;
+  bassDuck: GainNode;
   reverb: ConvolverNode;
   reverbSend: GainNode;
   reverbWet: GainNode;

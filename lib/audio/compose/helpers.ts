@@ -22,8 +22,14 @@ import {
   PHRYGIAN_PROGRESSIONS,
   HARMONIC_MINOR,
   MINOR_PENTATONIC,
+  LYDIAN,
+  DOUBLE_HARMONIC,
+  BLUES,
   HARMONIC_MINOR_PROGRESSIONS,
   PENTATONIC_PROGRESSIONS,
+  LYDIAN_PROGRESSIONS,
+  DOUBLE_HARMONIC_PROGRESSIONS,
+  BLUES_PROGRESSIONS,
 } from "./types";
 
 export function midiToHz(midi: number): number {
@@ -57,6 +63,9 @@ const SCALES: Record<MusicScaleName, { notes: readonly number[]; name: MusicScal
   phrygian: { notes: PHRYGIAN, name: "phrygian" },
   "harmonic minor": { notes: HARMONIC_MINOR, name: "harmonic minor" },
   "minor pentatonic": { notes: MINOR_PENTATONIC, name: "minor pentatonic" },
+  lydian: { notes: LYDIAN, name: "lydian" },
+  "double harmonic": { notes: DOUBLE_HARMONIC, name: "double harmonic" },
+  blues: { notes: BLUES, name: "blues" },
 };
 
 export function scaleFor(cue: MusicCue, rng: Rng, style?: MusicStyleProfile): { notes: readonly number[]; name: MusicScaleName } {
@@ -66,7 +75,7 @@ export function scaleFor(cue: MusicCue, rng: Rng, style?: MusicStyleProfile): { 
       ? ["dorian", "natural minor", "phrygian"]
       : cue === "defeat"
         ? ["natural minor", "dorian", "phrygian", "harmonic minor"]
-        : ["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic"];
+        : ["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic", "lydian", "double harmonic", "blues"];
   const name = rng.pick(style?.scalePool ?? fallback);
   return SCALES[name];
 }
@@ -80,14 +89,65 @@ export function progressionsFor(scaleName: string, variant = 0): readonly number
         ? PHRYGIAN_PROGRESSIONS
         : scaleName === "harmonic minor"
           ? HARMONIC_MINOR_PROGRESSIONS
-          : scaleName === "minor pentatonic"
-            ? PENTATONIC_PROGRESSIONS
-            : MINOR_PROGRESSIONS;
+        : scaleName === "minor pentatonic"
+          ? PENTATONIC_PROGRESSIONS
+          : scaleName === "lydian"
+            ? LYDIAN_PROGRESSIONS
+            : scaleName === "double harmonic"
+              ? DOUBLE_HARMONIC_PROGRESSIONS
+              : scaleName === "blues"
+                ? BLUES_PROGRESSIONS
+                : MINOR_PROGRESSIONS;
   const offset = ((variant % progressions.length) + progressions.length) % progressions.length;
   return [...progressions.slice(offset), ...progressions.slice(0, offset)];
 }
 
 export function grooveHits(groove: MusicGroove, variation: 0 | 1, variant: 0 | 1 | 2 = 0): { kick: number[]; snare: number[] } {
+  if (groove === "breakbeat") {
+    if (variant === 1) {
+      return variation === 0
+        ? { kick: [0, 10], snare: [4, 6, 12, 13] }
+        : { kick: [0, 6, 10], snare: [4, 7, 12, 15] };
+    }
+    if (variant === 2) {
+      return variation === 0
+        ? { kick: [0, 6, 8, 14], snare: [4, 11, 12] }
+        : { kick: [0, 3, 10], snare: [4, 6, 12, 14] };
+    }
+    return variation === 0
+      ? { kick: [0, 6, 10], snare: [4, 7, 12] }
+      : { kick: [0, 3, 6, 10], snare: [4, 12, 14] };
+  }
+  if (groove === "four-floor") {
+    if (variant === 1) {
+      return variation === 0
+        ? { kick: [0, 4, 8, 12], snare: [4, 12] }
+        : { kick: [0, 4, 8, 12, 14], snare: [4, 12] };
+    }
+    if (variant === 2) {
+      return variation === 0
+        ? { kick: [0, 4, 8, 10, 12], snare: [4, 12] }
+        : { kick: [0, 4, 7, 8, 12], snare: [4, 12] };
+    }
+    return variation === 0
+      ? { kick: [0, 4, 8, 12], snare: [4, 12] }
+      : { kick: [0, 4, 8, 12], snare: [4, 10, 12] };
+  }
+  if (groove === "offbeat") {
+    if (variant === 1) {
+      return variation === 0
+        ? { kick: [0, 7, 8], snare: [6, 14] }
+        : { kick: [0, 8], snare: [6, 10, 14] };
+    }
+    if (variant === 2) {
+      return variation === 0
+        ? { kick: [0, 8, 10], snare: [4, 6, 12, 14] }
+        : { kick: [0, 6, 8], snare: [6, 14] };
+    }
+    return variation === 0
+      ? { kick: [0, 8], snare: [6, 14] }
+      : { kick: [0, 8], snare: [4, 6, 12, 14] };
+  }
   if (groove === "half-time") {
     if (variant === 1) {
       return variation === 0

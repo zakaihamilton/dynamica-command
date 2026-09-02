@@ -8,6 +8,8 @@ import {
   type MusicNoteEvent,
   type MusicDrumEvent,
   type MusicTheme,
+  type MusicPulseRole,
+  type MusicStyleName,
   MUSIC_BARS,
   MUSIC_STEPS,
   STEPS_PER_BAR,
@@ -42,6 +44,40 @@ import {
 } from "./helpers";
 import { bassRiffsFor, createMusicStyle, styleRng } from "./styles";
 import { musicMissionContext } from "./missionContext";
+
+function pulseStepsFor(role: MusicPulseRole, stride: number): number[] {
+  if (role === "none") return [];
+  if (stride === 1) {
+    const dense: number[] = [];
+    for (let i = 0; i < STEPS_PER_BAR; i += 1) dense.push(i);
+    return dense;
+  }
+  if (role === "offbeat") return [2, 6, 10, 14];
+  if (role === "stab") return stride >= 4 ? [0, 8] : [0, 6, 8, 12];
+  const steps: number[] = [];
+  for (let i = 0; i < STEPS_PER_BAR; i += stride) steps.push(i);
+  return steps;
+}
+
+function placeStylePercussion(
+  drums: MusicDrumEvent[],
+  origin: number,
+  name: MusicStyleName,
+  drumGain: number,
+  dropHats: boolean,
+): void {
+  if (name === "break-wire" || name === "disco-command" || name === "dune-cipher") {
+    if (!dropHats) {
+      for (const step of [2, 6, 10, 14]) drumEvent(drums, origin + step, "shaker", 0.28 * drumGain);
+    }
+  }
+  if (name === "break-wire" || name === "dune-cipher") {
+    for (const step of [3, 11]) drumEvent(drums, origin + step, "rim", 0.34 * drumGain);
+  }
+  if (name === "disco-command") {
+    drumEvent(drums, origin + 10, "rim", 0.3 * drumGain);
+  }
+}
 
 function makeSections(): MusicSection[] {
   return SECTION_ORDER.map((name, index) => ({
@@ -269,7 +305,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       }
     }
 
-    if (usePulse) {
+    if (usePulse && style.pulseRole !== "none") {
       const sectionPulseStride = arrangement.pulseStrides[sectionIndex]!;
       const pulseStride = climax
         ? 1
@@ -278,7 +314,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
           : hookSection && sectionPulseStride === 1
             ? 2
             : sectionPulseStride;
-      for (let i = 0; i < STEPS_PER_BAR; i += pulseStride) {
+      for (const i of pulseStepsFor(style.pulseRole, pulseStride)) {
         const figureIndex = Math.floor(i / Math.max(1, pulseStride === 1 ? 1 : 2)) % arpFigure.length;
         const velocity = climax
           ? i % 2 === 0 ? 0.7 : 0.36
@@ -289,7 +325,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
           notes.pulse,
           origin + i,
           chordToneMidi(rootMidi, scalePick.notes, chord, arpFigure[figureIndex]!, 1),
-          1,
+          style.pulseRole === "stab" ? 3 : 1,
           mixEnergy(velocity, energy),
           i % 4 === 0,
         );
@@ -387,6 +423,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       if (!hole && !dropHats) {
         for (const step of openHatSteps) drumEvent(drums, origin + step, "openHat", 0.44 * drumGain);
       }
+      placeStylePercussion(drums, origin, style.name, drumGain, dropHats);
     }
 
     if ((section.name === "escalation" || climax) && phraseBar === 0) {

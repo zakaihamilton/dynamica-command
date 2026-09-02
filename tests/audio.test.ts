@@ -40,15 +40,24 @@ describe("generated audio", () => {
   });
 
   it("covers every seeded style family and keeps mission fingerprints distinct", () => {
-    const corpus = Array.from({ length: 24 }, (_, seed) =>
+    const corpus = Array.from({ length: 48 }, (_, seed) =>
       Array.from({ length: 8 }, (__, mission) => composeMusic(seed, "mission", mission)),
     ).flat();
-    expect(new Set(corpus.map((pattern) => pattern.style.name)).size).toBe(12);
+    expect(new Set(corpus.map((pattern) => pattern.style.name)).size).toBe(20);
     expect(corpus.some((pattern) => pattern.style.bassRiffFamily === "classic")).toBe(true);
     expect(corpus.some((pattern) => pattern.theme.groove === "shuffle")).toBe(true);
     expect(corpus.some((pattern) => pattern.theme.groove === "half-time")).toBe(true);
+    expect(corpus.some((pattern) => pattern.theme.groove === "breakbeat")).toBe(true);
+    expect(corpus.some((pattern) => pattern.theme.groove === "four-floor")).toBe(true);
+    expect(corpus.some((pattern) => pattern.theme.groove === "offbeat")).toBe(true);
     expect(corpus.some((pattern) => pattern.scaleName === "phrygian")).toBe(true);
     expect(corpus.some((pattern) => pattern.scaleName === "harmonic minor" || pattern.scaleName === "minor pentatonic")).toBe(true);
+    expect(corpus.some((pattern) => pattern.scaleName === "lydian" || pattern.scaleName === "double harmonic" || pattern.scaleName === "blues")).toBe(true);
+    expect(corpus.some((pattern) => pattern.style.voiceEngine === "chip")).toBe(true);
+    expect(corpus.some((pattern) => pattern.style.voiceEngine === "acid-res")).toBe(true);
+    expect(corpus.some((pattern) => pattern.style.drumKit === "industrial")).toBe(true);
+    expect(corpus.some((pattern) => pattern.drums.some((event) => event.kind === "rim" || event.kind === "shaker"))).toBe(true);
+    expect(new Set(corpus.map((pattern) => pattern.style.voiceEngine)).size).toBe(5);
 
     const missions = Array.from({ length: 8 }, (_, mission) => composeMusic(421, "mission", mission));
     expect(new Set(missions.map((pattern) => pattern.style.name)).size).toBe(8);
@@ -94,8 +103,8 @@ describe("generated audio", () => {
 
     const volcanicFamilies = ["foundry-stomp", "night-raid", "acid-grid"];
     const tundraFamilies = ["ice-protocol", "low-orbit", "cinematic-tension"];
-    const volcanicOrSecondary = [...volcanicFamilies, "industrial-march", "cinematic-tension"];
-    const tundraOrSecondary = [...tundraFamilies, "orbital-drift", "glass-chime"];
+    const volcanicOrSecondary = [...volcanicFamilies, "industrial-march", "cinematic-tension", "tape-static", "resonant-coil"];
+    const tundraOrSecondary = [...tundraFamilies, "orbital-drift", "glass-chime", "choir-vector", "relay-dub"];
     for (let seed = 0; seed < 48; seed++) {
       const biomes = pickMissionBiomes(seed);
       if (biomes[0] === "volcanic shelf") {
@@ -201,7 +210,7 @@ describe("generated audio", () => {
       const pattern = composeMusic(seed, "mission", 3);
       const fromBar = (bar: number) => bar * STEPS_PER_BAR;
       expect(pattern.kick.slice(fromBar(4), fromBar(16)).some(Boolean)).toBe(true);
-      if (pattern.style.arrangement.pulseEnabled[0]) {
+      if (pattern.style.arrangement.pulseEnabled[0] && pattern.style.pulseRole !== "none") {
         expect(pattern.arp.slice(fromBar(4), fromBar(16)).some((note) => note !== null)).toBe(true);
       }
       if (pattern.style.arrangement.melodyEnabled[0]) {
@@ -263,8 +272,8 @@ describe("generated audio", () => {
         expect(melodyHits).toBeLessThan(MUSIC_STEPS / 2);
         expect(pattern.rootHz).toBeGreaterThan(midiToHz(30));
         if (cue === "mission") {
-          expect(["pulse", "march", "shuffle", "half-time"]).toContain(pattern.theme.groove);
-          expect(["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic"]).toContain(pattern.scaleName);
+          expect(["pulse", "march", "shuffle", "half-time", "breakbeat", "four-floor", "offbeat"]).toContain(pattern.theme.groove);
+          expect(["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic", "lydian", "double harmonic", "blues"]).toContain(pattern.scaleName);
         }
       }
     }
@@ -285,13 +294,15 @@ describe("generated audio", () => {
       expect(pattern.theme.hook).not.toEqual(pattern.motif);
       expect(pattern.theme.developmentMotif.degrees.length).toBeGreaterThan(4);
       expect(pattern.motif.rhythm.some((step) => step % 2 === 1)).toBe(true);
-      expect(["pulse", "march", "shuffle", "half-time"]).toContain(pattern.theme.groove);
-      expect(["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic"]).toContain(pattern.scaleName);
+      expect(["pulse", "march", "shuffle", "half-time", "breakbeat", "four-floor", "offbeat"]).toContain(pattern.theme.groove);
+      expect(["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic", "lydian", "double harmonic", "blues"]).toContain(pattern.scaleName);
       expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
       expect(sectionNotes("groove", "melody").length).toBeGreaterThan(0);
       expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
       expect(sectionNotes("climax", "melody").length).toBeGreaterThan(sectionNotes("hook", "melody").length);
-      expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
+      if (pattern.style.pulseRole !== "none") {
+        expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
+      }
       const developmentMelody = sectionNotes("development", "melody");
       const developmentCounter = sectionNotes("development", "counter");
       expect(developmentCounter.length).toBeGreaterThan(0);
@@ -359,7 +370,7 @@ describe("generated audio", () => {
           expect(seen.has(key)).toBe(false);
           seen.add(key);
         }
-        if (pattern.style.arrangement.pulseEnabled[2]) {
+        if (pattern.style.arrangement.pulseEnabled[2] && pattern.style.pulseRole !== "none") {
           const hook = pattern.sections.find((section) => section.name === "hook")!;
           const midHookPulse = pattern.notes.pulse.filter((note) => {
             const bar = Math.floor(note.step / STEPS_PER_BAR);
