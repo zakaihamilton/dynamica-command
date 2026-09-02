@@ -138,6 +138,8 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "DYNAMICA" })).toBeVisible();
+  await expect(page.getByText("Dynamica command", { exact: true })).toHaveCount(0);
+  await expect(page.locator("header").getByText("DYNAMICA COMMAND")).toHaveCount(0);
   await expect(page.getByTestId("menu-dashboard")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Main menu" })).toBeVisible();
   await expect(page.getByTestId("menu-dashboard").getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);

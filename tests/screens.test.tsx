@@ -57,6 +57,13 @@ describe("MenuScreen", () => {
     expect(router.push).toHaveBeenCalledWith("/tutorial?seed=0421&from=menu");
     vi.restoreAllMocks();
   });
+
+  it("keeps the full product name out of the welcome topbar", () => {
+    render(<MenuScreen />);
+
+    expect(screen.getByText("COMMAND DESK")).toBeVisible();
+    expect(screen.queryByText("DYNAMICA COMMAND")).toBeNull();
+  });
 });
 
 describe("CampaignArchiveScreen", () => {

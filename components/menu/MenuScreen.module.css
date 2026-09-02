@@ -99,7 +99,6 @@
   box-shadow: 0 0 12px color-mix(in srgb, var(--chrome-cyan) 18%, transparent);
 }
 
-.topbarDivider,
 .topbarMuted,
 .footerVersion {
   color: var(--chrome-muted);
@@ -141,12 +140,6 @@
 .hero {
   width: 100%;
   text-align: left;
-}
-
-.eyebrow {
-  margin: 0 0 0.7rem;
-  color: var(--chrome-cyan);
-  text-align: inherit;
 }
 
 .title {
@@ -322,11 +315,6 @@
   .commandColumn {
     width: 100%;
     gap: 1.15rem;
-  }
-
-  .eyebrow {
-    margin-bottom: 0.65rem;
-    font-size: 0.58rem;
   }
 
   .title {

@@ -9,6 +9,7 @@ import { MobileCommandLauncher } from "../components/game/MobileCommandLauncher"
 import { MobileTouchControls } from "../components/game/MobileTouchControls";
 import { SelectionOrders } from "../components/game/SelectionOrders";
 import { CommandCatalogContent } from "../components/game/CommandCatalogContent";
+import { MenuHero } from "../components/menu/MenuHero";
 import { MenuOverlay } from "../components/menu/MenuOverlay";
 import { MenuMainPanel } from "../components/menu/MenuMainPanel";
 import { NewGameSetup } from "../components/menu/NewGameSetup";
@@ -294,6 +295,16 @@ describe("NewGameSetup", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Operations map" }));
     expect(onOperations).toHaveBeenCalledOnce();
+  });
+});
+
+describe("MenuHero", () => {
+  it("renders the product title once without repeating it as an eyebrow", () => {
+    render(<MenuHero />);
+
+    expect(screen.getByRole("heading", { name: "DYNAMICA" })).toBeVisible();
+    expect(screen.getByText("COMMAND")).toBeVisible();
+    expect(screen.queryByText("Dynamica command")).toBeNull();
   });
 });
 
