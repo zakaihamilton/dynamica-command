@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createCinemaScene, renderCinemaFrame, type Shot } from "./menuBackdropSim";
+import { createCinemaScene, renderCinemaFrame, stepCinemaScene, type Shot } from "./menuBackdropSim";
 import styles from "./MenuBackdrop.module.css";
 
 export function MenuBackdrop() {
@@ -28,6 +28,7 @@ export function MenuBackdrop() {
 
     const frame = () => {
       t += 1;
+      stepCinemaScene(scene, shots, t);
       renderCinemaFrame(ctx, canvas.width, canvas.height, t, scene, shots);
       if (!reduceMotion) raf = requestAnimationFrame(frame);
     };

@@ -1,3 +1,6 @@
 export { CINEMA_SEED, createCinemaScene } from "./menuBackdropSim/scene";
-export type { Actor, Shot } from "./menuBackdropSim/scene";
-export { renderCinemaFrame } from "./menuBackdropSim/render";
+export type { Actor, CinemaScene, Shot } from "./menuBackdropSim/scene";
+export { renderCinemaFrame, stepCinemaScene } from "./menuBackdropSim/render";
+export { PREVIEW_LOCK_IDS, previewAt } from "./menuBackdropSim/cycle";
+export type { PreviewPhase } from "./menuBackdropSim/cycle";
+export { cinemaShotCamera } from "./menuBackdropSim/shots";

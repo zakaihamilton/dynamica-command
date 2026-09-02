@@ -103,6 +103,10 @@ describe("MenuScreen", () => {
     expect(overlay).toHaveAttribute("data-reduced-motion", "false");
     expect(overlay).not.toHaveClass(overlayStyles.static);
     expect(overlay.querySelectorAll("[data-lock]")).toHaveLength(3);
+    expect(overlay.querySelectorAll("canvas")).toHaveLength(3);
+    expect(overlay.querySelector('[data-lock="a"]')).toHaveAttribute("data-expanded", "true");
+    expect(overlay.querySelector('[data-lock="b"]')).toHaveAttribute("data-expanded", "false");
+    expect(overlay.querySelector('[data-lock="c"]')).toHaveAttribute("data-expanded", "false");
   });
 
   it("freezes the signal overlay in its locked pose when motion is reduced", () => {
@@ -115,6 +119,8 @@ describe("MenuScreen", () => {
       expect(overlay).toHaveAttribute("data-reduced-motion", "true");
       expect(overlay).toHaveClass(overlayStyles.static);
       expect(overlay.querySelectorAll("[data-lock]")).toHaveLength(3);
+      expect(overlay.querySelectorAll("canvas")).toHaveLength(0);
+      expect(overlay.querySelector("[data-expanded='true']")).toBeNull();
     } finally {
       Object.defineProperty(window, "matchMedia", {
         configurable: true,

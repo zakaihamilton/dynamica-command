@@ -2,10 +2,10 @@ import {
   unitSprite,
 } from "@/lib/gen/assets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
-import { TILE_H, TILE_W, tileToScreen } from "@/lib/iso";
+import { TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/iso";
 import { rasterize } from "@/lib/render/sprites";
 import { CINEMA_SCROLL_PAD, scrollLayerBlitOffset, scrollLayerPaintCamera } from "@/lib/render/scrollLayer";
-import { CINEMA_SEED, type Shot } from "./scene";
+import { CINEMA_SEED, type CinemaScene, type Shot } from "./scene";
 import { tileKind, cinemaCamera, cinemaOrigin, paintCinemaTile, paintCinemaStatic } from "./paint";
 
 type CinemaTerrainCache = {
@@ -24,11 +24,7 @@ const cinemaTerrain: CinemaTerrainCache = {
   pad: CINEMA_SCROLL_PAD,
 };
 
-function ensureCinemaTerrain(
-  scene: ReturnType<typeof import("./scene").createCinemaScene>,
-  w: number,
-  h: number,
-): CinemaTerrainCache | null {
+function ensureCinemaTerrain(scene: CinemaScene, w: number, h: number): CinemaTerrainCache | null {
   if (typeof document === "undefined") return null;
   const pad = CINEMA_SCROLL_PAD;
   const origin = cinemaOrigin(w, h);
@@ -55,49 +51,8 @@ function ensureCinemaTerrain(
   return cinemaTerrain;
 }
 
-export function renderCinemaFrame(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  t: number,
-  scene: ReturnType<typeof import("./scene").createCinemaScene>,
-  shots: Shot[],
-) {
-  const { map, actors } = scene;
-
-  ctx.imageSmoothingEnabled = false;
-  const cam = cinemaCamera(w, h, t);
-
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, "#0a1018");
-  sky.addColorStop(0.45, "#12180f");
-  sky.addColorStop(1, "#1a140c");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
-
-  const cached = ensureCinemaTerrain(scene, w, h);
-  if (cached?.canvas) {
-    const blit = scrollLayerBlitOffset(
-      { originX: cached.originX, originY: cached.originY, pad: cached.pad },
-      cam.x,
-      cam.y,
-    );
-    ctx.drawImage(cached.canvas, blit.x, blit.y);
-  } else {
-    paintCinemaStatic(ctx, scene, cam, w, h);
-  }
-
-  const margin = TILE_W * cam.zoom;
-  for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
-      if (tileKind(map.tiles[y * map.width + x]!) !== "resource") continue;
-      const elev = map.heights[y * map.width + x] ?? 1;
-      const s = tileToScreen(x, y, cam, elev);
-      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
-      paintCinemaTile(ctx, scene, cam, x, y, "resource", t);
-    }
-  }
-
+export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): void {
+  const { actors } = scene;
   for (const a of actors) {
     const dest = a.waypoints[a.wi]!;
     const dx = dest.x - a.x;
@@ -118,6 +73,59 @@ export function renderCinemaFrame(
   for (let i = shots.length - 1; i >= 0; i--) {
     shots[i]!.life -= 1;
     if (shots[i]!.life <= 0) shots.splice(i, 1);
+  }
+}
+
+export type RenderCinemaOptions = {
+  camera?: Camera;
+  paintAmbient?: boolean;
+  useTerrainCache?: boolean;
+};
+
+export function renderCinemaFrame(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  t: number,
+  scene: CinemaScene,
+  shots: Shot[],
+  options?: RenderCinemaOptions,
+) {
+  const { map, actors } = scene;
+  const cam = options?.camera ?? cinemaCamera(w, h, t);
+  const paintAmbient = options?.paintAmbient ?? true;
+  const useTerrainCache = options?.useTerrainCache ?? true;
+
+  ctx.imageSmoothingEnabled = false;
+
+  const sky = ctx.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, "#0a1018");
+  sky.addColorStop(0.45, "#12180f");
+  sky.addColorStop(1, "#1a140c");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+
+  const cached = useTerrainCache ? ensureCinemaTerrain(scene, w, h) : null;
+  if (cached?.canvas) {
+    const blit = scrollLayerBlitOffset(
+      { originX: cached.originX, originY: cached.originY, pad: cached.pad },
+      cam.x,
+      cam.y,
+    );
+    ctx.drawImage(cached.canvas, blit.x, blit.y);
+  } else {
+    paintCinemaStatic(ctx, scene, cam, w, h);
+  }
+
+  const margin = TILE_W * cam.zoom;
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      if (tileKind(map.tiles[y * map.width + x]!) !== "resource") continue;
+      const elev = map.heights[y * map.width + x] ?? 1;
+      const s = tileToScreen(x, y, cam, elev);
+      if (s.x < -margin || s.y < -margin || s.x > w + margin || s.y > h + margin) continue;
+      paintCinemaTile(ctx, scene, cam, x, y, "resource", t);
+    }
   }
 
   const profile0 = generateVisualProfile(CINEMA_SEED, 0);
@@ -146,7 +154,7 @@ export function renderCinemaFrame(
     ctx.stroke();
   }
 
-  paintAmbientSignals(ctx, w, h, t);
+  if (paintAmbient) paintAmbientSignals(ctx, w, h, t);
 }
 
 function paintAmbientSignals(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void {
@@ -193,7 +201,7 @@ function paintAmbientSignals(ctx: CanvasRenderingContext2D, w: number, h: number
   ctx.moveTo(reticleX + 7, reticleY);
   ctx.lineTo(reticleX + 25, reticleY);
   ctx.moveTo(reticleX, reticleY - 25);
-  ctx.lineTo(reticleX, reticleY - 7);
+  ctx.lineTo(reticleX, reticleY + 7);
   ctx.moveTo(reticleX, reticleY + 7);
   ctx.lineTo(reticleX, reticleY + 25);
   ctx.stroke();

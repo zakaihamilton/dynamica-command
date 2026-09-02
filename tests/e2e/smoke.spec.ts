@@ -142,6 +142,15 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await expect(page.getByRole("navigation", { name: "Main menu" })).toBeVisible();
   await expect(page.getByTestId("menu-dashboard").getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);
 
+  const expandedLock = page.locator("[data-lock][data-expanded='true']");
+  await expect(expandedLock).toHaveCount(1);
+  await expect(expandedLock.locator("canvas")).toBeAttached();
+  const lockBox = await expandedLock.boundingBox();
+  const newGameBox = await page.getByRole("button", { name: "NEW GAME" }).boundingBox();
+  expect(lockBox).toBeTruthy();
+  expect(newGameBox).toBeTruthy();
+  expect(lockBox!.x).toBeGreaterThan(newGameBox!.x + newGameBox!.width - 24);
+
   const menuOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(menuOverflow).toBe(false);
 

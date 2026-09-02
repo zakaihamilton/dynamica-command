@@ -21,6 +21,7 @@ export type Actor = {
 export type Shot = { ax: number; ay: number; bx: number; by: number; life: number };
 
 export function createCinemaScene() {
+
   const map = generateMap(CINEMA_SEED, {
     index: 0,
     win: { kind: "razeAll" },
@@ -124,3 +125,5 @@ export function createCinemaScene() {
 
   return { map, us, them, campaignProfile, buildings, actors };
 }
+
+export type CinemaScene = ReturnType<typeof createCinemaScene>;
