@@ -18,6 +18,24 @@
   text-align: center;
   text-transform: uppercase;
   text-shadow: 1px 1px #000;
+  animation: combat-alert-pulse 0.9s ease-in-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner {
+    animation: none;
+  }
+}
+
+@keyframes combat-alert-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.55), inset 0 0 0 1px var(--chrome-inset);
+  }
+  50% {
+    opacity: 0.88;
+    box-shadow: 0 0 22px color-mix(in srgb, var(--chrome-alert) 45%, transparent), inset 0 0 0 1px var(--chrome-inset);
+  }
 }
 
 @media (max-width: 799px) {

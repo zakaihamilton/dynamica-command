@@ -61,7 +61,7 @@
 
 .warning {
   margin: 1rem 0 0;
-  color: #ffb08a;
+  color: var(--chrome-warning);
   font-size: 0.7rem;
   line-height: 1.45;
 }

@@ -27,7 +27,7 @@
 }
 
 .overlay[data-result="lost"] .title {
-  color: #f0a08c;
+  color: var(--chrome-alert);
   text-shadow: 0 0 24px color-mix(in srgb, var(--chrome-alert) 35%, transparent);
 }
 

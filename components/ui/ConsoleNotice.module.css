@@ -1,0 +1,81 @@
+.wrap {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--chrome-bg);
+  color: var(--chrome-body);
+}
+
+.panel {
+  width: min(100%, 34rem);
+  padding: 2rem 2.2rem;
+  text-align: center;
+}
+
+.title {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chrome-text);
+}
+
+.detail {
+  margin: 0.6rem 0 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  color: var(--chrome-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.link,
+.linkMuted {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+  border-radius: var(--chrome-radius);
+  border: 1px solid color-mix(in srgb, var(--chrome-bevel) 35%, var(--chrome-steel-lo));
+  background:
+    linear-gradient(105deg, rgba(255, 255, 255, 0.1), transparent 26%),
+    linear-gradient(color-mix(in srgb, var(--chrome-steel-hi) 58%, var(--chrome-bevel)), var(--chrome-steel));
+  box-shadow: inset 1px 1px var(--chrome-bevel), inset -2px -2px var(--chrome-steel-lo), 0 5px 16px rgba(0, 0, 0, 0.3), 2px 2px var(--chrome-void);
+  color: var(--chrome-text);
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.linkMuted {
+  background:
+    linear-gradient(105deg, rgba(255, 255, 255, 0.04), transparent 26%),
+    linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -2px -2px var(--chrome-inset), 0 5px 16px rgba(0, 0, 0, 0.3), 2px 2px var(--chrome-void);
+}
+
+.link:hover,
+.linkMuted:hover {
+  color: var(--chrome-cyan);
+  border-color: color-mix(in srgb, var(--chrome-cyan) 55%, var(--chrome-bevel));
+}
+
+.link:focus-visible,
+.linkMuted:focus-visible {
+  outline: 2px solid var(--chrome-focus);
+  outline-offset: 2px;
+}

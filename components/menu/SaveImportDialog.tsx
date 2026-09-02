@@ -1,5 +1,8 @@
+"use client";
+
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { useModalFocus } from "@/components/ui/useModalFocus";
 import { formatSeed } from "@/lib/seed/rng";
 import type { ParsedSaveExport } from "@/lib/persist/save";
 import styles from "./SaveImportDialog.module.css";
@@ -19,9 +22,17 @@ export function SaveImportDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const dialogRef = useModalFocus(true, fileName, "dialog");
   return (
     <div className={styles.backdrop} role="presentation">
-      <MetalPanel className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="save-import-title">
+      <MetalPanel
+        ref={dialogRef}
+        tabIndex={-1}
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="save-import-title"
+      >
         <p className={styles.eyebrow}>Save transfer</p>
         <h2 id="save-import-title">Import save?</h2>
         <p className={styles.fileName}>{fileName}</p>

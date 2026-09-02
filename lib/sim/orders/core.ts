@@ -1,5 +1,6 @@
 import { isSupportEntity } from "../../catalog";
 import { TILE_RESOURCE, type Command, type Entity, type SimEvent, type SimState, type TutorialStage } from "../../types";
+import { enterTutorialStage } from "../tutorialStage";
 import { findPathDetailed, routePendingFor } from "../pathfinding";
 import { FOREGROUND_PATH_MAX_NODES, FOREGROUND_PATHS_PER_ORDER } from "../pathBudget";
 import { byId, inBounds, tileAt } from "../world";
@@ -94,7 +95,7 @@ function advanceTutorialAfterCommand(state: SimState, type: Command["type"]): vo
   };
   const stage = state.tutorialStage;
   const nextStage = next[stage];
-  if (expected[stage]?.includes(type) && nextStage) state.tutorialStage = nextStage;
+  if (expected[stage]?.includes(type) && nextStage) enterTutorialStage(state, nextStage);
 }
 
 function stopUnits(state: SimState, ids: number[]): SimEvent[] {

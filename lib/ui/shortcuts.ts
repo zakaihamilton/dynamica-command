@@ -8,7 +8,7 @@ export type KeyEventLike = {
   shiftKey?: boolean;
 };
 
-export type PauseView = "main" | "options" | "soundtrack";
+export type PauseView = "main" | "options" | "soundtrack" | "controls";
 export type CommandTab = "construction" | "production" | "selected";
 
 export type GameCommand =
@@ -28,6 +28,7 @@ export type GameCommand =
   | { type: "briefing" }
   | { type: "restart" }
   | { type: "options" }
+  | { type: "controls" }
   | { type: "menu" }
   | { type: "toggleSound" }
   | { type: "toggleMusic" }
@@ -72,6 +73,7 @@ export const SHORTCUT = {
   briefing: "B",
   restart: "R",
   options: "O",
+  controls: "F1",
   menu: "M",
   mute: "M",
   music: "U",
@@ -120,6 +122,10 @@ function isSpace(e: KeyEventLike): boolean {
   return e.key === " " || e.key === "Spacebar" || e.key === "Space";
 }
 
+function isF1(e: KeyEventLike): boolean {
+  return e.key === "F1" || e.key === "Help";
+}
+
 export function gameCommandFromKey(
   e: KeyEventLike,
   ctx: {
@@ -145,15 +151,22 @@ export function gameCommandFromKey(
   if (ctx.paused) {
     if (ctx.pauseView === "soundtrack") {
       if (isEscape(e)) return { type: "pauseBack" };
+      if (isF1(e) && !ctrl) return { type: "controls" };
       return null;
     }
     if (ctrl) return null;
+    if (ctx.pauseView === "controls") {
+      if (isEscape(e) || isF1(e)) return { type: "pauseBack" };
+      return null;
+    }
     if (ctx.pauseView === "options") {
       if (isEscape(e)) return { type: "pauseBack" };
+      if (isF1(e)) return { type: "controls" };
       if (key === "m") return { type: "toggleSound" };
       if (key === "u") return { type: "toggleMusic" };
       return null;
     }
+    if (isF1(e)) return { type: "controls" };
     if (isEscape(e)) return { type: "resume" };
     if (key === "s") return { type: "save" };
     if (key === "l") return { type: "load" };
@@ -171,6 +184,7 @@ export function gameCommandFromKey(
     if (e.shiftKey) return null;
     return { type: "cameo", index: cameo, cancel: ctrl };
   }
+  if (isF1(e) && !ctrl) return { type: "controls" };
   if (ctrl) return null;
   if (isEscape(e)) return ctx.toolActive ? { type: "cancelTool" } : { type: "pause" };
   if (key === "q") return { type: "tab", tab: "construction" };

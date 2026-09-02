@@ -3,7 +3,10 @@
 import { useMemo, type CSSProperties } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
+import { ConsoleNotice } from "@/components/ui/ConsoleNotice";
+import { DocumentTitle } from "@/components/ui/DocumentTitle";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { formatSeed } from "@/lib/seed/rng";
 import { createCampaign } from "@/lib/gen/campaign";
 import { missionObjectives } from "@/lib/gen/story";
 import { biomeArt } from "@/lib/gen/visualAssets";
@@ -42,18 +45,20 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
 
   if (!def) {
     return (
-      <div className={styles.missing}>
-        <p>Mission missing.</p>
+      <ConsoleNotice eyebrow="Transmission interrupted" title="Mission missing.">
         <ConsoleButton muted onClick={controller.back}>{backLabel}</ConsoleButton>
-      </div>
+      </ConsoleNotice>
     );
   }
   if (!returnToGame && mission > progress.unlockedMission) {
     return (
-      <div className={styles.missing}>
-        <p>Mission locked. Complete the previous operation first.</p>
+      <ConsoleNotice
+        eyebrow="Operation sealed"
+        title="Mission locked"
+        detail="Complete the previous operation first."
+      >
         <ConsoleButton muted onClick={controller.back}>{backLabel}</ConsoleButton>
-      </div>
+      </ConsoleNotice>
     );
   }
 
@@ -65,6 +70,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
       data-testid="briefing-screen"
       style={{ "--scene-art": `url("${biomeArt(def.biome)}")` } as CSSProperties}
     >
+      <DocumentTitle title={`Briefing · Seed ${formatSeed(seed)} · Operation ${mission + 1} | Dynamica Command`} />
       <div className={styles.inner}>
         <div className={styles.mast}>
           <BriefingMast seed={seed} mission={mission} campaign={campaign} def={def} />
