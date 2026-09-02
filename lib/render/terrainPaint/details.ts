@@ -81,54 +81,54 @@ function drawBoulder(
 }
 
 function drawCanopyTree(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
-  const lean = ((v % 5) - 2) * z * 0.45;
-  const dark = mixRgb(mats.blocked, mats.dark, 0.28);
-  const mid = liftGreen(mixRgb(mats.blocked, mats.light, 0.22), 16);
-  const hi = mixRgb(mats.light, mats.high, 0.4);
-  blobShadow(ctx, z, 13, 4.2);
-  ctx.strokeStyle = rgbOf(mixRgb(mats.dark, mats.blocked, 0.2));
-  ctx.lineWidth = Math.max(1.6, 2.6 * z);
+  const lean = ((v % 5) - 2) * z * 0.55;
+  const dark = mixRgb(mats.blocked, mats.dark, 0.22);
+  const mid = liftGreen(mixRgb(mats.blocked, mats.light, 0.28), 22);
+  const hi = mixRgb(mats.light, mats.high, 0.45);
+  blobShadow(ctx, z, 18, 5.4);
+  ctx.strokeStyle = rgbOf(mixRgb(mats.dark, { r: 62, g: 42, b: 28 }, 0.45));
+  ctx.lineWidth = Math.max(2.4, 3.8 * z);
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(0, 5 * z);
-  ctx.lineTo(lean, -12 * z);
+  ctx.moveTo(0, 6 * z);
+  ctx.lineTo(lean, -18 * z);
   ctx.stroke();
   ctx.fillStyle = rgbOf(dark);
   ctx.beginPath();
-  ctx.ellipse(-7 * z + lean * 0.25, -12 * z, 12 * z, 7.2 * z, 0, 0, Math.PI * 2);
+  ctx.ellipse(-9 * z + lean * 0.28, -18 * z, 16 * z, 10 * z, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = rgbOf(mid);
   ctx.beginPath();
-  ctx.ellipse(3 * z + lean, -14 * z, 10 * z, 6.4 * z, 0.12, 0, Math.PI * 2);
+  ctx.ellipse(5 * z + lean, -21 * z, 13 * z, 8.6 * z, 0.12, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = rgbOf(hi);
   ctx.globalAlpha = 0.5;
   ctx.beginPath();
-  ctx.ellipse(1 * z + lean, -16 * z, 5.2 * z, 3.2 * z, -0.2, 0, Math.PI * 2);
+  ctx.ellipse(2 * z + lean, -24 * z, 7.2 * z, 4.4 * z, -0.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
 }
 
 function drawPine(ctx: CanvasRenderingContext2D, mats: BiomeMaterials, z: number, v: number): void {
-  const lean = ((v % 3) - 1) * z * 0.25;
+  const lean = ((v % 3) - 1) * z * 0.3;
   const needle = mixRgb(mats.blocked, { r: 48, g: 82, b: 72 }, 0.45);
   const dark = mixRgb(mats.dark, needle, 0.3);
-  blobShadow(ctx, z, 11, 3.6);
+  blobShadow(ctx, z, 14, 4.6);
   ctx.strokeStyle = rgbOf(mats.dark);
-  ctx.lineWidth = Math.max(1.4, 2.1 * z);
+  ctx.lineWidth = Math.max(1.8, 2.8 * z);
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(0, 5 * z);
-  ctx.lineTo(lean, -6 * z);
+  ctx.moveTo(0, 6 * z);
+  ctx.lineTo(lean, -8 * z);
   ctx.stroke();
   for (let i = 0; i < 3; i++) {
-    const w = (12 - i * 3) * z;
-    const y = (-4 - i * 6) * z;
+    const w = (16 - i * 3.6) * z;
+    const y = (-5 - i * 8) * z;
     ctx.fillStyle = rgbOf(i === 2 ? mixRgb(needle, mats.light, 0.18) : dark);
     ctx.beginPath();
-    ctx.moveTo(-w + lean, y + 6 * z);
-    ctx.lineTo(lean, y - 5 * z);
-    ctx.lineTo(w + lean, y + 6 * z);
+    ctx.moveTo(-w + lean, y + 8 * z);
+    ctx.lineTo(lean, y - 7 * z);
+    ctx.lineTo(w + lean, y + 8 * z);
     ctx.closePath();
     ctx.fill();
   }
