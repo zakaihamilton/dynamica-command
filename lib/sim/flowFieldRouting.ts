@@ -16,12 +16,21 @@ export function prepareFlowFieldRoutes(
   for (const entity of state.entities) {
     if (entity.hp <= 0 || entity.class !== "unit" || !entity.flowGoal || !entity.orderDestination) continue;
     const destination = entity.orderDestination;
-    const closeToFormationSlot = Math.max(
+    const personalCheb = Math.max(
       Math.abs(Math.round(entity.x) - Math.round(destination.x)),
       Math.abs(Math.round(entity.y) - Math.round(destination.y)),
-    ) <= 2;
-    if (closeToFormationSlot) {
-      finishFlowFieldRoute(state, entity);
+    );
+    const goal = entity.flowGoal;
+    const sharedCheb = Math.max(
+      Math.abs(Math.round(entity.x) - Math.round(goal.x)),
+      Math.abs(Math.round(entity.y) - Math.round(goal.y)),
+    );
+    if (personalCheb <= 2 || sharedCheb <= 2) {
+      if (finishFlowFieldRoute(state, entity)) continue;
+      // Stay put until A* budget is available. A leftover shared-field prefix
+      // would keep walking the rally instead of the personal slot.
+      entity.path = [];
+      entity.routePending = true;
       continue;
     }
     followers.push(entity);
@@ -83,9 +92,8 @@ function assignFlowPrefix(
     entity.routePending = true;
     return;
   }
-  // Preserve the existing blocked/recovery behavior when a follower is
-  // outside the field or terrain has no route to the shared goal.
-  finishFlowFieldRoute(state, entity);
+  if (finishFlowFieldRoute(state, entity)) return;
+  entity.routePending = true;
 }
 
 function prefixCellOpen(
@@ -103,15 +111,12 @@ function reserveCell(state: SimState, reserved: Map<number, number>, id: number,
   reserved.set(Math.round(y) * state.width + Math.round(x), id);
 }
 
-function finishFlowFieldRoute(state: SimState, entity: Entity): void {
-  entity.flowGoal = undefined;
-  entity.path = [];
+function finishFlowFieldRoute(state: SimState, entity: Entity): boolean {
   const result = tryFindPathDetailed(state, entity, entity.orderDestination!);
-  if (!result) {
-    entity.routePending = true;
-    return;
-  }
+  if (!result) return false;
+  entity.flowGoal = undefined;
   entity.path = result.path;
   entity.routePending = routePendingFor(result.status);
   entity.idle = result.status === "unreachable";
+  return true;
 }

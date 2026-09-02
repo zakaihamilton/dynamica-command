@@ -103,8 +103,8 @@ function giveWay(
 ): boolean {
   if (blocker.neutral || holdingDestination(blocker)) return false;
   if (!blocker.path.length) return nudgeIdle(state, occupancy, reserved, blocker);
-  const anyNeighbor = (blocker.blockedTicks ?? 0) > 0;
-  return stepBlockerAside(state, occupancy, reserved, blocker, anyNeighbor);
+  if ((blocker.blockedTicks ?? 0) === 0) return false;
+  return stepBlockerAside(state, occupancy, reserved, blocker, true);
 }
 
 function stepBlockerAside(
@@ -132,6 +132,32 @@ function stepBlockerAside(
   return false;
 }
 
+function exchangePositions(
+  state: SimState,
+  occupancy: Uint8Array,
+  atTile: Map<number, Entity>,
+  swapped: Set<number>,
+  e: Entity,
+  blocker: Entity,
+): void {
+  const current = cellOf(state, e.x, e.y);
+  const bCell = cellOf(state, blocker.x, blocker.y);
+  const ax = e.x;
+  const ay = e.y;
+  e.x = blocker.x;
+  e.y = blocker.y;
+  blocker.x = ax;
+  blocker.y = ay;
+  occupancy[current] = 1;
+  occupancy[bCell] = 1;
+  atTile.set(current, blocker);
+  atTile.set(bCell, e);
+  swapped.add(e.id);
+  swapped.add(blocker.id);
+  e.blockedTicks = 0;
+  blocker.blockedTicks = 0;
+}
+
 function tryCooperativeSwap(
   state: SimState,
   occupancy: Uint8Array,
@@ -148,24 +174,8 @@ function tryCooperativeSwap(
   const by = Math.round(blocker.y);
   if (!canClimb(state, cx, cy, bx, by) || !canClimb(state, bx, by, cx, cy)) return false;
   if (diagonalCornerBlocked(state, cx, cy, bx, by)) return false;
-
-  const current = cellOf(state, e.x, e.y);
-  const bCell = cellOf(state, blocker.x, blocker.y);
-  const ax = e.x;
-  const ay = e.y;
-  e.x = blocker.x;
-  e.y = blocker.y;
-  blocker.x = ax;
-  blocker.y = ay;
+  exchangePositions(state, occupancy, atTile, swapped, e, blocker);
   e.path.shift();
-  occupancy[current] = 1;
-  occupancy[bCell] = 1;
-  atTile.set(current, blocker);
-  atTile.set(bCell, e);
-  swapped.add(e.id);
-  swapped.add(blocker.id);
-  e.blockedTicks = 0;
-  blocker.blockedTicks = 0;
   return true;
 }
 
@@ -182,18 +192,21 @@ export function tickMovement(state: SimState): void {
     const destX = Math.round(dest.x);
     const destY = Math.round(dest.y);
     const destCell = destY * state.width + destX;
-    const nearby = Math.max(
+    const destOccupied = occupancy[destCell] === 1 && destCell !== cellOf(state, e.x, e.y);
+    const cheb = Math.max(
       Math.abs(Math.round(e.x) - destX),
       Math.abs(Math.round(e.y) - destY),
-    ) <= 1;
-    const destOccupied = occupancy[destCell] === 1 && destCell !== cellOf(state, e.x, e.y);
-    if (nearby && !destOccupied) {
+    );
+    if (destOccupied) continue;
+    if (cheb <= 1) {
       e.path = [{ x: destX, y: destY }];
       e.idle = false;
       e.routePending = undefined;
       continue;
     }
-    if (nearby || !e.routePending) continue;
+    // Repath pending searches, and idle leftovers sitting two tiles off a free
+    // slot. Far idle units must not spend the shared A* budget before combat.
+    if (!e.routePending && !(e.idle && cheb <= 2)) continue;
     const result = tryFindPathDetailed(state, e, dest);
     if (!result) continue;
     e.path = result.path;
@@ -242,23 +255,9 @@ export function tickMovement(state: SimState): void {
       if (blocker && blocker.id !== e.id && !swapped.has(blocker.id)) {
         const bNext = blocker.path[0];
         if (bNext && Math.round(bNext.x) === Math.round(e.x) && Math.round(bNext.y) === Math.round(e.y)) {
-          const bCell = cellOf(state, blocker.x, blocker.y);
-          const ax = e.x;
-          const ay = e.y;
-          e.x = blocker.x;
-          e.y = blocker.y;
-          blocker.x = ax;
-          blocker.y = ay;
+          exchangePositions(state, occupancy, atTile, swapped, e, blocker);
           e.path.shift();
           blocker.path.shift();
-          occupancy[current] = 1;
-          occupancy[bCell] = 1;
-          atTile.set(current, blocker);
-          atTile.set(bCell, e);
-          swapped.add(e.id);
-          swapped.add(blocker.id);
-          e.blockedTicks = 0;
-          blocker.blockedTicks = 0;
           continue;
         }
       }

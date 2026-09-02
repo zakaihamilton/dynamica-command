@@ -398,6 +398,44 @@ describe("pathfinding", () => {
     })).toBe(true);
   });
 
+  it("does not shove a progressing mover sideways when someone is waiting behind", () => {
+    const s = makeFixture({ width: 16, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const lead = addUnit(s, 0, "infantry", 5, 3);
+    const waiter = addUnit(s, 0, "infantry", 4, 3);
+    lead.idle = false;
+    lead.orderDestination = { x: 12, y: 3 };
+    lead.path = [{ x: 6, y: 3 }, { x: 7, y: 3 }, { x: 12, y: 3 }];
+    waiter.idle = false;
+    waiter.orderDestination = { x: 5, y: 0 };
+    waiter.path = [{ x: 5, y: 3 }, { x: 5, y: 2 }, { x: 5, y: 1 }, { x: 5, y: 0 }];
+    tick(s);
+    expect(Math.round(lead.y)).toBe(3);
+    expect(lead.path).toEqual([{ x: 6, y: 3 }, { x: 7, y: 3 }, { x: 12, y: 3 }]);
+  });
+
+  it("keeps leftover group followers on the flow field when peel-off A* is budgeted out", () => {
+    const s = makeFixture({ width: 28, height: 16, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const units: ReturnType<typeof addUnit>[] = [];
+    for (let i = 0; i < 12; i++) {
+      units.push(addUnit(s, 0, "infantry", 8 + (i % 4), 6 + Math.floor(i / 4)));
+    }
+    issue(s, { type: "move", unitIds: units.map((unit) => unit.id), x: 16, y: 8 });
+    for (const unit of units) {
+      const dest = unit.orderDestination!;
+      unit.x = dest.x - 2;
+      unit.y = dest.y;
+      unit.path = [];
+      unit.routePending = true;
+    }
+    tick(s);
+    expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
+    const stillFlowing = units.filter((unit) => unit.flowGoal);
+    expect(stillFlowing.length).toBeGreaterThan(0);
+    expect(stillFlowing.every((unit) => unit.routePending && unit.path.length === 0)).toBe(true);
+  });
+
   it("keeps a stored formation when the next move omits one", () => {
     const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
     addBuilding(s, 0, "constructionYard", 0, 0);
