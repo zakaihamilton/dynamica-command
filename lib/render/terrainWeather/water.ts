@@ -139,8 +139,8 @@ export function paintWaterFx(
       y,
       3.25,
       rippleA,
-      Math.max(1, 1.15 * z),
-      (0.1 + caustic.alpha * 0.16) * gain,
+      Math.max(1.15, 1.45 * z),
+      (0.16 + caustic.alpha * 0.28) * gain,
     );
     strokeIsoRipples(
       ctx,
@@ -152,8 +152,8 @@ export function paintWaterFx(
       y,
       5.7,
       rippleB,
-      Math.max(1, 0.9 * z),
-      (0.05 + caustic.alpha * 0.1) * gain,
+      Math.max(1, 1.1 * z),
+      (0.08 + caustic.alpha * 0.16) * gain,
     );
     if (needsClip) ctx.restore();
     else ctx.globalAlpha = 1;
