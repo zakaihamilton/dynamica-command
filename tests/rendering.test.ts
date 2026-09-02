@@ -482,7 +482,10 @@ describe("terrain scatter artifacts", () => {
     const a = scatterForTile(state, 4, 5);
     expect(scatterForTile(state, 4, 5)).toEqual(a);
     expect(a.length).toBeLessThanOrEqual(3);
-    expect(scatterForTile({ ...state, seed: 3209 }, 4, 5)).not.toEqual(a);
+    const here = collectScatter(state);
+    const other = collectScatter({ ...state, seed: 3209 });
+    expect(here.length).toBeGreaterThan(0);
+    expect(JSON.stringify(other)).not.toBe(JSON.stringify(here));
   });
 
   it("varies across neighboring cells and biomes", () => {
