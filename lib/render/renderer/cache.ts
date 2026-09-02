@@ -6,7 +6,7 @@ import {
 } from "../scrollLayer";
 import type { Camera } from "../../iso";
 
-const TERRAIN_RENDER_REV = "world-atlas-v18-scatter-round-shroud";
+const TERRAIN_RENDER_REV = "world-atlas-v19-continuous-water";
 
 const terrainScroll: ScrollLayer = emptyScrollLayer();
 let terrainCanvas: HTMLCanvasElement | null = null;
