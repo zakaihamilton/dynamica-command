@@ -7,7 +7,7 @@ import { tickAi } from "../lib/sim/ai";
 import { tickCombat } from "../lib/sim/combat";
 import { FOREGROUND_PATHS_PER_ORDER, PATH_BUDGET_PER_TICK, backgroundPathSearches, resetPathBudget, tryFindPath } from "../lib/sim/pathBudget";
 import { groundOrders } from "../lib/sim/orders";
-import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, compactDestroyedEntities, occupies, powerBreakdown, powerFor, staticNavigationFor, terrainAccess, unitAt } from "../lib/sim/world";
+import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, compactDestroyedEntities, makeUnitOccupancy, occupies, powerBreakdown, powerFor, staticNavigationFor, terrainAccess, unitAt } from "../lib/sim/world";
 import { tickProduction } from "../lib/sim/production";
 import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../lib/catalog";
 
@@ -283,6 +283,23 @@ describe("pathfinding", () => {
     expect(Math.round(mover.y)).toBe(4);
   });
 
+  it("lets a unit squeeze through a packed friendly group that is also moving", () => {
+    const s = makeFixture({ width: 24, height: 16, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const pack: ReturnType<typeof addUnit>[] = [];
+    for (let y = 3; y <= 6; y++) {
+      for (let x = 6; x <= 9; x++) {
+        pack.push(addUnit(s, 0, "infantry", x, y));
+      }
+    }
+    const loner = addUnit(s, 0, "infantry", 3, 4);
+    issue(s, { type: "move", unitIds: pack.map((unit) => unit.id), x: 7, y: 12 });
+    issue(s, { type: "move", unitIds: [loner.id], x: 16, y: 5 });
+    for (let i = 0; i < 900; i++) tick(s);
+    expect(Math.round(loner.x)).toBe(16);
+    expect(Math.round(loner.y)).toBe(5);
+  });
+
   it("does not cut a diagonal through a building corner", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
     addBuilding(s, 0, "constructionYard", 0, 0);
@@ -344,6 +361,24 @@ describe("pathfinding", () => {
     expect(new Set(units.map((unit) => `${Math.round(unit.x)},${Math.round(unit.y)}`)).size).toBe(units.length);
   });
 
+  it("moves a packed infantry cluster to unique destinations without freezing", () => {
+    const s = makeFixture({ width: 28, height: 16, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const units: ReturnType<typeof addUnit>[] = [];
+    for (let y = 0; y < 3; y++) {
+      for (let x = 0; x < 4; x++) {
+        units.push(addUnit(s, 0, "infantry", 3 + x, 4 + y));
+      }
+    }
+    issue(s, { type: "move", unitIds: units.map((unit) => unit.id), x: 20, y: 8 });
+    for (let i = 0; i < 800; i++) tick(s);
+    expect(new Set(units.map((unit) => `${Math.round(unit.x)},${Math.round(unit.y)}`)).size).toBe(units.length);
+    expect(units.every((unit) => {
+      const destination = unit.orderDestination!;
+      return Math.max(Math.abs(Math.round(unit.x) - destination.x), Math.abs(Math.round(unit.y) - destination.y)) <= 1;
+    })).toBe(true);
+  });
+
   it("keeps a stored formation when the next move omits one", () => {
     const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
     addBuilding(s, 0, "constructionYard", 0, 0);
@@ -378,6 +413,30 @@ describe("pathfinding", () => {
     const blockedField = flowFieldFor(blockedGoal, { x: 6, y: 4 });
     expect(blockedField.goal).not.toEqual({ x: 6, y: 4 });
     expect(flowStep(blockedField, 2, 4)).toBeTruthy();
+  });
+
+  it("skips an occupied greedy flow cell when a free lane exists", () => {
+    const s = makeFixture({ width: 20, height: 12, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addUnit(s, 0, "infantry", 6, 4);
+    const mover = addUnit(s, 0, "infantry", 5, 4);
+    const partner = addUnit(s, 0, "infantry", 5, 5);
+    const occupancy = makeUnitOccupancy(s);
+    const field = flowFieldFor(s, { x: 14, y: 4 });
+    expect(flowStep(field, 5, 4)).toEqual({ x: 6, y: 4 });
+    const avoided = flowStep(field, 5, 4, {
+      occupancy,
+      reserved: new Map(),
+      ignoreId: mover.id,
+      state: s,
+    });
+    expect(avoided).toBeTruthy();
+    expect(avoided).not.toEqual({ x: 6, y: 4 });
+
+    issue(s, { type: "move", unitIds: [mover.id, partner.id], x: 14, y: 4 });
+    tick(s);
+    expect(mover.path.length).toBeGreaterThan(0);
+    expect(mover.path[0]).not.toEqual({ x: 6, y: 4 });
   });
 
   it("invalidates cached navigation immediately when a building is cancelled or sold", () => {
