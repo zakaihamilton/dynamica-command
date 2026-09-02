@@ -1,4 +1,4 @@
-import { composeMusic, MUSIC_BARS, MUSIC_STEPS, STEPS_PER_BAR, TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue, type MusicIntensity } from "./compose";
+import { composeMusic, MUSIC_BARS, MUSIC_STEPS, STEPS_PER_BAR, BARS_PER_SECTION, TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue, type MusicIntensity } from "./compose";
 import { peekAudioContext, unlockAudioContext } from "./context";
 import { setAudioBusEnabled } from "./mixer";
 import {
@@ -173,13 +173,13 @@ export async function renderMissionMusic(
     }
     for (let bar = 0; bar < MUSIC_BARS; bar++) {
       throwIfRenderAborted(options.signal);
-      const value = arc[Math.floor(bar / 8)] ?? "engaged";
+      const value = arc[Math.floor(bar / BARS_PER_SECTION)] ?? "engaged";
       applyIntensityAt(offline, offlineGraph, value, bar * STEPS_PER_BAR * stepDuration, false);
     }
     syncDelay(offline, offlineGraph, renderedPattern);
     for (let index = 0; index < MUSIC_STEPS; index++) {
       if (index % STEPS_PER_BAR === 0) throwIfRenderAborted(options.signal);
-      const value = arc[Math.floor(index / STEPS_PER_BAR / 8)] ?? "engaged";
+      const value = arc[Math.floor(index / STEPS_PER_BAR / BARS_PER_SECTION)] ?? "engaged";
       scheduleStep(offline, offlineGraph, renderedPattern, index * stepDuration, index, value);
     }
     const fadeAt = Math.max(0, musicalDuration - 1.35);
