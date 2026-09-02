@@ -385,7 +385,7 @@ describe("combat alerts", () => {
     expect(tickCombat(s)).toContainEqual({
       type: "alert",
       kind: "warning",
-      text: "Construction yard under attack",
+      text: "Command HQ under attack",
     });
   });
 
@@ -423,6 +423,6 @@ describe("combat alerts", () => {
     pending.building = true;
     const events: SimEvent[] = [];
     flushPlayerAlerts(s, pending, events);
-    expect(events).toEqual([{ type: "alert", kind: "warning", text: "Construction yard under attack" }]);
+    expect(events).toEqual([{ type: "alert", kind: "warning", text: "Command HQ under attack" }]);
   });
 });

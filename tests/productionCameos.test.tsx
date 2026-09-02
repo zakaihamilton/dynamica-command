@@ -17,7 +17,7 @@ describe("production cameo availability", () => {
   it("explains that the required producer must be built", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
 
-    expect(productionBlockerText(state, "tank", 0, undefined)).toBe("Build a War Factory");
+    expect(productionBlockerText(state, "tank", 0, undefined)).toBe("Build a Vehicle Plant");
   });
 
   it("explains credit and power blockers together", () => {
@@ -45,7 +45,7 @@ describe("production cameo availability", () => {
 
     const tank = screen.getByRole("button", { name: /Tank, 425 credits/ });
     expect(tank).toBeDisabled();
-    expect(tank.parentElement).toHaveAttribute("data-tooltip", expect.stringContaining("Build a War Factory"));
+    expect(tank.parentElement).toHaveAttribute("data-tooltip", expect.stringContaining("Build a Vehicle Plant"));
   });
 
   it("explains how to unlock a gated unit", () => {

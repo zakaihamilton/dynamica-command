@@ -1,4 +1,4 @@
-import { footprintOf } from "../catalog";
+import { footprintOf, labelFor } from "../catalog";
 import type { MissionDirectorPhase, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
 import { missionDifficulty } from "./difficulty";
 import { trySpawnUnit } from "./world";
@@ -71,7 +71,7 @@ function phaseAlert(runtime: MissionRuntime, phase: MissionDirectorPhase): strin
     if (runtime.kind === "extraction") return "Enemy patrols are converging on the extraction route.";
     return "Enemy activity is rising — secure the resource lanes.";
   }
-  if (runtime.kind === "holdTheLine") return "Final enemy push detected — hold the construction yard.";
+  if (runtime.kind === "holdTheLine") return `Final enemy push detected — hold the ${labelFor("constructionYard")}.`;
   if (runtime.kind === "sabotage" || runtime.kind === "destroyMarked") return "Enemy reserves are regrouping around the marked targets.";
   return "Final enemy push detected — finish the operation now.";
 }

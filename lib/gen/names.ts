@@ -65,7 +65,7 @@ const MISSION_TITLES: Record<MissionKind, string[]> = {
   structureQuota: ["Raise the Fort", "Lay Foundations", "Build the Line", "Fortify"],
   destroyMarked: ["Cut the Spine", "Strike the Marks", "High Value", "Break Their Holds"],
   razeAll: ["Scorched Earth", "Leave Nothing", "Burn the Camp", "Raze the Field"],
-  decapitate: ["Cut Off the Head", "Storm the Yard", "Kill the Heart", "Break Command"],
+  decapitate: ["Cut Off the Head", "Storm the HQ", "Kill the Heart", "Break Command"],
   annihilate: ["No Quarter", "Wipe Them Out", "Total War", "End Them"],
   holdTheLine: ["Hold the Line", "Stand Fast", "Last Watch", "Do Not Yield"],
   escort: ["The Long Route", "Convoy Run", "Through the Fire", "Guided Passage"],

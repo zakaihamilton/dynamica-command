@@ -96,7 +96,7 @@ test("new game launch goes to briefing without training", async ({ page }) => {
 test("launches a seeded campaign from menu to battlefield", async ({ page }) => {
   await openBriefing(page);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();
-  await expect(page.getByTestId("mission-objectives")).toContainText(/construction yard/i);
+  await expect(page.getByTestId("mission-objectives")).toContainText(/command hq/i);
   await expect(page.getByTestId("mission-objectives")).toContainText("12 min");
 
   await page.getByRole("button", { name: "Launch" }).click();
@@ -217,7 +217,12 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await page.getByRole("button", { name: "NEW GAME" }).click();
   await expect(page.getByTestId("deploy-screen")).toBeVisible();
   await expect(page.getByRole("heading", { name: "New theater" })).toBeVisible();
-  await page.getByRole("button", { name: "Operations map" }).click();
+  await expect(page.getByRole("button", { name: "Operations map" })).toHaveCount(0);
+
+  const deployOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(deployOverflow).toBe(false);
+
+  await page.goto("/campaign?seed=0421");
   await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
 
   const operationsOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
@@ -296,7 +301,7 @@ test("keeps Asset Bay selection synchronized with category filters", async ({ pa
   await expect(browser.getByRole("button", { name: "Buildings" })).toHaveAttribute("aria-pressed", "true");
   await expect(list.getByRole("option")).toHaveCount(7);
   await expect(list.locator('[aria-selected="true"]')).toHaveCount(1);
-  await expect(page.getByLabel("Construction Yard preview")).toBeVisible();
+  await expect(page.getByLabel("Command HQ preview")).toBeVisible();
 
   await page.keyboard.press("ArrowDown");
   await expect(list.locator('[aria-selected="true"]')).toHaveCount(1);
@@ -429,11 +434,12 @@ test("toggles music and sound from welcome options", async ({ page }) => {
   await page.getByRole("button", { name: "Sound effects: On" }).click();
   await expect(page.getByRole("button", { name: "Sound effects: Off" })).toBeVisible();
   const musicVolume = page.getByRole("slider", { name: "Music volume" });
-  await musicVolume.fill("0.5");
   await expect(musicVolume).toHaveValue("0.5");
+  await musicVolume.fill("0.3");
+  await expect(musicVolume).toHaveValue("0.3");
   await expect(page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "{}"), SETTINGS_KEY)).resolves.toMatchObject({
     version: SETTINGS_VERSION,
-    settings: { musicVolume: 0.5 },
+    settings: { musicVolume: 0.3 },
   });
 
   await page.getByRole("button", { name: "Back" }).click();
@@ -443,7 +449,7 @@ test("toggles music and sound from welcome options", async ({ page }) => {
   await page.getByRole("button", { name: "OPTIONS" }).click();
   await expect(page.getByRole("button", { name: "Music: Off" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sound effects: Off" })).toBeVisible();
-  await expect(page.getByRole("slider", { name: "Music volume" })).toHaveValue("0.5");
+  await expect(page.getByRole("slider", { name: "Music volume" })).toHaveValue("0.3");
 });
 
 test("shows briefing portraits before launch", async ({ page }) => {

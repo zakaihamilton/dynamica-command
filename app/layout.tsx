@@ -27,7 +27,7 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
-const DESCRIPTION = "A Command & Conquer–like RTS — one 4-digit code writes the war.";
+const DESCRIPTION = "A seeded isometric RTS — one 4-digit code writes the war.";
 
 const metadataBase = new URL(
   process.env.VERCEL_PROJECT_PRODUCTION_URL

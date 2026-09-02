@@ -18,7 +18,7 @@ export function defaultSettings(): GameSettings {
     sfxEnabled: true,
     musicEnabled: true,
     masterVolume: 1,
-    musicVolume: 0.7,
+    musicVolume: 0.5,
     sfxVolume: 0.9,
     tacticalRosterEnabled: false,
   };

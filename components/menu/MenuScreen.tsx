@@ -47,13 +47,6 @@ export function MenuScreen() {
             />
           </div>
         </main>
-
-        <footer className={styles.footer}>
-          <span>SEED YOUR OWN THEATER</span>
-          <span className={styles.footerRule} aria-hidden="true" />
-          <span>8 OPERATIONS / NO TWO WARS ALIKE</span>
-          <span className={styles.footerVersion}>PLAYS IN YOUR BROWSER</span>
-        </footer>
       </div>
 
       <MenuOverlay
@@ -66,7 +59,6 @@ export function MenuScreen() {
         onChange={controller.setCode}
         onRandomize={controller.randomize}
         onLaunch={controller.launch}
-        onOperations={controller.openOperations}
         onToggleSound={controller.toggleSound}
         onToggleMusic={controller.toggleMusic}
         onToggleTacticalRoster={controller.toggleTacticalRoster}

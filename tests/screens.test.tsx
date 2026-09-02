@@ -95,6 +95,15 @@ describe("MenuScreen", () => {
     expect(screen.queryByText("DYNAMICA COMMAND")).toBeNull();
   });
 
+  it("does not render a welcome footer", () => {
+    render(<MenuScreen />);
+
+    expect(screen.queryByText("SEED YOUR OWN THEATER")).toBeNull();
+    expect(screen.queryByText("8 OPERATIONS / NO TWO WARS ALIKE")).toBeNull();
+    expect(screen.queryByText("PLAYS IN YOUR BROWSER")).toBeNull();
+    expect(document.querySelector("footer")).toBeNull();
+  });
+
   it("renders the ISR signal overlay over the welcome scene", () => {
     render(<MenuScreen />);
 

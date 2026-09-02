@@ -1,3 +1,4 @@
+import { labelFor } from "../catalog";
 import { createRng, type Rng } from "../seed/rng";
 import type { BuildingKind, MissionDef, MissionKind, SecondaryObjective, UnitKind, WinCategory } from "../types";
 import {
@@ -67,7 +68,7 @@ export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, 
   const yard: SecondaryObjective = {
     id: "yard",
     kind: "preserveYard",
-    label: "Keep the Construction Yard standing",
+    label: `Keep the ${labelFor("constructionYard")} standing`,
   };
   if (SCENARIO_KINDS.includes(mission.win.kind)) {
     const timeLimitTicks = missionTimeLimitTicks(mission.win) ?? 3600;
