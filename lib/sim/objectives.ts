@@ -34,6 +34,30 @@ function timeRemainingTicks(state: SimState): number | undefined {
 const LOSS_DEADLINE_KINDS: MissionKind[] = ["escort", "sabotage", "rescue", "extraction"];
 const DEADLINE_WARNING_SECONDS = [60, 30, 10] as const;
 
+function entityAlive(state: SimState, id: number): boolean {
+  return state.entities.some((entity) => entity.id === id && entity.hp > 0);
+}
+
+function scenarioObjectiveTargetLost(state: SimState): boolean {
+  const runtime = state.runtime;
+  if (!runtime) return false;
+  if (runtime.kind === "escort") {
+    return runtime.targetIds.some((id) => !entityAlive(state, id));
+  }
+  if (runtime.kind === "extraction") {
+    const extracted = new Set(runtime.extractedIds ?? []);
+    return runtime.targetIds.some((id) => !extracted.has(id) && !entityAlive(state, id));
+  }
+  if (runtime.kind === "rescue") {
+    const required = state.win.targetCount ?? runtime.required ?? runtime.targetIds.length;
+    const remaining = runtime.targetIds.filter((id) =>
+      state.entities.some((entity) => entity.id === id && entity.hp > 0 && entity.neutral === true),
+    ).length;
+    return runtime.rescued + remaining < required;
+  }
+  return false;
+}
+
 function deadlineWarningEvent(state: SimState): SimEvent | undefined {
   if (!state.runtime || !LOSS_DEADLINE_KINDS.includes(state.runtime.kind)) return undefined;
   const remaining = timeRemainingTicks(state);
@@ -208,12 +232,8 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
     return [{ type: "won" }];
   }
 
-  if (state.runtime && ["escort", "sabotage", "rescue", "extraction"].includes(state.runtime.kind)) {
-    const extracted = state.runtime.kind === "extraction" ? new Set(state.runtime.extractedIds ?? []) : undefined;
-    if (
-      (state.runtime.kind === "escort" || state.runtime.kind === "extraction") &&
-      state.runtime.targetIds.some((id) => !extracted?.has(id) && !state.entities.some((e) => e.id === id && e.hp > 0))
-    ) {
+  if (state.runtime && LOSS_DEADLINE_KINDS.includes(state.runtime.kind)) {
+    if (scenarioObjectiveTargetLost(state)) {
       state.result = "lost";
       state.lossReason = "objectiveTargetLost";
       state.runtime.phase = "complete";

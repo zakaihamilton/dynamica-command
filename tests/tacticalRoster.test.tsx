@@ -106,4 +106,22 @@ describe("tactical roster", () => {
     );
     expect(screen.getByText("Mission complete.")).toBeVisible();
   });
+
+  it("announces a readable mission-loss reason in the live region", () => {
+    const state = makeFixture({ seed: 421, win: { kind: "extraction", targetCount: 2, ticks: 100 } });
+    state.result = "lost";
+    state.lossReason = "objectiveTargetLost";
+    render(
+      <TacticalRoster
+        state={state}
+        selectedIds={[]}
+        actions={testActions()}
+        camera={testCamera()}
+        announcement="A previous combat alert"
+        onSelect={vi.fn()}
+        onAnnounce={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Mission lost: The cargo was lost.")).toBeVisible();
+  });
 });

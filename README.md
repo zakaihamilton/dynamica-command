@@ -71,7 +71,7 @@ Eight missions, about **5–20 minutes** each (later missions run longer). Gener
 | Rescue | Freeing stranded units by reaching them |
 | Extraction | Bringing cargo units back to your yard |
 
-Lose if your construction yard falls (or the timer expires on a hold). Briefings use generated talking-head portraits and name the objective.
+Lose if your construction yard falls. Hold, escort, sabotage, rescue, and extraction also fail when their timer expires. Escort, extraction, and rescue fail immediately if a convoy truck, unextracted cargo unit, or unrescued stranded unit is destroyed. Briefings use generated talking-head portraits and name the objective.
 
 ### Loop
 

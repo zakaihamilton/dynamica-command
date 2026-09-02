@@ -38,7 +38,7 @@ describe("mission debrief", () => {
     });
   });
 
-  it("explains escort and extraction losses when the objective target is destroyed", () => {
+  it("explains escort, extraction, and rescue losses when the objective target is destroyed", () => {
     const escort = makeFixture({ win: { kind: "escort", targetCount: 1, ticks: 100 } });
     escort.result = "lost";
     escort.lossReason = "objectiveTargetLost";
@@ -48,6 +48,11 @@ describe("mission debrief", () => {
     extraction.result = "lost";
     extraction.lossReason = "objectiveTargetLost";
     expect(missionDebrief(extraction).outcome).toBe("The cargo was lost.");
+
+    const rescue = makeFixture({ win: { kind: "rescue", targetCount: 2, ticks: 100 } });
+    rescue.result = "lost";
+    rescue.lossReason = "objectiveTargetLost";
+    expect(missionDebrief(rescue).outcome).toBe("A stranded unit was lost.");
   });
 
   it("formats elapsed time as whole minutes and hides the sidebar after a result", () => {

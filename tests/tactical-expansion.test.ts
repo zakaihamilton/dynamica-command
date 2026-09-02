@@ -282,11 +282,17 @@ describe("tactical expansion", () => {
   it("fails a rescue quota when the operation deadline expires", () => {
     const state = makeFixture({ win: { kind: "rescue", targetCount: 3, ticks: 10 } });
     addBuilding(state, 0, "constructionYard", 0, 0);
+    const stranded = [0, 1, 2].map((index) => {
+      const unit = addUnit(state, 0, "infantry", 6, 3 + index);
+      unit.neutral = true;
+      unit.scenarioRole = "stranded";
+      return unit;
+    });
     state.tick = 10;
     state.runtime = {
       kind: "rescue",
       phase: "active",
-      targetIds: [],
+      targetIds: stranded.map((unit) => unit.id),
       deadline: 10,
       rescued: 0,
       required: 3,
@@ -347,12 +353,12 @@ describe("tactical expansion", () => {
     const state = makeFixture({ win: { kind: "extraction", targetCount: 1, ticks: 100 } });
     addBuilding(state, 0, "constructionYard", 0, 0);
     const cargo = addUnit(state, 0, "infantry", 6, 4);
-    cargo.neutral = true;
+    cargo.neutral = false;
     cargo.scenarioRole = "cargo";
     cargo.hp = 0;
     state.runtime = {
       kind: "extraction",
-      phase: "active",
+      phase: "extraction",
       targetIds: [cargo.id],
       zone: { x: 0, y: 0 },
       deadline: 100,
@@ -383,6 +389,60 @@ describe("tactical expansion", () => {
       phase: "extraction",
       targetIds: [extracted.id, remaining.id],
       extractedIds: [extracted.id],
+      zone: { x: 0, y: 0 },
+      deadline: 5000,
+      rescued: 1,
+      required: 2,
+      secondary: [],
+    };
+
+    const result = tick(state);
+
+    expect(state.result).toBe("playing");
+    expect(state.lossReason).toBeUndefined();
+    expect(result.events).not.toContainEqual({ type: "lost" });
+    expect(state.runtime.rescued).toBe(1);
+  });
+
+  it("fails rescue when an unrescued stranded unit is destroyed", () => {
+    const state = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 100 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const stranded = addUnit(state, 0, "infantry", 6, 4);
+    stranded.neutral = true;
+    stranded.scenarioRole = "stranded";
+    stranded.hp = 0;
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [stranded.id],
+      zone: { x: 0, y: 0 },
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    const result = tick(state);
+
+    expect(state.result).toBe("lost");
+    expect(state.lossReason).toBe("objectiveTargetLost");
+    expect(result.events).toContainEqual({ type: "lost" });
+  });
+
+  it("does not fail rescue when an already-contacted unit is destroyed", () => {
+    const state = makeFixture({ win: { kind: "rescue", targetCount: 2, ticks: 5000 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const rescued = addUnit(state, 0, "infantry", 1, 1);
+    const remaining = addUnit(state, 0, "infantry", 6, 4);
+    rescued.scenarioRole = "stranded";
+    rescued.neutral = false;
+    rescued.hp = 0;
+    remaining.neutral = true;
+    remaining.scenarioRole = "stranded";
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [rescued.id, remaining.id],
       zone: { x: 0, y: 0 },
       deadline: 5000,
       rescued: 1,
