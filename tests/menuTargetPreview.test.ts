@@ -81,6 +81,17 @@ describe("welcome target cinema shots", () => {
     expect(sameTiles && first.map.biome === second.map.biome && samePalette).toBe(false);
   });
 
+  it("uses mission 0 biome, size, and tiles for the theater seed", () => {
+    const scene = createCinemaScene(previewSeed(0));
+    const mission = createMission({ seed: scene.seed, missionIndex: 0 });
+    expect(scene.map.biome).toBe(mission.biome);
+    expect(scene.map.width).toBe(mission.width);
+    expect(scene.map.height).toBe(mission.height);
+    expect(scene.map.tiles).toEqual(mission.tiles);
+    expect(cinemaGroundWorld(scene)).toBe(scene.ground);
+    expect(cinemaGroundWorld(scene).seed).toBe(scene.seed);
+  });
+
   it("steps actors independently of rendering", () => {
     const scene = createCinemaScene();
     const shots: { ax: number; ay: number; bx: number; by: number; life: number }[] = [];

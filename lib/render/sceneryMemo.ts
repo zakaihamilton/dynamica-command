@@ -1,5 +1,7 @@
 import { sceneryAt, type ScenerySample } from "../gen/map";
-import type { SimState } from "../types";
+import type { AtlasWorld } from "./terrainMaterials";
+
+export type SceneryMemoWorld = AtlasWorld & { tick?: number };
 
 function sceneryKey(x: number, y: number): number {
   return ((x + 512) << 12) | (y + 512);
@@ -11,7 +13,7 @@ function sceneryKey(x: number, y: number): number {
  * repeated map sampling without retaining stale state between frames.
  */
 export class SceneryMemo {
-  private state: SimState | null = null;
+  private state: SceneryMemoWorld | null = null;
   private tick = -1;
   private readonly samples = new Map<number, ScenerySample>();
 
@@ -21,10 +23,11 @@ export class SceneryMemo {
     this.samples.clear();
   }
 
-  sample(state: SimState, x: number, y: number): ScenerySample {
-    if (this.state !== state || this.tick !== state.tick) {
+  sample(state: SceneryMemoWorld, x: number, y: number): ScenerySample {
+    const tick = state.tick ?? 0;
+    if (this.state !== state || this.tick !== tick) {
       this.state = state;
-      this.tick = state.tick;
+      this.tick = tick;
       this.samples.clear();
     }
     const key = sceneryKey(x, y);

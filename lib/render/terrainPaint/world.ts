@@ -5,7 +5,7 @@ import type { SimState } from "../../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../../types";
 import { HEIGHT_STEP, TILE_H, TILE_W, expandIsoDiamond, screenToTile, tileToScreen, type Camera } from "../../iso";
 import { fogAt } from "../../sim/fog";
-import { biomeMaterials, fogTerrainGain, getTerrainAtlas, tileVariant, type TerrainAtlas } from "../terrainAtlas";
+import { biomeMaterials, fogTerrainGain, getTerrainAtlas, tileVariant, type AtlasWorld, type TerrainAtlas } from "../terrainAtlas";
 import { SceneryMemo } from "../sceneryMemo";
 import { isoDiamondPath } from "../isoDiamond";
 import { paintShroudOverlay, paintShroudMaskTile, drawAtlasDiamond } from "./tile";
@@ -21,7 +21,7 @@ export function clearTerrainPaintCache(): void {
   sceneryMemo.clear();
 }
 
-function memoScenery(state: SimState, x: number, y: number) {
+function memoScenery(state: AtlasWorld & { tick?: number }, x: number, y: number) {
   return sceneryMemo.sample(state, x, y);
 }
 
@@ -42,12 +42,13 @@ function wetBankColors(
 
 function paintCell(
   ctx: CanvasRenderingContext2D,
-  state: SimState,
+  state: AtlasWorld,
   cam: Camera,
   atlas: TerrainAtlas,
   x: number,
   y: number,
   waterPass: boolean,
+  gainAt?: (x: number, y: number) => number,
 ): void {
   const scenery = memoScenery(state, x, y);
   const water = scenery.kind === TILE_WATER;
@@ -62,7 +63,7 @@ function paintCell(
   const southSc = memoScenery(state, x, y + 1);
   const dropE = water ? 0 : Math.max(0, elev - eastSc.elev);
   const dropS = water ? 0 : Math.max(0, elev - southSc.elev);
-  const gain = smoothFogGain(state, x, y);
+  const gain = gainAt?.(x, y) ?? 1;
 
   if (!water && (elev >= 2 || dropE > 0 || dropS > 0)) {
     ctx.save();
@@ -115,7 +116,7 @@ function paintCell(
 
 function paintCellScatter(
   ctx: CanvasRenderingContext2D,
-  state: SimState,
+  state: AtlasWorld,
   cam: Camera,
   x: number,
   y: number,
@@ -190,7 +191,7 @@ export function visibleTileRange(
 
 function visitVisibleTiles(
   ctx: CanvasRenderingContext2D,
-  state: SimState,
+  state: AtlasWorld,
   cam: Camera,
   visit: (x: number, y: number) => void,
 ): void {
@@ -274,6 +275,45 @@ function paintShroudLayer(
 
 export const WATER_COVER = TERRAIN_COVER;
 
+export function paintTerrainSurface(
+  ctx: CanvasRenderingContext2D,
+  state: AtlasWorld,
+  cam: Camera,
+  gainAt?: (x: number, y: number) => number,
+): void {
+  const atlas = getTerrainAtlas(state);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    paintCell(ctx, state, cam, atlas, x, y, false, gainAt);
+  });
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    paintCell(ctx, state, cam, atlas, x, y, true, gainAt);
+  });
+  // Low scatter sits with the atlas so the shroud darkens unexplored clutter.
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    paintCellScatter(ctx, state, cam, x, y);
+  });
+}
+
+export function paintTerrainBlockers(
+  ctx: CanvasRenderingContext2D,
+  state: AtlasWorld,
+  cam: Camera,
+  gainAt?: (x: number, y: number) => number,
+): void {
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    const scenery = memoScenery(state, x, y);
+    if (scenery.kind !== TILE_BLOCKED || isMountainScenery(scenery)) return;
+    const s = tileToScreen(x, y, cam, scenery.elev);
+    const gain = gainAt?.(x, y) ?? 1;
+    ctx.save();
+    ctx.globalAlpha = gain;
+    drawBlockerProp(ctx, state, x, y, s.x, s.y, cam.zoom);
+    ctx.restore();
+  });
+}
+
 export function paintTerrainWorld(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -281,23 +321,13 @@ export function paintTerrainWorld(
 ): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
-  const atlas = getTerrainAtlas(state);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.fillStyle = SHROUD_FILL;
   ctx.fillRect(0, 0, w, h);
 
-  visitVisibleTiles(ctx, state, cam, (x, y) => {
-    paintCell(ctx, state, cam, atlas, x, y, false);
-  });
-  visitVisibleTiles(ctx, state, cam, (x, y) => {
-    paintCell(ctx, state, cam, atlas, x, y, true);
-  });
-  // Low scatter sits with the atlas so the shroud darkens unexplored clutter.
+  paintTerrainSurface(ctx, state, cam, (x, y) => smoothFogGain(state, x, y));
   // Tall blockers and ore stay after the shroud and remain vision-gated.
-  visitVisibleTiles(ctx, state, cam, (x, y) => {
-    paintCellScatter(ctx, state, cam, x, y);
-  });
   paintShroudLayer(ctx, state, cam);
   visitVisibleTiles(ctx, state, cam, (x, y) => {
     paintCellProps(ctx, state, cam, x, y);
