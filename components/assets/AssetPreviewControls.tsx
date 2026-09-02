@@ -56,7 +56,7 @@ export function AssetPreviewControls({
       {showAnim ? (
         <ConsoleButton
           className={styles.play}
-          tooltip={playing ? "Pause sprite animation" : "Play sprite animation"}
+          tooltip={playing ? "Pause animation" : "Play animation"}
           shortcut={SHORTCUT.play}
           onClick={onPlaying}
         >
@@ -103,10 +103,10 @@ export function AssetPreviewControls({
               <AssetChip
                 key={stage}
                 active={damage === stage}
-                tooltip={`Damage stage ${stage}`}
+                tooltip={`Damage ${stage}`}
                 onClick={() => onDamage(stage)}
               >
-                {`Dmg ${stage}`}
+                {`Damage ${stage}`}
               </AssetChip>
             ))}
           </div>

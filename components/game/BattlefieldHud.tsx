@@ -37,12 +37,12 @@ export function BattlefieldHud({
           {objective}
         </div>
         {timeRemaining ? (
-          <div className={styles.timeRemaining} data-testid="time-remaining" data-tooltip="Time remaining: the total time left to complete the primary objective. The mission fails when it reaches 00:00.">
+          <div className={styles.timeRemaining} data-testid="time-remaining" data-tooltip="Time left to complete the primary objective. The mission fails at 00:00.">
             {timeRemaining}
           </div>
         ) : null}
         {convoyDeparture ? (
-          <div className={styles.stagingWindow} data-testid="convoy-departure" data-tooltip="Convoy departure: the convoy begins moving at 00:00. This staging time is included in the total mission time.">
+          <div className={styles.stagingWindow} data-testid="convoy-departure" data-tooltip="The convoy starts moving at 00:00. This wait is included in the mission time.">
             {convoyDeparture}
           </div>
         ) : null}

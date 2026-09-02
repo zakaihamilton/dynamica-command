@@ -3,13 +3,13 @@ import { canStep } from "./world";
 
 export function tutorialPrompt(state: SimState): string {
   switch (state.tutorialStage) {
-    case "select": return "Tap or click your infantry to select it.";
+    case "select": return "Tap or click your Infantry to select it.";
     case "move": return "Move the selected unit to the highlighted ground (right click).";
-    case "harvest": return "Select the harvester, then order it to an ore field.";
-    case "build": return "Open Construction (Q) and place a power plant.";
-    case "produce": return "Open Production (E) and queue infantry.";
-    case "attack": return "Use attack-move (Ctrl + right click) or attack an enemy unit.";
-    case "repair": return "Use the wrench (R) on a damaged structure.";
+    case "harvest": return "Select the Harvester, then order it to an ore field.";
+    case "build": return "Open Construction (Q) and place a Power Plant.";
+    case "produce": return "Open Production (E) and train Infantry.";
+    case "attack": return "Use attack-move (Ctrl + right click) to advance while fighting, or attack an enemy unit.";
+    case "repair": return "Use Repair (R) on a damaged structure.";
     default: return "Training complete. Return to the command desk when ready.";
   }
 }

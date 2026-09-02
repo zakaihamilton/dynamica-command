@@ -123,7 +123,7 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
     }
     case "decapitate": {
       const cy = living(state).some((e) => e.owner === 1 && e.kind === "constructionYard");
-      progress = { current: cy ? 0 : 1, target: 1, label: cy ? "Destroy enemy construction yard" : "Yard destroyed" };
+      progress = { current: cy ? 0 : 1, target: 1, label: cy ? "Destroy the enemy Construction Yard" : "Construction Yard destroyed" };
       break;
     }
     case "annihilate": {

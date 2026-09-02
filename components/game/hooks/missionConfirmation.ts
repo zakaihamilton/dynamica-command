@@ -20,12 +20,12 @@ export const MISSION_CONFIRMATION_COPY: Record<MissionConfirmationAction, Omit<M
   },
   save: {
     title: "Save mission?",
-    message: "Save the current mission state for this seed?",
+    message: "Save this mission?",
     confirmLabel: "Save mission",
   },
   load: {
     title: "Load mission?",
-    message: "Load the last save for this seed? Current unsaved mission progress will be lost.",
+    message: "Load the last save for this campaign? Unsaved progress will be lost.",
     confirmLabel: "Load mission",
   },
 };

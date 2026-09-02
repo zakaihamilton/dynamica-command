@@ -34,9 +34,9 @@ export function PauseMainMenu({
         <ConsoleButton className={styles.action} tooltip="Return to the battlefield" shortcut={SHORTCUT.resume} onClick={onResume}>Resume Mission</ConsoleButton>
         <div className={styles.group}>
           <ConsoleLabel className={styles.groupLabel}>Mission</ConsoleLabel>
-          <ConsoleButton className={styles.action} tooltip="Write the current mission to disk" shortcut={SHORTCUT.save} onClick={onSave}>Save Mission</ConsoleButton>
-          <ConsoleButton className={styles.action} tooltip="Download a portable JSON save file" onClick={onExport}>Export Save</ConsoleButton>
-          <ConsoleButton className={styles.action} tooltip="Restore the last save for this seed" shortcut={SHORTCUT.load} onClick={onLoad}>Load Mission</ConsoleButton>
+          <ConsoleButton className={styles.action} tooltip="Save this mission" shortcut={SHORTCUT.save} onClick={onSave}>Save Mission</ConsoleButton>
+          <ConsoleButton className={styles.action} tooltip="Download a backup of this campaign" onClick={onExport}>Export Save</ConsoleButton>
+          <ConsoleButton className={styles.action} tooltip="Load the last save for this campaign" shortcut={SHORTCUT.load} onClick={onLoad}>Load Mission</ConsoleButton>
         </div>
         <div className={styles.group}>
           <ConsoleLabel className={styles.groupLabel}>Operation</ConsoleLabel>
@@ -46,9 +46,9 @@ export function PauseMainMenu({
         </div>
         <div className={styles.group}>
           <ConsoleLabel className={styles.groupLabel}>Theater</ConsoleLabel>
-          <ConsoleButton className={styles.action} tooltip="Render and download the mission soundtrack as an M4A" onClick={onSoundtrack}>Soundtrack</ConsoleButton>
+          <ConsoleButton className={styles.action} tooltip="Download this mission's music" onClick={onSoundtrack}>Soundtrack</ConsoleButton>
           <ConsoleButton className={styles.action} tooltip="Audio and game options" shortcut={SHORTCUT.options} onClick={onOptions}>Options</ConsoleButton>
-          <ConsoleButton muted className={styles.action} tooltip="Leave the theater" shortcut={SHORTCUT.menu} onClick={onMenu}>Main Menu</ConsoleButton>
+          <ConsoleButton muted className={styles.action} tooltip="Leave the campaign" shortcut={SHORTCUT.menu} onClick={onMenu}>Main Menu</ConsoleButton>
         </div>
       </div>
     </>

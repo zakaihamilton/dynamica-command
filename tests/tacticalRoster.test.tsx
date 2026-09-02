@@ -59,7 +59,7 @@ describe("tactical roster", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Select infantry/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Select Infantry/ }));
     fireEvent.click(screen.getByRole("button", { name: "Move" }));
     fireEvent.click(screen.getByRole("button", { name: "Attack" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Center" })[0]!);
@@ -68,7 +68,7 @@ describe("tactical roster", () => {
     expect(actions.issueCoordinateCommand).toHaveBeenCalledWith("move", 1, 1);
     expect(actions.issueTargetCommand).toHaveBeenCalledWith("attack", enemy.id);
     expect(camera.centerSelection).toHaveBeenCalled();
-    expect(screen.getByTestId("tactical-roster")).toHaveTextContent("Coords 1, 1");
+    expect(screen.getByTestId("tactical-roster")).toHaveTextContent("Position 1, 1");
   });
 
   it("rejects commands when the selected unit type is ineligible", () => {

@@ -38,7 +38,7 @@ export function NewGameSetup({
         <div className={styles.introReadout}>
           <span>CAMPAIGN FORMAT</span>
           <strong>8 OPERATIONS</strong>
-          <span>DETERMINISTIC WORLD / LOCAL SAVE</span>
+          <span>SAME CODE, SAME CAMPAIGN · SAVED ON THIS DEVICE</span>
         </div>
       </div>
 
@@ -66,7 +66,7 @@ export function NewGameSetup({
             <ConsoleButton
               muted
               className={styles.operations}
-              tooltip="Open the operations map for this seed"
+              tooltip="Open the operations map for this campaign"
               onClick={onOperations}
             >
               Operations map

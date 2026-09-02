@@ -33,7 +33,7 @@ export function useMissionConfirmation({
 
   const loadMission = useCallback(() => {
     if (!readSave(cachedLocalStorage(), seed)) {
-      setPauseNotice("No save found for this seed.");
+      setPauseNotice("No save found for this campaign.");
       return;
     }
     requestConfirmation("load");

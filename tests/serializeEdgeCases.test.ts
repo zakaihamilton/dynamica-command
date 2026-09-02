@@ -74,11 +74,11 @@ describe("parseSaveExport", () => {
   });
 
   it("rejects non-JSON input", () => {
-    expect(() => parseSaveExport("not-json")).toThrow("not valid JSON");
+    expect(() => parseSaveExport("not-json")).toThrow("This is not a Dynamica Command save file.");
   });
 
   it("rejects wrong format", () => {
-    expect(() => parseSaveExport(JSON.stringify({ format: "wrong", version: 1 }))).toThrow("Unsupported save file format");
+    expect(() => parseSaveExport(JSON.stringify({ format: "wrong", version: 1 }))).toThrow("This save file isn't compatible.");
   });
 
   it("rejects wrong content version", () => {
@@ -87,7 +87,7 @@ describe("parseSaveExport", () => {
     const raw = serializeSaveExport(state, campaign);
     const parsed = JSON.parse(raw);
     parsed.contentVersion = 999;
-    expect(() => parseSaveExport(JSON.stringify(parsed))).toThrow("Unsupported save content version");
+    expect(() => parseSaveExport(JSON.stringify(parsed))).toThrow("This save is from a newer version of the game.");
   });
 
   it("rejects mismatched seed in payload", () => {
@@ -96,7 +96,7 @@ describe("parseSaveExport", () => {
     const raw = serializeSaveExport(state, campaign);
     const parsed = JSON.parse(raw);
     parsed.campaign.seed = 2000;
-    expect(() => parseSaveExport(JSON.stringify(parsed))).toThrow("do not match");
+    expect(() => parseSaveExport(JSON.stringify(parsed))).toThrow("This save doesn't match its campaign.");
   });
 });
 

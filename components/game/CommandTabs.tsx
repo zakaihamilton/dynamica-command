@@ -70,7 +70,7 @@ export function CommandTabs({
         label="Construction"
         shortcut={SHORTCUT.construction}
         keyshortcuts="q"
-        tooltip="Construction"
+        tooltip="Build structures"
         selected={activeTab === "construction"}
         onClick={onConstruction}
       />
@@ -79,7 +79,7 @@ export function CommandTabs({
         label="Production"
         shortcut={SHORTCUT.production}
         keyshortcuts="e"
-        tooltip="Production"
+        tooltip="Train units"
         selected={activeTab === "production"}
         onClick={onProduction}
       />
@@ -89,7 +89,7 @@ export function CommandTabs({
         shortcut={SHORTCUT.selected}
         keyshortcuts="t"
         testId="tab-selected"
-        tooltip="Selected"
+        tooltip="Selected units"
         selected={activeTab === "selected"}
         onClick={onSelected}
       />

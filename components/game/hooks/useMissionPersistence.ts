@@ -56,16 +56,16 @@ export function useMissionPersistence({
 }: MissionPersistenceParams) {
   const saveMissionNow = useCallback(() => {
     if (tutorial) {
-      setPauseNotice("Training range is not saved to a campaign.");
+      setPauseNotice("Training isn't saved to a campaign.");
       return;
     }
     const status = saveSession.write(stateRef.current, "explicit");
-    setPauseNotice(status === "saved" ? "Mission saved." : "Unable to save: browser storage is unavailable.");
+    setPauseNotice(status === "saved" ? "Mission saved." : "Couldn't save. Check that this browser allows site data.");
   }, [saveSession, setPauseNotice, stateRef, tutorial]);
 
   const exportMissionNow = useCallback(() => {
     if (tutorial) {
-      setPauseNotice("Training range is not saved to a campaign.");
+      setPauseNotice("Training isn't saved to a campaign.");
       return;
     }
     try {
@@ -73,20 +73,20 @@ export function useMissionPersistence({
       const campaign = readCampaignProgress(cachedLocalStorage(), seed);
       const contents = serializeSaveExport(current, campaign);
       downloadSaveExport(contents, saveExportFilename(seed));
-      setPauseNotice("Save export downloaded.");
+      setPauseNotice("Save downloaded.");
     } catch {
-      setPauseNotice("Unable to export save: browser downloads are unavailable.");
+      setPauseNotice("Couldn't download a backup of this campaign.");
     }
   }, [seed, setPauseNotice, stateRef, tutorial]);
 
   const loadMissionNow = useCallback(() => {
     if (tutorial) {
-      setPauseNotice("Training range is not saved to a campaign.");
+      setPauseNotice("Training isn't saved to a campaign.");
       return;
     }
     const loaded = readSave(cachedLocalStorage(), seed);
     if (!loaded) {
-      setPauseNotice("No save found for this seed.");
+      setPauseNotice("No save found for this campaign.");
       return;
     }
     stateRef.current = loaded;
@@ -100,7 +100,7 @@ export function useMissionPersistence({
     clearTools();
     resetInput();
     resetCamera(loaded);
-    setPauseNotice(`Loaded mission at tick ${loaded.tick}.`);
+    setPauseNotice("Loaded the last save.");
   }, [
     campaignRecordedRef,
     clearTools,

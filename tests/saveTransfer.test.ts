@@ -33,11 +33,11 @@ describe("portable save transfer", () => {
     const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
     const campaign = freshCampaignProgress(422);
     expect(() => parseSaveExport(serializeSaveExport(state, campaign))).toThrow("seeds");
-    expect(() => parseSaveExport(JSON.stringify({ format: SAVE_EXPORT_FORMAT, version: 99 }))).toThrow("version");
+    expect(() => parseSaveExport(JSON.stringify({ format: SAVE_EXPORT_FORMAT, version: 99 }))).toThrow("This save file isn't compatible.");
 
     const malformed = JSON.parse(serializeSaveExport(state, freshCampaignProgress(421))) as { state: { entities: unknown[] } };
     malformed.state.entities = [{ hp: 1 }];
-    expect(() => parseSaveExport(JSON.stringify(malformed))).toThrow("Invalid save state");
+    expect(() => parseSaveExport(JSON.stringify(malformed))).toThrow("This save could not be read.");
   });
 
   it("merges campaign progress by the higher unlock, medals, scores, and union of completions", () => {

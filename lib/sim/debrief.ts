@@ -1,7 +1,7 @@
 import { TICKS_PER_SECOND } from "../catalog";
 import { formatMissionMinutesFromTicks, MAX_MISSION_TICKS } from "../gen/pacing";
 import { objectiveHeadline } from "../gen/story";
-import type { Owner, SimState } from "../types";
+import type { LossReason, MissionKind, Owner, SimState } from "../types";
 import { objectiveProgress, secondaryProgress } from "./objectives";
 import { living } from "./world";
 
@@ -58,14 +58,19 @@ export function missionScore(state: SimState): number {
   );
 }
 
-export function missionLossMessage(state: SimState): string {
-  if (state.lossReason === "deadline") return "Operation window expired.";
-  if (state.lossReason === "objectiveTargetLost") {
-    if (state.win.kind === "extraction") return "The cargo was lost.";
-    if (state.win.kind === "rescue") return "A stranded unit was lost.";
+export function lossReasonLabel(reason?: LossReason, missionKind?: MissionKind): string {
+  if (reason === "deadline") return "Time ran out.";
+  if (reason === "objectiveTargetLost") {
+    if (missionKind === "extraction") return "The cargo was lost.";
+    if (missionKind === "rescue") return "A stranded unit was lost.";
     return "The convoy was lost.";
   }
-  return "Construction yard destroyed.";
+  if (reason === "yardDestroyed") return "The Construction Yard was destroyed.";
+  return "Mission failed.";
+}
+
+export function missionLossMessage(state: SimState): string {
+  return lossReasonLabel(state.lossReason ?? "yardDestroyed", state.win.kind);
 }
 
 export function missionDebrief(state: SimState) {

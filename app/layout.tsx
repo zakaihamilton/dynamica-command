@@ -5,7 +5,7 @@ import { TooltipLayer } from "@/components/TooltipLayer";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import styles from "./layout.module.css";
 
-const DESCRIPTION = "Seeded isometric RTS — one 4-digit code writes the war.";
+const DESCRIPTION = "A Command & Conquer–like RTS — one 4-digit code writes the war.";
 
 const metadataBase = new URL(
   process.env.VERCEL_PROJECT_PRODUCTION_URL

@@ -45,7 +45,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
 
   if (!def) {
     return (
-      <ConsoleNotice eyebrow="Transmission interrupted" title="Mission missing.">
+      <ConsoleNotice eyebrow="Transmission interrupted" title="This mission isn't available.">
         <ConsoleButton muted onClick={controller.back}>{backLabel}</ConsoleButton>
       </ConsoleNotice>
     );
