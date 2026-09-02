@@ -96,10 +96,11 @@ describe("battlefield audio dispatch", () => {
     expect(play).toHaveBeenCalledWith("impactFlesh", expect.objectContaining({ pan: expect.any(Number) }));
   });
 
-  it("plays distinct fire cues for infantry, tanks, and turrets", () => {
+  it("plays distinct fire cues for infantry, tanks, turrets, and anti-armor", () => {
     dispatchBattlefieldAudio(
       [
         combatEvent({ attackerKind: "infantry", weapon: "smallArms", targetKind: "tank" }),
+        combatEvent({ attackerKind: "antiArmor", weapon: "antiArmor", targetKind: "tank", x: 6.5, y: 6.5 }),
         combatEvent({ attackerKind: "tank", weapon: "cannon", targetKind: "power", x: 7, y: 7 }),
         combatEvent({ attackerKind: "turret", weapon: "cannon", targetKind: "harvester", x: 8, y: 8 }),
       ],
@@ -108,6 +109,7 @@ describe("battlefield audio dispatch", () => {
       500,
     );
     expect(play).toHaveBeenCalledWith("smallArms", expect.objectContaining({ gain: expect.any(Number) }));
+    expect(play).toHaveBeenCalledWith("antiArmor", expect.objectContaining({ gain: expect.any(Number) }));
     expect(play).toHaveBeenCalledWith("cannon", expect.objectContaining({ gain: expect.any(Number) }));
     expect(play).toHaveBeenCalledWith("turret", expect.objectContaining({ gain: expect.any(Number) }));
     expect(play).toHaveBeenCalledWith("impactMetal", expect.any(Object));
@@ -116,14 +118,21 @@ describe("battlefield audio dispatch", () => {
 
   it("does not duck enemy fire relative to the player", () => {
     dispatchBattlefieldAudio(
+      [combatEvent({ owner: 0, attackerKind: "infantry", weapon: "smallArms" })],
+      onScreenCamera(),
+      800,
+      500,
+    );
+    const playerGain = (play.mock.calls.find((call) => call[0] === "smallArms")?.[1] as { gain: number }).gain;
+    play.mockClear();
+    dispatchBattlefieldAudio(
       [combatEvent({ owner: 1, attackerKind: "infantry", weapon: "smallArms" })],
       onScreenCamera(),
       800,
       500,
     );
-    const shot = play.mock.calls.find((call) => call[0] === "smallArms");
-    expect(shot?.[1]).toEqual(expect.objectContaining({ gain: expect.any(Number) }));
-    expect((shot?.[1] as { gain: number }).gain).toBeGreaterThanOrEqual(0.8);
+    const enemyGain = (play.mock.calls.find((call) => call[0] === "smallArms")?.[1] as { gain: number }).gain;
+    expect(enemyGain).toBe(playerGain);
   });
 
   it("plays a heavier destruction cue for buildings", () => {

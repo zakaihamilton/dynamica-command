@@ -20,6 +20,6 @@ export function spatialAudioForWorld(
   return {
     audible: edgeDistance <= 1.25,
     pan: Math.max(-0.85, Math.min(0.85, nx * 0.78)),
-    gain: Math.max(0.8, 1 - Math.max(0, edgeDistance - 0.35) * 0.22),
+    gain: Math.max(0.68, 1 - Math.max(0, edgeDistance - 0.35) * 0.36),
   };
 }
