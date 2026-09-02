@@ -241,12 +241,14 @@ describe("generated mission pacing", () => {
     expect(generateWinCategory(421, 0, "sabotage").ticks).toBe(minutesToTicks(12));
   });
 
-  it("gives escort, rescue, and extraction at least ten minutes of active time", () => {
+  it("gives escort, rescue, and extraction a ten-to-thirty-minute active window", () => {
     const minute = minutesToTicks(1);
     for (let seed = 0; seed < 40; seed++) {
       for (let missionIndex = 0; missionIndex < 8; missionIndex++) {
         for (const kind of ["escort", "rescue", "extraction"] as const) {
-          expect(generateWinCategory(seed, missionIndex, kind).ticks! / minute).toBeGreaterThanOrEqual(10);
+          const minutes = generateWinCategory(seed, missionIndex, kind).ticks! / minute;
+          expect(minutes).toBeGreaterThanOrEqual(10);
+          expect(minutes).toBeLessThanOrEqual(30);
         }
       }
     }

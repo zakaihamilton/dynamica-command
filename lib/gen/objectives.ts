@@ -25,11 +25,15 @@ function baseMissionDurationMinutes(seed: number, missionIndex: number, kind: Mi
   return missionDurationMinutes(missionIndex, rng.fork("duration"));
 }
 
+function clampDeadlineMinutes(minutes: number, minMinutes: number): number {
+  return Math.min(MAX_DEADLINE_MINUTES, Math.max(minMinutes, minutes));
+}
+
 function activeMissionDurationMinutes(kind: MissionKind, minutes: number): number {
   const scaled = Math.round(minutes * DEADLINE_DURATION_MULT);
-  if (kind === "escort" || kind === "rescue") return Math.max(MIN_DEADLINE_MINUTES, scaled - 1);
-  if (kind === "sabotage") return Math.min(MAX_DEADLINE_MINUTES, Math.max(MIN_SABOTAGE_MINUTES, scaled + 3));
-  if (kind === "extraction") return Math.max(MIN_DEADLINE_MINUTES, scaled);
+  if (kind === "escort" || kind === "rescue") return clampDeadlineMinutes(scaled - 1, MIN_DEADLINE_MINUTES);
+  if (kind === "sabotage") return clampDeadlineMinutes(scaled + 3, MIN_SABOTAGE_MINUTES);
+  if (kind === "extraction") return clampDeadlineMinutes(scaled, MIN_DEADLINE_MINUTES);
   return minutes;
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatMissionDuration, missionDebrief, missionMedals, missionScore, shouldShowCommandSidebar } from "../lib/sim/debrief";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
+import { minutesToTicks } from "../lib/gen/pacing";
 
 describe("mission debrief", () => {
   it("summarizes a completed primary objective and the battle record", () => {
@@ -43,6 +44,30 @@ describe("mission debrief", () => {
     expect(shouldShowCommandSidebar("playing")).toBe(true);
     expect(shouldShowCommandSidebar("won")).toBe(false);
     expect(shouldShowCommandSidebar("lost")).toBe(false);
+  });
+
+  it("normalizes remaining-time bonus so longer casual windows do not inflate scores", () => {
+    function scored(deadline: number, tick: number) {
+      const state = makeFixture({ win: { kind: "sabotage", ticks: deadline } });
+      state.result = "won";
+      state.tick = tick;
+      state.runtime = {
+        kind: "sabotage",
+        phase: "complete",
+        targetIds: [],
+        deadline,
+        rescued: 0,
+        required: 1,
+        secondary: [],
+      };
+      return missionScore(state);
+    }
+
+    const twelve = minutesToTicks(12);
+    const thirty = minutesToTicks(30);
+    expect(scored(twelve, twelve / 2)).toBe(scored(thirty, thirty / 2));
+    expect(scored(twelve, 0)).toBe(1000 + 20 * 60 * 10);
+    expect(scored(thirty, 0)).toBe(1000 + 20 * 60 * 10);
   });
 
   it("awards medals only for the completed secondary conditions", () => {
