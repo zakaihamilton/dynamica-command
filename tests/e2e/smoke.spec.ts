@@ -148,7 +148,12 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await page.getByRole("button", { name: "NEW GAME" }).click();
   await expect(page.getByTestId("deploy-screen")).toBeVisible();
   await expect(page.getByRole("heading", { name: "New theater" })).toBeVisible();
-  await page.getByRole("button", { name: "Operations map" }).click();
+  await expect(page.getByRole("button", { name: "Operations map" })).toHaveCount(0);
+
+  const deployOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(deployOverflow).toBe(false);
+
+  await page.goto("/campaign?seed=0421");
   await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
 
   const operationsOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
