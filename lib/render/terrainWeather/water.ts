@@ -17,17 +17,29 @@ export function waterCaustic(timeMs: number, x: number, y: number): WaterCaustic
   };
 }
 
-/** Crest positions of a traveling wave on an interval, in the same units as `lo`/`hi`. */
-export function waterRippleCrests(lo: number, hi: number, wavelength: number, phase: number): number[] {
-  if (hi <= lo || wavelength <= 0) return [];
+function forEachWaterRippleCrest(
+  lo: number,
+  hi: number,
+  wavelength: number,
+  phase: number,
+  visit: (k: number) => void,
+): void {
+  if (hi <= lo || wavelength <= 0) return;
   const shift = ((phase % wavelength) + wavelength) % wavelength;
   let k = shift + Math.floor((lo - shift) / wavelength) * wavelength;
   if (k <= lo) k += wavelength;
-  const out: number[] = [];
   while (k < hi) {
-    out.push(k);
+    visit(k);
     k += wavelength;
   }
+}
+
+/** Crest positions of a traveling wave on an interval, in the same units as `lo`/`hi`. */
+export function waterRippleCrests(lo: number, hi: number, wavelength: number, phase: number): number[] {
+  const out: number[] = [];
+  forEachWaterRippleCrest(lo, hi, wavelength, phase, (k) => {
+    out.push(k);
+  });
   return out;
 }
 
@@ -60,7 +72,7 @@ function rgbCss(color: { r: number; g: number; b: number }): string {
   return `rgb(${color.r | 0},${color.g | 0},${color.b | 0})`;
 }
 
-function strokeIsoRipples(
+function strokeAlongSum(
   ctx: CanvasRenderingContext2D,
   sx: number,
   sy: number,
@@ -70,23 +82,42 @@ function strokeIsoRipples(
   y: number,
   wavelength: number,
   phase: number,
-  width: number,
-  alpha: number,
 ): void {
-  if (alpha <= 0.01) return;
-  ctx.globalAlpha = alpha;
-  ctx.lineWidth = width;
   const lo = x + y;
-  for (const k of waterRippleCrests(lo, lo + 2, wavelength, phase)) {
+  forEachWaterRippleCrest(lo, lo + 2, wavelength, phase, (k) => {
     const t = (k - lo) / 2;
-    if (t <= 0.03 || t >= 0.97) continue;
+    if (t <= 0.03 || t >= 0.97) return;
     const yy = sy + t * th;
     const half = (t < 0.5 ? t : 1 - t) * tw;
     ctx.beginPath();
     ctx.moveTo(sx - half, yy);
     ctx.lineTo(sx + half, yy);
     ctx.stroke();
-  }
+  });
+}
+
+function strokeAlongDiff(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  tw: number,
+  th: number,
+  x: number,
+  y: number,
+  wavelength: number,
+  phase: number,
+): void {
+  const lo = x - y - 1;
+  forEachWaterRippleCrest(lo, lo + 2, wavelength, phase, (k) => {
+    const u = (k - lo) / 2;
+    if (u <= 0.03 || u >= 0.97) return;
+    const xx = sx + (u - 0.5) * tw;
+    const half = (u < 0.5 ? u : 1 - u) * th;
+    ctx.beginPath();
+    ctx.moveTo(xx, sy + th * 0.5 - half);
+    ctx.lineTo(xx, sy + th * 0.5 + half);
+    ctx.stroke();
+  });
 }
 
 export function paintWaterFx(
@@ -110,6 +141,7 @@ export function paintWaterFx(
     : `rgba(${Math.min(255, hi.r + 40)},${Math.min(255, hi.g + 28)},${Math.min(255, hi.b + 20)},0.9)`;
   const rippleA = clockMs * 0.00105;
   const rippleB = clockMs * -0.00062;
+  const rippleC = clockMs * 0.00038;
   ctx.save();
   ctx.strokeStyle = highlight;
   ctx.lineCap = "round";
@@ -129,32 +161,15 @@ export function paintWaterFx(
       isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
       ctx.clip();
     }
-    strokeIsoRipples(
-      ctx,
-      s.x,
-      s.y,
-      tw,
-      th,
-      x,
-      y,
-      3.25,
-      rippleA,
-      Math.max(1.15, 1.45 * z),
-      (0.16 + caustic.alpha * 0.28) * gain,
-    );
-    strokeIsoRipples(
-      ctx,
-      s.x,
-      s.y,
-      tw,
-      th,
-      x,
-      y,
-      5.7,
-      rippleB,
-      Math.max(1, 1.1 * z),
-      (0.08 + caustic.alpha * 0.16) * gain,
-    );
+    ctx.globalAlpha = (0.16 + caustic.alpha * 0.28) * gain;
+    ctx.lineWidth = Math.max(1.15, 1.45 * z);
+    strokeAlongSum(ctx, s.x, s.y, tw, th, x, y, 3.25, rippleA);
+    ctx.globalAlpha = (0.08 + caustic.alpha * 0.16) * gain;
+    ctx.lineWidth = Math.max(1, 1.1 * z);
+    strokeAlongSum(ctx, s.x, s.y, tw, th, x, y, 5.7, rippleB);
+    ctx.globalAlpha = (0.045 + caustic.alpha * 0.08) * gain;
+    ctx.lineWidth = Math.max(1, 0.95 * z);
+    strokeAlongDiff(ctx, s.x, s.y, tw, th, x, y, 8.2, rippleC);
     if (needsClip) ctx.restore();
     else ctx.globalAlpha = 1;
     if (!bank) return;

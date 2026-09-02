@@ -227,10 +227,20 @@ describe("seeded terrain atlas", () => {
       Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])
     );
     const mid = ATLAS_CELL >> 1;
-    const seam = dist(pixel(5, 5, ATLAS_CELL - 1, mid), pixel(6, 5, 0, mid));
-    const inland = dist(pixel(5, 5, mid, mid), pixel(5, 5, mid + 1, mid));
-    expect(seam).toBeLessThan(28);
-    expect(seam).toBeLessThan(inland + 18);
+    const left = pixel(5, 5, ATLAS_CELL - 1, mid);
+    const right = pixel(6, 5, 0, mid);
+    const inlandA = pixel(5, 5, mid, mid);
+    const inlandB = pixel(5, 5, mid + 1, mid);
+    const seam = dist(left, right);
+    const inland = dist(inlandA, inlandB);
+    const seamChannel = Math.max(
+      Math.abs(left[0] - right[0]),
+      Math.abs(left[1] - right[1]),
+      Math.abs(left[2] - right[2]),
+    );
+    expect(seamChannel).toBeLessThan(8);
+    expect(seam).toBeLessThan(14);
+    expect(seam).toBeLessThanOrEqual(inland + 6);
   });
 
   it("bakes a dark grout seam around each concrete pad", () => {
@@ -553,6 +563,10 @@ describe("terrain weather and water motion", () => {
     const b = waterRippleCrests(10, 12, wavelength, phase);
     expect(a.some((k) => Math.abs(k - 10.5) < 1e-9)).toBe(true);
     expect(b.some((k) => Math.abs(k - 10.5) < 1e-9)).toBe(true);
+    const across = waterRippleCrests(1, 3, 2, 0.5);
+    const next = waterRippleCrests(2, 4, 2, 0.5);
+    expect(across.some((k) => Math.abs(k - 2.5) < 1e-9)).toBe(true);
+    expect(next.some((k) => Math.abs(k - 2.5) < 1e-9)).toBe(true);
     expect(waterRippleCrests(9, 11, wavelength, phase + 0.8)).not.toEqual(a);
   });
 });
