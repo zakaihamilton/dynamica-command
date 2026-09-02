@@ -140,7 +140,7 @@ describe("CampaignArchiveScreen", () => {
 describe("BriefingScreen", () => {
   it("renders missing, locked, and unlocked mission states", () => {
     const { rerender } = render(<BriefingScreen seed={421} mission={99} />);
-    expect(screen.getByText("Mission missing.")).toBeVisible();
+    expect(screen.getByText("This mission isn't available.")).toBeVisible();
     rerender(<BriefingScreen seed={421} mission={1} />);
     expect(screen.getByText(/Mission locked/)).toBeVisible();
     rerender(<BriefingScreen seed={421} mission={0} />);

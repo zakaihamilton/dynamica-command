@@ -350,7 +350,7 @@ test.describe("selected unit actions", () => {
     await expect(hold).toHaveAttribute("aria-pressed", "false");
     await hold.click();
     await expect(hold).toHaveAttribute("aria-pressed", "true");
-    await expect(sidebar.getByText("Stance hold", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("Stance Hold", { exact: true })).toBeVisible();
 
     const wedge = unitOrders.getByTestId("selected-action-formation-wedge");
     await expect(wedge).toHaveAttribute("aria-pressed", "false");

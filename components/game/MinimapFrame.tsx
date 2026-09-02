@@ -38,7 +38,7 @@ export function MinimapFrame({
         <span className={styles.sweep} aria-hidden />
       </div>
       <p id="tactical-radar-help" className={styles.help}>
-        Click to look around · drag to pan · H jumps home
+        Click or drag to look around · H jumps to your base
       </p>
     </div>
   );

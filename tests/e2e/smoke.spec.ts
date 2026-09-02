@@ -266,7 +266,7 @@ test("keeps the tactical radar readable and usable across breakpoints", async ({
   await deployToBattlefield(page);
   const radar = page.getByTestId("command-sidebar").getByTestId("tactical-radar");
   await expect(radar).toBeVisible();
-  await expect(radar).toHaveAttribute("aria-label", /click to focus.*drag to pan/i);
+  await expect(radar).toHaveAttribute("aria-label", /click or drag to look around/i);
   await expect(page.getByLabel("Tactical radar legend")).toHaveCount(0);
 
   const desktopStyles = await radar.evaluate((element) => {
