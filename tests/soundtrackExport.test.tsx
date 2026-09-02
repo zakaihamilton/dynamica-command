@@ -34,7 +34,7 @@ describe("soundtrack export cancellation", () => {
     });
     expect(result.current.exportState).toBe("rendering");
     act(() => result.current.cancelExport());
-    expect(result.current.status).toContain("Export cancelled");
+    expect(result.current.status).toContain("Download cancelled");
     expect(result.current.progress).toBe(0);
     expect(result.current.busy).toBe(false);
 
@@ -55,11 +55,11 @@ describe("soundtrack export cancellation", () => {
     audioMock.exportMissionSoundtrack.mockReturnValue(new Promise(() => undefined));
     const onClose = vi.fn();
     render(<SoundtrackPanel seed={421} missionIndex={0} onClose={onClose} />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Download M4A" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "Download M4A" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Cancel export" })).toBeVisible());
-    fireEvent.click(screen.getByRole("button", { name: "Cancel export" }));
-    expect(screen.getByText(/Export cancelled/)).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Download music" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Download music" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Cancel download" })).toBeVisible());
+    fireEvent.click(screen.getByRole("button", { name: "Cancel download" }));
+    expect(screen.getByText(/Download cancelled/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -77,5 +77,6 @@ describe("soundtrack export cancellation", () => {
 
     expect(audioMock.downloadMusicExport).toHaveBeenCalledOnce();
     expect(result.current.exportState).toBe("complete");
+    expect(result.current.status).toBe("Soundtrack saved.");
   });
 });

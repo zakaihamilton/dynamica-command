@@ -30,13 +30,13 @@ export function PauseOptions({
       <ConsoleLabel>Options</ConsoleLabel>
       <h2 id={titleId} className={styles.title}>Game options</h2>
       <div className={styles.actions}>
-        <ConsoleButton className={styles.action} tooltip="Toggle generated background music" shortcut={SHORTCUT.music} onClick={onToggleMusic}>
+        <ConsoleButton className={styles.action} tooltip="Turn music on or off" shortcut={SHORTCUT.music} onClick={onToggleMusic}>
           Music: {settings.musicEnabled ? "On" : "Off"}
         </ConsoleButton>
-        <ConsoleButton className={styles.action} tooltip="Toggle synthesized audio cues" shortcut={SHORTCUT.mute} onClick={onToggleSound}>
+        <ConsoleButton className={styles.action} tooltip="Turn sound effects on or off" shortcut={SHORTCUT.mute} onClick={onToggleSound}>
           Sound effects: {settings.sfxEnabled ? "On" : "Off"}
         </ConsoleButton>
-        <ConsoleButton className={styles.action} tooltip="Show a keyboard and screen-reader tactical roster beside the battlefield" onClick={onToggleTacticalRoster}>
+        <ConsoleButton className={styles.action} tooltip="Show a keyboard-friendly unit list beside the battlefield" onClick={onToggleTacticalRoster}>
           Tactical roster: {settings.tacticalRosterEnabled ? "On" : "Off"}
         </ConsoleButton>
         <ConsoleButton muted className={styles.action} tooltip={backTooltip} shortcut={SHORTCUT.back} onClick={onBack}>Back</ConsoleButton>

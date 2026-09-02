@@ -323,7 +323,7 @@ describe("game lifecycle hooks", () => {
     act(() => result.current.saveMission());
     expect(result.current.confirmation).toMatchObject({
       action: "save",
-      message: "Save the current mission state for this seed?",
+      message: "Save this mission?",
     });
     expect(readSave(localStorageAdapter(), 421)).toBeNull();
     act(() => result.current.confirmAction());

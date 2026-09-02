@@ -39,7 +39,7 @@ function objectivePhrase(win: WinCategory): string {
     case "razeAll":
       return "level every enemy building";
     case "decapitate":
-      return "destroy the enemy construction yard";
+      return "destroy the enemy Construction Yard";
     case "annihilate":
       return "wipe out every enemy unit and building";
     case "holdTheLine":
@@ -91,7 +91,7 @@ export function missionObjectives(
       case "razeAll":
         return `Level every ${them.name} building`;
       case "decapitate":
-        return `Destroy the ${them.name} construction yard`;
+        return `Destroy the ${them.name} Construction Yard`;
       case "annihilate":
         return `Wipe out all ${them.name} forces`;
       case "holdTheLine":
@@ -110,7 +110,7 @@ export function missionObjectives(
   })();
   return [
     { id: "win", text: winText },
-    { id: "yard", text: "Protect our construction yard" },
+    { id: "yard", text: "Protect our Construction Yard" },
     {
       id: "theater",
       text: `Hold ${place} against the ${them.name}`,

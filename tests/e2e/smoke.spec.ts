@@ -266,7 +266,7 @@ test("keeps the tactical radar readable and usable across breakpoints", async ({
   await deployToBattlefield(page);
   const radar = page.getByTestId("command-sidebar").getByTestId("tactical-radar");
   await expect(radar).toBeVisible();
-  await expect(radar).toHaveAttribute("aria-label", /click to focus.*drag to pan/i);
+  await expect(radar).toHaveAttribute("aria-label", /click or drag to look around/i);
   await expect(page.getByLabel("Tactical radar legend")).toHaveCount(0);
 
   const desktopStyles = await radar.evaluate((element) => {
@@ -407,8 +407,8 @@ test("downloads a valid deterministic M4A when native AAC is supported", async (
   await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
   const downloadPromise = page.waitForEvent("download", { timeout: 180_000 });
-  await dialog.getByRole("button", { name: "Download M4A", exact: true }).click();
-  await expect(dialog.getByRole("progressbar", { name: "Export progress" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Download music", exact: true }).click();
+  await expect(dialog.getByRole("progressbar", { name: "Download progress" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
   const download = await downloadPromise;
@@ -427,11 +427,11 @@ test("cancels a soundtrack export without closing the panel", async ({ page }) =
   test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
   await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
-  await dialog.getByRole("button", { name: "Download M4A", exact: true }).click();
-  const cancel = dialog.getByRole("button", { name: "Cancel export", exact: true });
+  await dialog.getByRole("button", { name: "Download music", exact: true }).click();
+  const cancel = dialog.getByRole("button", { name: "Cancel download", exact: true });
   await expect(cancel).toBeVisible();
   await cancel.click();
-  await expect(dialog).toContainText("Export cancelled");
+  await expect(dialog).toContainText("Download cancelled");
   await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeVisible();
 });
 
@@ -493,8 +493,8 @@ test("offers to reset an unreadable save from the campaign archive", async ({ pa
 
   await page.goto("/");
   await page.getByRole("button", { name: "LOAD MISSION" }).click();
-  const recovery = page.getByRole("alert").filter({ hasText: "Unreadable save: 0421" });
-  await expect(recovery).toContainText("Unreadable save: 0421");
+  const recovery = page.getByRole("alert").filter({ hasText: "Damaged save: 0421" });
+  await expect(recovery).toContainText("Damaged save: 0421");
   await page.getByRole("button", { name: "Reset 0421" }).click();
   await expect(recovery).toHaveCount(0);
   await expect(page.evaluate((key) => localStorage.getItem(key), saveKey(421))).resolves.toBeNull();
@@ -514,7 +514,7 @@ test("loads the last save from the pause menu", async ({ page }) => {
   const confirmation = page.getByRole("dialog", { name: "Load mission?" });
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole("button", { name: "Load mission" }).click();
-  await expect(page.getByRole("status")).toContainText(/Loaded mission at tick 120/);
+  await expect(page.getByRole("status")).toContainText(/Loaded the last save/);
   await page.getByRole("button", { name: "Resume Mission" }).click();
   await expect(page.getByTestId("credits")).toHaveText("9,876");
 });
@@ -531,7 +531,7 @@ test("resumes the active mission after refreshing the window", async ({ page }) 
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Load Mission" }).click();
   await page.getByRole("dialog", { name: "Load mission?" }).getByRole("button", { name: "Load mission" }).click();
-  await expect(page.getByRole("status")).toContainText(/Loaded mission at tick 120/);
+  await expect(page.getByRole("status")).toContainText(/Loaded the last save/);
   await page.getByRole("button", { name: "Resume Mission" }).click();
 
   await page.reload();
@@ -551,7 +551,7 @@ test("starts a new same-seed mission after reloading before a fresh launch", asy
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Load Mission" }).click();
   await page.getByRole("dialog", { name: "Load mission?" }).getByRole("button", { name: "Load mission" }).click();
-  await expect(page.getByRole("status")).toContainText(/Loaded mission at tick 120/);
+  await expect(page.getByRole("status")).toContainText(/Loaded the last save/);
   await page.getByRole("button", { name: "Resume Mission" }).click();
 
   await page.reload();

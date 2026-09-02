@@ -1,8 +1,16 @@
 import type { SimState, Vec2 } from "../types";
-import { inBounds, staticNavigationFor } from "./world";
-import { PATH_DIRS } from "./pathfinding";
+import { canClimb, inBounds, staticNavigationFor } from "./world";
+import { PATH_DIRS, diagonalCornerBlocked } from "./pathfinding";
 
 const UNREACHABLE = -1;
+const UNREACHABLE_SORT = 1_000_000_000;
+
+export type FlowStepOptions = {
+  occupancy?: Uint8Array;
+  reserved?: Map<number, number>;
+  ignoreId?: number;
+  state?: SimState;
+};
 
 /**
  * A reverse-traversed distance field. Every cell points toward a lower
@@ -39,7 +47,35 @@ export function flowFieldCacheSize(state: SimState): number {
   return fieldsByState.get(state)?.size ?? 0;
 }
 
-export function flowStep(field: FlowField, x: number, y: number): Vec2 | undefined {
+export function flowDistanceAt(field: FlowField, x: number, y: number): number {
+  const cx = Math.round(x);
+  const cy = Math.round(y);
+  if (cx < 0 || cy < 0 || cx >= field.width || cy >= field.height) return UNREACHABLE_SORT;
+  const distance = field.distance[cy * field.width + cx] ?? UNREACHABLE;
+  return distance < 0 ? UNREACHABLE_SORT : distance;
+}
+
+export function flowCellTaken(
+  occupancy: Uint8Array,
+  reserved: Map<number, number> | undefined,
+  width: number,
+  x: number,
+  y: number,
+  ignoreId?: number,
+): boolean {
+  const key = y * width + x;
+  if (occupancy[key]) return true;
+  if (!reserved) return false;
+  const claim = reserved.get(key);
+  return claim !== undefined && claim !== ignoreId;
+}
+
+export function flowStep(field: FlowField, x: number, y: number, opts?: FlowStepOptions): Vec2 | undefined {
+  if (opts?.occupancy) return occupancyAwareFlowStep(field, x, y, opts);
+  return greedyFlowStep(field, x, y);
+}
+
+function greedyFlowStep(field: FlowField, x: number, y: number): Vec2 | undefined {
   const cx = Math.round(x);
   const cy = Math.round(y);
   if (cx < 0 || cy < 0 || cx >= field.width || cy >= field.height) return undefined;
@@ -59,6 +95,54 @@ export function flowStep(field: FlowField, x: number, y: number): Vec2 | undefin
     }
   }
   return best;
+}
+
+function occupancyAwareFlowStep(field: FlowField, x: number, y: number, opts: FlowStepOptions): Vec2 | undefined {
+  const cx = Math.round(x);
+  const cy = Math.round(y);
+  if (cx < 0 || cy < 0 || cx >= field.width || cy >= field.height) return undefined;
+  const currentDistance = field.distance[cy * field.width + cx] ?? UNREACHABLE;
+  if (currentDistance <= 0) return undefined;
+
+  const occupancy = opts.occupancy!;
+  const reserved = opts.reserved;
+  const ignoreId = opts.ignoreId;
+  const state = opts.state;
+  let best: Vec2 | undefined;
+  let bestTier = 99;
+  let bestDistance = currentDistance;
+
+  for (const direction of PATH_DIRS) {
+    const nx = cx + direction.x;
+    const ny = cy + direction.y;
+    if (nx < 0 || ny < 0 || nx >= field.width || ny >= field.height) continue;
+    const distance = field.distance[ny * field.width + nx] ?? UNREACHABLE;
+    if (distance < 0) continue;
+    if (state && !flowTerrainStepOk(state, cx, cy, nx, ny)) continue;
+
+    const free = !flowCellTaken(occupancy, reserved, field.width, nx, ny, ignoreId);
+    let tier: number;
+    if (free && distance < currentDistance) tier = 0;
+    else if (free && distance === currentDistance) tier = 1;
+    else if (free && distance === currentDistance + 1) tier = 2;
+    else if (!free && distance < currentDistance) tier = 3;
+    else continue;
+
+    if (tier < bestTier || (tier === bestTier && distance < bestDistance)) {
+      bestTier = tier;
+      bestDistance = distance;
+      best = { x: nx, y: ny };
+    }
+  }
+  return best;
+}
+
+function flowTerrainStepOk(state: SimState, x0: number, y0: number, x1: number, y1: number): boolean {
+  if (!inBounds(state, x1, y1)) return false;
+  if (staticNavigationFor(state).walkable[y1 * state.width + x1] !== 1) return false;
+  if (!canClimb(state, x0, y0, x1, y1)) return false;
+  if (diagonalCornerBlocked(state, x0, y0, x1, y1)) return false;
+  return true;
 }
 
 function buildFlowField(state: SimState, requestedGoal: Vec2, revision: number): FlowField {

@@ -33,10 +33,10 @@ export function AssetList({
   return (
     <div className={styles.pane}>
       <div className={styles.headingRow}>
-        <ConsoleLabel className={styles.heading}>Generated assets</ConsoleLabel>
+        <ConsoleLabel className={styles.heading}>Art library</ConsoleLabel>
         <span className={styles.count}>{visibleAssets.length}/{assets.length}</span>
       </div>
-      <div className={styles.filters} role="toolbar" aria-label="Filter generated assets">
+      <div className={styles.filters} role="toolbar" aria-label="Filter art library">
         {FILTERS.map((item) => (
           <AssetChip
             key={item.value}
@@ -48,7 +48,7 @@ export function AssetList({
           </AssetChip>
         ))}
       </div>
-      <div className={styles.list} role="listbox" aria-label="Generated assets">
+      <div className={styles.list} role="listbox" aria-label="Art library">
         {visibleAssets.map((asset) => (
           <AssetListItem
             key={asset.id}

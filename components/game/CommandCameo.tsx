@@ -32,7 +32,7 @@ export function CommandCameo({
 }) {
   const busy = cameo.phase !== "idle";
   const showCount = cameo.queued > 1 || cameo.phase === "waiting";
-  const tooltip = `${labelFor(kind)} · ${cost} credits${busy ? (cameo.phase === "waiting" ? ` · ${cameo.queued} queued` : ` · ${Math.round(cameo.ratio * 100)}%`) : ""}${busy || active ? " · Right-click to cancel" : ""}${disabledReason ? ` · ${disabledReason}` : ""}`;
+  const tooltip = `${labelFor(kind)} · ${cost} credits${busy ? (cameo.phase === "waiting" ? ` · ${cameo.queued} in queue` : ` · ${Math.round(cameo.ratio * 100)}% complete`) : ""}${busy || active ? " · Right-click to cancel" : ""}${disabledReason ? ` · ${disabledReason}` : ""}`;
   const ariaStatus = disabledReason ? `, ${disabledReason}` : "";
   return (
     <span
@@ -50,7 +50,7 @@ export function CommandCameo({
         disabled={disabled}
         className={cx(styles.card, active && styles.active, busy && styles.busy)}
         onClick={onClick}
-        aria-label={`${labelFor(kind)}, ${cost} credits${busy ? `, ${cameo.phase === "waiting" ? `${cameo.queued} queued` : `${Math.round(cameo.ratio * 100)} percent`}` : ""}${busy || active ? ", right-click to cancel" : ""}${ariaStatus}`}
+        aria-label={`${labelFor(kind)}, ${cost} credits${busy ? `, ${cameo.phase === "waiting" ? `${cameo.queued} in queue` : `${Math.round(cameo.ratio * 100)} percent complete`}` : ""}${busy || active ? ", right-click to cancel" : ""}${ariaStatus}`}
         aria-keyshortcuts={shortcut}
       >
         <span className={styles.art}>

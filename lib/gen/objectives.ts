@@ -67,7 +67,7 @@ export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, 
   const yard: SecondaryObjective = {
     id: "yard",
     kind: "preserveYard",
-    label: "Keep the construction yard standing",
+    label: "Keep the Construction Yard standing",
   };
   if (SCENARIO_KINDS.includes(mission.win.kind)) {
     const timeLimitTicks = missionTimeLimitTicks(mission.win) ?? 3600;
