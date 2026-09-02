@@ -124,7 +124,6 @@ function paintCellProps(
   x: number,
   y: number,
 ): void {
-  if (fogAt(state, x, y) === 0) return;
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
   const scenery = memoScenery(state, x, y);
   const elev = scenery.elev;
@@ -136,7 +135,7 @@ function paintCellProps(
   if (scenery.kind === TILE_BLOCKED && !isMountainScenery(scenery)) {
     drawBlockerProp(ctx, state, x, y, s.x, s.y, z);
   }
-  if (inMap && state.tiles[y * state.width + x] === TILE_RESOURCE) {
+  if (inMap && fogAt(state, x, y) > 0 && state.tiles[y * state.width + x] === TILE_RESOURCE) {
     drawOreCrystals(ctx, state, cam, x, y, elev, z);
   }
   drawTerrainScatter(ctx, state, x, y, s.x, s.y, z);
