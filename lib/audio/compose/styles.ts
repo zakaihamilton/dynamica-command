@@ -12,6 +12,16 @@ import type {
   MusicStyleProfile,
   MusicVoiceType,
 } from "./types";
+import {
+  applyMissionTints,
+  arrangementAffinityScore,
+  assignmentRng,
+  campaignMusicContexts,
+  musicMissionContext,
+  pickAssignedItem,
+  pickBestByScore,
+  styleAffinityScore,
+} from "./missionContext";
 
 type Range = readonly [number, number];
 
@@ -57,7 +67,7 @@ const STYLE_BLUEPRINTS: readonly StyleBlueprint[] = [
     grooves: ["pulse", "shuffle"],
     grooveVariants: [0, 1],
     progressionVariants: [0, 1],
-    bassRiffFamily: "restless",
+    bassRiffFamily: "classic",
     tempoBias: [-1, 3],
     swing: [0.008, 0.026],
     bassTypes: ["sawtooth", "square"],
@@ -285,7 +295,7 @@ const STYLE_BLUEPRINTS: readonly StyleBlueprint[] = [
     grooves: ["pulse", "shuffle"],
     grooveVariants: [0, 1, 2],
     progressionVariants: [0, 1, 2],
-    bassRiffFamily: "classic",
+    bassRiffFamily: "walking",
     tempoBias: [2, 5],
     swing: [0.006, 0.02],
     bassTypes: ["sawtooth", "square"],
@@ -353,6 +363,158 @@ const STYLE_BLUEPRINTS: readonly StyleBlueprint[] = [
       kickStart: 142, kickEnd: 48, kickTail: 0.28,
       snareBody: 170, snareNoise: 1200, hatFrequency: 4800, openHatFrequency: 2200,
       tomStart: 136, tomEnd: 80, impactStart: 76, impactEnd: 22, noisePan: 0.18,
+    },
+  },
+  {
+    name: "glass-chime",
+    scales: ["major", "mixolydian", "minor pentatonic"],
+    grooves: ["pulse", "half-time"],
+    grooveVariants: [0, 1],
+    progressionVariants: [0, 2],
+    bassRiffFamily: "pedal",
+    tempoBias: [-3, 1],
+    swing: [0.004, 0.018],
+    bassTypes: ["sine", "triangle"],
+    pulseTypes: ["sine", "triangle"],
+    melodyTypes: ["sine", "triangle"],
+    counterTypes: ["sine", "triangle"],
+    padTypes: ["sine", "triangle"],
+    padDetunes: [[-2, -5, 4, 2], [-3, -8, 6, 2]],
+    padLfoRate: [0.2, 0.4],
+    padLfoDepth: [80, 150],
+    padQ: [0.35, 0.7],
+    delayBeats: [0.75, 1, 1.5],
+    delayFeedback: [0.3, 0.46],
+    delayWet: [0.26, 0.4],
+    reverbSeconds: [1.2, 1.75],
+    reverbDecay: [2.6, 3.8],
+    reverbSend: [0.26, 0.38],
+    reverbWet: [0.24, 0.36],
+    cutoff: [780, 1400],
+    bassStrides: [4, 8],
+    pulseStrides: [2, 4],
+    melodyOctaves: [2],
+    rhythmShifts: [0, 1],
+    counterChance: [0.58, 0.88],
+    drumDensity: [0.42, 0.68],
+    drum: {
+      kickStart: 156, kickEnd: 50, kickTail: 0.18,
+      snareBody: 240, snareNoise: 2100, hatFrequency: 8600, openHatFrequency: 4100,
+      tomStart: 168, tomEnd: 102, impactStart: 88, impactEnd: 30, noisePan: 0.1,
+    },
+  },
+  {
+    name: "foundry-stomp",
+    scales: ["phrygian", "harmonic minor", "natural minor"],
+    grooves: ["march", "half-time"],
+    grooveVariants: [0, 2],
+    progressionVariants: [1, 3],
+    bassRiffFamily: "industrial",
+    tempoBias: [-3, 2],
+    swing: [0, 0.01],
+    bassTypes: ["square", "sawtooth"],
+    pulseTypes: ["square", "sawtooth"],
+    melodyTypes: ["sawtooth", "square"],
+    counterTypes: ["square", "triangle"],
+    padTypes: ["sawtooth", "square"],
+    padDetunes: [[-11, -20, 16, 7], [-8, -16, 13, 5]],
+    padLfoRate: [0.24, 0.44],
+    padLfoDepth: [80, 150],
+    padQ: [1.0, 1.6],
+    delayBeats: [0.5, 0.75],
+    delayFeedback: [0.14, 0.26],
+    delayWet: [0.12, 0.22],
+    reverbSeconds: [0.55, 0.95],
+    reverbDecay: [2.4, 3.2],
+    reverbSend: [0.1, 0.18],
+    reverbWet: [0.12, 0.2],
+    cutoff: [420, 780],
+    bassStrides: [2, 4],
+    pulseStrides: [2, 4],
+    melodyOctaves: [1, 2],
+    rhythmShifts: [0, 2],
+    counterChance: [0.28, 0.54],
+    drumDensity: [0.92, 1],
+    drum: {
+      kickStart: 228, kickEnd: 32, kickTail: 0.22,
+      snareBody: 164, snareNoise: 1400, hatFrequency: 5400, openHatFrequency: 2500,
+      tomStart: 148, tomEnd: 84, impactStart: 130, impactEnd: 24, noisePan: 0.04,
+    },
+  },
+  {
+    name: "night-raid",
+    scales: ["phrygian", "harmonic minor", "dorian"],
+    grooves: ["pulse", "shuffle", "half-time"],
+    grooveVariants: [1, 2],
+    progressionVariants: [2, 3],
+    bassRiffFamily: "restless",
+    tempoBias: [3, 7],
+    swing: [0.01, 0.03],
+    bassTypes: ["sawtooth", "square"],
+    pulseTypes: ["square", "sawtooth"],
+    melodyTypes: ["square", "triangle"],
+    counterTypes: ["square", "sine"],
+    padTypes: ["sawtooth", "triangle"],
+    padDetunes: [[-13, -22, 18, 8], [-9, -17, 14, 6]],
+    padLfoRate: [0.55, 0.9],
+    padLfoDepth: [150, 260],
+    padQ: [1.0, 1.7],
+    delayBeats: [0.375, 0.5],
+    delayFeedback: [0.26, 0.4],
+    delayWet: [0.2, 0.34],
+    reverbSeconds: [0.6, 1.05],
+    reverbDecay: [1.8, 2.6],
+    reverbSend: [0.12, 0.22],
+    reverbWet: [0.13, 0.24],
+    cutoff: [640, 1180],
+    bassStrides: [2],
+    pulseStrides: [1, 2],
+    melodyOctaves: [2],
+    rhythmShifts: [1, 2],
+    counterChance: [0.4, 0.72],
+    drumDensity: [0.88, 1],
+    drum: {
+      kickStart: 210, kickEnd: 40, kickTail: 0.12,
+      snareBody: 248, snareNoise: 2500, hatFrequency: 8800, openHatFrequency: 4000,
+      tomStart: 200, tomEnd: 122, impactStart: 98, impactEnd: 34, noisePan: -0.12,
+    },
+  },
+  {
+    name: "ice-protocol",
+    scales: ["dorian", "minor pentatonic", "natural minor"],
+    grooves: ["half-time", "pulse", "march"],
+    grooveVariants: [0, 1],
+    progressionVariants: [0, 1, 2],
+    bassRiffFamily: "sparse",
+    tempoBias: [-7, -2],
+    swing: [0.008, 0.024],
+    bassTypes: ["sine", "triangle"],
+    pulseTypes: ["sine", "triangle"],
+    melodyTypes: ["sine", "triangle"],
+    counterTypes: ["sine", "triangle"],
+    padTypes: ["sine", "triangle"],
+    padDetunes: [[-1, -5, 4, 1], [-3, -7, 6, 2]],
+    padLfoRate: [0.1, 0.26],
+    padLfoDepth: [50, 110],
+    padQ: [0.32, 0.65],
+    delayBeats: [1, 1.5],
+    delayFeedback: [0.38, 0.52],
+    delayWet: [0.32, 0.46],
+    reverbSeconds: [1.55, 2.2],
+    reverbDecay: [3.4, 4.8],
+    reverbSend: [0.3, 0.44],
+    reverbWet: [0.3, 0.44],
+    cutoff: [300, 640],
+    bassStrides: [4, 8],
+    pulseStrides: [2, 4],
+    melodyOctaves: [1, 2],
+    rhythmShifts: [0, 1],
+    counterChance: [0.7, 0.96],
+    drumDensity: [0.32, 0.58],
+    drum: {
+      kickStart: 128, kickEnd: 52, kickTail: 0.32,
+      snareBody: 158, snareNoise: 1050, hatFrequency: 4300, openHatFrequency: 2000,
+      tomStart: 124, tomEnd: 72, impactStart: 70, impactEnd: 20, noisePan: 0.2,
     },
   },
 ];
@@ -545,14 +707,82 @@ const ARRANGEMENTS: readonly MusicArrangementProfile[] = [
     rhythmOffset: 1,
     drumDensity: [0.55, 0.82, 0.96, 0.88, 0.32, 0.9, 1, 0.96],
   },
+  {
+    name: "melody-late",
+    bassStrides: [8, 4, 4, 2, 8, 2, 2, 2],
+    pulseStrides: [4, 4, 2, 2, 4, 2, 1, 2],
+    melodyEnabled: [false, false, true, true, false, true, true, true],
+    pulseEnabled: PULSE_DEFAULT,
+    counterEnabled: [false, false, false, true, false, true, true, true],
+    holdBass: [true, false, false, false, true, false, false, false],
+    hatStride: [4, 2, 2, 2, 4, 2, 1, 2],
+    fillStyle: ["tom-only", "hat-chatter", "snare-tom", "snare-tom", "hat-chatter", "snare-tom", "kick-roll", "snare-tom"],
+    echoMelody: false,
+    melodyDegreeOffset: 1,
+    rhythmOffset: 2,
+    drumDensity: [0.35, 0.58, 0.72, 0.9, 0.26, 0.88, 1, 0.9],
+  },
+  {
+    name: "drums-out",
+    bassStrides: [8, 4, 2, 2, 8, 2, 2, 2],
+    pulseStrides: [4, 2, 2, 1, 4, 2, 1, 2],
+    melodyEnabled: [false, true, true, true, false, true, true, true],
+    pulseEnabled: [false, true, true, true, false, true, true, true],
+    counterEnabled: [false, false, true, true, false, true, true, false],
+    holdBass: [true, false, false, false, true, false, false, false],
+    hatStride: [4, 4, 2, 2, 4, 2, 1, 2],
+    fillStyle: ["tom-only", "tom-only", "snare-tom", "kick-roll", "hat-chatter", "snare-tom", "kick-roll", "snare-tom"],
+    echoMelody: false,
+    melodyDegreeOffset: 0,
+    rhythmOffset: 1,
+    drumDensity: [0.1, 0.48, 0.86, 0.92, 0.18, 0.9, 1, 0.88],
+  },
+  {
+    name: "inverted-hold",
+    bassStrides: [8, 2, 2, 8, 4, 2, 8, 2],
+    pulseStrides: [4, 2, 2, 4, 4, 2, 1, 2],
+    melodyEnabled: [true, true, true, true, true, true, false, true],
+    pulseEnabled: [false, true, true, true, true, true, true, true],
+    counterEnabled: [true, false, true, true, false, true, false, true],
+    holdBass: [true, false, false, true, false, false, true, false],
+    hatStride: [4, 2, 2, 4, 2, 2, 1, 2],
+    fillStyle: ["hat-chatter", "snare-tom", "kick-roll", "tom-only", "snare-tom", "snare-tom", "kick-roll", "snare-tom"],
+    echoMelody: false,
+    melodyDegreeOffset: -1,
+    rhythmOffset: 3,
+    drumDensity: [0.38, 0.86, 0.92, 0.34, 0.7, 0.9, 0.42, 0.94],
+  },
+  {
+    name: "echo-canon",
+    bassStrides: [4, 2, 2, 2, 8, 2, 2, 2],
+    pulseStrides: [4, 2, 1, 2, 4, 2, 1, 2],
+    melodyEnabled: [false, true, true, true, false, true, true, true],
+    pulseEnabled: PULSE_DEFAULT,
+    counterEnabled: [false, true, true, true, false, true, true, false],
+    holdBass: HOLD_DEFAULT,
+    hatStride: [2, 2, 2, 2, 4, 2, 1, 2],
+    fillStyle: ["hat-chatter", "snare-tom", "snare-tom", "kick-roll", "tom-only", "snare-tom", "kick-roll", "snare-tom"],
+    echoMelody: true,
+    melodyDegreeOffset: 2,
+    rhythmOffset: 1,
+    drumDensity: [0.5, 0.86, 0.94, 0.9, 0.3, 0.92, 1, 0.9],
+  },
 ];
 
 function arrangementFor(cue: MusicCue, seed: number, missionIndex: number): MusicArrangementProfile {
-  const offset = createRng(seed, `music-arrangement-offset:${cue}`).int(ARRANGEMENTS.length);
-  const index = missionIndex >= 0 && missionIndex < ARRANGEMENTS.length
-    ? (missionIndex + offset) % ARRANGEMENTS.length
-    : createRng(seed, `music-arrangement:${cue}:${missionIndex}`).int(ARRANGEMENTS.length);
-  return ARRANGEMENTS[index]!;
+  const tieRng = assignmentRng(seed, cue, "music-arrangement-order");
+  const ctx = musicMissionContext(seed, missionIndex);
+  if (cue !== "mission" || missionIndex < 0) {
+    return pickBestByScore(ARRANGEMENTS, (item) => arrangementAffinityScore(item.name, ctx), tieRng.fork(String(missionIndex)));
+  }
+  return pickAssignedItem(
+    ARRANGEMENTS,
+    campaignMusicContexts(seed),
+    missionIndex,
+    (item, mission) => arrangementAffinityScore(item.name, mission),
+    tieRng,
+    ctx,
+  );
 }
 
 const BASS_RIFF_FAMILIES: Record<MusicBassRiffFamily, readonly (readonly BassHit[])[]> = {
@@ -584,6 +814,16 @@ const BASS_RIFF_FAMILIES: Record<MusicBassRiffFamily, readonly (readonly BassHit
     [{ tone: 0, oct: 0 }, null, { tone: 2, oct: 0 }, { tone: 3, oct: 0 }, { tone: 0, oct: 1 }, { tone: 1, oct: 0 }, null, { tone: 2, oct: 0 }],
     [{ tone: 0, oct: 0 }, { tone: 3, oct: 0 }, null, { tone: 0, oct: 1 }, { tone: 2, oct: 0 }, null, { tone: 1, oct: 1 }, { tone: 0, oct: 0 }],
   ],
+  walking: [
+    [{ tone: 0, oct: 0 }, { tone: 1, oct: 0 }, { tone: 2, oct: 0 }, { tone: 3, oct: 0 }, { tone: 4, oct: 0 }, { tone: 3, oct: 0 }, { tone: 2, oct: 0 }, { tone: 1, oct: 0 }],
+    [{ tone: 0, oct: 0 }, { tone: 2, oct: 0 }, { tone: 3, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 1 }, { tone: 3, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 0 }],
+    [{ tone: 0, oct: 0 }, { tone: 1, oct: 0 }, null, { tone: 2, oct: 0 }, { tone: 3, oct: 0 }, { tone: 2, oct: 0 }, { tone: 1, oct: 0 }, { tone: 0, oct: 1 }],
+  ],
+  pedal: [
+    [{ tone: 0, oct: 0 }, null, { tone: 0, oct: 0 }, null, { tone: 0, oct: 0 }, null, { tone: 2, oct: 0 }, { tone: 0, oct: 1 }],
+    [{ tone: 0, oct: 0 }, { tone: 0, oct: 0 }, null, { tone: 0, oct: 1 }, { tone: 0, oct: 0 }, null, { tone: 3, oct: 0 }, null],
+    [{ tone: 0, oct: 0 }, null, null, { tone: 0, oct: 0 }, { tone: 0, oct: 1 }, null, { tone: 0, oct: 0 }, { tone: 2, oct: 0 }],
+  ],
 };
 
 export function bassRiffsFor(family: MusicBassRiffFamily): readonly (readonly BassHit[])[] {
@@ -600,22 +840,39 @@ function integerValue(rng: Rng, range: Range): number {
 
 function stylePoolFor(cue: MusicCue): readonly StyleBlueprint[] {
   if (cue === "defeat") {
-    return STYLE_BLUEPRINTS.filter((style) => ["industrial-march", "cinematic-tension", "low-orbit"].includes(style.name));
+    return STYLE_BLUEPRINTS.filter((style) => ["industrial-march", "cinematic-tension", "low-orbit", "ice-protocol", "foundry-stomp"].includes(style.name));
   }
   if (cue === "victory") {
-    return STYLE_BLUEPRINTS.filter((style) => ["neon-arpeggio", "orbital-drift", "signal-chase", "chrome-fanfare"].includes(style.name));
+    return STYLE_BLUEPRINTS.filter((style) => ["neon-arpeggio", "orbital-drift", "signal-chase", "chrome-fanfare", "glass-chime"].includes(style.name));
   }
   if (cue === "briefing") {
-    return STYLE_BLUEPRINTS.filter((style) => ["orbital-drift", "cinematic-tension", "neon-arpeggio", "low-orbit"].includes(style.name));
+    return STYLE_BLUEPRINTS.filter((style) => ["orbital-drift", "cinematic-tension", "neon-arpeggio", "low-orbit", "ice-protocol", "glass-chime"].includes(style.name));
   }
   return STYLE_BLUEPRINTS;
 }
 
+function selectStyleBlueprint(cue: MusicCue, seed: number, missionIndex: number): StyleBlueprint {
+  const pool = stylePoolFor(cue);
+  const tieRng = assignmentRng(seed, cue, "music-style-order");
+  const ctx = musicMissionContext(seed, Math.max(0, missionIndex));
+  if (cue !== "mission" || missionIndex < 0) {
+    return pickBestByScore(pool, (item) => styleAffinityScore(item.name, ctx), tieRng.fork(String(missionIndex)));
+  }
+  return pickAssignedItem(
+    pool,
+    campaignMusicContexts(seed),
+    missionIndex,
+    (item, mission) => styleAffinityScore(item.name, mission),
+    tieRng,
+    ctx,
+  );
+}
+
 export function createMusicStyle(cue: MusicCue, rng: Rng, seed = 0, missionIndex = 0): MusicStyleProfile {
-  const familyRng = rng.fork("family");
   const textureRng = rng.fork("texture");
-  const blueprint = familyRng.pick(stylePoolFor(cue));
-  return {
+  const blueprint = selectStyleBlueprint(cue, seed, missionIndex);
+  const context = musicMissionContext(seed, missionIndex);
+  const profile: MusicStyleProfile = {
     name: blueprint.name,
     scalePool: blueprint.scales,
     groove: textureRng.pick(blueprint.grooves),
@@ -649,8 +906,9 @@ export function createMusicStyle(cue: MusicCue, rng: Rng, seed = 0, missionIndex
     rhythmShift: textureRng.pick(blueprint.rhythmShifts),
     counterChance: rangeValue(textureRng, blueprint.counterChance),
     drumDensity: rangeValue(textureRng, blueprint.drumDensity),
-    drum: blueprint.drum,
+    drum: { ...blueprint.drum },
   };
+  return applyMissionTints(profile, context);
 }
 
 export function styleRng(seed: number, cue: MusicCue, missionIndex: number): Rng {

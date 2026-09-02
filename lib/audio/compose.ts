@@ -23,6 +23,7 @@ export {
   TITLE_MUSIC_SEED,
   TUTORIAL_MUSIC_MISSION,
   STEPS_PER_BAR,
+  BARS_PER_SECTION,
   MUSIC_BARS,
   MUSIC_STEPS,
 } from "./compose/types";

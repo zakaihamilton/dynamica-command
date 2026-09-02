@@ -1,8 +1,34 @@
-import { BUILDING_KINDS } from "../catalog";
+import { UNIT_STATS, isUnitKind } from "../catalog";
 import type { Camera } from "../iso";
-import type { SimEvent } from "../types";
+import type { BuildingKind, SimEvent, UnitKind, WeaponType } from "../types";
 import { spatialAudioForWorld } from "./spatial";
-import { playSfx } from "./synth";
+import { playSfx, type SfxKind } from "./synth";
+
+export function fireSfxFor(attackerKind: UnitKind | BuildingKind, weapon: WeaponType): SfxKind {
+  if (attackerKind === "infantry") return "smallArms";
+  if (attackerKind === "antiArmor") return "antiArmor";
+  if (attackerKind === "tank") return "cannon";
+  if (attackerKind === "turret") return "turret";
+  if (weapon === "smallArms") return "smallArms";
+  if (weapon === "antiArmor") return "antiArmor";
+  return "cannon";
+}
+
+export function impactSfxFor(targetKind: UnitKind | BuildingKind): SfxKind {
+  if (!isUnitKind(targetKind)) return "impact";
+  return UNIT_STATS[targetKind].domain === "human" ? "impactFlesh" : "impactMetal";
+}
+
+export function destructionCueFor(kind: UnitKind | BuildingKind): { kind: SfxKind; heavy: boolean } {
+  if (!isUnitKind(kind)) return { kind: "destruction", heavy: true };
+  return UNIT_STATS[kind].domain === "human"
+    ? { kind: "wreckHuman", heavy: false }
+    : { kind: "wreckVehicle", heavy: false };
+}
+
+export function supportSfxFor(providerKind: UnitKind): SfxKind {
+  return providerKind === "medic" ? "heal" : "repair";
+}
 
 export function dispatchBattlefieldAudio(
   events: SimEvent[],
@@ -18,23 +44,23 @@ export function dispatchBattlefieldAudio(
     if (event.type === "combat") {
       const shot = spatialAudioForWorld(event.x, event.y, camera, screenWidth, screenHeight);
       if (shot.audible) {
-        playSfx(event.weapon === "smallArms" ? "smallArms" : event.weapon === "antiArmor" ? "antiArmor" : "cannon", {
+        playSfx(fireSfxFor(event.attackerKind, event.weapon), {
           pan: shot.pan,
-          gain: shot.gain * (event.owner === 1 ? 0.8 : 1),
+          gain: shot.gain,
         });
       }
       if (!event.destroyed) {
         const impact = spatialAudioForWorld(event.targetX, event.targetY, camera, screenWidth, screenHeight);
-        if (impact.audible) playSfx("impact", { pan: impact.pan, gain: impact.gain * 0.7 });
+        if (impact.audible) playSfx(impactSfxFor(event.targetKind), { pan: impact.pan, gain: impact.gain });
       }
     } else if (event.type === "destroyed") {
       const impact = spatialAudioForWorld(event.x, event.y, camera, screenWidth, screenHeight);
       if (impact.audible) {
-        const building = (BUILDING_KINDS as string[]).includes(event.kind);
-        playSfx("destruction", {
+        const cue = destructionCueFor(event.kind);
+        playSfx(cue.kind, {
           pan: impact.pan,
-          gain: impact.gain * (building ? 1.2 : 1),
-          heavy: building,
+          gain: impact.gain * (cue.heavy ? 1.2 : 1),
+          heavy: cue.heavy,
         });
       }
     } else if (event.type === "sold") {
@@ -43,7 +69,9 @@ export function dispatchBattlefieldAudio(
       playSfx("repair", { force: true });
     } else if (event.type === "support") {
       const support = spatialAudioForWorld(event.targetX, event.targetY, camera, screenWidth, screenHeight);
-      if (support.audible) playSfx("repair", { pan: support.pan, gain: support.gain * 0.6, minInterval: 0.18 });
+      if (support.audible) {
+        playSfx(supportSfxFor(event.providerKind), { pan: support.pan, gain: support.gain * 0.9, minInterval: 0.18 });
+      }
     } else if (event.type === "built" && event.owner === 0) {
       built = true;
     } else if (event.type === "produced" && event.owner === 0) {
