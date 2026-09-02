@@ -5,6 +5,7 @@ import {
   MUSIC_BARS,
   MUSIC_STEPS,
   STEPS_PER_BAR,
+  BARS_PER_SECTION,
   TUTORIAL_MUSIC_MISSION,
 } from "../lib/audio/compose";
 import { exportMissionSoundtrack, missionSoundtrackFilename, supportsM4aExport } from "../lib/audio/export";
@@ -13,6 +14,8 @@ import { beep, isSfxEnabled, MAX_SFX_QUEUE_S, playSfx, scheduleSfxTime, setSfxEn
 import { beepForCommands } from "../lib/audio/uiOrders";
 import { spatialAudioForWorld } from "../lib/audio/spatial";
 import { createCamera } from "../lib/iso";
+import { createCampaign } from "../lib/gen/campaign";
+import { pickMissionBiomes } from "../lib/gen/names";
 
 describe("generated audio", () => {
   afterEach(() => {
@@ -35,13 +38,18 @@ describe("generated audio", () => {
   });
 
   it("covers every seeded style family and keeps mission fingerprints distinct", () => {
-    const corpus = Array.from({ length: 96 }, (_, seed) => composeMusic(seed, "mission", 0));
-    expect(new Set(corpus.map((pattern) => pattern.style.name)).size).toBe(8);
+    const corpus = Array.from({ length: 24 }, (_, seed) =>
+      Array.from({ length: 8 }, (__, mission) => composeMusic(seed, "mission", mission)),
+    ).flat();
+    expect(new Set(corpus.map((pattern) => pattern.style.name)).size).toBe(12);
     expect(corpus.some((pattern) => pattern.style.bassRiffFamily === "classic")).toBe(true);
     expect(corpus.some((pattern) => pattern.theme.groove === "shuffle")).toBe(true);
+    expect(corpus.some((pattern) => pattern.theme.groove === "half-time")).toBe(true);
     expect(corpus.some((pattern) => pattern.scaleName === "phrygian")).toBe(true);
+    expect(corpus.some((pattern) => pattern.scaleName === "harmonic minor" || pattern.scaleName === "minor pentatonic")).toBe(true);
 
     const missions = Array.from({ length: 8 }, (_, mission) => composeMusic(421, "mission", mission));
+    expect(new Set(missions.map((pattern) => pattern.style.name)).size).toBe(8);
     expect(new Set(missions.map((pattern) => pattern.style.arrangement.name)).size).toBe(8);
     const campaign = Array.from({ length: 12 }, (_, mission) => composeMusic(421, "mission", mission));
     expect(new Set(campaign.map((pattern) => pattern.style.arrangement.name)).size).toBe(12);
@@ -72,10 +80,51 @@ describe("generated audio", () => {
     expect(missions.every((pattern) => pattern.melodyType === pattern.style.melodyType)).toBe(true);
   });
 
+  it("ties mission scores to campaign biome and objective", () => {
+    for (const seed of [0, 21, 421, 1994, 7777]) {
+      const campaign = createCampaign(seed);
+      for (const mission of campaign.missions) {
+        const pattern = composeMusic(seed, "mission", mission.index);
+        expect(pattern.biome).toBe(mission.biome);
+        expect(pattern.missionKind).toBe(mission.kind);
+      }
+    }
+
+    const volcanicFamilies = ["foundry-stomp", "industrial-march", "cinematic-tension"];
+    const tundraFamilies = ["ice-protocol", "low-orbit", "cinematic-tension"];
+    for (let seed = 0; seed < 48; seed++) {
+      const biomes = pickMissionBiomes(seed);
+      if (biomes[0] === "volcanic shelf") {
+        expect(volcanicFamilies).toContain(composeMusic(seed, "mission", 0).style.name);
+      }
+      if (biomes[0] === "tundra grid") {
+        expect(tundraFamilies).toContain(composeMusic(seed, "mission", 0).style.name);
+      }
+    }
+
+    const assault: number[] = [];
+    const harvest: number[] = [];
+    for (let seed = 0; seed < 36; seed++) {
+      const campaign = createCampaign(seed);
+      for (const mission of campaign.missions) {
+        const density = composeMusic(seed, "mission", mission.index).style.drumDensity;
+        if (mission.kind === "razeAll" || mission.kind === "annihilate" || mission.kind === "decapitate") {
+          assault.push(density);
+        }
+        if (mission.kind === "harvestQuota") harvest.push(density);
+      }
+    }
+    const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+    expect(assault.length).toBeGreaterThan(0);
+    expect(harvest.length).toBeGreaterThan(0);
+    expect(average(assault)).toBeGreaterThan(average(harvest));
+  });
+
   it("builds a long-form arrangement with contrasting phrases and fills", () => {
-    expect(MUSIC_BARS).toBe(64);
+    expect(MUSIC_BARS).toBe(128);
+    expect(BARS_PER_SECTION).toBe(16);
     const half = STEPS_PER_BAR * (MUSIC_BARS / 2);
-    const fillBars = [7, 15, 23, 31, 39, 47, 55, 63];
+    const fillBars = Array.from({ length: MUSIC_BARS / 8 }, (_, index) => index * 8 + 7);
 
     for (const seed of [0, 421, 9999]) {
       const pattern = composeMusic(seed, "mission", 3);
@@ -97,7 +146,7 @@ describe("generated audio", () => {
       ];
 
       expect(firstHalf.some((lane, index) => JSON.stringify(lane) !== JSON.stringify(secondHalf[index]))).toBe(true);
-      const quarter = STEPS_PER_BAR * 16;
+      const quarter = STEPS_PER_BAR * 32;
       const quarterPrints = [0, 1, 2, 3].map((index) => JSON.stringify({
         bass: pattern.bass.slice(index * quarter, (index + 1) * quarter),
         arp: pattern.arp.slice(index * quarter, (index + 1) * quarter),
@@ -112,8 +161,8 @@ describe("generated audio", () => {
         const start = bar * STEPS_PER_BAR;
         expect(pattern.snare.slice(start, start + STEPS_PER_BAR).filter(Boolean).length).toBeGreaterThan(0);
       }
-      const penultimateFill = pattern.snare.slice(55 * STEPS_PER_BAR, 56 * STEPS_PER_BAR).filter(Boolean).length;
-      const finalFill = pattern.snare.slice(63 * STEPS_PER_BAR, 64 * STEPS_PER_BAR).filter(Boolean).length;
+      const penultimateFill = pattern.snare.slice(119 * STEPS_PER_BAR, 120 * STEPS_PER_BAR).filter(Boolean).length;
+      const finalFill = pattern.snare.slice(127 * STEPS_PER_BAR, 128 * STEPS_PER_BAR).filter(Boolean).length;
       expect(finalFill).toBeGreaterThan(penultimateFill);
       expect(pattern.sections.map((section) => section.name)).toEqual([
         "intro", "groove", "hook", "development", "breakdown", "escalation", "climax", "turnaround",
@@ -126,8 +175,8 @@ describe("generated audio", () => {
 
   it("keeps victory drums active through the breakdown", () => {
     const pattern = composeMusic(421, "victory");
-    const breakdownStart = 32 * STEPS_PER_BAR;
-    const breakdownEnd = 39 * STEPS_PER_BAR;
+    const breakdownStart = 64 * STEPS_PER_BAR;
+    const breakdownEnd = 79 * STEPS_PER_BAR;
 
     expect(pattern.kick.slice(breakdownStart, breakdownEnd).some(Boolean)).toBe(true);
     expect(pattern.snare.slice(breakdownStart, breakdownEnd).some(Boolean)).toBe(true);
@@ -138,7 +187,7 @@ describe("generated audio", () => {
     const ranges = {
       menu: [112, 124],
       briefing: [104, 116],
-      mission: [118, 128],
+      mission: [110, 134],
       victory: [124, 132],
       defeat: [88, 98],
     } as const;
@@ -169,8 +218,8 @@ describe("generated audio", () => {
         expect(melodyHits).toBeLessThan(MUSIC_STEPS / 2);
         expect(pattern.rootHz).toBeGreaterThan(midiToHz(30));
         if (cue === "mission") {
-          expect(["pulse", "march", "shuffle"]).toContain(pattern.theme.groove);
-          expect(["natural minor", "dorian", "mixolydian", "major", "phrygian"]).toContain(pattern.scaleName);
+          expect(["pulse", "march", "shuffle", "half-time"]).toContain(pattern.theme.groove);
+          expect(["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic"]).toContain(pattern.scaleName);
         }
       }
     }
@@ -190,8 +239,8 @@ describe("generated audio", () => {
       const sectionNotes = (name: string, lane: "melody" | "pulse" | "counter") => sectionNotesFor(pattern, name, lane);
       expect(pattern.theme.hook).not.toEqual(pattern.motif);
       expect(pattern.motif.rhythm.some((step) => step % 2 === 1)).toBe(true);
-      expect(["pulse", "march", "shuffle"]).toContain(pattern.theme.groove);
-      expect(["natural minor", "dorian", "mixolydian", "major", "phrygian"]).toContain(pattern.scaleName);
+      expect(["pulse", "march", "shuffle", "half-time"]).toContain(pattern.theme.groove);
+      expect(["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic"]).toContain(pattern.scaleName);
       expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
       expect(sectionNotes("groove", "melody").length).toBeGreaterThan(0);
       expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
@@ -222,7 +271,7 @@ describe("generated audio", () => {
         );
       };
       expect(sectionHats("climax").length).toBeGreaterThan(sectionHats("hook").length);
-      expect(sectionHats("hook").length).toBeLessThanOrEqual(8 * 8);
+      expect(sectionHats("hook").length).toBeLessThanOrEqual(BARS_PER_SECTION * 8);
     }
 
     const majorOpeners = [
@@ -287,7 +336,7 @@ describe("generated audio", () => {
     let sawDrop = false;
     let sawEcho = false;
     for (const seed of [0, 1, 7, 21, 421, 999, 2000, 9999]) {
-      for (let mission = 0; mission < 12; mission++) {
+      for (let mission = 0; mission < 16; mission++) {
         const pattern = composeMusic(seed, "mission", mission);
         if (pattern.style.arrangement.name === "double-drop") {
           sawDrop = true;

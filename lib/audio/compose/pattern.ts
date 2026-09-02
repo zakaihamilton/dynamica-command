@@ -11,6 +11,7 @@ import {
   MUSIC_BARS,
   MUSIC_STEPS,
   STEPS_PER_BAR,
+  BARS_PER_SECTION,
   VERSE_CONTOURS,
   HOOK_CONTOURS,
   VERSE_RHYTHMS,
@@ -40,12 +41,13 @@ import {
   legacyHits,
 } from "./helpers";
 import { bassRiffsFor, createMusicStyle, styleRng } from "./styles";
+import { musicMissionContext } from "./missionContext";
 
 function makeSections(): MusicSection[] {
   return SECTION_ORDER.map((name, index) => ({
     name,
-    startBar: index * 8,
-    endBar: index * 8 + 8,
+    startBar: index * BARS_PER_SECTION,
+    endBar: index * BARS_PER_SECTION + BARS_PER_SECTION,
     energy: sectionEnergy(name),
   }));
 }
@@ -161,6 +163,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   const bassRiffs = bassRiffsFor(style.bassRiffFamily);
   const [bassRiffA, bassRiffB, bassRiffC, bassRiffD] = pickCycle(harmonyRng, bassRiffs);
   const motif = motifFrom(melodyRng, VERSE_CONTOURS, VERSE_RHYTHMS);
+  const developmentMotif = motifFrom(melodyRng, VERSE_CONTOURS, VERSE_RHYTHMS);
   const hook = motifFrom(melodyRng, HOOK_CONTOURS, HOOK_RHYTHMS);
   const [arpFigureA, arpFigureB, arpFigureC, arpFigureD] = pickCycle(rhythmRng, ARP_FIGURES);
   const [openHatA, openHatB, openHatC, openHatD] = pickCycle(drumRng, OPEN_HAT_FIGURES);
@@ -172,48 +175,50 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   const padThird: number[] = [];
   const padFifth: number[] = [];
   const padSeventh: number[] = [];
+  const context = musicMissionContext(seed, missionIndex);
 
   for (let bar = 0; bar < MUSIC_BARS; bar++) {
-    const section = sections[Math.floor(bar / 8)]!;
-    const sectionIndex = Math.floor(bar / 8);
+    const sectionIndex = Math.floor(bar / BARS_PER_SECTION);
+    const section = sections[sectionIndex]!;
     const arrangement = style.arrangement;
     const origin = bar * STEPS_PER_BAR;
-    const phraseBar = bar % 8;
-    const cycle = Math.floor(bar / 16) % 4;
+    const phraseBar = bar % BARS_PER_SECTION;
+    const halfPhrase = phraseBar % 8;
+    const cycle = Math.floor(bar / (BARS_PER_SECTION * 2)) % 4;
     const progression = [progressionA, progressionB, progressionC, progressionD][cycle]!;
     const riff = [bassRiffA, bassRiffB, bassRiffC, bassRiffD][cycle]!;
     const arpFigure = [arpFigureA, arpFigureB, arpFigureC, arpFigureD][cycle]!;
     const openHatSteps = [openHatA, openHatB, openHatC, openHatD][cycle]!;
-    const fill = phraseBar === 7;
+    const fill = halfPhrase === 7;
     const intro = section.name === "intro";
     const breakdown = section.name === "breakdown";
     const climax = section.name === "climax";
     const hookSection = section.name === "hook" || section.name === "turnaround" || climax;
     const holdBass = arrangement.holdBass[sectionIndex]!;
     const energy = section.energy;
-    const thinBar = phraseBar === 2 || phraseBar === 3;
-    const liftBar = phraseBar === 4 || phraseBar === 5;
+    const thinBar = halfPhrase === 2 || halfPhrase === 3;
+    const liftBar = halfPhrase === 4 || halfPhrase === 5;
     const dropTexture = formRng.next() < (climax || hookSection ? 0.1 : 0.42);
     const miniRoll = formRng.next();
-    const miniFill = thinBar && phraseBar === 3 && !intro && !holdBass && miniRoll < 0.55;
+    const miniFill = thinBar && halfPhrase === 3 && !intro && !holdBass && miniRoll < 0.55;
     const dropHats = thinBar && dropTexture && !hookSection;
     const dropPulse = thinBar && dropTexture && !hookSection;
     const denseBar = cue === "victory" || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
     const hole = holdBass;
-    const fullDrums = !sparse && denseBar && (cue === "victory" || (!hole && (!intro || phraseBar >= 4)));
-    const lightDrums = sparse && !hole && (!intro || phraseBar >= 4);
+    const fullDrums = !sparse && denseBar && (cue === "victory" || (!hole && (!intro || phraseBar >= 8)));
+    const lightDrums = sparse && !hole && (!intro || phraseBar >= 8);
     let usePulse = arrangement.pulseEnabled[sectionIndex]!;
-    if (intro && phraseBar < 4) usePulse = false;
-    if (hole && phraseBar < 6) usePulse = false;
+    if (intro && phraseBar < 8) usePulse = false;
+    if (hole && phraseBar < 12) usePulse = false;
     if (dropPulse) usePulse = false;
     const phraseSlot = phraseBar % 4;
     const response = phraseSlot === 1 || phraseSlot === 2;
     const restBar = !hookSection && phraseSlot === 3 && section.name !== "escalation";
     const useHookLead =
       hookSection ||
-      (intro && phraseBar >= 6) ||
-      (breakdown && phraseBar >= 4) ||
-      (section.name === "escalation" && phraseBar >= 4);
+      (intro && phraseBar >= 12) ||
+      (breakdown && phraseBar >= 8) ||
+      (section.name === "escalation" && phraseBar >= 8);
     const echoBar = arrangement.echoMelody && section.name === "groove" && phraseBar % 2 === 0;
     const useMelody =
       arrangement.melodyEnabled[sectionIndex] &&
@@ -223,8 +228,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         section.name === "development" ||
         section.name === "escalation" ||
         hookSection ||
-        (intro && phraseBar >= 6) ||
-        (breakdown && phraseBar >= 4));
+        (intro && phraseBar >= 12) ||
+        (breakdown && phraseBar >= 8));
     const useCounter = !sparse && arrangement.counterEnabled[sectionIndex]! && (useMelody || echoBar);
     const sequenceOffset = liftBar ? 2 : 0;
     const sequenceOctave = liftBar && style.melodyOctave === 1 ? 2 : style.melodyOctave;
@@ -235,7 +240,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         : section.name === "escalation" && !useHookLead
           ? 1
           : 0) + arrangement.melodyDegreeOffset + sequenceOffset;
-    const chord = progression[phraseBar] ?? 0;
+    const chord = progression[Math.floor(phraseBar / 2)] ?? 0;
 
     padRoot.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 0, 1)));
     padThird.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 1, 1)));
@@ -293,7 +298,11 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
 
     const stepShift = bar % 2 === 1 ? style.rhythmShift + arrangement.rhythmOffset : arrangement.rhythmOffset;
     if (useMelody) {
-      const lead = useHookLead ? hook : motif;
+      const lead = useHookLead
+        ? hook
+        : section.name === "development" || (phraseBar >= 8 && !intro)
+          ? developmentMotif
+          : motif;
       const velocity = mixEnergy(climax ? 0.96 : hookSection ? 0.86 : 0.74, energy);
       const durationFor = (index: number, sounding: number) => {
         if (useHookLead) return index === sounding - 1 ? 3 : 4;
@@ -335,7 +344,11 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     }
 
     if (useCounter) {
-      const lead = useHookLead ? hook : motif;
+      const lead = useHookLead
+        ? hook
+        : section.name === "development" || (phraseBar >= 8 && !intro)
+          ? developmentMotif
+          : motif;
       const interval = climax ? 5 : hookSection ? 2 : 5;
       const counterOctave = 1;
       placeCounter(
@@ -357,7 +370,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     }
 
     if (fullDrums || lightDrums) {
-      const hits = grooveHits(groove, cycle % 2 as 0 | 1, style.grooveVariant);
+      const grooveVariantNow = ((bar >= MUSIC_BARS / 2 ? style.grooveVariant + 1 : style.grooveVariant) % 3) as 0 | 1 | 2;
+      const hits = grooveHits(groove, cycle % 2 as 0 | 1, grooveVariantNow);
       const drumGain = mixEnergy(fullDrums ? 1 : 0.58, energy);
       for (const step of hits.kick) drumEvent(drums, origin + step, "kick", (step === 0 ? 0.95 : 0.72) * drumGain, step === 0);
       for (const step of hits.snare) {
@@ -413,6 +427,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     cue,
     seed,
     missionIndex,
+    biome: context.biome,
+    missionKind: context.missionKind,
     bpm: bpmFor(cue, textureRng.int(64), missionIndex, style),
     swing: style.swing,
     bars: MUSIC_BARS,

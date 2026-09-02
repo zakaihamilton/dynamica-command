@@ -20,6 +20,10 @@ import {
   MAJOR_PROGRESSIONS,
   MIXOLYDIAN_PROGRESSIONS,
   PHRYGIAN_PROGRESSIONS,
+  HARMONIC_MINOR,
+  MINOR_PENTATONIC,
+  HARMONIC_MINOR_PROGRESSIONS,
+  PENTATONIC_PROGRESSIONS,
 } from "./types";
 
 export function midiToHz(midi: number): number {
@@ -38,7 +42,7 @@ export function bpmFor(cue: MusicCue, roll: number, missionIndex: number, style?
     : cue === "briefing"
       ? [104, 116, 104 + (roll % 13)]
       : cue === "mission"
-        ? [118, 128, 118 + ((roll + mission) % 11)]
+        ? [110, 134, 118 + ((roll + mission) % 11)]
         : cue === "victory"
           ? [124, 132, 124 + (roll % 9)]
           : [88, 98, 88 + (roll % 11)];
@@ -51,6 +55,8 @@ const SCALES: Record<MusicScaleName, { notes: readonly number[]; name: MusicScal
   mixolydian: { notes: MIXOLYDIAN, name: "mixolydian" },
   major: { notes: MAJOR, name: "major" },
   phrygian: { notes: PHRYGIAN, name: "phrygian" },
+  "harmonic minor": { notes: HARMONIC_MINOR, name: "harmonic minor" },
+  "minor pentatonic": { notes: MINOR_PENTATONIC, name: "minor pentatonic" },
 };
 
 export function scaleFor(cue: MusicCue, rng: Rng, style?: MusicStyleProfile): { notes: readonly number[]; name: MusicScaleName } {
@@ -59,8 +65,8 @@ export function scaleFor(cue: MusicCue, rng: Rng, style?: MusicStyleProfile): { 
     : cue === "briefing"
       ? ["dorian", "natural minor", "phrygian"]
       : cue === "defeat"
-        ? ["natural minor", "dorian", "phrygian"]
-        : ["natural minor", "dorian", "mixolydian", "major", "phrygian"];
+        ? ["natural minor", "dorian", "phrygian", "harmonic minor"]
+        : ["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic"];
   const name = rng.pick(style?.scalePool ?? fallback);
   return SCALES[name];
 }
@@ -72,12 +78,31 @@ export function progressionsFor(scaleName: string, variant = 0): readonly number
       ? MIXOLYDIAN_PROGRESSIONS
       : scaleName === "phrygian"
         ? PHRYGIAN_PROGRESSIONS
-        : MINOR_PROGRESSIONS;
+        : scaleName === "harmonic minor"
+          ? HARMONIC_MINOR_PROGRESSIONS
+          : scaleName === "minor pentatonic"
+            ? PENTATONIC_PROGRESSIONS
+            : MINOR_PROGRESSIONS;
   const offset = ((variant % progressions.length) + progressions.length) % progressions.length;
   return [...progressions.slice(offset), ...progressions.slice(0, offset)];
 }
 
 export function grooveHits(groove: MusicGroove, variation: 0 | 1, variant: 0 | 1 | 2 = 0): { kick: number[]; snare: number[] } {
+  if (groove === "half-time") {
+    if (variant === 1) {
+      return variation === 0
+        ? { kick: [0, 8], snare: [12] }
+        : { kick: [0, 6, 8], snare: [12] };
+    }
+    if (variant === 2) {
+      return variation === 0
+        ? { kick: [0, 8, 14], snare: [4, 12] }
+        : { kick: [0, 6, 8, 14], snare: [12, 14] };
+    }
+    return variation === 0
+      ? { kick: [0, 8], snare: [12] }
+      : { kick: [0, 8], snare: [4, 12] };
+  }
   if (groove === "shuffle") {
     if (variant === 1) {
       return variation === 0

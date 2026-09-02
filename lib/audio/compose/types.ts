@@ -1,9 +1,27 @@
+import type { BiomeName, MissionKind } from "../../types";
+
 export type MusicCue = "menu" | "briefing" | "mission" | "victory" | "defeat";
 export type MusicIntensity = "calm" | "engaged" | "critical";
 export type MusicVoiceType = "triangle" | "sawtooth" | "square" | "sine";
-export type MusicGroove = "march" | "pulse" | "shuffle";
-export type MusicScaleName = "natural minor" | "dorian" | "mixolydian" | "major" | "phrygian";
-export type MusicBassRiffFamily = "classic" | "industrial" | "syncopated" | "octave" | "sparse" | "descending" | "restless";
+export type MusicGroove = "march" | "pulse" | "shuffle" | "half-time";
+export type MusicScaleName =
+  | "natural minor"
+  | "dorian"
+  | "mixolydian"
+  | "major"
+  | "phrygian"
+  | "harmonic minor"
+  | "minor pentatonic";
+export type MusicBassRiffFamily =
+  | "classic"
+  | "industrial"
+  | "syncopated"
+  | "octave"
+  | "sparse"
+  | "descending"
+  | "restless"
+  | "walking"
+  | "pedal";
 export type MusicFillStyle = "snare-tom" | "kick-roll" | "hat-chatter" | "tom-only";
 export type MusicArrangementName =
   | "slow-burn"
@@ -17,7 +35,11 @@ export type MusicArrangementName =
   | "half-time-break"
   | "call-and-echo"
   | "double-drop"
-  | "anthem-lift";
+  | "anthem-lift"
+  | "melody-late"
+  | "drums-out"
+  | "inverted-hold"
+  | "echo-canon";
 export type MusicStyleName =
   | "neon-arpeggio"
   | "industrial-march"
@@ -26,7 +48,11 @@ export type MusicStyleName =
   | "cinematic-tension"
   | "signal-chase"
   | "chrome-fanfare"
-  | "low-orbit";
+  | "low-orbit"
+  | "glass-chime"
+  | "foundry-stomp"
+  | "night-raid"
+  | "ice-protocol";
 export type MusicSectionName =
   | "intro"
   | "groove"
@@ -110,7 +136,9 @@ export type MusicStyleProfile = {
 export const TITLE_MUSIC_SEED = 0;
 export const TUTORIAL_MUSIC_MISSION = -1;
 export const STEPS_PER_BAR = 16;
-export const MUSIC_BARS = 64;
+export const BARS_PER_SECTION = 16;
+export const SECTION_COUNT = 8;
+export const MUSIC_BARS = SECTION_COUNT * BARS_PER_SECTION;
 export const MUSIC_STEPS = STEPS_PER_BAR * MUSIC_BARS;
 
 export const NATURAL_MINOR = [0, 2, 3, 5, 7, 8, 10];
@@ -118,6 +146,8 @@ export const DORIAN = [0, 2, 3, 5, 7, 9, 10];
 export const MIXOLYDIAN = [0, 2, 4, 5, 7, 9, 10];
 export const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 export const PHRYGIAN = [0, 1, 3, 5, 7, 8, 10];
+export const HARMONIC_MINOR = [0, 2, 3, 5, 7, 8, 11];
+export const MINOR_PENTATONIC = [0, 3, 5, 7, 10];
 
 export const MINOR_PROGRESSIONS: readonly number[][] = [
   [0, 5, 2, 6, 0, 5, 3, 4],
@@ -163,6 +193,28 @@ export const PHRYGIAN_PROGRESSIONS: readonly number[][] = [
   [0, 5, 1, 6, 0, 1, 3, 4],
 ];
 
+export const HARMONIC_MINOR_PROGRESSIONS: readonly number[][] = [
+  [0, 4, 5, 3, 0, 4, 6, 3],
+  [0, 5, 3, 4, 0, 6, 4, 3],
+  [0, 3, 6, 4, 1, 5, 3, 4],
+  [6, 4, 0, 3, 5, 4, 0, 3],
+  [0, 4, 6, 2, 5, 3, 4, 0],
+  [0, 6, 4, 5, 0, 3, 4, 6],
+  [3, 0, 4, 6, 5, 0, 4, 3],
+  [0, 5, 4, 3, 6, 4, 0, 5],
+];
+
+export const PENTATONIC_PROGRESSIONS: readonly number[][] = [
+  [0, 2, 4, 2, 0, 3, 4, 2],
+  [0, 3, 2, 4, 0, 2, 3, 4],
+  [0, 4, 3, 2, 0, 4, 2, 3],
+  [2, 0, 4, 3, 0, 2, 4, 0],
+  [0, 2, 3, 4, 2, 0, 4, 3],
+  [4, 2, 0, 3, 4, 0, 2, 4],
+  [0, 3, 4, 0, 2, 4, 3, 2],
+  [0, 4, 2, 0, 3, 2, 4, 0],
+];
+
 export type BassHit = { tone: number; oct: number } | null;
 
 export const BASS_RIFFS: readonly BassHit[][] = [
@@ -198,6 +250,14 @@ export const BASS_RIFFS: readonly BassHit[][] = [
     { tone: 0, oct: 0 }, { tone: 1, oct: 0 }, { tone: 2, oct: 0 }, { tone: 0, oct: 1 },
     { tone: 0, oct: 0 }, { tone: 2, oct: 0 }, null, { tone: 0, oct: 1 },
   ],
+  [
+    { tone: 0, oct: 0 }, { tone: 1, oct: 0 }, { tone: 2, oct: 0 }, { tone: 3, oct: 0 },
+    { tone: 0, oct: 1 }, { tone: 2, oct: 0 }, { tone: 1, oct: 0 }, { tone: 0, oct: 0 },
+  ],
+  [
+    { tone: 0, oct: 0 }, null, { tone: 0, oct: 0 }, { tone: 4, oct: 0 },
+    { tone: 0, oct: 0 }, { tone: 0, oct: 1 }, null, { tone: 3, oct: 0 },
+  ],
 ];
 
 export const VERSE_CONTOURS: readonly (number | null)[][] = [
@@ -214,6 +274,10 @@ export const VERSE_CONTOURS: readonly (number | null)[][] = [
   [0, 3, null, 4, 2, 5, 0],
   [5, 4, 2, 4, 0, 2, null],
   [1, 3, 4, 2, 0, 4, 3],
+  [0, 4, null, 2, 5, 3, 0],
+  [3, 5, 4, 2, 0, null, 2],
+  [2, null, 4, 5, 3, 1, 0],
+  [0, 2, 4, null, 5, 4, 2],
 ];
 
 export const HOOK_CONTOURS: readonly (number | null)[][] = [
@@ -229,6 +293,9 @@ export const HOOK_CONTOURS: readonly (number | null)[][] = [
   [5, 7, 4, 2, 0],
   [7, 4, 5, 2, 4],
   [4, 7, 5, 4, 2],
+  [0, 4, 7, 4, 2],
+  [5, 2, 4, 7, 0],
+  [7, 5, 2, 4, 0],
 ];
 
 export const VERSE_RHYTHMS: readonly number[][] = [
@@ -240,6 +307,8 @@ export const VERSE_RHYTHMS: readonly number[][] = [
   [0, 2, 6, 7, 11, 13, 15],
   [0, 4, 5, 8, 10, 12, 14],
   [1, 2, 6, 8, 9, 12, 15],
+  [0, 3, 4, 8, 11, 12, 14],
+  [1, 4, 6, 9, 10, 13, 15],
 ];
 
 export const HOOK_RHYTHMS: readonly number[][] = [
@@ -262,6 +331,9 @@ export const ARP_FIGURES: readonly number[][] = [
   [0, 2, 3, 2, 0, 1, 2, 0],
   [1, 2, 0, 2, 1, 0, 2, 1],
   [0, 0, 2, 1, 0, 2, 1, 2],
+  [0, 3, 1, 2, 0, 2, 3, 1],
+  [2, 0, 1, 0, 2, 3, 1, 0],
+  [0, 1, 3, 1, 2, 0, 1, 3],
 ];
 
 export const OPEN_HAT_FIGURES: readonly (readonly number[])[] = [
@@ -334,6 +406,8 @@ export type MusicPattern = {
   cue: MusicCue;
   seed: number;
   missionIndex: number;
+  biome?: BiomeName;
+  missionKind?: MissionKind;
   bpm: number;
   swing: number;
   bars: number;

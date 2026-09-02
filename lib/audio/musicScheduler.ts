@@ -1,4 +1,4 @@
-import { composeMusic, midiToHz, STEPS_PER_BAR, type MusicIntensity, type MusicPattern, type MusicStem, type MusicVoiceType } from "./compose";
+import { composeMusic, midiToHz, STEPS_PER_BAR, BARS_PER_SECTION, type MusicIntensity, type MusicPattern, type MusicStem, type MusicVoiceType } from "./compose";
 import { getAudioContext, peekAudioContext } from "./context";
 import { getAudioBus } from "./mixer";
 import {
@@ -70,11 +70,11 @@ export function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPa
   const stepDuration = 60 / p.bpm / 4;
   const t = when + (index % 2 === 1 ? p.swing * stepDuration : 0);
   const bar = Math.floor(index / STEPS_PER_BAR);
-  const section = p.sections[Math.floor(bar / 8)]?.name;
+  const section = p.sections[Math.floor(bar / BARS_PER_SECTION)]?.name;
   if (index % STEPS_PER_BAR === 0) {
     retunePad(audio, g, p, bar, t);
-    if (bar % 8 === 7 && bar < p.bars - 1) playTransition(audio, g, t + stepDuration * 5, stepDuration * 9, true);
-    if (bar % 8 === 0 && bar > 0) playTransition(audio, g, t, stepDuration * 3, false);
+    if (bar % BARS_PER_SECTION === BARS_PER_SECTION - 1 && bar < p.bars - 1) playTransition(audio, g, t + stepDuration * 5, stepDuration * 9, true);
+    if (bar % BARS_PER_SECTION === 0 && bar > 0) playTransition(audio, g, t, stepDuration * 3, false);
   }
 
   const isBreakdown = section === "breakdown";
