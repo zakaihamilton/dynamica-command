@@ -27,9 +27,6 @@ export function prepareFlowFieldRoutes(
     );
     if (personalCheb <= 2 || sharedCheb <= 2) {
       if (finishFlowFieldRoute(state, entity)) continue;
-      // Stay put until A* budget is available. A leftover shared-field prefix
-      // would keep walking the rally instead of the personal slot.
-      entity.path = [];
       entity.routePending = true;
       continue;
     }

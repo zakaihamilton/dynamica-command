@@ -204,9 +204,7 @@ export function tickMovement(state: SimState): void {
       e.routePending = undefined;
       continue;
     }
-    // Repath pending searches, and idle leftovers sitting two tiles off a free
-    // slot. Far idle units must not spend the shared A* budget before combat.
-    if (!e.routePending && !(e.idle && cheb <= 2)) continue;
+    if (!e.routePending && !e.idle) continue;
     const result = tryFindPathDetailed(state, e, dest);
     if (!result) continue;
     e.path = result.path;

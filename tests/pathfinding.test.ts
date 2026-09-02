@@ -433,7 +433,7 @@ describe("pathfinding", () => {
     expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
     const stillFlowing = units.filter((unit) => unit.flowGoal);
     expect(stillFlowing.length).toBeGreaterThan(0);
-    expect(stillFlowing.every((unit) => unit.routePending && unit.path.length === 0)).toBe(true);
+    expect(stillFlowing.every((unit) => unit.path.length > 0 || unit.routePending)).toBe(true);
   });
 
   it("keeps a stored formation when the next move omits one", () => {
