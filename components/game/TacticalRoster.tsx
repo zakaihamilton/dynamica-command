@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { missionLossMessage } from "@/lib/sim/debrief";
 import { fogAt } from "@/lib/sim/fog";
 import { terrainAccess } from "@/lib/sim/world";
 import type { Entity, SimState } from "@/lib/types";
@@ -69,7 +70,7 @@ export function TacticalRoster({
   const harvestCoordinateValid = coordinateValid && coordinateAccess.label === "Ore field";
   const resultAnnouncement = state.result === "playing"
     ? ""
-    : state.result === "won" ? "Mission complete." : `Mission lost${state.lossReason ? `: ${state.lossReason}.` : "."}`;
+    : state.result === "won" ? "Mission complete." : `Mission lost: ${missionLossMessage(state)}`;
   const liveAnnouncement = resultAnnouncement || announcement || localAnnouncement;
   const issueCoordinate = (command: "move" | "attackMove" | "harvest") => {
     if (!coordinateValid || (command === "harvest" && !harvestCoordinateValid)) {

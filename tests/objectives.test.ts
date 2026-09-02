@@ -152,11 +152,14 @@ describe("deadline warnings", () => {
   function rescueAt(tick: number, deadline = 2000) {
     const s = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: deadline } });
     addBuilding(s, 0, "constructionYard", 0, 0);
+    const stranded = addUnit(s, 0, "infantry", 4, 4);
+    stranded.neutral = true;
+    stranded.scenarioRole = "stranded";
     s.tick = tick;
     s.runtime = {
       kind: "rescue",
       phase: "active",
-      targetIds: [],
+      targetIds: [stranded.id],
       deadline,
       rescued: 0,
       required: 1,

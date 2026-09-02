@@ -50,9 +50,13 @@ export function missionScore(state: SimState): number {
   );
 }
 
-function lossMessage(state: SimState): string {
+export function missionLossMessage(state: SimState): string {
   if (state.lossReason === "deadline") return "Operation window expired.";
-  if (state.lossReason === "objectiveTargetLost") return "The convoy was lost.";
+  if (state.lossReason === "objectiveTargetLost") {
+    if (state.win.kind === "extraction") return "The cargo was lost.";
+    if (state.win.kind === "rescue") return "A stranded unit was lost.";
+    return "The convoy was lost.";
+  }
   return "Construction yard destroyed.";
 }
 
@@ -60,7 +64,7 @@ export function missionDebrief(state: SimState) {
   const objective = objectiveProgress(state);
   const won = state.result === "won";
   return {
-    outcome: won ? "Primary objective achieved." : lossMessage(state),
+    outcome: won ? "Primary objective achieved." : missionLossMessage(state),
     objective: {
       headline: objectiveHeadline(state.win),
       progress: objective.label,
