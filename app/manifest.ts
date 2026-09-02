@@ -1,17 +1,16 @@
 import type { MetadataRoute } from "next";
-
-const DESCRIPTION = "A Command & Conquer–like RTS — one 4-digit code writes the war.";
+import { APP_DESCRIPTION, APP_NAME, APP_SHORT_NAME, APP_THEME_COLOR } from "@/lib/site";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Dynamica Command",
-    short_name: "Dynamica",
-    description: DESCRIPTION,
+    name: APP_NAME,
+    short_name: APP_SHORT_NAME,
+    description: APP_DESCRIPTION,
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#05080e",
-    theme_color: "#05080e",
+    background_color: APP_THEME_COLOR,
+    theme_color: APP_THEME_COLOR,
     lang: "en",
     orientation: "any",
     categories: ["games"],

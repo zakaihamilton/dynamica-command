@@ -1,6 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import sharp from "sharp";
+import { APP_THEME_RGB } from "../lib/site";
 
 /**
  * Rasterize `app/icon-source.png` into favicon.ico, apple-touch, app icon, and
@@ -15,10 +17,10 @@ const APP_ICON = join(ROOT, "app/icon.png");
 const APPLE_ICON = join(ROOT, "app/apple-icon.png");
 const FAVICON_ICO = join(ROOT, "app/favicon.ico");
 const PWA_DIR = join(ROOT, "public/icons");
-const VOID = { r: 5, g: 8, b: 14, alpha: 1 };
+const VOID = { ...APP_THEME_RGB };
 const MASKABLE_SAFE_ZONE = 0.8;
 
-async function rasterize(px: number): Promise<Buffer> {
+export async function rasterize(px: number): Promise<Buffer> {
   return sharp(SOURCE)
     .resize(px, px, { fit: "fill", kernel: "lanczos3" })
     .flatten({ background: VOID })
@@ -26,7 +28,7 @@ async function rasterize(px: number): Promise<Buffer> {
     .toBuffer();
 }
 
-async function rasterizeMaskable(px: number): Promise<Buffer> {
+export async function rasterizeMaskable(px: number): Promise<Buffer> {
   const markSize = Math.round(px * MASKABLE_SAFE_ZONE);
   const mark = await rasterize(markSize);
   return sharp({
@@ -92,10 +94,15 @@ function icoFromBmps(frames: { size: number; dib: Buffer }[]): Buffer {
 async function icoFrame(px: number): Promise<{ size: number; dib: Buffer }> {
   const { data } = await sharp(SOURCE)
     .resize(px, px, { fit: "fill", kernel: "lanczos3" })
+    .flatten({ background: VOID })
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
   return { size: px, dib: bmpIcoFrame(px, data) };
+}
+
+export async function buildFaviconIco(): Promise<Buffer> {
+  return icoFromBmps([await icoFrame(16), await icoFrame(32)]);
 }
 
 async function writePng(path: string, png: Buffer): Promise<void> {
@@ -105,8 +112,8 @@ async function writePng(path: string, png: Buffer): Promise<void> {
   console.log(`${relative(ROOT, path)}  ${meta.width}x${meta.height}`);
 }
 
-async function main(): Promise<void> {
-  writeFileSync(FAVICON_ICO, icoFromBmps([await icoFrame(16), await icoFrame(32)]));
+async function writeIcons(): Promise<void> {
+  writeFileSync(FAVICON_ICO, await buildFaviconIco());
   console.log(`${relative(ROOT, FAVICON_ICO)}  16x16+32x32`);
   await writePng(APP_ICON, await rasterize(192));
   await writePng(APPLE_ICON, await rasterize(180));
@@ -115,7 +122,15 @@ async function main(): Promise<void> {
   await writePng(join(PWA_DIR, "pwa-maskable-512.png"), await rasterizeMaskable(512));
 }
 
-main().catch((err: unknown) => {
-  console.error(err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+function invokedDirectly(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return import.meta.url === pathToFileURL(resolve(entry)).href;
+}
+
+if (invokedDirectly()) {
+  writeIcons().catch((err: unknown) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
+}
