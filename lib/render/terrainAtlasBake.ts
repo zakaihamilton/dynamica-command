@@ -21,10 +21,13 @@ import {
   type TerrainSample,
 } from "./terrainMaterials";
 import { oreVeinAt } from "./terrainOre";
+import { applyBiomeGroundPattern, tintGroundPatches } from "./terrainPatches";
 
 const WATER_CELL_CLASS = 0;
-const ORE_CELL_CLASS = 3;
+const ROAD_CELL_CLASS = 1;
 const CONCRETE_CELL_CLASS = 2;
+const ORE_CELL_CLASS = 3;
+const GROUND_CELL_CLASS = 4;
 const WATER_SHORE_MAX = 8;
 
 export type TerrainAtlasData = {
@@ -243,6 +246,7 @@ export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: num
       color = mixRgb(color, mats.dark, 0.28);
       color = mixRgb(color, mats.ore, 0.22);
     }
+    color = tintGroundPatches(color, mats, mapX, mapY, salt);
     if (scenery.kind === TILE_BLOCKED) color = mixRgb(color, mats.blocked, 0.55);
     const east = sceneryAt(state, x + 1, y).elev;
     const south = sceneryAt(state, x, y + 1).elev;
@@ -292,12 +296,12 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
       classes[row * cols + col] = kind === TILE_WATER
         ? WATER_CELL_CLASS
         : surface === SURFACE_ROAD
-          ? 1
+          ? ROAD_CELL_CLASS
           : surface === SURFACE_CONCRETE
             ? CONCRETE_CELL_CLASS
             : kind === TILE_RESOURCE
               ? ORE_CELL_CLASS
-              : 4;
+              : GROUND_CELL_CLASS;
     }
   }
 
@@ -353,6 +357,19 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
             r = baseR + (eastR - baseR) * fx * 0.28 + (southR - baseR) * fy * 0.28;
             g = baseG + (eastG - baseG) * fx * 0.28 + (southG - baseG) * fy * 0.28;
             b = baseB + (eastB - baseB) * fx * 0.28 + (southB - baseB) * fy * 0.28;
+          }
+          if (same === GROUND_CELL_CLASS) {
+            const pat = applyBiomeGroundPattern(
+              { r, g, b },
+              state.biome,
+              gx + (lx + 0.5) / ATLAS_CELL,
+              gy + (ly + 0.5) / ATLAS_CELL,
+              salt,
+              mats,
+            );
+            r = pat.r;
+            g = pat.g;
+            b = pat.b;
           }
           if (same === ORE_CELL_CLASS) {
             const vein = oreVeinAt(
