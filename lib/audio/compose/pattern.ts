@@ -198,22 +198,22 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const energy = section.energy;
     const thinBar = halfPhrase === 2 || halfPhrase === 3;
     const liftBar = halfPhrase === 4 || halfPhrase === 5;
-    const dropTexture = formRng.next() < (climax || hookSection ? 0.1 : 0.42);
+    const dropTexture = formRng.next() < (climax || hookSection ? 0.06 : 0.18);
     const miniRoll = formRng.next();
     const miniFill = thinBar && halfPhrase === 3 && !intro && !holdBass && miniRoll < 0.55;
     const dropHats = thinBar && dropTexture && !hookSection;
     const dropPulse = thinBar && dropTexture && !hookSection;
-    const denseBar = cue === "victory" || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
+    const denseBar = cue === "victory" || bar === MUSIC_BARS - 1 || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
     const hole = holdBass && phraseBar < 8;
-    const fullDrums = !sparse && denseBar && (cue === "victory" || (!hole && (!intro || phraseBar >= 8)));
-    const lightDrums = sparse && !hole && (!intro || phraseBar >= 8);
+    const fullDrums = !sparse && denseBar && (cue === "victory" || (!hole && (!intro || phraseBar >= 4)));
+    const lightDrums = sparse && !hole && (!intro || phraseBar >= 4);
     let usePulse = arrangement.pulseEnabled[sectionIndex]!;
-    if (intro && phraseBar < 8) usePulse = false;
+    if (intro && phraseBar < 4) usePulse = false;
     if (hole) usePulse = false;
     if (dropPulse) usePulse = false;
     const phraseSlot = phraseBar % 4;
     const response = phraseSlot === 1 || phraseSlot === 2;
-    const restBar = !hookSection && phraseSlot === 3 && section.name !== "escalation";
+    const restBar = section.name === "breakdown" && phraseSlot === 3;
     const useHookLead =
       hookSection ||
       (intro && phraseBar >= 12) ||
@@ -228,7 +228,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         section.name === "development" ||
         section.name === "escalation" ||
         hookSection ||
-        (intro && phraseBar >= 12) ||
+        (intro && phraseBar >= 8) ||
         (breakdown && phraseBar >= 8));
     const useCounter = !sparse && arrangement.counterEnabled[sectionIndex]! && (useMelody || echoBar);
     const sequenceOffset = liftBar ? 2 : 0;
@@ -382,7 +382,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       const hatStride = climax ? 1 : dropHats ? 4 : arrangement.hatStride[sectionIndex]!;
       for (let step = 0; step < STEPS_PER_BAR; step += hatStride) {
         const offbeat = climax ? step % 2 === 1 : step % 4 === 2;
-        drumEvent(drums, origin + step, "hat", (offbeat ? 0.28 : 0.2) * drumGain);
+        drumEvent(drums, origin + step, "hat", (offbeat ? 0.36 : 0.26) * drumGain);
       }
       if (!hole && !dropHats) {
         for (const step of openHatSteps) drumEvent(drums, origin + step, "openHat", 0.44 * drumGain);

@@ -350,7 +350,7 @@ test.describe("selected unit actions", () => {
     await expect(hold).toHaveAttribute("aria-pressed", "false");
     await hold.click();
     await expect(hold).toHaveAttribute("aria-pressed", "true");
-    await expect(sidebar.getByText("Stance hold", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("Stance Hold", { exact: true })).toBeVisible();
 
     const wedge = unitOrders.getByTestId("selected-action-formation-wedge");
     await expect(wedge).toHaveAttribute("aria-pressed", "false");
@@ -408,8 +408,8 @@ test.describe("desktop marquee selection", () => {
     await page.mouse.up();
 
     const roster = page.getByTestId("tactical-roster");
-    const anchorRow = roster.locator('[role="listitem"]').filter({ hasText: `Coords ${anchorUnit.x}, ${anchorUnit.y}` });
-    const revealedRow = roster.locator('[role="listitem"]').filter({ hasText: `Coords ${revealedUnit.x}, ${revealedUnit.y}` });
+    const anchorRow = roster.locator('[role="listitem"]').filter({ hasText: `Position ${anchorUnit.x}, ${anchorUnit.y}` });
+    const revealedRow = roster.locator('[role="listitem"]').filter({ hasText: `Position ${revealedUnit.x}, ${revealedUnit.y}` });
     await expect.poll(() => anchorRow.getAttribute("data-selected")).toBe("true");
     await expect.poll(() => revealedRow.getAttribute("data-selected")).toBe("true");
   });

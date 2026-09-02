@@ -94,19 +94,19 @@ export function parseSaveExport(raw: string): ParsedSaveExport {
     parsed = JSON.parse(raw);
   } catch (err) {
     console.debug("[persist] Failed to parse save export JSON:", err);
-    throw new Error("Save file is not valid JSON");
+    throw new Error("This is not a Dynamica Command save file.");
   }
   if (!isRecord(parsed) || parsed.format !== SAVE_EXPORT_FORMAT || parsed.version !== SAVE_EXPORT_VERSION) {
-    throw new Error("Unsupported save file format or version");
+    throw new Error("This save file isn't compatible.");
   }
   if (parsed.contentVersion !== SAVE_CONTENT_VERSION || !isNumber(parsed.exportedAt)) {
-    throw new Error("Unsupported save content version");
+    throw new Error("This save is from a newer version of the game.");
   }
-  if (!isCampaignProgressShape(parsed.campaign)) throw new Error("Invalid campaign progress");
-  if (!isNormalizableStateInput(parsed.state)) throw new Error("Invalid save state");
+  if (!isCampaignProgressShape(parsed.campaign)) throw new Error("This save could not be read.");
+  if (!isNormalizableStateInput(parsed.state)) throw new Error("This save could not be read.");
   const state = normalizeState(parsed.state);
-  if (!isStateShape(state)) throw new Error("Invalid save state");
-  if (state.seed !== parsed.campaign.seed) throw new Error("Save and campaign seeds do not match");
+  if (!isStateShape(state)) throw new Error("This save could not be read.");
+  if (state.seed !== parsed.campaign.seed) throw new Error("This save doesn't match its campaign.");
   return { state, campaign: parsed.campaign, exportedAt: parsed.exportedAt };
 }
 

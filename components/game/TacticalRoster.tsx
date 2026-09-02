@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { labelFor } from "@/lib/catalog";
 import { missionLossMessage } from "@/lib/sim/debrief";
 import { fogAt } from "@/lib/sim/fog";
 import { terrainAccess } from "@/lib/sim/world";
 import type { Entity, SimState } from "@/lib/types";
-import { FORMATION_IDS, STANCE_IDS } from "@/lib/ui/orders";
+import { formationLabel, stanceLabel } from "@/lib/ui/copy";
+import { FORMATION_OPTIONS, STANCE_OPTIONS } from "@/lib/ui/orders";
 import { tileCoords } from "@/lib/ui/tileCoords";
 import { useAnnouncement } from "@/components/ui/useAnnouncement";
 import type { GameActions } from "./hooks/useGameActions";
@@ -11,11 +13,22 @@ import type { GameCamera } from "./hooks/useGameCamera";
 import styles from "./TacticalRoster.module.css";
 
 function entityStatus(entity: Entity): string {
-  if (entity.constructing > 0) return "constructing";
-  if (entity.producing) return `producing ${entity.producing.kind}`;
-  if (entity.attackTarget !== undefined) return "engaging";
-  if (entity.orderMode) return entity.orderMode === "attackMove" ? "attack-moving" : entity.orderMode;
-  return entity.idle ? "idle" : "active";
+  if (entity.constructing > 0) return "Under construction";
+  if (entity.producing) return `Training ${labelFor(entity.producing.kind)}`;
+  if (entity.attackTarget !== undefined) return "Attacking";
+  if (entity.orderMode === "attackMove") return "Attack-moving";
+  if (entity.orderMode === "attack") return "Attacking";
+  if (entity.orderMode === "move") return "Moving";
+  return entity.idle ? "Idle" : "Active";
+}
+
+function roleLabel(entity: Entity): string {
+  if (entity.scenarioRole === "convoy") return "Convoy";
+  if (entity.scenarioRole === "stranded") return "Stranded";
+  if (entity.scenarioRole === "cargo") return "Cargo";
+  if (entity.marked) return "Marked target";
+  if (entity.kind === "objective") return "Objective";
+  return "—";
 }
 
 function visibleEntity(state: SimState, entity: Entity): boolean {
@@ -74,11 +87,12 @@ export function TacticalRoster({
   const liveAnnouncement = resultAnnouncement || announcement || localAnnouncement;
   const issueCoordinate = (command: "move" | "attackMove" | "harvest") => {
     if (!coordinateValid || (command === "harvest" && !harvestCoordinateValid)) {
-      announce(command === "harvest" ? "Command rejected: choose an ore-field coordinate." : "Command rejected: choose a traversable map coordinate.");
+      announce(command === "harvest" ? "Choose an ore field." : "That ground cannot be walked.");
       return;
     }
     const issued = actions.issueCoordinateCommand(command, x, y);
-    announce(issued ? `${command === "attackMove" ? "Attack-move" : command === "harvest" ? "Harvest" : "Move"} command accepted at ${x}, ${y}.` : "Command rejected: select a live friendly unit.");
+    const order = command === "attackMove" ? "Attack-move" : command === "harvest" ? "Harvest" : "Move";
+    announce(issued ? `${order} ordered at ${x}, ${y}.` : "Select a friendly unit first.");
   };
 
   const selectEntity = (entity: Entity) => {
@@ -86,25 +100,25 @@ export function TacticalRoster({
     onSelect([entity.id]);
     setX(tx);
     setY(ty);
-    announce(`Selected ${entity.kind} at ${tx}, ${ty}.`);
+    announce(`Selected ${labelFor(entity.kind)} at ${tx}, ${ty}.`);
   };
 
   return (
     <aside className={styles.roster} aria-label="Tactical roster" data-testid="tactical-roster">
       <div className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Accessibility channel</p>
+          <p className={styles.eyebrow}>Keyboard and screen reader</p>
           <h2>Tactical roster</h2>
         </div>
         <span className={styles.count}>{entities.length}</span>
       </div>
       <div className={styles.live} aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
-      <div className={styles.entityList} role="list" aria-label="Visible battlefield entities">
+      <div className={styles.entityList} role="list" aria-label="Visible units and buildings">
         {entities.map((entity) => {
           const isSelected = selectedIdSet.has(entity.id);
           const { x: ex, y: ey } = tileCoords(entity);
           const faction = entity.neutral ? "Neutral" : state.factions[entity.owner].name;
-          const role = entity.scenarioRole ?? (entity.marked ? "marked target" : entity.kind === "objective" ? "objective" : "—");
+          const name = labelFor(entity.kind);
           const oreField = terrainAccess(state, ex, ey).label === "Ore field";
           return (
             <div
@@ -115,33 +129,33 @@ export function TacticalRoster({
               data-owner={entity.neutral ? "neutral" : String(entity.owner)}
             >
               <div className={styles.entityInfo}>
-                <strong>{entity.kind}</strong>
-                <span>{faction} · {entity.hp}/{entity.maxHp} HP · {entityStatus(entity)}</span>
-                <span>Coords {ex}, {ey} · Role {role}</span>
+                <strong>{name}</strong>
+                <span>{faction} · Health {entity.hp}/{entity.maxHp} · {entityStatus(entity)}</span>
+                <span>Position {ex}, {ey} · Role {roleLabel(entity)}</span>
               </div>
               <div className={styles.rowActions}>
-                <button type="button" onClick={() => selectEntity(entity)} aria-label={`Select ${entity.kind} ${entity.id}`}>
+                <button type="button" onClick={() => selectEntity(entity)} aria-label={`Select ${name}`}>
                   {isSelected ? "Selected" : "Select"}
                 </button>
-                <button type="button" onClick={() => { camera.centerSelection(new Set([entity.id])); announce(`Centered camera on ${entity.kind}.`); }}>
+                <button type="button" onClick={() => { camera.centerSelection(new Set([entity.id])); announce(`Centered camera on ${name}.`); }}>
                   Center
                 </button>
                 {entity.owner === 1 ? (
                   <button type="button" onClick={() => {
                     const issued = actions.issueTargetCommand("attack", entity.id);
-                    announce(issued ? `Attack command accepted for ${entity.kind}.` : "Command rejected: select a live friendly unit.");
+                    announce(issued ? `Attack ordered on ${name}.` : "Select a friendly unit first.");
                   }} disabled={!selectedUnits.length}>Attack</button>
                 ) : null}
                 {entity.owner === 0 && entity.class === "unit" && !entity.neutral && entity.id !== selectedEntity?.id ? (
                   <button type="button" onClick={() => {
                     const issued = actions.issueTargetCommand("support", entity.id);
-                    announce(issued ? `Support command accepted for ${entity.kind}.` : "Command rejected: select a support unit.");
+                    announce(issued ? `Support ordered for ${name}.` : "Select a Field Medic or Repair Truck.");
                   }} disabled={!selectedUnits.length}>Support</button>
                 ) : null}
                 {oreField ? (
                   <button type="button" onClick={() => {
                     const issued = actions.issueCoordinateCommand("harvest", ex, ey);
-                    announce(issued ? `Harvest command accepted at ${ex}, ${ey}.` : "Command rejected: select a harvester.");
+                    announce(issued ? `Harvest ordered at ${ex}, ${ey}.` : "Select a Harvester.");
                   }} disabled={!selectedUnits.length}>Harvest</button>
                 ) : null}
               </div>
@@ -152,12 +166,12 @@ export function TacticalRoster({
       <section className={styles.commands} aria-labelledby="roster-command-title">
         <h3 id="roster-command-title">Selected command</h3>
         <div className={styles.commandGrid}>
-          <button type="button" onClick={() => { actions.issueSelectedCommand("stop"); announce("Stop command accepted."); }} disabled={!selectedUnits.length}>Stop</button>
-          {STANCE_IDS.map((stance) => (
-            <button key={stance} type="button" onClick={() => { actions.issueSelectedCommand("stance", stance); announce(`Stance set to ${stance}.`); }} disabled={!selectedUnits.length}>{stance}</button>
+          <button type="button" onClick={() => { actions.issueSelectedCommand("stop"); announce("Stop ordered."); }} disabled={!selectedUnits.length}>Stop</button>
+          {STANCE_OPTIONS.map((option) => (
+            <button key={option.id} type="button" onClick={() => { actions.issueSelectedCommand("stance", option.id); announce(`Stance set to ${stanceLabel(option.id)}.`); }} disabled={!selectedUnits.length}>{option.label}</button>
           ))}
-          {FORMATION_IDS.map((formation) => (
-            <button key={formation} type="button" onClick={() => { actions.issueSelectedCommand("formation", formation); announce(`Formation set to ${formation}.`); }} disabled={!selectedUnits.length}>{formation}</button>
+          {FORMATION_OPTIONS.map((option) => (
+            <button key={option.id} type="button" onClick={() => { actions.issueSelectedCommand("formation", option.id); announce(`Formation set to ${formationLabel(option.id)}.`); }} disabled={!selectedUnits.length}>{option.label}</button>
           ))}
         </div>
         <div className={styles.coordinates}>
@@ -167,7 +181,7 @@ export function TacticalRoster({
         <div className={styles.commandGrid}>
           <button type="button" onClick={() => issueCoordinate("move")} disabled={!selectedUnits.length || !coordinateValid}>Move</button>
           <button type="button" onClick={() => issueCoordinate("attackMove")} disabled={!selectedUnits.length || !coordinateValid}>Attack-move</button>
-          <button type="button" onClick={() => issueCoordinate("harvest")} disabled={!selectedUnits.length || !harvestCoordinateValid}>Harvest coords</button>
+          <button type="button" onClick={() => issueCoordinate("harvest")} disabled={!selectedUnits.length || !harvestCoordinateValid}>Harvest here</button>
         </div>
       </section>
     </aside>

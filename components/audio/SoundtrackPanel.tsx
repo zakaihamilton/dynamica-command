@@ -29,12 +29,12 @@ export function SoundtrackPanel({
         <h2 id="soundtrack-title" className={styles.title}>Mission soundtrack</h2>
         <p className={styles.meta}>Seed {formatSeed(seed)} {"//"} Mission {missionIndex + 1}</p>
         <p className={styles.description}>
-          Render the complete adaptive command score as a standalone M4A file (~4 minutes at typical tempo). The download is generated from this mission seed and does not include battlefield effects. Browser rendering can take a while.
+          {"Download this mission's music as a standalone file (~4 minutes). It doesn't include battlefield sound effects. Preparing it can take a while."}
         </p>
         <div className={styles.readout} aria-live="polite">
           <span className={styles.status}>{status}</span>
           <span className={styles.progressSlot} aria-hidden={!busy}>
-            <progress className={styles.progress} max="1" value={busy ? progress : 0} aria-label="Export progress" />
+            <progress className={styles.progress} max="1" value={busy ? progress : 0} aria-label="Download progress" />
           </span>
         </div>
         <div className={styles.actions}>
@@ -42,21 +42,21 @@ export function SoundtrackPanel({
             className={styles.action}
             onClick={exportTrack}
             disabled={availability !== "available" || busy || draining}
-            tooltip={availability === "unsupported" ? "Native AAC export is not supported here" : "Render and download the mission soundtrack as M4A"}
+            tooltip={availability === "unsupported" ? "This browser can't save the soundtrack" : "Download this mission's music"}
           >
             {busy
-              ? exportState === "rendering" ? "Rendering…" : exportState === "encoding" ? "Encoding…" : "Cancelling…"
-              : exportState === "complete" ? "Download again" : "Download M4A"}
+              ? exportState === "rendering" ? "Preparing…" : exportState === "encoding" ? "Saving…" : "Cancelling…"
+              : exportState === "complete" ? "Download again" : "Download music"}
           </ConsoleButton>
           {busy ? (
-            <ConsoleButton className={styles.action} muted onClick={cancelExport} disabled={exportState === "cancelling"} tooltip="Stop rendering or encoding this soundtrack">
-              {exportState === "cancelling" ? "Cancelling…" : "Cancel export"}
+            <ConsoleButton className={styles.action} muted onClick={cancelExport} disabled={exportState === "cancelling"} tooltip="Stop preparing this soundtrack">
+              {exportState === "cancelling" ? "Cancelling…" : "Cancel download"}
             </ConsoleButton>
           ) : (
             <ConsoleButton className={styles.action} muted onClick={onClose} tooltip="Return to the previous screen">Close</ConsoleButton>
           )}
         </div>
-        <p className={styles.format}>AAC-LC · 44.1 kHz · stereo · native browser encoder</p>
+        <p className={styles.format}>Stereo music file · saved on this device</p>
       </MetalPanel>
     </div>
   );

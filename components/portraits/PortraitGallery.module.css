@@ -41,7 +41,7 @@
   font-family: var(--font-display);
   color: var(--chrome-text);
   font-size: clamp(2rem, 5vw, 4.25rem);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.04em;
   line-height: 0.95;
   text-transform: uppercase;
 }
@@ -67,7 +67,7 @@
   padding: 0.55rem 0.7rem;
   background: var(--chrome-glass);
   color: var(--chrome-body);
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.1em;

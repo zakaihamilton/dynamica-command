@@ -33,7 +33,7 @@ describe("mobile command policy", () => {
     setTile(state, 6, 6, TILE_RESOURCE, 100);
     const unit = addUnit(state, 0, "infantry", 2, 2);
 
-    expect(mobileCommandLabel("attackMove")).toBe("A-Move");
+    expect(mobileCommandLabel("attackMove")).toBe("Attack-move");
     expect(mobileCommandLabel(null)).toBe("Ready");
     expect(mobileCommandOrders(state, "move", [unit.id], undefined, 6, 6)).toEqual([
       { type: "move", unitIds: [unit.id], x: 6, y: 6 },

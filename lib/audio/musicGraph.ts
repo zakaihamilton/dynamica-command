@@ -1,6 +1,4 @@
 import {
-  STEPS_PER_BAR,
-  BARS_PER_SECTION,
   type MusicDrumEvent,
   type MusicIntensity,
   type MusicNoteEvent,
@@ -18,19 +16,18 @@ import { noiseBuf, setNoiseBuf } from "./musicState";
 export type { AudioGraphContext, MusicGraph, PatternIndex };
 
 export const SAMPLE_RATE = AUDIO_SAMPLE_RATE;
-export const MASTER_GAIN = 0.078;
+export const MASTER_GAIN = 0.09;
 export const PAD_GAIN = 0.1;
 export const DUCK_RATIO = 0.34;
 export const CROSSFADE_S = 0.55;
 export const SCHEDULE_AHEAD_S = 0.22;
 export const SCHEDULER_MS = 25;
 export const ATTACK_S = 0.012;
-export const PHRASE_STEPS = STEPS_PER_BAR * BARS_PER_SECTION;
 
 export const INTENSITY_MULTIPLIER: Record<MusicIntensity, number> = {
-  calm: 0.82,
+  calm: 0.88,
   engaged: 1,
-  critical: 1.08,
+  critical: 1.16,
 };
 
 export function masterGain(value: MusicIntensity = "calm", isDucked = false): number {
@@ -38,12 +35,18 @@ export function masterGain(value: MusicIntensity = "calm", isDucked = false): nu
 }
 
 export function layerMultiplier(layer: "bass" | "pulse" | "counter" | "melody" | "drums", value: MusicIntensity = "calm"): number {
-  if (value === "critical") return layer === "drums" ? 1.08 : 1;
-  if (value === "engaged") return layer === "drums" ? 1.04 : 1;
-  if (layer === "drums") return 0.88;
-  if (layer === "counter") return 0.72;
-  if (layer === "pulse") return 0.92;
+  if (value === "critical") return layer === "drums" ? 1.18 : 1.06;
+  if (value === "engaged") return layer === "drums" ? 1.1 : 1;
+  if (layer === "drums") return 0.92;
+  if (layer === "counter") return 0.78;
+  if (layer === "pulse") return 0.94;
   return 1;
+}
+
+export function padGainFor(value: MusicIntensity = "calm"): number {
+  if (value === "critical") return PAD_GAIN * 0.48;
+  if (value === "engaged") return PAD_GAIN * 0.7;
+  return PAD_GAIN;
 }
 
 function createSaturationCurve(amount: number): Float32Array<ArrayBuffer> {
@@ -142,7 +145,7 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
 
   highpass.type = "highpass";
   highpass.frequency.setValueAtTime(38, now);
-  saturation.curve = createSaturationCurve(0.11);
+  saturation.curve = createSaturationCurve(0.18);
   saturation.oversample = "2x";
   compressor.threshold.setValueAtTime(-17, now);
   compressor.knee.setValueAtTime(10, now);
@@ -156,7 +159,7 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   compressor.connect(destination);
 
   const bassBus = createBus(audio, master, 0.94);
-  const rhythmBus = createBus(audio, master, 0.8);
+  const rhythmBus = createBus(audio, master, 0.9);
   const harmonyBus = createBus(audio, master, 0.75);
   const pulseBus = createBus(audio, master, 0.82);
   const leadBus = createBus(audio, master, 0.86);

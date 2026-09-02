@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadMusicExport, exportMissionSoundtrack, supportsM4aExport } from "@/lib/audio/export";
 
+const SOUNDTRACK_CANCELLED = "Download cancelled. You can start again when ready.";
+
+function soundtrackExportErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return "Couldn't download the soundtrack.";
+  if (/AAC|M4A|WebCodecs|resampling|encoder|Offline audio/i.test(error.message)) {
+    return "This browser can't save the soundtrack. Try Chrome or Edge.";
+  }
+  return "Couldn't download the soundtrack.";
+}
+
 type Availability = "checking" | "available" | "unsupported";
 type ExportState = "idle" | "rendering" | "encoding" | "cancelling" | "complete" | "error";
 
@@ -16,7 +26,7 @@ export function useSoundtrackExport({
   const [availability, setAvailability] = useState<Availability>("checking");
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("Checking browser audio support…");
+  const [status, setStatus] = useState("Checking whether this browser can save music…");
   const exportAbortController = useRef<AbortController | null>(null);
   const exportTaskId = useRef(0);
   const [draining, setDraining] = useState(false);
@@ -36,11 +46,11 @@ export function useSoundtrackExport({
     void supportsM4aExport().then((supported) => {
       if (!active) return;
       setAvailability(supported ? "available" : "unsupported");
-      setStatus(supported ? "Native AAC export is available." : "This browser cannot encode native AAC M4A files.");
+      setStatus(supported ? "Ready to download the soundtrack." : "This browser can't save the soundtrack as a music file.");
     }).catch(() => {
       if (!active) return;
       setAvailability("unsupported");
-      setStatus("M4A export is unavailable in this browser.");
+      setStatus("This browser can't save the soundtrack as a music file.");
     });
     return () => {
       active = false;
@@ -66,7 +76,7 @@ export function useSoundtrackExport({
     setDraining(true);
     setExportState("idle");
     setProgress(0);
-    setStatus("Export cancelled. You can close this panel while the renderer finishes releasing resources.");
+    setStatus(SOUNDTRACK_CANCELLED);
   }, []);
 
   const exportTrack = async () => {
@@ -82,38 +92,38 @@ export function useSoundtrackExport({
     exportAbortController.current = controller;
     setExportState("rendering");
     setProgress(0.08);
-    setStatus("Rendering mission score…");
+    setStatus("Preparing the soundtrack…");
     try {
       const result = await exportMissionSoundtrack(seed, missionIndex, ({ phase, progress: nextProgress, phaseProgress }) => {
         if (exportAbortController.current !== controller || exportTaskId.current !== taskId || !mounted.current) return;
         setProgress(nextProgress);
         if (phase === "rendering") {
           setExportState("rendering");
-          setStatus(`Rendering mission score… ${Math.round(phaseProgress * 100)}%`);
+          setStatus(`Preparing the soundtrack… ${Math.round(phaseProgress * 100)}%`);
         }
         if (phase === "encoding") {
           setExportState("encoding");
-          setStatus(`Encoding AAC and packaging the M4A file… ${Math.round(phaseProgress * 100)}%`);
+          setStatus(`Saving the file… ${Math.round(phaseProgress * 100)}%`);
         }
       }, { signal: controller.signal });
       if (controller.signal.aborted || exportAbortController.current !== controller || exportTaskId.current !== taskId || !mounted.current) return;
       downloadMusicExport(result);
       setExportState("complete");
       setProgress(1);
-      setStatus(`Downloaded ${result.filename}`);
+      setStatus("Soundtrack saved.");
     } catch (error) {
       if (controller.signal.aborted) {
         if (exportAbortController.current === controller && exportTaskId.current === taskId && mounted.current) {
           setExportState("idle");
           setProgress(0);
-          setStatus("Export cancelled. You can start it again when ready.");
+          setStatus(SOUNDTRACK_CANCELLED);
         }
         return;
       }
       if (exportAbortController.current !== controller || exportTaskId.current !== taskId || !mounted.current) return;
       setExportState("error");
       setProgress(0);
-      setStatus(error instanceof Error ? error.message : "Unable to export the mission soundtrack.");
+      setStatus(soundtrackExportErrorMessage(error));
     } finally {
       if (exportAbortController.current === controller) {
         exportAbortController.current = null;

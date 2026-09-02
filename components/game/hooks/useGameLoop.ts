@@ -14,6 +14,7 @@ import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
 import type { Camera } from "@/lib/iso";
 import { missionMedals, missionScore } from "@/lib/sim/debrief";
 import type { Command, SimState } from "@/lib/types";
+import { commandRejectionMessage } from "@/lib/ui/copy";
 import { alertSfx, desiredMusicIntensity, firstAlert, rejectionSfx } from "./gameLoopEffects";
 
 const CAMPAIGN_SAVE_RETRY_MS = 1_000;
@@ -157,7 +158,7 @@ export function useGameLoop({
         const rejection = events.find((e) => e.type === "commandRejected");
         if (rejection?.type === "commandRejected") {
           playSfx(rejectionSfx(rejection.reason));
-          onTacticalAnnouncement(`Command rejected: ${rejection.reason}.`);
+          onTacticalAnnouncement(commandRejectionMessage(rejection.reason));
         }
         if (alert) {
           playSfx(alertSfx(alert.kind), { force: true });

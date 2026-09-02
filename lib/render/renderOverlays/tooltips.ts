@@ -2,12 +2,14 @@ import { TICKS_PER_SECOND, UNIT_STATS, labelFor, sellRefundFor } from "../../cat
 import { inObjectiveZone, missionUsesObjectiveZone, SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../../types";
 import { fogAt } from "../../sim/fog";
 import { isMountainScenery } from "../../gen/map";
+import { biomeLabel } from "../../gen/names";
 import { terrainAccess } from "../../sim/world";
 import { canSell } from "../../sim/sell";
 import { isExtractableUnit, isLockedContactUnit } from "../renderCombat";
 import type { BuildingKind, Entity, SimState, UnitKind } from "../../types";
 import { SceneryMemo } from "../sceneryMemo";
 import type { RenderExtras } from "./types";
+import { chromeMonoFont } from "../../ui/chromeFont";
 
 const sceneryMemo = new SceneryMemo();
 
@@ -33,7 +35,7 @@ export function tileTooltipLines(state: SimState, x: number, y: number): string[
   if (surface === SURFACE_ROAD) terrain = "Dirt road";
   else if (surface === SURFACE_CONCRETE) terrain = "Concrete pad";
   const access = terrainAccess(state, x, y);
-  const lines = [terrain, state.biome, `Elevation ${scenery.elev}`, access.traversable ? "Passable" : "Impassable"];
+  const lines = [terrain, biomeLabel(state.biome) || state.biome, `Height ${scenery.elev}`, access.traversable ? "Passable" : "Impassable"];
   if (scenery.kind === TILE_RESOURCE) lines.push(`Ore ${state.resourceAmount[y * state.width + x] ?? 0}`);
   if (!access.buildable) lines.push("Construction blocked");
   if (fog === 1) lines.push("Shrouded");
@@ -50,7 +52,7 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
   const lines = [
     `${name} · ${cls}`,
     `${e.owner === 0 ? "Friendly" : "Hostile"} · ${faction}`,
-    `HP ${Math.max(0, Math.round(e.hp))} / ${e.maxHp}`,
+    `Health ${Math.max(0, Math.round(e.hp))} / ${e.maxHp}`,
   ];
   if ((e.suppression ?? 0) > 0) lines.push(`Suppressed ${Math.ceil(e.suppression ?? 0)}%`);
   if (e.scenarioRole === "convoy") lines.push("Convoy · protect the route");
@@ -60,20 +62,20 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     lines.push("Return to extraction zone");
   }
   if (e.kind === "harvester") {
-    lines.push(`Carry ${e.carry} / ${UNIT_STATS.harvester.carryMax}`);
+    lines.push(`Cargo ${e.carry} / ${UNIT_STATS.harvester.carryMax}`);
   }
   if (e.constructing > 0) {
-    lines.push(`Constructing (${Math.ceil(e.constructing / TICKS_PER_SECOND)}s)`);
+    lines.push(`Under construction (${Math.ceil(e.constructing / TICKS_PER_SECOND)}s)`);
   }
   if (e.producing) {
-    lines.push(`Producing ${labelFor(e.producing.kind)} (${Math.ceil(e.producing.remaining / TICKS_PER_SECOND)}s)`);
+    lines.push(`Training ${labelFor(e.producing.kind)} (${Math.ceil(e.producing.remaining / TICKS_PER_SECOND)}s)`);
     const queued = e.queue?.length ?? 0;
-    if (queued > 0) lines.push(`Queued ${queued}`);
+    if (queued > 0) lines.push(`In queue: ${queued}`);
   }
   if (e.repairing) lines.push("Repairing");
   if (e.marked && e.class === "building") lines.push("Marked objective");
   if (extras.sellMode && e.owner === 0 && canSell(e)) {
-    lines.push(`Sell for ${sellRefundFor(e.kind as BuildingKind, e.hp)}`);
+    lines.push(`Sell for ${sellRefundFor(e.kind as BuildingKind, e.hp)} credits`);
   }
   return lines;
 }
@@ -88,7 +90,7 @@ export function drawTooltip(
   anchorAbove = false,
 ): void {
   const pad = 8;
-  ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = chromeMonoFont(12);
   let textW = 0;
   for (const l of lines) textW = Math.max(textW, ctx.measureText(l).width);
   const width = Math.min(260, textW + pad * 2);

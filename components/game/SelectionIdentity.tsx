@@ -1,5 +1,6 @@
 import { UNIT_STATS, labelFor } from "@/lib/catalog";
 import type { Entity, FactionVisualProfile, Palette, Stance } from "@/lib/types";
+import { SUPPORT_MODE_LABEL, stanceLabel } from "@/lib/ui/copy";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import { SpritePreview } from "./SpritePreview";
 import styles from "./SelectionPanel.module.css";
@@ -29,21 +30,21 @@ export function SelectionIdentity({
         >
           {labelFor(selected.kind)}
         </strong>
-        <span className={styles.stat}>HP {Math.ceil(selected.hp)} / {selected.maxHp}</span>
+        <span className={styles.stat}>Health {Math.ceil(selected.hp)} / {selected.maxHp}</span>
         {selected.neutral ? (
           <span className={styles.warning} data-testid="selected-status">Stranded — cannot move until freed</span>
         ) : selected.marked && selected.class === "unit" ? (
           <span className={styles.warning} data-testid="selected-status">Cargo — return to extraction zone</span>
-        ) : selected.class === "unit" ? <span className={styles.stat}>Stance {stance}</span> : null}
+        ) : selected.class === "unit" ? <span className={styles.stat}>Stance {stanceLabel(stance)}</span> : null}
         {selected.class === "unit" && selected.supportMode ? (
           <span className={styles.stat} data-testid="selected-support-status">
-            Support {selected.supportMode}{selected.supportTargetId !== undefined ? ` · Target #${selected.supportTargetId}` : ""}
+            Support: {SUPPORT_MODE_LABEL[selected.supportMode]}
           </span>
         ) : null}
         {(selected.suppression ?? 0) > 0 ? <span className={styles.stat}>Suppressed {Math.ceil(selected.suppression ?? 0)}%</span> : null}
         {selected.kind === "harvester" ? (
           <span className={styles.carry}>
-            Carry {selected.carry} / {UNIT_STATS.harvester.carryMax}
+            Cargo {selected.carry} / {UNIT_STATS.harvester.carryMax}
           </span>
         ) : null}
       </div>

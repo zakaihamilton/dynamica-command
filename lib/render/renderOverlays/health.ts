@@ -1,5 +1,27 @@
-import type { Owner } from "../../types";
+import type { Entity, Owner } from "../../types";
 import { iffColors } from "../iff";
+
+export function entityHasWorldHealthMeter(e: Pick<Entity, "class" | "kind">): boolean {
+  return e.class === "unit" || (e.class === "building" && e.kind === "turret");
+}
+
+export function worldHealthMeterLayout(
+  e: Pick<Entity, "kind">,
+  spec: { w: number },
+  dx: number,
+  dy: number,
+  tileScreenY: number,
+  z: number,
+): { barW: number; meterY: number; centerX: number } {
+  const barW = Math.max(16, Math.round(Math.min(spec.w * 0.75, 24) * z));
+  const centerX = Math.round(dx + (spec.w * z) / 2);
+  // Turret sprites include empty sky padding, so dy is far above the 3D cannon.
+  // Sit the meter just above the projected turret head (antenna tip ~ tileY - 3z).
+  const meterY = e.kind === "turret"
+    ? Math.round(tileScreenY - 10 * z)
+    : Math.round(dy - 7 * z);
+  return { barW, meterY, centerX };
+}
 
 export function healthMeterColors(ratio: number): { top: string; bottom: string } {
   if (ratio > 0.5) {

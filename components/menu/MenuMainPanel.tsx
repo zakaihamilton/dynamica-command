@@ -26,7 +26,7 @@ export function MenuMainPanel({
         <ConsoleButton className={styles.primaryAction} tooltip="Open campaign setup" shortcut={SHORTCUT.newGame} onClick={onNewGame}>
           NEW GAME
         </ConsoleButton>
-        <ConsoleButton muted className={`${styles.utilityAction} ${styles.loadAction}`} tooltip="Open the seed 0000 training range" shortcut={SHORTCUT.tutorial} onClick={onTutorial}>
+        <ConsoleButton muted className={`${styles.utilityAction} ${styles.loadAction}`} tooltip="Open the training range" shortcut={SHORTCUT.tutorial} onClick={onTutorial}>
           TUTORIAL
         </ConsoleButton>
         <ConsoleButton muted className={`${styles.utilityAction} ${styles.loadAction}`} tooltip="Open the campaign archive" shortcut={SHORTCUT.load} onClick={onLoadMission}>

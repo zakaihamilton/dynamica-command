@@ -19,8 +19,8 @@
   margin: 0.5rem 0 0;
   color: var(--chrome-text);
   font-size: clamp(1.2rem, 4vw, 1.6rem);
-  font-weight: 900;
-  letter-spacing: 0.13em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 

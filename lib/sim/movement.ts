@@ -1,5 +1,5 @@
 import { UNIT_STATS } from "../catalog";
-import { isUnitEntity, type Entity, type Facing, type SimState } from "../types";
+import { isUnitEntity, type Entity, type Facing, type SimState, type UnitEntity, type Vec2 } from "../types";
 import { tryFindPath, tryFindPathDetailed } from "./pathBudget";
 import { PATH_DIRS, diagonalCornerBlocked, routePendingFor, stepAlongPath } from "./pathfinding";
 import { prepareFlowFieldRoutes } from "./flowFieldRouting";
@@ -27,6 +27,22 @@ function tileFree(
   return claim === undefined || claim === e.id;
 }
 
+function goalDistance(e: Entity): number {
+  const dest = e.orderDestination;
+  if (!dest) return Number.POSITIVE_INFINITY;
+  return Math.max(Math.abs(Math.round(e.x) - Math.round(dest.x)), Math.abs(Math.round(e.y) - Math.round(dest.y)));
+}
+
+function destinationOf(e: Entity): Vec2 | undefined {
+  return e.orderDestination ?? e.path[e.path.length - 1];
+}
+
+function holdingDestination(e: Entity): boolean {
+  const dest = e.orderDestination;
+  if (!dest) return false;
+  return Math.round(e.x) === Math.round(dest.x) && Math.round(e.y) === Math.round(dest.y);
+}
+
 function trySidestep(
   state: SimState,
   occupancy: Uint8Array,
@@ -35,12 +51,12 @@ function trySidestep(
   blockedX: number,
   blockedY: number,
 ): boolean {
-  if (e.path.length <= 1) return false;
+  if (!e.path.length) return false;
   const cx = Math.round(e.x);
   const cy = Math.round(e.y);
-  const dest = e.path[1] ?? e.path[e.path.length - 1]!;
+  const dest = e.path.length > 1 ? e.path[1]! : destinationOf(e) ?? e.path[0]!;
   const stayD = Math.hypot(cx - dest.x, cy - dest.y);
-  let best: { x: number; y: number; d: number } | undefined;
+  let best: { x: number; y: number; d: number; rank: number } | undefined;
   for (const d of PATH_DIRS) {
     const nx = cx + d.x;
     const ny = cy + d.y;
@@ -49,11 +65,22 @@ function trySidestep(
     if (!canClimb(state, cx, cy, nx, ny)) continue;
     if (diagonalCornerBlocked(state, cx, cy, nx, ny)) continue;
     const dist = Math.hypot(nx - dest.x, ny - dest.y);
-    if (dist >= stayD) continue;
-    if (!best || dist < best.d) best = { x: nx, y: ny, d: dist };
+    const rank = dist < stayD - 1e-9 ? 0 : dist <= stayD + 1e-9 ? 1 : 2;
+    if (rank >= 2) continue;
+    if (!best || rank < best.rank || (rank === best.rank && dist < best.d)) {
+      best = { x: nx, y: ny, d: dist, rank };
+    }
   }
   if (!best) return false;
-  e.path[0] = { x: best.x, y: best.y };
+  const sidestep = { x: best.x, y: best.y };
+  const follow = e.path[1];
+  if (follow && sidestep.x === Math.round(follow.x) && sidestep.y === Math.round(follow.y)) {
+    e.path.shift();
+    return true;
+  }
+  const sameAsDest = sidestep.x === Math.round(dest.x) && sidestep.y === Math.round(dest.y);
+  if (e.path.length === 1 && !sameAsDest) e.path.unshift(sidestep);
+  else e.path[0] = sidestep;
   return true;
 }
 
@@ -64,18 +91,92 @@ function nudgeIdle(
   blocker: Entity,
 ): boolean {
   if (blocker.path.length || blocker.neutral) return false;
+  if (blocker.orderDestination && !holdingDestination(blocker)) return false;
+  return stepBlockerAside(state, occupancy, reserved, blocker, false);
+}
+
+function giveWay(
+  state: SimState,
+  occupancy: Uint8Array,
+  reserved: Map<number, number>,
+  blocker: Entity,
+): boolean {
+  if (blocker.neutral || holdingDestination(blocker)) return false;
+  if (!blocker.path.length) return nudgeIdle(state, occupancy, reserved, blocker);
+  if ((blocker.blockedTicks ?? 0) === 0) return false;
+  return stepBlockerAside(state, occupancy, reserved, blocker, true);
+}
+
+function stepBlockerAside(
+  state: SimState,
+  occupancy: Uint8Array,
+  reserved: Map<number, number>,
+  blocker: Entity,
+  allowFarther: boolean,
+): boolean {
   const cx = Math.round(blocker.x);
   const cy = Math.round(blocker.y);
+  const dest = destinationOf(blocker);
+  const stayD = dest ? Math.hypot(cx - dest.x, cy - dest.y) : 0;
   for (const d of PATH_DIRS) {
     const nx = cx + d.x;
     const ny = cy + d.y;
     if (!tileFree(state, occupancy, reserved, blocker, nx, ny)) continue;
     if (!canClimb(state, cx, cy, nx, ny)) continue;
     if (diagonalCornerBlocked(state, cx, cy, nx, ny)) continue;
-    blocker.path = [{ x: nx, y: ny }];
+    if (dest && !allowFarther && Math.hypot(nx - dest.x, ny - dest.y) > stayD + 1e-9) continue;
+    if (blocker.path.length) blocker.path.unshift({ x: nx, y: ny });
+    else blocker.path = [{ x: nx, y: ny }];
     return true;
   }
   return false;
+}
+
+function exchangePositions(
+  state: SimState,
+  occupancy: Uint8Array,
+  atTile: Map<number, Entity>,
+  swapped: Set<number>,
+  e: Entity,
+  blocker: Entity,
+): void {
+  const current = cellOf(state, e.x, e.y);
+  const bCell = cellOf(state, blocker.x, blocker.y);
+  const ax = e.x;
+  const ay = e.y;
+  e.x = blocker.x;
+  e.y = blocker.y;
+  blocker.x = ax;
+  blocker.y = ay;
+  occupancy[current] = 1;
+  occupancy[bCell] = 1;
+  atTile.set(current, blocker);
+  atTile.set(bCell, e);
+  swapped.add(e.id);
+  swapped.add(blocker.id);
+  e.blockedTicks = 0;
+  blocker.blockedTicks = 0;
+}
+
+function tryCooperativeSwap(
+  state: SimState,
+  occupancy: Uint8Array,
+  atTile: Map<number, Entity>,
+  swapped: Set<number>,
+  e: Entity,
+  blocker: Entity,
+): boolean {
+  if (blocker.neutral || swapped.has(blocker.id) || holdingDestination(blocker)) return false;
+  if (blocker.path.length) return false;
+  const cx = Math.round(e.x);
+  const cy = Math.round(e.y);
+  const bx = Math.round(blocker.x);
+  const by = Math.round(blocker.y);
+  if (!canClimb(state, cx, cy, bx, by) || !canClimb(state, bx, by, cx, cy)) return false;
+  if (diagonalCornerBlocked(state, cx, cy, bx, by)) return false;
+  exchangePositions(state, occupancy, atTile, swapped, e, blocker);
+  e.path.shift();
+  return true;
 }
 
 export function tickMovement(state: SimState): void {
@@ -83,10 +184,28 @@ export function tickMovement(state: SimState): void {
   const atTile = new Map<number, Entity>();
   const reserved = new Map<number, number>();
   const swapped = new Set<number>();
-  prepareFlowFieldRoutes(state);
+  prepareFlowFieldRoutes(state, occupancy, reserved);
   for (const e of state.entities) {
-    if (e.hp <= 0 || e.class !== "unit" || e.flowGoal || !e.routePending || e.path.length || !e.orderDestination) continue;
-    const result = tryFindPathDetailed(state, e, e.orderDestination);
+    if (e.hp <= 0 || e.class !== "unit" || e.neutral || e.flowGoal || e.path.length || !e.orderDestination) continue;
+    if (holdingDestination(e)) continue;
+    const dest = e.orderDestination;
+    const destX = Math.round(dest.x);
+    const destY = Math.round(dest.y);
+    const destCell = destY * state.width + destX;
+    const destOccupied = occupancy[destCell] === 1 && destCell !== cellOf(state, e.x, e.y);
+    const cheb = Math.max(
+      Math.abs(Math.round(e.x) - destX),
+      Math.abs(Math.round(e.y) - destY),
+    );
+    if (destOccupied) continue;
+    if (cheb <= 1) {
+      e.path = [{ x: destX, y: destY }];
+      e.idle = false;
+      e.routePending = undefined;
+      continue;
+    }
+    if (!e.routePending && !e.idle) continue;
+    const result = tryFindPathDetailed(state, e, dest);
     if (!result) continue;
     e.path = result.path;
     e.routePending = routePendingFor(result.status);
@@ -97,8 +216,14 @@ export function tickMovement(state: SimState): void {
     atTile.set(cellOf(state, e.x, e.y), e);
   }
 
+  const movers: UnitEntity[] = [];
   for (const e of state.entities) {
     if (e.hp <= 0 || !isUnitEntity(e)) continue;
+    movers.push(e);
+  }
+  movers.sort((a, b) => goalDistance(a) - goalDistance(b) || a.id - b.id);
+
+  for (const e of movers) {
     if (swapped.has(e.id)) continue;
     const speed = UNIT_STATS[e.kind].speed * (1 - Math.min(0.4, (e.suppression ?? 0) / 250));
     const current = cellOf(state, e.x, e.y);
@@ -111,34 +236,38 @@ export function tickMovement(state: SimState): void {
 
     if (blocked) {
       const blocker = atTile.get(target);
+      const orderDest = e.orderDestination;
+      if (
+        orderDest &&
+        nx === Math.round(orderDest.x) &&
+        ny === Math.round(orderDest.y) &&
+        blocker &&
+        blocker.id !== e.id &&
+        holdingDestination(blocker)
+      ) {
+        e.path = [];
+        e.idle = true;
+        e.blockedTicks = 0;
+        continue;
+      }
       if (blocker && blocker.id !== e.id && !swapped.has(blocker.id)) {
         const bNext = blocker.path[0];
         if (bNext && Math.round(bNext.x) === Math.round(e.x) && Math.round(bNext.y) === Math.round(e.y)) {
-          const bCell = cellOf(state, blocker.x, blocker.y);
-          const ax = e.x;
-          const ay = e.y;
-          e.x = blocker.x;
-          e.y = blocker.y;
-          blocker.x = ax;
-          blocker.y = ay;
+          exchangePositions(state, occupancy, atTile, swapped, e, blocker);
           e.path.shift();
           blocker.path.shift();
-          occupancy[current] = 1;
-          occupancy[bCell] = 1;
-          atTile.set(current, blocker);
-          atTile.set(bCell, e);
-          swapped.add(e.id);
-          swapped.add(blocker.id);
-          e.blockedTicks = 0;
-          blocker.blockedTicks = 0;
           continue;
         }
       }
 
       if (trySidestep(state, occupancy, reserved, e, nx, ny)) {
         e.blockedTicks = 0;
+      } else if (blocker && blocker.id !== e.id && giveWay(state, occupancy, reserved, blocker)) {
+        e.blockedTicks = 0;
+        continue;
+      } else if (blocker && blocker.id !== e.id && tryCooperativeSwap(state, occupancy, atTile, swapped, e, blocker)) {
+        continue;
       } else {
-        if (blocker && blocker.id !== e.id) nudgeIdle(state, occupancy, reserved, blocker);
         e.blockedTicks = (e.blockedTicks ?? 0) + 1;
         if (e.blockedTicks === 1 || e.blockedTicks % 6 === 0) {
           const destination = e.path[e.path.length - 1];

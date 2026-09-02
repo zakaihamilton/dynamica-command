@@ -1,6 +1,6 @@
 # Dynamica Command
 
-Dynamica Command is a fully client-side browser **Command & Conquer–like** isometric RTS. One **4-digit seed** (`0000`–`9999`) deterministically generates the whole theater: factions, characters, campaign plot, mission maps, win conditions, and every sprite. Enter the same number later to resume; no account or backend is required.
+Dynamica Command is a browser **Command & Conquer–like** RTS. Enter a **4-digit seed** (`0000`–`9999`) to create a full campaign: factions, characters, story, maps, and objectives. The same code always creates the same campaign. Progress saves in this browser — no account required.
 
 **[Play from source](#run)** · [github.com/zakaihamilton/dynamica-command](https://github.com/zakaihamilton/dynamica-command)
 
@@ -15,7 +15,7 @@ yarn install --frozen-lockfile
 yarn dev
 ```
 
-Open the app, then choose **New Game** or type a seed such as `0421` and choose **Launch**. Progress autosaves in the browser under that seed. The welcome screen **TUTORIAL** opens a guided training range on seed `0000` with no time limit. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load, portable export, and briefing. The generated sprite browser is public at **`/assets`**, with a public JSON API at **`/api/assets`**.
+Open the app, then choose **New Game** or type a seed such as `0421` and choose **Launch**. Progress autosaves under that seed. **Tutorial** opens a guided training range with no time limit. **Options** (welcome and pause) control **music and sound effects**, including volume sliders. Pause also opens save, load, backup download, and briefing. Browse unit and building art at **`/assets`**.
 
 | Script | What it does |
 | --- | --- |
@@ -37,7 +37,7 @@ For local E2E runs, the preflight launches the same headless browser used by Pla
 
 ## How a seed works
 
-The four digits are hashed into forked RNGs (`world`, `faction:0`, `mission:3`, …). Generated campaign content is **not persisted**; it is regenerated from the same seed. Only mutable sim state (units, credits, fog, queues) is saved in `localStorage` as `dynamica-command:save:0421`. Audio preferences (`music` / `sound effects` toggles and volumes) persist separately as `dynamica-command:settings`.
+A seed is a four-digit campaign code. Enter the same number later and you get the same world, factions, and eight missions. Progress (units, credits, explored map, and build queues) is saved on this device for that seed. Music and sound settings are saved separately.
 
 ```text
 seed 0421
@@ -50,34 +50,34 @@ seed 0421
        └─ map (size, heightmap, resources, bases)
 ```
 
-Share a seed to share a universe. Resume from the menu lists every local save, and each saved campaign opens its **operations map**. From New Game, enter or roll a seed and choose Operations map to inspect the theater before deployment. Select an operation to preview its primary and secondary objectives, expected duration, map scale, and unlocks before deploying. Unlocked operations can be launched from their generated briefing; completed operations can be replayed for better medals and scores.
+Share a seed to share a universe. **Load Mission** lists every save on this device, and each campaign has an **operations map**. From New Game, enter or roll a seed and choose Operations map to inspect the theater before deployment. Select an operation to preview its primary and secondary objectives, expected duration, map scale, and unlocks before deploying. Unlocked operations launch from their briefing; completed operations can be replayed for better medals and scores.
 
 ## Campaign
 
-Eight missions, about **5–20 minutes** each for classic and hold-the-line operations (later missions run longer). Fail-deadline scenario missions (`escort`, `sabotage`, `rescue`, `extraction`) use a longer casual window: **10–30 minutes** of active time (sabotage **12–30**), plus a 7-minute convoy staging period on escorts. Generated mission windows use whole-minute amounts; the live battlefield clock remains precise to the second. Every seed always includes the four scenario kinds (`escort`, `sabotage`, `rescue`, `extraction`) plus four of the eight classic win categories:
+Eight missions, about **5–20 minutes** each for classic and hold-the-line operations (later missions run longer). Timed operations (escort, sabotage, rescue, extraction) use a longer window: **10–30 minutes** of active time (sabotage **12–30**), plus a 7-minute wait before an escort convoy starts moving. Mission briefings show whole minutes; the battlefield clock counts down to the second. Every seed includes escort, sabotage, rescue, and extraction, plus four of the eight classic win categories:
 
 | Category | You win by… |
 | --- | --- |
 | Harvest quota | Earning a credit total (lifetime harvested, not current balance) |
-| Force quota | Producing N units (any, or a seeded role such as tanks) |
+| Force quota | Training N units (any, or a specific role such as tanks) |
 | Structure quota | Completing N buildings |
-| Destroy marked | Razing 1–3 tagged enemy structures |
+| Destroy marked | Destroying 1–3 tagged enemy structures |
 | Raze all | Destroying every enemy building |
-| Decapitate | Destroying the enemy construction yard |
-| Annihilate | Wiping enemy units and buildings |
-| Hold the line | Surviving a timer with your yard standing |
+| Decapitate | Destroying the enemy Construction Yard |
+| Annihilate | Wiping out enemy units and buildings |
+| Hold the line | Surviving a timer with your Construction Yard standing |
 | Escort | Walking marked allies into a zone |
 | Sabotage | Destroying marked structures before a deadline |
 | Rescue | Freeing stranded units by reaching them |
 | Extraction | Bringing cargo units back to your yard |
 
-Lose if your construction yard falls. Hold, escort, sabotage, rescue, and extraction also fail when their timer expires. Escort, extraction, and rescue fail immediately if a convoy truck, unextracted cargo unit, or unrescued stranded unit is destroyed. Briefings use generated talking-head portraits and name the objective.
+Lose if your Construction Yard falls. Hold, escort, sabotage, rescue, and extraction also fail when their timer expires. Escort, extraction, and rescue fail immediately if a Convoy Truck, unextracted cargo unit, or unrescued stranded unit is destroyed. Briefings show portraits of your commander, advisor, and the enemy leader, and name the objective.
 
 ### Loop
 
-Harvest resource fields → spend credits and power → place buildings → produce units → fight. From the first mission, barracks can produce Field Medics and factories can produce Repair Trucks. Escort missions use durable, unarmed Convoy Trucks as their marked targets; repair trucks remain player-producible support units. These unarmed support units automatically seek damaged friendly humans or vehicles respectively, restore health in deterministic pulses, and can be assigned with a right-click/tap or placed in hold mode with Stop. Damaged structures can be repaired from the sidebar wrench for a fraction of their build cost, or **sold** with the scrap tool (`F`) for a partial refund. Enemy AI expands, guards its yard, raids harvesters, uses support units, and falls back when battered. Maps grow from ~48×48 early to ~96×96 late, with **valleys, plains, hills, and mountains**. Units can climb one elevation step; a two-level drop is a cliff. Buildings need a flat footprint (no water, no overlap, one height).
+Harvest ore → spend credits and power → place buildings → train units → fight. From the first mission, Barracks can train Field Medics and War Factories can produce Repair Trucks. Escort missions use durable, unarmed Convoy Trucks as their marked targets. Medics heal infantry and Repair Trucks repair vehicles on their own, or you can send them with a right-click. Stop holds them in place. Damaged buildings can be repaired from the sidebar wrench for a fraction of their build cost, or **sold** with the scrap tool (`F`) for a partial refund. The enemy expands, guards its yard, raids Harvesters, uses support units, and falls back when battered. Maps grow from small early theaters to large late ones, with **valleys, plains, hills, and mountains**. Units can climb one height step; a two-level drop is a cliff. Buildings need flat ground (no water, no overlap, one height).
 
-Yards, power plants, and barracks are **2×2**; refineries and factories **3×2**; turrets are **1×1**. Each level allows at most one barracks and one War Factory. Hover a unit or building for a tooltip (kind, faction, HP, and extras such as harvester cargo or a marked target).
+Each mission allows at most one Barracks and one War Factory. Hover a unit or building for health, faction, and extras such as Harvester cargo or a marked target.
 
 ### Controls
 
@@ -86,24 +86,26 @@ Yards, power plants, and barracks are **2×2**; refineries and factories **3×2*
 | Left click / drag | Select |
 | Right click | Move, attack, or harvest |
 | Right click / touch friendly target | Assign a selected support unit to heal that compatible human or vehicle |
-| Ctrl / Cmd + right click | Attack-move (harvesters still gather on ore) |
+| Ctrl / Cmd + right click | Attack-move (Harvesters still gather on ore) |
 | Repair wrench / R | Click a damaged friendly building to start or stop repairs |
 | Sell / F | Click a finished friendly building to scrap it for credits |
 | Stop / X | Halt selected units |
 | Selection panel | Stance (Aggressive / Defend / Hold) and formation (Line / Column / Wedge) |
-| Minimap click / drag | Move camera focus |
+| Minimap click / drag | Move the camera |
 | WASD / arrows | Pan |
 | Q / E / T | Construction / production / selected tabs |
 | 1–5 | Sidebar cameo (Ctrl+1–5 cancels) |
-| H / Home | Jump to construction yard |
+| H / Home | Jump to Construction Yard |
 | Space | Center camera on selection |
 | Esc | Pause, or cancel place/repair/sell |
 | Hover | Tooltip on the unit or building under the cursor (shortcuts appear in HUD tips) |
-| Sidebar left click | Place buildings and produce units from the command tabs |
+| Sidebar left click | Place buildings and train units from the command tabs |
 | Sidebar right click | Cancel construction or a queued unit and refund its cost |
 | Touch (under 800px) | Command tray for move, attack-move, harvest, stop, stance, and formation |
 
-## Architecture
+## For developers
+
+### Architecture
 
 Next.js (App Router) + TypeScript + Canvas 2D. The browser is a renderer and input adapter. **`lib/gen` and `lib/sim` import nothing from the DOM** so tests and CLIs use the same functions as the UI. See [`docs/architecture.md`](docs/architecture.md) for the runtime state flow and extension boundaries.
 

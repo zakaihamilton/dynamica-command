@@ -98,7 +98,7 @@ export function useMenuController() {
     inputRef,
     previewLine: preview
       ? `${preview.world.name} · ${preview.factions[0].name} vs ${preview.factions[1].name}`
-      : "Four digits lock a theater — or roll a random war",
+      : "Enter a 4-digit campaign code — or roll a random theater",
     openNewGame,
     openTutorial,
     openLoadMission,

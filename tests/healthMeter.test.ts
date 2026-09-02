@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { drawUnitHealthMeter, healthMeterColors } from "../lib/render/renderOverlays";
+import { drawUnitHealthMeter, entityHasWorldHealthMeter, healthMeterColors, worldHealthMeterLayout } from "../lib/render/renderOverlays";
 import { iffColors } from "../lib/render/iff";
 
 describe("health meter colors", () => {
@@ -116,5 +116,43 @@ describe("drawUnitHealthMeter canvas rendering", () => {
     expect(neutral.strokeStyle).toBe(iffColors(0, true).frame);
     expect(neutral.fillStyle).toBe(iffColors(0, true).pip);
     expect(neutral.fillStyle).not.toBe(iffColors(1).pip);
+  });
+});
+
+describe("entityHasWorldHealthMeter", () => {
+  it("shows the world meter for units", () => {
+    expect(entityHasWorldHealthMeter({ class: "unit", kind: "infantry" })).toBe(true);
+    expect(entityHasWorldHealthMeter({ class: "unit", kind: "tank" })).toBe(true);
+    expect(entityHasWorldHealthMeter({ class: "unit", kind: "harvester" })).toBe(true);
+  });
+
+  it("shows the world meter for turret buildings", () => {
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "turret" })).toBe(true);
+  });
+
+  it("hides the world meter for other buildings", () => {
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "constructionYard" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "power" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "refinery" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "barracks" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "factory" })).toBe(false);
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "objective" })).toBe(false);
+  });
+});
+
+describe("worldHealthMeterLayout", () => {
+  it("places unit meters above the sprite top", () => {
+    const layout = worldHealthMeterLayout({ kind: "infantry" }, { w: 24 }, 100, 80, 200, 1);
+    expect(layout.centerX).toBe(112);
+    expect(layout.meterY).toBe(73);
+    expect(layout.barW).toBe(18);
+  });
+
+  it("places turret meters just above the 3D cannon instead of the padded sprite top", () => {
+    const layout = worldHealthMeterLayout({ kind: "turret" }, { w: 84 }, 40, 10, 200, 1);
+    expect(layout.centerX).toBe(82);
+    expect(layout.meterY).toBe(190);
+    expect(layout.barW).toBe(24);
+    expect(layout.meterY).toBeGreaterThan(10);
   });
 });

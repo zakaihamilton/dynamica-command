@@ -10,14 +10,9 @@ export function paintWater(shapes: ShapeSpec[], biome: BiomeName, v: number, mas
   const deep = waterDeep(biome);
   const mid = waterMid(biome);
   const hi = waterHi(biome);
-  shapes.push(poly(irregularIso(cx, cy, 108, 54, v, 2), deep));
-  shapes.push(poly(irregularIso(cx, cy - 1, 96, 46, v, 2), mixHex(deep, mid, 0.55)));
-  const flow = signed(v, 72, 6);
-  for (let i = 0; i < 2; i++) {
-    const y = cy - 6 + i * 8 + signed(v, 73 + i, 1);
-    const x = cx - 18 + i * 10 + flow;
-    shapes.push(line(x, y, x + 16, y + 5, i === 0 ? mixHex(mid, hi, 0.45) : hi, 1));
-  }
+  shapes.push(poly(irregularIso(cx, cy, 108, 54, 0, 2), mixHex(deep, mid, 0.32)));
+  shapes.push(ell(cx - 10, cy - 2, 24, 10, mixHex(deep, mid, 0.1)));
+  shapes.push(line(cx - 14, cy + 1, cx + 12, cy - 3, mixHex(mid, hi, 0.22), 1));
   if (mask) paintBanks(shapes, biome, mask, v);
 }
 

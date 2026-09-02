@@ -96,7 +96,7 @@ describe("runBalanceJob", () => {
       to: 8,
       missions: [4],
       maxTicks: 14400,
-      strategy: "competent",
+      strategy: "baseline",
       scenarios: [{ seed: 8, mission: 4 }],
     });
     expect(records[0]?.result).toBe("lost");

@@ -5,7 +5,7 @@ import styles from "./CommandSidebar.module.css";
 const COMMANDS: { id: MobileCommand; label: string }[] = [
   { id: "move", label: "Move" },
   { id: "attack", label: "Attack" },
-  { id: "attackMove", label: "A-Move" },
+  { id: "attackMove", label: "Attack-move" },
   { id: "harvest", label: "Harvest" },
 ];
 
@@ -34,7 +34,7 @@ export function MobileTouchControls({
     <section className={styles.touchControls} data-testid="mobile-touch-controls">
       <div className={styles.touchStatus} aria-live="polite">
         <strong>{selectionMode ? "Select units" : selectedCount > 0 ? `${selectedCount} selected` : "No selection"}</strong>
-        <span>{selectionMode ? "Drag a box around friendly units" : activeCommand ? `${mobileCommandLabel(activeCommand)} armed` : "Touch controls"}</span>
+        <span>{selectionMode ? "Drag a box around friendly units" : activeCommand ? `${mobileCommandLabel(activeCommand)} ready` : "Touch controls"}</span>
       </div>
       <div className={styles.touchActions}>
         <ConsoleButton

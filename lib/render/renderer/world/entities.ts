@@ -36,6 +36,8 @@ import {
   drawRescueHalo,
   drawUnitGlow,
   drawUnitHealthMeter,
+  entityHasWorldHealthMeter,
+  worldHealthMeterLayout,
 } from "../../renderOverlays";
 import {
   constructionStage,
@@ -241,11 +243,9 @@ export function renderEntityPhase(
       ctx.globalAlpha = 1;
     }
 
-    if (e.class === "unit") {
+    if (entityHasWorldHealthMeter(e)) {
       const isSelected = selected.has(e.id);
-      const barW = Math.max(16, Math.round(Math.min(spec.w * 0.75, 24) * z));
-      const meterY = Math.round(dy - 7 * z);
-      const centerX = Math.round(dx + (spec.w * z) / 2);
+      const { barW, meterY, centerX } = worldHealthMeterLayout(e, spec, dx, dy, s.y, z);
       drawUnitHealthMeter(
         ctx,
         centerX,
@@ -260,7 +260,7 @@ export function renderEntityPhase(
         e.neutral === true,
       );
 
-      if ((e.suppression ?? 0) > 0) {
+      if (e.class === "unit" && (e.suppression ?? 0) > 0) {
         const suppW = barW;
         const suppX = Math.round(centerX - suppW / 2);
         const suppY = meterY + Math.max(3, Math.round(3.5 * z)) + 2;

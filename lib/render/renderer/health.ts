@@ -1,1 +1,1 @@
-export { drawUnitHealthMeter } from "../renderOverlays";
+export { drawUnitHealthMeter, entityHasWorldHealthMeter } from "../renderOverlays";

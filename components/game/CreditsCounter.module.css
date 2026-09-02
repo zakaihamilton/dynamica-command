@@ -50,9 +50,9 @@
   position: relative;
   z-index: 1;
   color: color-mix(in srgb, var(--chrome-gold) 78%, #fff);
-  font-family: var(--font-geist-mono), "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   text-shadow: 0 0 6px color-mix(in srgb, var(--chrome-gold) 40%, transparent);
 }
