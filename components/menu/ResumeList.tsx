@@ -41,7 +41,7 @@ export function ResumeList({
                   <ConsoleButton
                     muted
                     className={styles.item}
-                    tooltip={`Resume seed ${s.seed}`}
+                    tooltip={`Resume ${s.campaignName}`}
                     onClick={() => onResume(s.seed)}
                   >
                     {s.campaignName} · Mission {s.missionIndex + 1} · Duration {formatMissionDuration(s.tick)}

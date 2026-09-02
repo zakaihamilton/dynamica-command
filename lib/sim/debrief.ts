@@ -59,13 +59,13 @@ export function missionScore(state: SimState): number {
 }
 
 export function missionLossMessage(state: SimState): string {
-  if (state.lossReason === "deadline") return "Operation window expired.";
+  if (state.lossReason === "deadline") return "Time ran out.";
   if (state.lossReason === "objectiveTargetLost") {
     if (state.win.kind === "extraction") return "The cargo was lost.";
     if (state.win.kind === "rescue") return "A stranded unit was lost.";
     return "The convoy was lost.";
   }
-  return "Construction yard destroyed.";
+  return "The Construction Yard was destroyed.";
 }
 
 export function missionDebrief(state: SimState) {

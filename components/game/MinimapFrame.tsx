@@ -16,7 +16,7 @@ export function MinimapFrame({
   isDragging: boolean;
 }) {
   return (
-    <div className={styles.host} data-tooltip="Tactical radar. Click or drag to pan. H jumps to the yard." data-shortcut={SHORTCUT.home}>
+    <div className={styles.host} data-tooltip="Minimap. Click or drag to look around. Press H to jump to your base." data-shortcut={SHORTCUT.home}>
       <div className={styles.frame}>
         <canvas
           ref={canvasRef}
@@ -27,7 +27,7 @@ export function MinimapFrame({
           data-dragging={isDragging ? "true" : undefined}
           role="img"
           tabIndex={0}
-          aria-label="Tactical radar. Click to focus the camera or drag to pan."
+          aria-label="Minimap. Click or drag to look around. Press H to jump to your base."
           aria-describedby="tactical-radar-help"
           aria-keyshortcuts="H"
           onPointerDown={onPointerDown}
@@ -38,7 +38,7 @@ export function MinimapFrame({
         <span className={styles.sweep} aria-hidden />
       </div>
       <p id="tactical-radar-help" className={styles.help}>
-        Click to focus · drag to pan · H home
+        Click to look around · drag to pan · H jumps home
       </p>
     </div>
   );

@@ -408,8 +408,8 @@ test.describe("desktop marquee selection", () => {
     await page.mouse.up();
 
     const roster = page.getByTestId("tactical-roster");
-    const anchorRow = roster.locator('[role="listitem"]').filter({ hasText: `Coords ${anchorUnit.x}, ${anchorUnit.y}` });
-    const revealedRow = roster.locator('[role="listitem"]').filter({ hasText: `Coords ${revealedUnit.x}, ${revealedUnit.y}` });
+    const anchorRow = roster.locator('[role="listitem"]').filter({ hasText: `Position ${anchorUnit.x}, ${anchorUnit.y}` });
+    const revealedRow = roster.locator('[role="listitem"]').filter({ hasText: `Position ${revealedUnit.x}, ${revealedUnit.y}` });
     await expect.poll(() => anchorRow.getAttribute("data-selected")).toBe("true");
     await expect.poll(() => revealedRow.getAttribute("data-selected")).toBe("true");
   });

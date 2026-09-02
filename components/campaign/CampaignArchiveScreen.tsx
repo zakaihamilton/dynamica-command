@@ -70,7 +70,7 @@ export function CampaignArchiveScreen() {
       setImportPreview({ fileName: file.name, save: parsed, collision });
     } catch (cause) {
       setImportPreview(null);
-      setImportError(cause instanceof Error ? cause.message : "Unable to read save file");
+      setImportError(cause instanceof Error ? cause.message : "Couldn't read that save file.");
     }
   }, []);
 
@@ -78,11 +78,11 @@ export function CampaignArchiveScreen() {
     if (!importPreview) return;
     const imported = importSaveAtomically(cachedLocalStorage(), importPreview.save);
     if (!imported) {
-      setImportError("Import failed: browser storage could not be updated.");
+      setImportError("Couldn't save this campaign on this device.");
       return;
     }
     setImportPreview(null);
-    setImportNotice(`Imported save ${formatSeed(importPreview.save.state.seed)}. Choose Resume or Operations when ready.`);
+    setImportNotice(`Imported campaign ${formatSeed(importPreview.save.state.seed)}. Choose Resume or Operations when ready.`);
     refreshSaves();
   }, [importPreview, refreshSaves]);
 
@@ -111,7 +111,7 @@ export function CampaignArchiveScreen() {
           </div>
           <div className={styles.topbarStatus}>
             <span className={styles.statusDot} aria-hidden="true" />
-            <span>LOCAL SAVE INDEX</span>
+            <span>SAVES ON THIS DEVICE</span>
           </div>
         </header>
 
@@ -130,7 +130,7 @@ export function CampaignArchiveScreen() {
                 <strong>{saves.length}</strong>
               </div>
               <div>
-                <span>Unreadable links</span>
+                <span>Damaged saves</span>
                 <strong className={unreadableSaves.length ? styles.alertValue : undefined}>{unreadableSaves.length}</strong>
               </div>
             </div>
@@ -139,7 +139,7 @@ export function CampaignArchiveScreen() {
               <ConsoleLabel as="h2">Campaign archive</ConsoleLabel>
               <div className={styles.archiveControls}>
                 <span className={styles.archiveStatus}>{saves.length ? "READY TO RESUME" : "ARCHIVE EMPTY"}</span>
-                <ConsoleButton muted className={styles.importButton} onClick={() => importInputRef.current?.click()} tooltip="Import a validated Dynamica Command JSON save">
+                <ConsoleButton muted className={styles.importButton} onClick={() => importInputRef.current?.click()} tooltip="Import a Dynamica Command save file">
                   IMPORT SAVE
                 </ConsoleButton>
                 <input
@@ -169,9 +169,9 @@ export function CampaignArchiveScreen() {
 
             {unreadableSaves.length ? (
               <div className={styles.recovery} role="alert">
-                <span>Unreadable save{unreadableSaves.length === 1 ? "" : "s"}: {unreadableSaves.join(", ")}</span>
+                <span>Damaged save{unreadableSaves.length === 1 ? "" : "s"}: {unreadableSaves.join(", ")}</span>
                 {unreadableSaves.map((seed) => (
-                  <ConsoleButton key={seed} tooltip={`Remove unreadable save ${seed}`} onClick={() => resetUnreadableSave(seed)}>
+                  <ConsoleButton key={seed} tooltip={`Remove damaged save ${seed}`} onClick={() => resetUnreadableSave(seed)}>
                     Reset {seed}
                   </ConsoleButton>
                 ))}
@@ -187,7 +187,7 @@ export function CampaignArchiveScreen() {
         </div>
 
         <footer className={styles.footer}>
-          <span>LOCAL CAMPAIGN STORAGE</span>
+          <span>SAVED ON THIS DEVICE</span>
           <span className={styles.footerRule} aria-hidden="true" />
           <span>RESUME / OPERATIONS / DELETE</span>
           <span className={styles.footerVersion}>ESC TO RETURN</span>

@@ -12,7 +12,7 @@ export function AssetsBayHeader({ onClose }: { onClose: () => void }) {
           Asset bay
         </h2>
       </div>
-      <ConsoleButton muted tooltip="Close asset bay" shortcut={SHORTCUT.close} onClick={onClose}>
+      <ConsoleButton muted tooltip="Close" shortcut={SHORTCUT.close} onClick={onClose}>
         Close
       </ConsoleButton>
     </div>

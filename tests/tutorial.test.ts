@@ -32,7 +32,7 @@ describe("tutorial", () => {
 
   it("returns the select prompt for the select stage", () => {
     const state = createTutorialMission();
-    expect(tutorialPrompt(state)).toBe("Tap or click your infantry to select it.");
+    expect(tutorialPrompt(state)).toBe("Tap or click your Infantry to select it.");
   });
 
   it("returns the move prompt for the move stage", () => {
@@ -44,31 +44,31 @@ describe("tutorial", () => {
   it("returns the harvest prompt for the harvest stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "harvest";
-    expect(tutorialPrompt(state)).toBe("Select the harvester, then order it to an ore field.");
+    expect(tutorialPrompt(state)).toBe("Select the Harvester, then order it to an ore field.");
   });
 
   it("returns the build prompt for the build stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "build";
-    expect(tutorialPrompt(state)).toBe("Open Construction and place a power plant.");
+    expect(tutorialPrompt(state)).toBe("Open Construction and place a Power Plant.");
   });
 
   it("returns the produce prompt for the produce stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "produce";
-    expect(tutorialPrompt(state)).toBe("Open Production and queue infantry.");
+    expect(tutorialPrompt(state)).toBe("Open Production and train Infantry.");
   });
 
   it("returns the attack prompt for the attack stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "attack";
-    expect(tutorialPrompt(state)).toBe("Use attack-move or attack an enemy unit.");
+    expect(tutorialPrompt(state)).toBe("Use attack-move to advance while fighting, or attack an enemy unit.");
   });
 
   it("returns the repair prompt for the repair stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "repair";
-    expect(tutorialPrompt(state)).toBe("Use the wrench on a damaged structure.");
+    expect(tutorialPrompt(state)).toBe("Use Repair on a damaged structure.");
   });
 
   it("returns the complete prompt for the complete stage", () => {

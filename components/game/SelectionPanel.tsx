@@ -53,18 +53,18 @@ export function SelectionPanel({
           ) : null}
           {selected.constructing > 0 && isBuildingEntity(selected) ? (
             <ProgressMeter
-              label="Constructing"
+              label="Under construction"
               ratio={1 - selected.constructing / (BUILDING_STATS[selected.kind].buildTicks || 1)}
               detail={`${Math.ceil(selected.constructing / TICKS_PER_SECOND)}s`}
             />
           ) : null}
           {selected.producing ? (
             <ProgressMeter
-              label={`Produce ${labelFor(selected.producing.kind)}`}
+              label={`Training ${labelFor(selected.producing.kind)}`}
               ratio={1 - selected.producing.remaining / (UNIT_STATS[selected.producing.kind].buildTicks || 1)}
               detail={
                 (selected.queue?.length ?? 0) > 0
-                  ? `Q ${(selected.queue?.length ?? 0) + 1}/${MAX_PRODUCTION_QUEUE}`
+                  ? `Queue ${(selected.queue?.length ?? 0) + 1} of ${MAX_PRODUCTION_QUEUE}`
                   : `${Math.ceil(selected.producing.remaining / TICKS_PER_SECOND)}s`
               }
             />

@@ -2,6 +2,8 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { formatSeed } from "@/lib/seed/rng";
 import type { ParsedSaveExport } from "@/lib/persist/save";
+import { formatMissionDuration } from "@/lib/sim/debrief";
+import { saveResultLabel } from "@/lib/ui/copy";
 import styles from "./SaveImportDialog.module.css";
 
 export function SaveImportDialog({
@@ -28,10 +30,10 @@ export function SaveImportDialog({
         <dl className={styles.details}>
           <div><dt>Seed</dt><dd>{formatSeed(save.state.seed)}</dd></div>
           <div><dt>Mission</dt><dd>{save.state.missionIndex + 1} · {save.state.missionName}</dd></div>
-          <div><dt>State</dt><dd>{save.state.result} · tick {save.state.tick}</dd></div>
+          <div><dt>Status</dt><dd>{saveResultLabel(save.state.result)} · {formatMissionDuration(save.state.tick)}</dd></div>
           <div><dt>Campaign</dt><dd>Mission {save.campaign.unlockedMission + 1} unlocked · {save.campaign.completedMissions.length} complete</dd></div>
         </dl>
-        {collision ? <p className={styles.warning} role="alert">A local save exists for this seed. Confirming replaces its mission state and merges campaign progress.</p> : null}
+        {collision ? <p className={styles.warning} role="alert">A save already exists for this campaign. Confirming replaces the current mission and keeps the best campaign progress.</p> : null}
         {error ? <p className={styles.warning} role="alert">{error}</p> : null}
         <div className={styles.actions}>
           <ConsoleButton onClick={onConfirm}>{collision ? "Replace and Import" : "Import Save"}</ConsoleButton>

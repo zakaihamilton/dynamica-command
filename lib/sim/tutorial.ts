@@ -20,13 +20,13 @@ export function createTutorialMission(): SimState {
 
 export function tutorialPrompt(state: SimState): string {
   switch (state.tutorialStage) {
-    case "select": return "Tap or click your infantry to select it.";
+    case "select": return "Tap or click your Infantry to select it.";
     case "move": return "Move the selected unit to the highlighted ground.";
-    case "harvest": return "Select the harvester, then order it to an ore field.";
-    case "build": return "Open Construction and place a power plant.";
-    case "produce": return "Open Production and queue infantry.";
-    case "attack": return "Use attack-move or attack an enemy unit.";
-    case "repair": return "Use the wrench on a damaged structure.";
+    case "harvest": return "Select the Harvester, then order it to an ore field.";
+    case "build": return "Open Construction and place a Power Plant.";
+    case "produce": return "Open Production and train Infantry.";
+    case "attack": return "Use attack-move to advance while fighting, or attack an enemy unit.";
+    case "repair": return "Use Repair on a damaged structure.";
     default: return "Training complete. Return to the command desk when ready.";
   }
 }

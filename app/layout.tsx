@@ -7,7 +7,7 @@ import styles from "./layout.module.css";
 
 export const metadata: Metadata = {
   title: "Dynamica Command",
-  description: "Seeded isometric RTS — one 4-digit code writes the war.",
+  description: "A Command & Conquer–like RTS — one 4-digit code writes the war.",
 };
 
 export const viewport: Viewport = {
