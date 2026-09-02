@@ -38,6 +38,18 @@ describe("mission debrief", () => {
     });
   });
 
+  it("explains escort and extraction losses when the objective target is destroyed", () => {
+    const escort = makeFixture({ win: { kind: "escort", targetCount: 1, ticks: 100 } });
+    escort.result = "lost";
+    escort.lossReason = "objectiveTargetLost";
+    expect(missionDebrief(escort).outcome).toBe("The convoy was lost.");
+
+    const extraction = makeFixture({ win: { kind: "extraction", targetCount: 2, ticks: 100 } });
+    extraction.result = "lost";
+    extraction.lossReason = "objectiveTargetLost";
+    expect(missionDebrief(extraction).outcome).toBe("The cargo was lost.");
+  });
+
   it("formats elapsed time as whole minutes and hides the sidebar after a result", () => {
     expect(formatMissionDuration(12 * 125 + 7)).toBe("2 min");
     expect(shouldShowCommandSidebar("playing")).toBe(true);

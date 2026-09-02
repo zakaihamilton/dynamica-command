@@ -343,6 +343,61 @@ describe("tactical expansion", () => {
     expect(result.events).toContainEqual({ type: "lost" });
   });
 
+  it("fails extraction when an unextracted cargo unit is destroyed", () => {
+    const state = makeFixture({ win: { kind: "extraction", targetCount: 1, ticks: 100 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const cargo = addUnit(state, 0, "infantry", 6, 4);
+    cargo.neutral = true;
+    cargo.scenarioRole = "cargo";
+    cargo.hp = 0;
+    state.runtime = {
+      kind: "extraction",
+      phase: "active",
+      targetIds: [cargo.id],
+      zone: { x: 0, y: 0 },
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    const result = tick(state);
+
+    expect(state.result).toBe("lost");
+    expect(state.lossReason).toBe("objectiveTargetLost");
+    expect(result.events).toContainEqual({ type: "lost" });
+  });
+
+  it("does not fail extraction when already-extracted cargo is destroyed", () => {
+    const state = makeFixture({ win: { kind: "extraction", targetCount: 2, ticks: 5000 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const extracted = addUnit(state, 0, "infantry", 1, 1);
+    const remaining = addUnit(state, 0, "infantry", 6, 4);
+    extracted.scenarioRole = "cargo";
+    extracted.hp = 0;
+    remaining.neutral = true;
+    remaining.scenarioRole = "cargo";
+    remaining.marked = true;
+    state.runtime = {
+      kind: "extraction",
+      phase: "extraction",
+      targetIds: [extracted.id, remaining.id],
+      extractedIds: [extracted.id],
+      zone: { x: 0, y: 0 },
+      deadline: 5000,
+      rescued: 1,
+      required: 2,
+      secondary: [],
+    };
+
+    const result = tick(state);
+
+    expect(state.result).toBe("playing");
+    expect(state.lossReason).toBeUndefined();
+    expect(result.events).not.toContainEqual({ type: "lost" });
+    expect(state.runtime.rescued).toBe(1);
+  });
+
   it("counts a convoy truck after it reaches the escort zone", () => {
     const state = makeFixture({ width: 16, height: 12, win: { kind: "escort", targetCount: 1, ticks: 100 } });
     addBuilding(state, 0, "constructionYard", 0, 0);

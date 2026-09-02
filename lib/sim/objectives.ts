@@ -209,7 +209,11 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
   }
 
   if (state.runtime && ["escort", "sabotage", "rescue", "extraction"].includes(state.runtime.kind)) {
-    if (state.runtime.kind === "escort" && state.runtime.targetIds.some((id) => !state.entities.some((e) => e.id === id && e.hp > 0))) {
+    const extracted = state.runtime.kind === "extraction" ? new Set(state.runtime.extractedIds ?? []) : undefined;
+    if (
+      (state.runtime.kind === "escort" || state.runtime.kind === "extraction") &&
+      state.runtime.targetIds.some((id) => !extracted?.has(id) && !state.entities.some((e) => e.id === id && e.hp > 0))
+    ) {
       state.result = "lost";
       state.lossReason = "objectiveTargetLost";
       state.runtime.phase = "complete";
