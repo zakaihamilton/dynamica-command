@@ -3,7 +3,7 @@
   inset: 0;
   z-index: 20;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background:
     linear-gradient(90deg, rgba(3, 7, 12, 0.82) 0%, rgba(3, 7, 12, 0.56) 58%, rgba(3, 7, 12, 0.4) 100%);
@@ -13,17 +13,30 @@
   overscroll-behavior: contain;
 }
 
+.overlay > * {
+  margin-block: auto;
+}
+
 .deployStage {
   width: min(100%, 88rem);
 }
 
-@media (max-width: 639px) {
+@media (min-width: 900px) {
   .overlay {
-    align-items: flex-start;
-    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+    overflow: hidden;
   }
 
   .deployStage {
-    margin-block: auto;
+    display: flex;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    margin-block: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .overlay {
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
   }
 }
