@@ -1,3 +1,4 @@
+import { defaultSettings } from "../persist/settings";
 import { getAudioContext, peekAudioContext } from "./context";
 
 export type AudioBus = "music" | "sfx";
@@ -9,10 +10,11 @@ export type AudioLevels = {
   sfxVolume: number;
 };
 
+const defaults = defaultSettings();
 const DEFAULT_LEVELS: AudioLevels = {
-  masterVolume: 1,
-  musicVolume: 0.7,
-  sfxVolume: 0.9,
+  masterVolume: defaults.masterVolume,
+  musicVolume: defaults.musicVolume,
+  sfxVolume: defaults.sfxVolume,
 };
 
 const RAMP_S = 0.045;

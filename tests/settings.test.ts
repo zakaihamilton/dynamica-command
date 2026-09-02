@@ -21,6 +21,11 @@ describe("audio settings", () => {
     expect(readSettings(memoryStorage())).toEqual(defaultSettings());
   });
 
+  it("defaults music volume to 50%", () => {
+    expect(defaultSettings().musicVolume).toBe(0.5);
+    expect(readSettings(memoryStorage()).musicVolume).toBe(0.5);
+  });
+
   it("rejects mismatched versions and malformed envelopes", () => {
     const storage = memoryStorage();
     storage.setItem(SETTINGS_KEY, JSON.stringify({
