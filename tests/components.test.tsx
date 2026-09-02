@@ -367,15 +367,22 @@ describe("PauseMenu", () => {
     const onOptions = vi.fn();
     const onControls = vi.fn();
     const onBack = vi.fn();
+    const onCommitSave = vi.fn(() => true);
+    const onLoadEntry = vi.fn();
     const props = {
       view: "main" as const,
       notice: "Mission saved.",
       settings: defaultSettings(),
       seed: 421,
       missionIndex: 0,
+      saveSlots: [],
+      loadEntries: [],
+      defaultSlotName: "Test · M1",
       onResume,
       onSave: vi.fn(),
       onLoad: vi.fn(),
+      onCommitSave,
+      onLoadEntry,
       onBriefing: vi.fn(),
       onRestart: vi.fn(),
       onControls,
@@ -392,6 +399,7 @@ describe("PauseMenu", () => {
     expect(screen.getByText("Mission")).toBeVisible();
     expect(screen.getByText("Operation")).toBeVisible();
     expect(screen.getByText("Theater")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Export Save" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Resume Mission" }));
     expect(onResume).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Assets" })).toBeNull();
@@ -405,6 +413,11 @@ describe("PauseMenu", () => {
 
     rerender(<PauseMenu {...props} view="controls" notice="" />);
     expect(screen.getByTestId("pause-controls")).toBeVisible();
+
+    rerender(<PauseMenu {...props} view="save" notice="" />);
+    expect(screen.getByRole("heading", { name: "Save mission" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onCommitSave).toHaveBeenCalledWith("Test · M1", null);
 
     rerender(<PauseMenu {...props} view="soundtrack" notice="" />);
     fireEvent.click(screen.getByRole("button", { name: "Close soundtrack" }));

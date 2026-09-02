@@ -82,6 +82,67 @@
   color: var(--chrome-muted);
 }
 
+.slotCopy {
+  margin: 0.75rem 0 0;
+  color: var(--chrome-body);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.slotName {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  color: var(--chrome-muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.slotName input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--chrome-inset);
+  background: var(--chrome-steel-lo);
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  box-shadow: inset 1px 1px var(--chrome-void), inset -1px -1px var(--chrome-bevel);
+}
+
+.slotName input:focus {
+  outline: none;
+  border-color: var(--chrome-cyan);
+  box-shadow: inset 1px 1px var(--chrome-void), inset -1px -1px var(--chrome-bevel), 0 0 0 1px var(--chrome-cyan-dim);
+}
+
+.confirmOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.confirmDialog {
+  width: min(100%, 24rem);
+  padding: 1.25rem;
+}
+
+.slotConfirmActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 .group {
   display: grid;
   gap: 0.5rem;

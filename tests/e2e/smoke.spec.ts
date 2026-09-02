@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createMission } from "../../lib/sim/api";
 import { spawnBuilding } from "../../lib/sim/world";
 import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
-import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/save";
+import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey, SLOT_VERSION, slotKey } from "../../lib/persist/save";
 import { SETTINGS_KEY, SETTINGS_VERSION } from "../../lib/persist/settings";
 import type { SimState } from "../../lib/types";
 
@@ -153,8 +153,8 @@ test("opens the campaign archive from the main menu", async ({ page }) => {
   await expect(page).toHaveURL(/\/load$/);
   await expect(page.getByTestId("campaign-archive")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Load mission" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "IMPORT SAVE" })).toBeVisible();
-  await expect(page.getByText("No saved campaigns.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);
+  await expect(page.getByText("No save slots.")).toBeVisible();
   const archiveScrollContainers = await page.getByTestId("campaign-archive").evaluate((element) => {
     const containers: string[] = [];
     let current: Element | null = element;
@@ -464,6 +464,17 @@ function saveEnvelope(state: SimState): string {
   return JSON.stringify({ version: SAVE_VERSION, contentVersion: SAVE_CONTENT_VERSION, savedAt: Date.now(), state });
 }
 
+function slotEnvelope(state: SimState, name: string): string {
+  return JSON.stringify({
+    version: SLOT_VERSION,
+    contentVersion: SAVE_CONTENT_VERSION,
+    savedAt: Date.now(),
+    name,
+    state,
+    campaign: freshCampaignProgress(state.seed),
+  });
+}
+
 function distinctiveSave(result: SimState["result"] = "playing"): SimState {
   const state = createMission({ seed: 421, missionIndex: 0 });
   state.credits[0] = 9876;
@@ -480,9 +491,23 @@ test("resumes a seeded save from the menu", async ({ page }) => {
 
   await page.goto("/");
   await page.getByRole("button", { name: "LOAD MISSION" }).click();
-  await page.getByRole("button", { name: /Mission 1/ }).click();
+  await page.getByRole("button", { name: /Resume .* autosave/ }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&resume=1/);
   await expect(page.getByTestId("seed")).toHaveText("Seed 0421");
+  await expect(page.getByTestId("credits")).toHaveText("9,876");
+});
+
+test("resumes a named save slot from the menu", async ({ page }) => {
+  const state = distinctiveSave();
+  const slotId = "abcd1234abcd1234";
+  await page.addInitScript(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, { key: slotKey(slotId), raw: slotEnvelope(state, "Bridgehead") });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "LOAD MISSION" }).click();
+  await page.getByRole("button", { name: "Resume Bridgehead" }).click();
+  await expect(page).toHaveURL(new RegExp(`/play\\?seed=0421&mission=0&slot=${slotId}`));
   await expect(page.getByTestId("credits")).toHaveText("9,876");
 });
 
@@ -511,10 +536,12 @@ test("loads the last save from the pause menu", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("pause-menu")).toBeVisible();
   await page.getByRole("button", { name: "Load Mission" }).click();
+  await expect(page.getByRole("heading", { name: "Load mission" })).toBeVisible();
+  await page.getByRole("button", { name: "Load" }).click();
   const confirmation = page.getByRole("dialog", { name: "Load mission?" });
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole("button", { name: "Load mission" }).click();
-  await expect(page.getByRole("status")).toContainText(/Loaded the last save/);
+  await expect(page.getByRole("status")).toContainText(/Loaded the autosave/);
   await page.getByRole("button", { name: "Resume Mission" }).click();
   await expect(page.getByTestId("credits")).toHaveText("9,876");
 });

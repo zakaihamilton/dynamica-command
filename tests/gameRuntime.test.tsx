@@ -6,7 +6,8 @@ import { useRef } from "react";
 import { createCamera } from "../lib/iso";
 import { makeFixture } from "../lib/sim/fixtures";
 import { markFreshLaunchIntent } from "../lib/persist/navigation";
-import { localStorageAdapter, readSave, saveKey, writeSave } from "../lib/persist/save";
+import { localStorageAdapter, readSave, saveKey, writeSave, writeSlot } from "../lib/persist/save";
+import { freshCampaignProgress, readCampaignProgress, writeCampaignProgress, completeMission } from "../lib/persist/campaign";
 import { TELEMETRY_KEY } from "../lib/persist/telemetry";
 import type { BuildingKind } from "../lib/types";
 
@@ -189,6 +190,29 @@ describe("useGameRuntime", () => {
     expect(fresh.tick).toBe(0);
     setItem.mockRestore();
     getEntriesByType.mockRestore();
+  });
+
+  it("loads a named slot even when a later autosave exists", () => {
+    const saved = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    saved.tick = 120;
+    expect(writeSave(localStorageAdapter(), saved)).toBe(true);
+    writeCampaignProgress(localStorageAdapter(), completeMission(freshCampaignProgress(421), 1, 3, 800));
+
+    const slotState = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    slotState.tick = 12;
+    const written = writeSlot(localStorageAdapter(), {
+      name: "Bridgehead",
+      state: slotState,
+      campaign: completeMission(freshCampaignProgress(421), 0, 1, 100),
+    });
+    expect(written.ok).toBe(true);
+    if (!written.ok) return;
+
+    const loaded = initialMission(421, 0, true, false, false, written.id);
+
+    expect(loaded.tick).toBe(12);
+    expect(readSave(localStorageAdapter(), 421)?.tick).toBe(12);
+    expect(readCampaignProgress(localStorageAdapter(), 421).completedMissions).toEqual([0]);
   });
 
   it("saves the current state when the page is unloaded", () => {

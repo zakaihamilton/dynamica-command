@@ -6,7 +6,6 @@ import styles from "./PauseMenu.module.css";
 export function PauseMainMenu({
   onResume,
   onSave,
-  onExport,
   onLoad,
   onBriefing,
   onRestart,
@@ -17,7 +16,6 @@ export function PauseMainMenu({
 }: {
   onResume: () => void;
   onSave: () => void;
-  onExport: () => void;
   onLoad: () => void;
   onBriefing: () => void;
   onRestart: () => void;
@@ -34,9 +32,8 @@ export function PauseMainMenu({
         <ConsoleButton className={styles.action} tooltip="Return to the battlefield" shortcut={SHORTCUT.resume} onClick={onResume}>Resume Mission</ConsoleButton>
         <div className={styles.group}>
           <ConsoleLabel className={styles.groupLabel}>Mission</ConsoleLabel>
-          <ConsoleButton className={styles.action} tooltip="Save this mission" shortcut={SHORTCUT.save} onClick={onSave}>Save Mission</ConsoleButton>
-          <ConsoleButton className={styles.action} tooltip="Download a backup of this campaign" onClick={onExport}>Export Save</ConsoleButton>
-          <ConsoleButton className={styles.action} tooltip="Load the last save for this campaign" shortcut={SHORTCUT.load} onClick={onLoad}>Load Mission</ConsoleButton>
+          <ConsoleButton className={styles.action} tooltip="Write a named save slot" shortcut={SHORTCUT.save} onClick={onSave}>Save Mission</ConsoleButton>
+          <ConsoleButton className={styles.action} tooltip="Load a named save slot or autosave" shortcut={SHORTCUT.load} onClick={onLoad}>Load Mission</ConsoleButton>
         </div>
         <div className={styles.group}>
           <ConsoleLabel className={styles.groupLabel}>Operation</ConsoleLabel>

@@ -1,8 +1,5 @@
 import type { SimState } from "../../types";
-import {
-  SAVE_TRANSFER_KEY,
-  saveKey,
-} from "./serialize";
+import { saveKey } from "./serialize";
 import {
   safeGetItem,
   type StorageAdapter,
@@ -14,7 +11,6 @@ export type SaveWriteStatus = "saved" | "conflict" | "failed";
 
 export type SaveStorageSnapshot = {
   save: string | null;
-  transfer: string | null;
 };
 
 export type SaveSession = {
@@ -26,12 +22,11 @@ export type SaveSession = {
 export function saveStorageSnapshot(storage: StorageAdapter, seed: number): SaveStorageSnapshot {
   return {
     save: safeGetItem(storage, saveKey(seed)),
-    transfer: safeGetItem(storage, SAVE_TRANSFER_KEY),
   };
 }
 
 function sameSnapshot(a: SaveStorageSnapshot, b: SaveStorageSnapshot): boolean {
-  return a.save === b.save && a.transfer === b.transfer;
+  return a.save === b.save;
 }
 
 /**

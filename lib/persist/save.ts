@@ -15,29 +15,46 @@ export {
 
 export {
   SAVE_VERSION,
-  SAVE_EXPORT_FORMAT,
-  SAVE_TRANSFER_KEY,
-  type ParsedSaveExport,
   type SaveMeta,
-  serializeSaveExport,
-  parseSaveExport,
-  saveExportFilename,
   saveKey,
   serializeState,
   deserializeState,
+  decodeSave,
+  decodeSavedState,
 } from "./save/serialize";
 
 export {
   writeSave,
-  readPendingSaveTransfer,
-  writePendingSaveTransfer,
-  clearPendingSaveTransfer,
   hasSaveForSeed,
   readSave,
   removeSave,
   listUnreadableSaves,
   listSaves,
 } from "./save/api";
+
+export {
+  SLOT_PREFIX,
+  SLOT_VERSION,
+  SLOT_NAME_MAX,
+  SLOT_ID_PATTERN,
+  type SlotMeta,
+  type ParsedSlot,
+  type ArchiveEntry,
+  type SlotWriteResult,
+  slotKey,
+  isSlotId,
+  normalizeSlotName,
+  defaultSlotName,
+  createSlotId,
+  writeSlot,
+  readSlot,
+  removeSlot,
+  listSlots,
+  listUnreadableSlots,
+  listArchiveEntries,
+  listPauseLoadEntries,
+  hasLoadableSaves,
+} from "./save/slots";
 
 export {
   createSaveSession,

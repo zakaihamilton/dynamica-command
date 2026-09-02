@@ -9,7 +9,7 @@ import { CampaignCompleteScreen } from "../components/campaign/CampaignCompleteS
 import { MenuScreen } from "../components/menu/MenuScreen";
 import overlayStyles from "../components/menu/MenuSignalOverlay.module.css";
 import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
-import { localStorageAdapter, serializeSaveExport, writeSave } from "../lib/persist/save";
+import { localStorageAdapter, writeSave, writeSlot } from "../lib/persist/save";
 import { makeFixture } from "../lib/sim/fixtures";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
@@ -131,8 +131,8 @@ describe("CampaignArchiveScreen", () => {
 
     expect(screen.getByTestId("campaign-archive")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Load mission" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "IMPORT SAVE" })).toBeVisible();
-    expect(screen.getByText("No saved campaigns.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "IMPORT SAVE" })).toBeNull();
+    expect(screen.getByText("No save slots.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Return to menu" }));
     expect(router.push).toHaveBeenCalledWith("/");
   });
@@ -140,23 +140,27 @@ describe("CampaignArchiveScreen", () => {
   it("cancels an open delete dialog with Escape instead of leaving", async () => {
     writeSave(localStorageAdapter(), makeFixture({ seed: 421, win: { kind: "annihilate" } }));
     render(<CampaignArchiveScreen />);
-    await waitFor(() => expect(screen.getByRole("button", { name: /Delete .* campaign/ })).toBeVisible());
-    fireEvent.click(screen.getByRole("button", { name: /Delete .* campaign/ }));
-    expect(screen.getByRole("dialog", { name: "Delete campaign?" })).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Delete autosave for/ })).toBeVisible());
+    fireEvent.click(screen.getByRole("button", { name: /Delete autosave for/ }));
+    expect(screen.getByRole("dialog", { name: "Delete autosave?" })).toBeVisible();
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("dialog", { name: "Delete campaign?" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Delete autosave?" })).toBeNull();
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("cancels an open import dialog with Escape instead of leaving", async () => {
+  it("resumes a named save slot", async () => {
     const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
-    const file = new File([serializeSaveExport(state, freshCampaignProgress(421))], "save.json", { type: "application/json" });
+    const written = writeSlot(localStorageAdapter(), {
+      name: "Bridgehead",
+      state,
+      campaign: freshCampaignProgress(421),
+    });
+    expect(written.ok).toBe(true);
+    if (!written.ok) return;
     render(<CampaignArchiveScreen />);
-    fireEvent.change(screen.getByLabelText("Choose a Dynamica Command save file"), { target: { files: [file] } });
-    await waitFor(() => expect(screen.getByRole("dialog", { name: "Import save?" })).toBeVisible());
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("dialog", { name: "Import save?" })).toBeNull();
-    expect(router.push).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Resume Bridgehead" })).toBeVisible());
+    fireEvent.click(screen.getByRole("button", { name: "Resume Bridgehead" }));
+    expect(router.push).toHaveBeenCalledWith(`/play?seed=0421&mission=0&slot=${written.id}`);
   });
 });
 

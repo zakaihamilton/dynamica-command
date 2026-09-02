@@ -2,16 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   decodeSave,
   deserializeState,
-  parseSaveExport,
-  saveExportFilename,
   saveKey,
-  serializeSaveExport,
   serializeState,
   SAVE_PREFIX,
   SAVE_VERSION,
 } from "../lib/persist/save/serialize";
 import { addUnit, makeFixture } from "../lib/sim/fixtures";
-import { freshCampaignProgress } from "../lib/persist/campaign";
 
 function baseState(seed = 1000) {
   return makeFixture({ seed, win: { kind: "annihilate" } });
@@ -27,76 +23,10 @@ describe("serializeState / deserializeState", () => {
   });
 });
 
-describe("saveKey / saveExportFilename", () => {
+describe("saveKey", () => {
   it("formats keys with 4-digit zero padding", () => {
     expect(saveKey(42)).toBe(`${SAVE_PREFIX}0042`);
     expect(saveKey(1000)).toBe(`${SAVE_PREFIX}1000`);
-  });
-
-  it("formats export filenames", () => {
-    expect(saveExportFilename(42)).toBe("dynamica-command-0042-save.json");
-  });
-});
-
-describe("serializeSaveExport", () => {
-  it("produces valid JSON with matching seeds", () => {
-    const state = baseState(2000);
-    const campaign = freshCampaignProgress(2000);
-    const raw = serializeSaveExport(state, campaign, 12345);
-    const parsed = JSON.parse(raw);
-    expect(parsed.format).toBe("dynamica-command-save");
-    expect(parsed.version).toBe(1);
-    expect(parsed.exportedAt).toBe(12345);
-    expect(parsed.campaign.seed).toBe(2000);
-  });
-
-  it("throws when campaign is invalid", () => {
-    const state = baseState(1000);
-    expect(() => serializeSaveExport(state, { notValid: true } as never)).toThrow("Invalid campaign progress");
-  });
-
-  it("throws when state seed mismatches campaign seed", () => {
-    const state = baseState(1000);
-    const campaign = freshCampaignProgress(2001);
-    expect(() => serializeSaveExport(state, campaign)).toThrow("seeds must match");
-  });
-});
-
-describe("parseSaveExport", () => {
-  it("round-trips through serializeSaveExport", () => {
-    const state = baseState(3000);
-    const campaign = freshCampaignProgress(3000);
-    const raw = serializeSaveExport(state, campaign, 99999);
-    const parsed = parseSaveExport(raw);
-    expect(parsed.state.seed).toBe(3000);
-    expect(parsed.campaign.seed).toBe(3000);
-    expect(parsed.exportedAt).toBe(99999);
-  });
-
-  it("rejects non-JSON input", () => {
-    expect(() => parseSaveExport("not-json")).toThrow("This is not a Dynamica Command save file.");
-  });
-
-  it("rejects wrong format", () => {
-    expect(() => parseSaveExport(JSON.stringify({ format: "wrong", version: 1 }))).toThrow("This save file isn't compatible.");
-  });
-
-  it("rejects wrong content version", () => {
-    const state = baseState(1000);
-    const campaign = freshCampaignProgress(1000);
-    const raw = serializeSaveExport(state, campaign);
-    const parsed = JSON.parse(raw);
-    parsed.contentVersion = 999;
-    expect(() => parseSaveExport(JSON.stringify(parsed))).toThrow("This save is from a newer version of the game.");
-  });
-
-  it("rejects mismatched seed in payload", () => {
-    const state = baseState(1000);
-    const campaign = freshCampaignProgress(1000);
-    const raw = serializeSaveExport(state, campaign);
-    const parsed = JSON.parse(raw);
-    parsed.campaign.seed = 2000;
-    expect(() => parseSaveExport(JSON.stringify(parsed))).toThrow("This save doesn't match its campaign.");
   });
 });
 

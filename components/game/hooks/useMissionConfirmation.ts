@@ -1,5 +1,4 @@
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
-import { cachedLocalStorage, readSave } from "@/lib/persist/save";
+import { useCallback, useState } from "react";
 import {
   missionConfirmationFor,
   type MissionConfirmation,
@@ -7,17 +6,9 @@ import {
 } from "./missionConfirmation";
 
 export function useMissionConfirmation({
-  seed,
-  setPauseNotice,
-  saveNow,
-  loadNow,
   restartNow,
   goHomeNow,
 }: {
-  seed: number;
-  setPauseNotice: Dispatch<SetStateAction<string>>;
-  saveNow: () => void;
-  loadNow: () => void;
   restartNow: () => void;
   goHomeNow: () => void;
 }) {
@@ -26,18 +17,6 @@ export function useMissionConfirmation({
   const requestConfirmation = useCallback((action: MissionConfirmationAction) => {
     setConfirmation(missionConfirmationFor(action));
   }, []);
-
-  const saveMission = useCallback(() => {
-    requestConfirmation("save");
-  }, [requestConfirmation]);
-
-  const loadMission = useCallback(() => {
-    if (!readSave(cachedLocalStorage(), seed)) {
-      setPauseNotice("No save found for this campaign.");
-      return;
-    }
-    requestConfirmation("load");
-  }, [requestConfirmation, seed, setPauseNotice]);
 
   const restartMission = useCallback(() => {
     requestConfirmation("restart");
@@ -50,11 +29,9 @@ export function useMissionConfirmation({
   const confirmAction = useCallback(() => {
     const action = confirmation?.action;
     setConfirmation(null);
-    if (action === "save") saveNow();
-    else if (action === "load") loadNow();
-    else if (action === "restart") restartNow();
+    if (action === "restart") restartNow();
     else if (action === "menu") goHomeNow();
-  }, [confirmation, goHomeNow, loadNow, restartNow, saveNow]);
+  }, [confirmation, goHomeNow, restartNow]);
 
   const cancelConfirmation = useCallback(() => {
     setConfirmation(null);
@@ -64,8 +41,6 @@ export function useMissionConfirmation({
     confirmation,
     confirmAction,
     cancelConfirmation,
-    saveMission,
-    loadMission,
     restartMission,
     goHome,
   };

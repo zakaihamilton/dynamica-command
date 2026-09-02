@@ -7,7 +7,7 @@ import { startLoop } from "@/lib/game/loop";
 import { tick } from "@/lib/sim/api";
 import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { cachedLocalStorage } from "@/lib/persist/save";
-import { SAVE_TRANSFER_KEY, saveKey, type SaveSession } from "@/lib/persist/save";
+import { saveKey, type SaveSession } from "@/lib/persist/save";
 import { recordTelemetry, telemetryFromMission } from "@/lib/persist/telemetry";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
@@ -102,7 +102,7 @@ export function useGameLoop({
     };
     const onStorage = (event: StorageEvent) => {
       if (event.storageArea && event.storageArea !== window.localStorage) return;
-      if (event.key === saveKey(stateRef.current.seed) || event.key === SAVE_TRANSFER_KEY) {
+      if (event.key === saveKey(stateRef.current.seed)) {
         saveSession.markExternalChange();
       }
     };

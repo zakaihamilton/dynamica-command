@@ -1,0 +1,96 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { ConsoleButton } from "@/components/ui/ConsoleButton";
+import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
+import { MetalPanel } from "@/components/ui/MetalPanel";
+import { archiveEntryKey, SaveSlotList } from "@/components/menu/SaveSlotList";
+import { useModalFocus } from "@/components/ui/useModalFocus";
+import type { ArchiveEntry } from "@/lib/persist/save";
+import { SHORTCUT } from "@/lib/ui/shortcuts";
+import styles from "./PauseMenu.module.css";
+
+export function PauseLoadSlots({
+  entries,
+  onLoad,
+  onBack,
+}: {
+  entries: ArchiveEntry[];
+  onLoad: (entry: ArchiveEntry) => void;
+  onBack: () => void;
+}) {
+  const [selectedKey, setSelectedKey] = useState<string | null>(entries[0] ? archiveEntryKey(entries[0]) : null);
+  const [pending, setPending] = useState<ArchiveEntry | null>(null);
+  const confirmRef = useModalFocus(Boolean(pending), pending ? archiveEntryKey(pending) : undefined, "dialog");
+  const selected = useMemo(
+    () => entries.find((entry) => archiveEntryKey(entry) === selectedKey) ?? null,
+    [entries, selectedKey],
+  );
+
+  useEffect(() => {
+    if (!pending) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setPending(null);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [pending]);
+
+  return (
+    <>
+      <ConsoleLabel>Save slots</ConsoleLabel>
+      <h2 id="pause-title" className={styles.title}>Load mission</h2>
+      <p className={styles.slotCopy}>Choose a named save or this campaign&apos;s autosave.</p>
+      <SaveSlotList
+        entries={entries}
+        selectedKey={selectedKey}
+        onSelect={(entry) => setSelectedKey(archiveEntryKey(entry))}
+      />
+      <div className={styles.actions}>
+        <ConsoleButton
+          className={styles.action}
+          tooltip="Restore the selected save slot"
+          onClick={() => {
+            if (selected) setPending(selected);
+          }}
+        >
+          Load
+        </ConsoleButton>
+        <ConsoleButton muted className={styles.action} tooltip="Return to the pause menu" shortcut={SHORTCUT.back} onClick={onBack}>
+          Back
+        </ConsoleButton>
+      </div>
+      {pending ? (
+        <div className={styles.confirmOverlay}>
+          <MetalPanel
+            ref={confirmRef}
+            tabIndex={-1}
+            className={styles.confirmDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="load-slot-title"
+          >
+            <ConsoleLabel as="h2" id="load-slot-title">Load mission?</ConsoleLabel>
+            <p className={styles.slotCopy}>
+              Load {pending.kind === "slot" ? pending.name : "the autosave for this campaign"}? Unsaved progress will be lost.
+            </p>
+            <div className={styles.slotConfirmActions}>
+              <ConsoleButton muted onClick={() => setPending(null)}>Cancel</ConsoleButton>
+              <ConsoleButton
+                onClick={() => {
+                  onLoad(pending);
+                  setPending(null);
+                }}
+              >
+                Load mission
+              </ConsoleButton>
+            </div>
+          </MetalPanel>
+        </div>
+      ) : null}
+    </>
+  );
+}

@@ -21,12 +21,14 @@ export function useGameRuntime({
   mission,
   resume,
   fresh = false,
+  slot,
   tutorial = false,
 }: {
   seed: number;
   mission: number;
   resume: boolean;
   fresh?: boolean;
+  slot?: string;
   tutorial?: boolean;
 }) {
   const {
@@ -40,7 +42,7 @@ export function useGameRuntime({
     canvasRef,
     miniRef,
     mobileMiniRef,
-  } = useGameRuntimeState({ seed, mission, resume, fresh, tutorial });
+  } = useGameRuntimeState({ seed, mission, resume, fresh, slot, tutorial });
   const chrome = useGameChrome(state.result);
   const {
     mobilePanelOpen,
