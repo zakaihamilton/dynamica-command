@@ -49,20 +49,26 @@ function fillShroudStamp(
   const fill = String(ctx.fillStyle);
   const cx = cover.x;
   const cy = cover.y + cover.h / 2;
+  const radius = Math.max(cover.w, cover.h) * 0.42;
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.scale(cover.w * 0.58, cover.h * 0.58);
-  const feather = ctx.createRadialGradient(0, 0, 0.12, 0, 0, 1);
+  ctx.scale(radius, radius);
+  const feather = ctx.createRadialGradient(0, 0, 0.08, 0, 0, 1);
   feather.addColorStop(0, rgbaStop(fill, 1));
-  feather.addColorStop(0.76, rgbaStop(fill, 1));
+  feather.addColorStop(0.7, rgbaStop(fill, 1));
   feather.addColorStop(1, rgbaStop(fill, 0));
   ctx.fillStyle = feather;
   ctx.beginPath();
   ctx.arc(0, 0, 1, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
-  const core = expandIsoDiamond(cover.x, cover.y, cover.w, cover.h, 0.78);
-  const coreRadii: IsoDiamondCornerRadii = [radii[0] * 0.78, radii[1] * 0.78, radii[2] * 0.78, radii[3] * 0.78];
+  const core = expandIsoDiamond(cover.x, cover.y, cover.w, cover.h, 0.7);
+  const coreRadii: IsoDiamondCornerRadii = [
+    Math.max(radii[0], core.h * 0.45),
+    Math.max(radii[1], core.h * 0.45),
+    Math.max(radii[2], core.h * 0.45),
+    Math.max(radii[3], core.h * 0.45),
+  ];
   roundedIsoDiamondPath(ctx, core.x, core.y, core.w, core.h, coreRadii);
   ctx.fill();
 }
