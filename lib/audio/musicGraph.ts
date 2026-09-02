@@ -145,7 +145,7 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
 
   highpass.type = "highpass";
   highpass.frequency.setValueAtTime(38, now);
-  saturation.curve = createSaturationCurve(0.18);
+  saturation.curve = createSaturationCurve(p.style.saturationAmount);
   saturation.oversample = "2x";
   compressor.threshold.setValueAtTime(-17, now);
   compressor.knee.setValueAtTime(10, now);
@@ -158,7 +158,8 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   saturation.connect(compressor);
   compressor.connect(destination);
 
-  const bassBus = createBus(audio, master, 0.94);
+  const bassDuck = createBus(audio, master, 1);
+  const bassBus = createBus(audio, bassDuck, 0.94);
   const rhythmBus = createBus(audio, master, 0.9);
   const harmonyBus = createBus(audio, master, 0.75);
   const pulseBus = createBus(audio, master, 0.82);
@@ -247,6 +248,7 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
     leadBus,
     counterBus,
     fxBus,
+    bassDuck,
     reverb,
     reverbSend,
     reverbWet,
@@ -278,7 +280,7 @@ export function disconnectGraph(g: MusicGraph): void {
   }
   for (const node of [
     g.padFilter, g.padGain, g.padGate, g.padLfoGain, g.delay, g.delayFeedback, g.delayWet,
-    g.reverb, g.reverbSend, g.reverbWet, g.bassBus, g.rhythmBus, g.harmonyBus,
+    g.reverb, g.reverbSend, g.reverbWet, g.bassBus, g.bassDuck, g.rhythmBus, g.harmonyBus,
     g.pulseBus, g.leadBus, g.counterBus, g.fxBus, g.highpass, g.saturation,
     g.compressor, g.master,
   ]) node.disconnect();

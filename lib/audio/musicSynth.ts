@@ -16,80 +16,120 @@ export function playSynthTone(
   voice: MusicStem,
   accent = false,
 ): void {
+  const engine = g.style.voiceEngine;
   const filter = audio.createBiquadFilter();
   const envelope = audio.createGain();
   const pan = audio.createStereoPanner();
   const oscA = audio.createOscillator();
-  const oscB = audio.createOscillator();
   const bass = voice === "bass";
   const pulse = voice === "pulse";
   const lead = voice === "melody";
-  const attack = Math.min(lead ? 0.02 : bass ? 0.004 : pulse ? 0.003 : ATTACK_S, duration * 0.22);
-  const release = Math.min(bass ? 0.07 : pulse ? 0.045 : lead ? 0.22 : 0.18, duration * (pulse ? 0.55 : 0.4));
+  const chip = engine === "chip";
+  const acid = engine === "acid-res";
+  const pwm = engine === "pwm";
+  const fm = engine === "fm-bell";
+  const attack = Math.min(
+    chip ? 0.002 : lead ? 0.02 : bass ? (acid ? 0.008 : 0.004) : pulse ? 0.003 : ATTACK_S,
+    duration * 0.22,
+  );
+  const release = Math.min(
+    chip ? 0.04 : bass ? (acid ? 0.11 : 0.07) : pulse ? 0.045 : lead ? (fm ? 0.32 : 0.22) : 0.18,
+    duration * (chip ? 0.35 : pulse ? 0.55 : 0.4),
+  );
   const end = time + Math.max(duration, attack + release + 0.02);
-  const peak = Math.max(0.006, velocity * (accent ? 0.26 : pulse ? 0.16 : 0.2));
+  const peak = Math.max(0.006, velocity * (accent ? 0.26 : pulse ? 0.16 : chip ? 0.18 : 0.2));
 
   filter.type = "lowpass";
-  filter.Q.setValueAtTime(bass ? 1.8 : lead || pulse ? 1.35 : 1.05, time);
-  const startCut = Math.max(220, cutoff * (bass ? (accent ? 3.1 : 2.5) : accent ? 2.2 : pulse ? 2.4 : 1.7));
-  const endCut = Math.max(bass ? 90 : 140, cutoff * (bass ? 0.26 : pulse ? 1.1 : 0.82));
+  filter.Q.setValueAtTime(acid ? (bass ? 11.5 : 7.2) : bass ? 1.8 : lead || pulse ? 1.35 : 1.05, time);
+  const startCut = Math.max(220, cutoff * (acid ? (accent ? 4.6 : 3.4) : bass ? (accent ? 3.1 : 2.5) : accent ? 2.2 : pulse ? 2.4 : 1.7));
+  const endCut = Math.max(bass ? 90 : 140, cutoff * (acid ? (bass ? 0.18 : 0.42) : bass ? 0.26 : pulse ? 1.1 : 0.82));
   filter.frequency.setValueAtTime(startCut, time);
-  filter.frequency.exponentialRampToValueAtTime(endCut, time + Math.min(0.16, duration * 0.55));
+  filter.frequency.exponentialRampToValueAtTime(endCut, time + Math.min(acid ? 0.28 : 0.16, duration * (acid ? 0.8 : 0.55)));
   pan.pan.setValueAtTime(notePan(voice), time);
 
-  oscA.type = type;
-  oscB.type = type === "sawtooth" ? "square" : type === "square" ? "sawtooth" : "triangle";
-  const glide = lead ? Math.min(0.03, duration * 0.22) : pulse ? Math.min(0.012, duration * 0.18) : 0;
-  oscA.frequency.setValueAtTime(freq * (glide > 0 ? 0.93 : 1), time);
+  oscA.type = acid ? "sawtooth" : pwm ? "square" : fm ? (type === "sine" || type === "triangle" ? type : "sine") : type;
+  const glide = acid && bass
+    ? Math.min(0.08, duration * 0.45)
+    : lead ? Math.min(0.03, duration * 0.22) : pulse ? Math.min(0.012, duration * 0.18) : 0;
+  oscA.frequency.setValueAtTime(freq * (glide > 0 ? (acid ? 0.86 : 0.93) : 1), time);
   if (glide > 0) oscA.frequency.exponentialRampToValueAtTime(freq, time + glide);
-  oscB.frequency.setValueAtTime(freq * (bass ? 1.004 : 1.01), time);
-  oscB.detune.setValueAtTime(lead ? 10 : pulse ? -8 : -5, time);
 
   envelope.gain.setValueAtTime(0.0001, time);
   envelope.gain.exponentialRampToValueAtTime(peak, time + Math.max(0.003, attack));
-  if (pulse) {
-    envelope.gain.exponentialRampToValueAtTime(0.0001, time + Math.max(0.05, duration * 0.7));
+  if (pulse || chip) {
+    envelope.gain.exponentialRampToValueAtTime(0.0001, time + Math.max(0.04, duration * (chip ? 0.55 : 0.7)));
   } else {
     envelope.gain.setTargetAtTime(0.0001, Math.max(time + attack, end - release), Math.max(0.014, release * 0.4));
   }
 
   oscA.connect(filter);
-  oscB.connect(filter);
-  if (!pulse) {
+
+  if (fm) {
+    const mod = audio.createOscillator();
+    const modGain = audio.createGain();
+    mod.type = "sine";
+    mod.frequency.setValueAtTime(freq * (lead ? 3.5 : bass ? 1.5 : 2.02), time);
+    modGain.gain.setValueAtTime(freq * (lead ? 1.7 : bass ? 0.55 : 1.05), time);
+    mod.connect(modGain);
+    modGain.connect(oscA.frequency);
+    mod.start(time);
+    mod.stop(end + 0.04);
+  } else if (!chip) {
+    const oscB = audio.createOscillator();
+    oscB.type = pwm ? "square" : type === "sawtooth" ? "square" : type === "square" ? "sawtooth" : "triangle";
+    oscB.frequency.setValueAtTime(freq * (bass ? 1.004 : 1.01), time);
+    oscB.detune.setValueAtTime(lead ? 10 : pulse ? -8 : -5, time);
+    if (pwm) {
+      const pwmGain = audio.createGain();
+      const pwmLfo = audio.createOscillator();
+      pwmGain.gain.setValueAtTime(0.45, time);
+      pwmLfo.type = "sine";
+      pwmLfo.frequency.setValueAtTime(bass ? 0.7 : 4.2, time);
+      pwmLfo.connect(pwmGain.gain);
+      oscB.connect(pwmGain);
+      pwmGain.connect(filter);
+      pwmLfo.start(time);
+      pwmLfo.stop(end + 0.04);
+    } else {
+      oscB.connect(filter);
+    }
+    if (lead) {
+      const vibrato = audio.createOscillator();
+      const vibratoGain = audio.createGain();
+      vibrato.type = "sine";
+      vibrato.frequency.setValueAtTime(5.6, time);
+      vibratoGain.gain.setValueAtTime(0.0001, time);
+      vibratoGain.gain.setValueAtTime(0.0001, time + 0.12);
+      vibratoGain.gain.linearRampToValueAtTime(16, time + 0.28);
+      vibrato.connect(vibratoGain);
+      vibratoGain.connect(oscA.detune);
+      vibratoGain.connect(oscB.detune);
+      vibrato.start(time);
+      vibrato.stop(end + 0.04);
+    }
+    oscB.start(time);
+    oscB.stop(end + 0.04);
+  }
+
+  if (!pulse && !chip && !fm) {
     const oscSub = audio.createOscillator();
     const subGain = audio.createGain();
     oscSub.type = bass ? "sine" : lead ? g.style.counterType : "triangle";
     oscSub.frequency.setValueAtTime(freq * (bass || lead ? 0.5 : 0.25), time);
-    subGain.gain.setValueAtTime(bass ? 0.55 : 0.22, time);
+    subGain.gain.setValueAtTime(bass ? (acid ? 0.42 : 0.55) : 0.22, time);
     oscSub.connect(subGain);
     subGain.connect(filter);
     oscSub.start(time);
     oscSub.stop(end + 0.04);
   }
+
   filter.connect(envelope);
   envelope.connect(pan);
   pan.connect(dest);
   if (lead || voice === "counter") envelope.connect(g.reverbSend);
 
-  if (lead) {
-    const vibrato = audio.createOscillator();
-    const vibratoGain = audio.createGain();
-    vibrato.type = "sine";
-    vibrato.frequency.setValueAtTime(5.6, time);
-    vibratoGain.gain.setValueAtTime(0.0001, time);
-    vibratoGain.gain.setValueAtTime(0.0001, time + 0.12);
-    vibratoGain.gain.linearRampToValueAtTime(16, time + 0.28);
-    vibrato.connect(vibratoGain);
-    vibratoGain.connect(oscA.detune);
-    vibratoGain.connect(oscB.detune);
-    vibrato.start(time);
-    vibrato.stop(end + 0.04);
-  }
-
   oscA.start(time);
-  oscB.start(time);
   oscA.stop(end + 0.04);
-  oscB.stop(end + 0.04);
 }
 
 export function playNoise(
