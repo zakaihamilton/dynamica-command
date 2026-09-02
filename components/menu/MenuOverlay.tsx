@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import type { AudioVolumeKey } from "@/lib/audio/mixer";
 import type { GameSettings } from "@/lib/persist/settings";
+import type { Campaign } from "@/lib/types";
 import { MenuOptions } from "./MenuOptions";
 import { NewGameSetup } from "./NewGameSetup";
 import styles from "./MenuOverlay.module.css";
@@ -11,7 +12,7 @@ export function MenuOverlay({
   view,
   code,
   error,
-  previewLine,
+  campaign,
   inputRef,
   settings,
   onChange,
@@ -26,7 +27,7 @@ export function MenuOverlay({
   view: MenuView;
   code: string;
   error: string;
-  previewLine: string;
+  campaign: Campaign | null;
   inputRef: RefObject<HTMLInputElement | null>;
   settings: GameSettings;
   onChange: (value: string) => void;
@@ -47,7 +48,7 @@ export function MenuOverlay({
           <NewGameSetup
             code={code}
             error={error}
-            previewLine={previewLine}
+            campaign={campaign}
             inputRef={inputRef}
             onChange={onChange}
             onRandomize={onRandomize}

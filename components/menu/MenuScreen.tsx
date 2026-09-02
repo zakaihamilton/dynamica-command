@@ -60,7 +60,7 @@ export function MenuScreen() {
         view={controller.view}
         code={controller.code}
         error={controller.error}
-        previewLine={controller.previewLine}
+        campaign={controller.campaign}
         inputRef={controller.inputRef}
         settings={controller.settings}
         onChange={controller.setCode}

@@ -1,10 +1,11 @@
 .dialog {
   display: grid;
-  grid-template-columns: minmax(14rem, 0.82fr) minmax(20rem, 1.18fr);
-  gap: clamp(1.5rem, 5vw, 5rem);
+  grid-template-columns: minmax(16.5rem, 22rem) minmax(0, 1fr);
+  gap: clamp(1.15rem, 3vw, 2.25rem);
+  align-items: start;
   width: 100%;
-  max-width: 76rem;
-  padding: clamp(1.25rem, 4vw, 3.25rem);
+  max-width: 88rem;
+  padding: clamp(1rem, 3vw, 2rem);
   border-top: 2px solid var(--chrome-cyan);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 12%, transparent),
@@ -12,18 +13,17 @@
     inset 0 1px rgba(255,255,255,0.08);
 }
 
-.intro {
+.control {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  justify-content: center;
 }
 
 .title {
-  margin: 0.6rem 0 0;
+  margin: 0.55rem 0 0;
   color: var(--chrome-text);
   font-family: var(--font-display);
-  font-size: clamp(2rem, 4vw, 4rem);
+  font-size: clamp(1.85rem, 3.2vw, 2.7rem);
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 0.95;
@@ -31,49 +31,15 @@
 }
 
 .copy {
-  max-width: 28rem;
-  margin: 1.2rem 0 0;
-  font-size: 0.84rem;
-  line-height: 1.6;
+  max-width: 22rem;
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
   color: var(--chrome-body);
 }
 
-.introReadout {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.55rem 1rem;
-  max-width: 28rem;
-  margin-top: 2rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--chrome-line);
-  color: var(--chrome-muted);
-  font-family: var(--font-mono);
-  font-size: 0.54rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  line-height: 1.4;
-  text-transform: uppercase;
-}
-
-.introReadout strong {
-  color: var(--chrome-cyan);
-  font-weight: 700;
-}
-
-.introReadout span:last-child {
-  grid-column: 1 / -1;
-  color: var(--chrome-muted);
-}
-
-.form {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  justify-content: center;
-}
-
 .seedLabel {
-  margin-top: 0;
+  margin-top: 1.35rem;
 }
 
 .actions {
@@ -110,36 +76,35 @@
   text-transform: uppercase;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 899px) {
   .dialog {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    gap: 1.25rem;
   }
 
-  .introReadout {
-    margin-top: 1.25rem;
+  .copy {
+    max-width: none;
   }
 }
 
 @media (max-width: 420px) {
   .dialog {
-    gap: 1.2rem;
-    padding: 1rem;
+    gap: 1rem;
+    padding: 0.9rem;
   }
 
   .title {
-    font-size: 1.8rem;
+    font-size: 1.7rem;
   }
 
   .copy {
-    margin-top: 0.8rem;
+    margin-top: 0.7rem;
     font-size: 0.7rem;
     line-height: 1.4rem;
   }
 
-  .introReadout {
+  .seedLabel {
     margin-top: 1rem;
-    font-size: 0.48rem;
   }
 
   .hint {

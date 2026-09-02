@@ -1,15 +1,17 @@
+import type { RefObject } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import type { Campaign } from "@/lib/types";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
-import type { RefObject } from "react";
 import { SeedEntry } from "./SeedEntry";
+import { TheaterDossier } from "./TheaterDossier";
 import styles from "./NewGameSetup.module.css";
 
 export function NewGameSetup({
   code,
   error,
-  previewLine,
+  campaign,
   inputRef,
   onChange,
   onRandomize,
@@ -18,7 +20,7 @@ export function NewGameSetup({
 }: {
   code: string;
   error: string;
-  previewLine: string;
+  campaign: Campaign | null;
   inputRef: RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onRandomize: () => void;
@@ -27,25 +29,16 @@ export function NewGameSetup({
 }) {
   return (
     <MetalPanel as="section" className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title" data-testid="deploy-screen">
-      <div className={styles.intro}>
-        <ConsoleLabel>Dynamica command // Deployment</ConsoleLabel>
+      <div className={styles.control}>
+        <ConsoleLabel>Dynamica command // Theater authorization</ConsoleLabel>
         <h2 id="new-game-title" className={styles.title}>New theater</h2>
         <p className={styles.copy}>
-          Every four-digit seed writes a different war. Roll a fresh theater or enter a code to return to one you already know.
+          Roll a fresh theater or enter a known code. The same seed always writes the same war, and progress stays on this device.
         </p>
-        <div className={styles.introReadout}>
-          <span>CAMPAIGN FORMAT</span>
-          <strong>8 OPERATIONS</strong>
-          <span>SAME CODE, SAME CAMPAIGN · SAVED ON THIS DEVICE</span>
-        </div>
-      </div>
-
-      <div className={styles.form}>
         <ConsoleLabel className={styles.seedLabel}>Theater seed</ConsoleLabel>
         <SeedEntry
           code={code}
           error={error}
-          previewLine={previewLine}
           inputRef={inputRef}
           onChange={onChange}
           onRandomize={onRandomize}
@@ -72,6 +65,8 @@ export function NewGameSetup({
         </div>
         <p className={styles.hint}>R rolls a new theater · Enter launches · Escape returns</p>
       </div>
+
+      <TheaterDossier campaign={campaign} />
     </MetalPanel>
   );
 }

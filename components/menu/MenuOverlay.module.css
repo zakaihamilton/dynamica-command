@@ -14,7 +14,7 @@
 }
 
 .deployStage {
-  width: min(100%, 76rem);
+  width: min(100%, 88rem);
 }
 
 @media (max-width: 639px) {

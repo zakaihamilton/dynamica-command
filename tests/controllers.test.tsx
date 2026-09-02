@@ -45,7 +45,8 @@ describe("useMenuController", () => {
     act(() => result.current.setCode("0421"));
     act(() => result.current.launch());
 
-    expect(result.current.previewLine).toContain("·");
+    expect(result.current.campaign?.world.name).toBeTruthy();
+    expect(result.current.campaign?.factions).toHaveLength(2);
     expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&from=menu");
   });
 
@@ -62,6 +63,7 @@ describe("useMenuController", () => {
     const { result } = renderHook(() => useMenuController());
     act(() => result.current.setCode("12"));
     act(() => result.current.launch());
+    expect(result.current.campaign).toBeNull();
     expect(result.current.error).toContain("4-digit seed");
 
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));

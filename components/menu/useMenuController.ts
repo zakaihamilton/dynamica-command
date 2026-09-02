@@ -87,9 +87,7 @@ export function useMenuController() {
     view,
     settings,
     inputRef,
-    previewLine: preview
-      ? `${preview.world.name} · ${preview.factions[0].name} vs ${preview.factions[1].name}`
-      : "Enter a 4-digit campaign code — or roll a random theater",
+    campaign: preview,
     openNewGame,
     openTutorial,
     openLoadMission,

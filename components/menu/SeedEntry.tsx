@@ -6,7 +6,6 @@ import styles from "./SeedEntry.module.css";
 export function SeedEntry({
   code,
   error,
-  previewLine,
   inputRef,
   onChange,
   onRandomize,
@@ -14,7 +13,6 @@ export function SeedEntry({
 }: {
   code: string;
   error: string;
-  previewLine: string;
   inputRef: RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onRandomize: () => void;
@@ -60,10 +58,7 @@ export function SeedEntry({
           Roll
         </ConsoleButton>
       </div>
-      <div className={styles.status}>
-        <p className={styles.preview}>{previewLine}</p>
-        <p className={styles.error} aria-live="polite">{error || "\u00a0"}</p>
-      </div>
+      <p className={styles.error} aria-live="polite">{error || "\u00a0"}</p>
     </div>
   );
 }

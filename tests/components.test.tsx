@@ -47,7 +47,6 @@ function ControlledSeedEntry() {
     <SeedEntry
       code={code}
       error=""
-      previewLine="Preview"
       inputRef={inputRef}
       onChange={setCode}
       onRandomize={vi.fn()}
@@ -234,7 +233,6 @@ describe("SeedEntry", () => {
       <SeedEntry
         code="12"
         error=""
-        previewLine="Preview"
         inputRef={createRef<HTMLInputElement>()}
         onChange={onChange}
         onRandomize={onRandomize}
@@ -256,7 +254,6 @@ describe("SeedEntry", () => {
       <SeedEntry
         code="12"
         error=""
-        previewLine="Preview"
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
@@ -272,7 +269,7 @@ describe("MenuOverlay", () => {
     const props = {
       code: "0421",
       error: "",
-      previewLine: "Theater",
+      campaign: createCampaign(421),
       inputRef: createRef<HTMLInputElement>(),
       settings: defaultSettings(),
       onChange: vi.fn(),
@@ -298,7 +295,7 @@ describe("NewGameSetup", () => {
       <NewGameSetup
         code="0421"
         error=""
-        previewLine="Theater"
+        campaign={createCampaign(421)}
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}

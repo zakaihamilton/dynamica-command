@@ -54,25 +54,9 @@
   padding-right: 1rem;
 }
 
-.status {
-  margin-top: 0.75rem;
-  min-height: 2.5rem;
-}
-
-.preview {
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-  color: var(--chrome-muted);
-}
-
 .error {
-  margin: 0.25rem 0 0;
+  margin: 0.45rem 0 0;
+  min-height: 1.25rem;
   font-size: 0.875rem;
   color: var(--chrome-alert);
 }
@@ -95,9 +79,5 @@
   .roll {
     height: 3.25rem;
     padding-inline: 0.7rem;
-  }
-
-  .status {
-    min-height: 2.25rem;
   }
 }
