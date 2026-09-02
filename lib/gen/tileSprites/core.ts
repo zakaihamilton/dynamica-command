@@ -1,5 +1,6 @@
 import { type SpriteSpec, type TileSpriteOptions, type ShapeSpec, SURFACE_CONCRETE, SURFACE_ROAD } from "../../types";
 import { campaignProfileKey, generateCampaignVisualProfile } from "../visualProfile";
+import { TERRAIN_ART } from "../visualAssets";
 import { hash, terrainPalette, terrainZonePalette } from "../tilePalette";
 import { TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, SPRITE_W, SPRITE_H, ART_PIXEL_SCALE, TERRAIN_ART_REV, tileCx, tileCy, defaultContour } from "./constants";
 import { paintFloor, paintGroundCover, paintRoad, paintConcrete } from "./paintGround";
@@ -39,6 +40,7 @@ export function tileSprite(
   if (kind === "resource") paintOreField(shapes, biome, v, opts.resourceLevel ?? 4, surfaceMask === -1 || surfaceMask === 0);
   else if (kind === "blocked" && contour !== "ridge") paintBlocker(shapes, biome, p, v, cx, cy);
 
+  const plate = kind === "water" ? undefined : TERRAIN_ART[campaign.terrainTreatment];
   return {
     id: tileSpriteId(kind, elev, { ...opts, biome, variant, contour, campaignProfile: campaign }),
     kind: "tile",
@@ -47,6 +49,9 @@ export function tileSprite(
     palette: p,
     shapes,
     pixelScale: ART_PIXEL_SCALE,
+    imageTextureSrc: plate,
+    imageTextureOpacity: plate ? 0.3 : undefined,
+    imageTextureOffset: plate ? variant & 0xff : undefined,
   };
 }
 
