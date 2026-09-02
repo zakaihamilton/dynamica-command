@@ -27,7 +27,7 @@ export function BattlefieldHud({
         <div className={styles.missionMeta}>
           <div className={styles.seed} data-testid="seed">Seed {formatSeed(seed)}</div>
           <div className={styles.level} data-testid="level-progress">
-            Level {levelNumber} of {levelCount}
+            Operation {levelNumber} of {levelCount}
           </div>
         </div>
         <div className={styles.mission}>{missionName}</div>

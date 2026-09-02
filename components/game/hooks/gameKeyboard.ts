@@ -64,6 +64,10 @@ export function applyGameCommand(command: GameCommand, handlers: GameCommandHand
   else if (command.type === "options") {
     handlers.setPauseView("options");
     handlers.setPauseNotice("");
+  } else if (command.type === "controls") {
+    handlers.openPauseMenu();
+    handlers.setPauseView("controls");
+    handlers.setPauseNotice("");
   } else if (command.type === "menu") handlers.onNavigateHome();
   else if (command.type === "toggleSound") handlers.toggleSound();
   else if (command.type === "toggleMusic") handlers.toggleMusic();

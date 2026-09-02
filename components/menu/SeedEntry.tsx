@@ -1,7 +1,6 @@
 import type { RefObject } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
-import { cx } from "@/lib/ui/cx";
 import styles from "./SeedEntry.module.css";
 
 export function SeedEntry({
@@ -63,7 +62,7 @@ export function SeedEntry({
       </div>
       <div className={styles.status}>
         <p className={styles.preview}>{previewLine}</p>
-        <p className={cx(styles.error, !error && styles.hidden)}>{error || "placeholder"}</p>
+        <p className={styles.error} aria-live="polite">{error || "\u00a0"}</p>
       </div>
     </div>
   );

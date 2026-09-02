@@ -5,9 +5,24 @@ import { TooltipLayer } from "@/components/TooltipLayer";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import styles from "./layout.module.css";
 
+const DESCRIPTION = "Seeded isometric RTS — one 4-digit code writes the war.";
+
 export const metadata: Metadata = {
   title: "Dynamica Command",
-  description: "Seeded isometric RTS — one 4-digit code writes the war.",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "Dynamica Command",
+    description: DESCRIPTION,
+    siteName: "Dynamica Command",
+    type: "website",
+    images: [{ url: "/art/menu-command-vista.webp" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Dynamica Command",
+    description: DESCRIPTION,
+    images: ["/art/menu-command-vista.webp"],
+  },
 };
 
 export const viewport: Viewport = {

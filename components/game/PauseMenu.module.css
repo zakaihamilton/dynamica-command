@@ -76,10 +76,52 @@
 
 .hint {
   margin-top: 1rem;
-  font-size: 10px;
+  font-size: 0.625rem;
   text-transform: uppercase;
   letter-spacing: 0.025em;
   color: var(--chrome-muted);
+}
+
+.group {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--chrome-inset);
+}
+
+.groupLabel {
+  margin: 0;
+}
+
+.controlList {
+  display: grid;
+  gap: 0.35rem;
+  margin: 1rem 0 0;
+}
+
+.controlRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.controlRow dt {
+  color: var(--chrome-body);
+}
+
+.controlRow dd {
+  margin: 0;
+  color: var(--chrome-cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+.controlRow kbd {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.68rem;
 }
 
 @media (max-width: 600px) {

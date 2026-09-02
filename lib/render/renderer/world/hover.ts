@@ -3,11 +3,12 @@ import type { SimState } from "../../../types";
 import { TILE_H, TILE_W, tileToScreen, type Camera } from "../../../iso";
 import { canRepair } from "../../../sim/repair";
 import { canSell } from "../../../sim/sell";
+import { tutorialMoveTile } from "../../../sim/tutorialStage";
 import { heightAt } from "../../../sim/world";
+import { selectionPulse } from "../../anim";
 import { entityAtPointer, entityElev, visibleBuildingAt } from "../../renderPicking";
 import { strokeFootprint } from "../../renderStructures";
-import { drawDiamondStroke, drawTooltip, tileTooltipLines, tooltipLines } from "../../renderOverlays";
-import { drawDiamond, type RenderExtras } from "../../renderOverlays";
+import { drawDiamond, drawDiamondStroke, drawTooltip, tileTooltipLines, tooltipLines, type RenderExtras } from "../../renderOverlays";
 
 export function renderHoverPhase(
   ctx: CanvasRenderingContext2D,
@@ -18,6 +19,20 @@ export function renderHoverPhase(
   h: number,
   extras: RenderExtras,
 ): void {
+  const moveTile = tutorialMoveTile(state);
+  if (moveTile) {
+    const pulse = selectionPulse(extras.clockMs ?? 0);
+    const s = tileToScreen(moveTile.x, moveTile.y, cam, heightAt(state, moveTile.x, moveTile.y));
+    ctx.save();
+    ctx.globalAlpha = 0.4 + pulse * 0.45;
+    ctx.fillStyle = "rgba(67, 230, 154, 0.32)";
+    ctx.strokeStyle = "rgba(141, 255, 200, 0.95)";
+    ctx.lineWidth = 2.5;
+    drawDiamond(ctx, s.x, s.y, TILE_W * cam.zoom, TILE_H * cam.zoom);
+    drawDiamondStroke(ctx, s.x, s.y, TILE_W * cam.zoom, TILE_H * cam.zoom);
+    ctx.restore();
+  }
+
   if (hoverTile && !extras.placeKind && (extras.repairMode || extras.sellMode)) {
     const hovered = visibleBuildingAt(state, hoverTile.x, hoverTile.y);
     if (hovered && hovered.hp > 0) {

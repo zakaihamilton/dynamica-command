@@ -103,7 +103,7 @@
 }
 
 .low .digits {
-  color: #ffb08a;
+  color: var(--chrome-warning);
   text-shadow:
     0 0 8px color-mix(in srgb, var(--chrome-alert) 55%, transparent),
     0 0 14px color-mix(in srgb, var(--chrome-alert) 28%, transparent);

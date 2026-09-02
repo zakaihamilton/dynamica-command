@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from "react";
 import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { useModalFocus } from "@/components/ui/useModalFocus";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { missionDebrief } from "@/lib/sim/debrief";
 import type { SimState } from "@/lib/types";
@@ -27,6 +28,7 @@ export function MissionResult({
   onMenu: () => void;
 }) {
   const [soundtrackOpen, setSoundtrackOpen] = useState(false);
+  const dialogRef = useModalFocus(state.result !== "playing" && !soundtrackOpen, state.result);
   if (state.result === "playing") return null;
   const debrief = missionDebrief(state);
   return (
@@ -36,7 +38,14 @@ export function MissionResult({
       data-result={state.result}
       style={{ "--result-art": `url("${RASTER_ART[state.result === "won" ? "victory" : "defeat"]}")` } as CSSProperties}
     >
-      <MetalPanel className={styles.panel} role="dialog" aria-modal="true" aria-labelledby="mission-result-title">
+      <MetalPanel
+        ref={dialogRef}
+        tabIndex={-1}
+        className={styles.panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mission-result-title"
+      >
         <ConsoleLabel>Theater status</ConsoleLabel>
         <h2 id="mission-result-title" className={styles.title}>
           {state.result === "won" ? "Mission complete" : "Mission failed"}

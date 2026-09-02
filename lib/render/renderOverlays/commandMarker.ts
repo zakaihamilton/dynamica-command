@@ -1,9 +1,24 @@
 import { TILE_H, tileToScreen, type Camera } from "../../iso";
 import { heightAt } from "../../sim/world";
 import type { SimState } from "../../types";
-import type { CommandMarker } from "./types";
+import type { CommandMarker, CommandMarkerKind } from "./types";
 
 export const COMMAND_MARKER_DURATION_MS = 650;
+
+export const COMMAND_MARKER_COLORS: Record<CommandMarkerKind, { stroke: string; shadow: string; fill: string }> = {
+  move: { stroke: "#8dffc8", shadow: "#43e69a", fill: "#d7ffe9" },
+  attack: { stroke: "#ff7a6e", shadow: "#e04538", fill: "#ffd4ce" },
+  harvest: { stroke: "#ffd07a", shadow: "#e0a040", fill: "#ffe9c4" },
+  support: { stroke: "#7ad4ff", shadow: "#3aa0e0", fill: "#d4f2ff" },
+};
+
+export function commandMarkerKind(commands: { type: string }[]): CommandMarkerKind | null {
+  if (commands.some((command) => command.type === "attack" || command.type === "attackMove")) return "attack";
+  if (commands.some((command) => command.type === "harvest")) return "harvest";
+  if (commands.some((command) => command.type === "support")) return "support";
+  if (commands.some((command) => command.type === "move")) return "move";
+  return null;
+}
 
 export function drawCommandMarker(
   ctx: CanvasRenderingContext2D,
@@ -21,12 +36,13 @@ export function drawCommandMarker(
   const groundY = s.y + (TILE_H / 2) * z;
   const fade = 1 - progress;
   const radius = (8 + progress * 18) * z;
+  const colors = COMMAND_MARKER_COLORS[marker.kind ?? "move"];
 
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   ctx.globalAlpha = fade;
-  ctx.strokeStyle = "#8dffc8";
-  ctx.shadowColor = "#43e69a";
+  ctx.strokeStyle = colors.stroke;
+  ctx.shadowColor = colors.shadow;
   ctx.shadowBlur = 8 * z;
   ctx.lineWidth = Math.max(1.5, 2 * z);
   ctx.beginPath();
@@ -45,7 +61,7 @@ export function drawCommandMarker(
     ctx.stroke();
   }
 
-  ctx.fillStyle = "#d7ffe9";
+  ctx.fillStyle = colors.fill;
   ctx.beginPath();
   ctx.moveTo(s.x, groundY - 5 * z);
   ctx.lineTo(s.x + 5 * z, groundY);

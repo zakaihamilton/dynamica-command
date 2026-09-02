@@ -2,13 +2,14 @@ import { useCallback, useRef, type MutableRefObject, type PointerEvent } from "r
 import { beep } from "@/lib/audio/synth";
 import { beepForCommands } from "@/lib/audio/uiOrders";
 import { pickTile } from "@/lib/render/renderer";
-import type { CommandMarker } from "@/lib/render/renderOverlays/types";
+import { commandMarkerKind, type CommandMarker } from "@/lib/render/renderOverlays";
 import { panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { type Camera } from "@/lib/iso";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import { canvasPointerPos } from "./canvasPointer";
-import { contextOrders, pickSelectableEntity, pointerTile } from "./gameInputOrders";
+import { contextOrders, entityAt, pickSelectableEntity, pointerTile } from "./gameInputOrders";
+import { battlefieldCursor } from "@/lib/ui/battlefieldCursor";
 import { resolvePointerUp, type PointerUpEffect } from "./gamePointerUp";
 import { selectionProjectionPoint, type SelectionBox } from "./selectionBox";
 import { useTouchGestures } from "./useTouchGestures";
@@ -60,9 +61,10 @@ export function useGameInput({
   const commandMarkerRef = useRef<CommandMarker | null>(null);
 
   const markUnitCommand = useCallback((s: SimState, p: { x: number; y: number }, commands: Command[]) => {
-    if (!commands.some((command) => command.type === "move" || command.type === "attackMove" || command.type === "attack" || command.type === "support" || command.type === "harvest")) return;
+    const kind = commandMarkerKind(commands);
+    if (!kind) return;
     const { x, y } = pointerTile(s, p, camRef.current);
-    commandMarkerRef.current = { x, y, bornMs: performance.now() };
+    commandMarkerRef.current = { x, y, bornMs: performance.now(), kind };
   }, [camRef]);
 
   const issueContextOrder = useCallback((s: SimState, p: { x: number; y: number }, attackMove = false) => {
@@ -144,6 +146,18 @@ export function useGameInput({
     if (e.pointerType === "touch" && moveTouch(e, p)) return;
     cursorRef.current = p;
     if (s) hoverRef.current = pickTile(s, p.x, p.y, camRef.current);
+    if (s && e.currentTarget.style) {
+      const tile = hoverRef.current;
+      e.currentTarget.style.cursor = battlefieldCursor({
+        state: s,
+        hoverTile: tile,
+        hoverEntity: tile ? entityAt(s, tile.x, tile.y) : undefined,
+        selectedIds: [...selectedRef.current],
+        placeKind: placeRef.current,
+        repairMode: repairRef.current,
+        sellMode: sellRef.current,
+      });
+    }
     if (e.pointerType !== "touch" && boxRef.current && e.buttons === 1) {
       boxRef.current.x1 = p.x;
       boxRef.current.y1 = p.y;
@@ -154,11 +168,12 @@ export function useGameInput({
         ? null
         : panDirFromPointer(e.clientX - r.left, e.clientY - r.top, r.width, r.height, EDGE_PAN_BAND, panAvailRef.current),
     );
-  }, [applyEdgePan, camRef, moveTouch, panAvailRef, pausedRef, stateRef]);
+  }, [applyEdgePan, camRef, moveTouch, panAvailRef, pausedRef, placeRef, repairRef, selectedRef, sellRef, stateRef]);
 
-  const onLeave = useCallback(() => {
+  const onLeave = useCallback((e?: PointerEvent<HTMLCanvasElement>) => {
     cursorRef.current = null;
     hoverRef.current = null;
+    if (e?.currentTarget.style) e.currentTarget.style.cursor = "";
     applyEdgePan(null);
   }, [applyEdgePan]);
 
