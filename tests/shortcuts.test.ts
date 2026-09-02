@@ -71,6 +71,7 @@ describe("shortcut matching", () => {
     expect(gameCommandFromKey({ key: "q" }, { ...play, typing: true })).toBeNull();
     expect(gameCommandFromKey({ key: "q", repeat: true }, play)).toBeNull();
     expect(menuCommandFromKey({ key: "n" }, { typing: false, setupOpen: false })).toEqual({ type: "newGame" });
+    expect(menuCommandFromKey({ key: "t" }, { typing: false, setupOpen: false })).toEqual({ type: "tutorial" });
     expect(menuCommandFromKey({ key: "o" }, { typing: false, setupOpen: false })).toEqual({ type: "options" });
     expect(menuCommandFromKey({ key: "a" }, { typing: false, setupOpen: false })).toBeNull();
     expect(menuCommandFromKey({ key: "Enter" }, { typing: false, setupOpen: false })).toBeNull();

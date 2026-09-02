@@ -311,6 +311,7 @@ describe("MenuHero", () => {
 describe("MenuMainPanel dashboard", () => {
   const handlers = {
     onNewGame: vi.fn(),
+    onTutorial: vi.fn(),
     onLoadMission: vi.fn(),
     onOptions: vi.fn(),
   };
@@ -326,14 +327,17 @@ describe("MenuMainPanel dashboard", () => {
 
     expect(screen.getByTestId("menu-dashboard")).toBeVisible();
     expect(screen.getByRole("navigation", { name: "Main menu" })).toBeVisible();
+    expect(screen.getByRole("navigation", { name: "Main menu" })).toHaveTextContent("TUTORIAL");
     expect(screen.getByRole("navigation", { name: "Main menu" })).toHaveTextContent("LOAD MISSION");
     expect(screen.getByRole("navigation", { name: "Main menu" })).not.toHaveTextContent("Campaign archive");
     expect(screen.queryByRole("button", { name: "IMPORT SAVE" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "NEW GAME" }));
+    fireEvent.click(screen.getByRole("button", { name: "TUTORIAL" }));
     fireEvent.click(screen.getByRole("button", { name: "LOAD MISSION" }));
     fireEvent.click(screen.getByRole("button", { name: "OPTIONS" }));
     expect(handlers.onNewGame).toHaveBeenCalledOnce();
+    expect(handlers.onTutorial).toHaveBeenCalledOnce();
     expect(handlers.onLoadMission).toHaveBeenCalledOnce();
     expect(handlers.onOptions).toHaveBeenCalledOnce();
   });

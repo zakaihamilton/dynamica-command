@@ -224,7 +224,7 @@ describe("mission confirmation and routes", () => {
       confirmLabel: "Restart mission",
     });
     expect(briefingPath(421, 2, true)).toBe("/briefing?seed=0421&mission=2&return=game");
-    expect(tutorialPath(421, "campaign")).toBe("/tutorial?seed=0421&from=campaign");
+    expect(tutorialPath()).toBe("/tutorial");
     expect(briefingBackPath(421, 2, false, "campaign")).toBe("/campaign?seed=0421");
     expect(briefingBackPath(421, 2, false, "result")).toBe("/play?seed=0421&mission=2&resume=1");
     expect(campaignCompletePath(7)).toBe("/campaign-complete?seed=0007");

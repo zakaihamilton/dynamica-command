@@ -11,7 +11,7 @@ import { missionObjectives, objectiveHeadline } from "@/lib/gen/story";
 import { biomeLabel } from "@/lib/gen/names";
 import { biomeArt, RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
-import { briefingPath, tutorialPath } from "../game/hooks/missionRoutes";
+import { briefingPath } from "../game/hooks/missionRoutes";
 import styles from "./CampaignCompleteScreen.module.css";
 import { campaignSummary, missionMedalDisplay, missionUnlocks } from "./campaignSummary";
 import { useCampaignProgress } from "./useCampaignProgress";
@@ -38,10 +38,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
   }, [operations, router]);
 
   const launchMission = (missionIndex: number) => {
-    const path = missionIndex === 0 && !progress.tutorialComplete
-      ? tutorialPath(seed, "campaign")
-      : briefingPath(seed, missionIndex, false, "campaign");
-    router.push(path);
+    router.push(briefingPath(seed, missionIndex, false, "campaign"));
   };
   const selectedMission = campaign.missions[selectedMissionIndex];
   const selectedMissionComplete = selectedMission
@@ -56,9 +53,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
   const selectedTimeLimit = selectedMission ? missionTimeLimitLabel(selectedMission.win) : undefined;
   const selectedLaunchLabel = selectedMissionComplete
     ? `Replay mission ${selectedMissionIndex + 1}`
-    : selectedMissionIndex === 0 && !progress.tutorialComplete
-      ? "Begin training"
-      : `Deploy mission ${selectedMissionIndex + 1}`;
+    : `Deploy mission ${selectedMissionIndex + 1}`;
 
   const missionQueue = (
     <section className={styles.section} aria-labelledby="mission-record-title">

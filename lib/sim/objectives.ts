@@ -108,7 +108,11 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
       break;
     }
     case "holdTheLine": {
-      const t = w.ticks ?? 0;
+      if (w.ticks === undefined) {
+        progress = { current: 0, target: 0, label: "Training range — no time limit" };
+        break;
+      }
+      const t = w.ticks;
       const left = Math.max(0, t - state.tick);
       progress = {
         current: Math.min(state.tick, t),

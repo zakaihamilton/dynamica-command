@@ -11,8 +11,8 @@ export function menuPath(): string {
   return "/";
 }
 
-export function tutorialPath(seed: number, origin: NavigationOrigin = "menu"): string {
-  return `/tutorial?seed=${formatSeed(seed)}&from=${origin}`;
+export function tutorialPath(): string {
+  return "/tutorial";
 }
 
 export function playResumePath(seed: number, mission: number): string {

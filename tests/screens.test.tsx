@@ -19,8 +19,13 @@ vi.mock("@/lib/audio/mixer", () => ({ setAudioLevels: vi.fn() }));
 vi.mock("@/components/menu/MenuBackdrop", () => ({ MenuBackdrop: () => <div data-testid="menu-backdrop" /> }));
 vi.mock("@/components/menu/MenuHero", () => ({ MenuHero: () => <h1>Dynamica Command</h1> }));
 vi.mock("@/components/menu/MenuMainPanel", () => ({
-  MenuMainPanel: ({ onNewGame, onLoadMission, onOptions }: { onNewGame: () => void; onLoadMission: () => void; onOptions: () => void }) => (
-    <div><button onClick={onNewGame}>NEW GAME</button><button onClick={onLoadMission}>LOAD MISSION</button><button onClick={onOptions}>OPTIONS</button></div>
+  MenuMainPanel: ({ onNewGame, onTutorial, onLoadMission, onOptions }: { onNewGame: () => void; onTutorial: () => void; onLoadMission: () => void; onOptions: () => void }) => (
+    <div>
+      <button onClick={onNewGame}>NEW GAME</button>
+      <button onClick={onTutorial}>TUTORIAL</button>
+      <button onClick={onLoadMission}>LOAD MISSION</button>
+      <button onClick={onOptions}>OPTIONS</button>
+    </div>
   ),
 }));
 vi.mock("@/components/menu/MenuOverlay", () => ({
@@ -54,8 +59,14 @@ describe("MenuScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "NEW GAME" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("newGame");
     fireEvent.click(screen.getByRole("button", { name: "Launch" }));
-    expect(router.push).toHaveBeenCalledWith("/tutorial?seed=0421&from=menu");
+    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&from=menu");
     vi.restoreAllMocks();
+  });
+
+  it("opens the training range from the welcome tutorial action", () => {
+    render(<MenuScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "TUTORIAL" }));
+    expect(router.push).toHaveBeenCalledWith("/tutorial");
   });
 
   it("keeps the full product name out of the welcome topbar", () => {
@@ -130,6 +141,17 @@ describe("CampaignCompleteScreen", () => {
     fireEvent.click(screen.getByTestId("mission-card-1"));
     fireEvent.click(screen.getByTestId("launch-selected-mission"));
     expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=1&from=campaign");
+    fireEvent.click(screen.getByTestId("mission-card-0"));
+    fireEvent.click(screen.getByTestId("launch-selected-mission"));
+    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&from=campaign");
+  });
+
+  it("deploys the first operation to briefing without training", () => {
+    render(<CampaignCompleteScreen seed={421} mode="operations" />);
+
+    expect(screen.getByTestId("launch-selected-mission")).toHaveTextContent("Deploy mission 1");
+    fireEvent.click(screen.getByTestId("launch-selected-mission"));
+    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&from=campaign");
   });
 
   it("returns to the menu when Escape is pressed on the operations map", () => {

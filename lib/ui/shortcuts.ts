@@ -36,6 +36,7 @@ export type GameCommand =
 
 export type MenuCommand =
   | { type: "newGame" }
+  | { type: "tutorial" }
   | { type: "loadMission" }
   | { type: "options" }
   | { type: "deploy" }
@@ -75,6 +76,7 @@ export const SHORTCUT = {
   mute: "M",
   music: "U",
   newGame: "N",
+  tutorial: "T",
   randomize: "R",
   deploy: "Enter",
   launch: "Enter",
@@ -203,6 +205,7 @@ export function menuCommandFromKey(
   }
   if (ctx.typing) return null;
   if (letter(e) === "n") return { type: "newGame" };
+  if (letter(e) === "t") return { type: "tutorial" };
   if (letter(e) === "l") return { type: "loadMission" };
   if (letter(e) === "o") return { type: "options" };
   return null;

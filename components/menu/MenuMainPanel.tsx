@@ -6,10 +6,12 @@ import styles from "./MenuMainPanel.module.css";
 
 export function MenuMainPanel({
   onNewGame,
+  onTutorial,
   onLoadMission,
   onOptions,
 }: {
   onNewGame: () => void;
+  onTutorial: () => void;
   onLoadMission: () => void;
   onOptions: () => void;
 }) {
@@ -23,6 +25,9 @@ export function MenuMainPanel({
       <div className={styles.actions}>
         <ConsoleButton className={styles.primaryAction} tooltip="Open campaign setup" shortcut={SHORTCUT.newGame} onClick={onNewGame}>
           NEW GAME
+        </ConsoleButton>
+        <ConsoleButton muted className={`${styles.utilityAction} ${styles.loadAction}`} tooltip="Open the seed 0000 training range" shortcut={SHORTCUT.tutorial} onClick={onTutorial}>
+          TUTORIAL
         </ConsoleButton>
         <ConsoleButton muted className={`${styles.utilityAction} ${styles.loadAction}`} tooltip="Open the campaign archive" shortcut={SHORTCUT.load} onClick={onLoadMission}>
           LOAD MISSION

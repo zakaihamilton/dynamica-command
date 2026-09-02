@@ -46,7 +46,7 @@ describe("mission director", () => {
   });
 
   it("does not run director events during tutorial training, including legacy state", () => {
-    const state = createTutorialMission(421);
+    const state = createTutorialMission();
     expect(state.runtime?.director).toBeUndefined();
 
     const runtime = state.runtime!;

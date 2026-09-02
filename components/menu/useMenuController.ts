@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCampaign } from "@/lib/gen/campaign";
 import { cachedLocalStorage } from "@/lib/persist/save";
-import { readCampaignProgress } from "@/lib/persist/campaign";
 import { defaultSettings, readSettings, type GameSettings } from "@/lib/persist/settings";
 import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import type { MenuView } from "./MenuOverlay";
+import { tutorialPath } from "../game/hooks/missionRoutes";
 import { menuLaunchPath, rollSeed } from "./menuLaunch";
 
 export function useMenuController() {
@@ -41,6 +41,7 @@ export function useMenuController() {
 
   const openOptions = useCallback(() => setView("options"), []);
   const openLoadMission = useCallback(() => router.push("/load"), [router]);
+  const openTutorial = useCallback(() => router.push(tutorialPath()), [router]);
 
   const openOperations = useCallback(() => {
     const seed = parseSeed(code);
@@ -57,9 +58,7 @@ export function useMenuController() {
   }, []);
 
   const launch = useCallback(() => {
-    const seed = parseSeed(code);
-    const progress = seed === null ? null : readCampaignProgress(cachedLocalStorage(), seed);
-    const path = menuLaunchPath(code, progress?.tutorialComplete ?? false);
+    const path = menuLaunchPath(code);
     if (!path) {
       setError("Enter a 4-digit seed (0000–9999), or roll a random theater.");
       return;
@@ -78,6 +77,7 @@ export function useMenuController() {
       if (!command) return;
       e.preventDefault();
       if (command.type === "newGame") openNewGame();
+      else if (command.type === "tutorial") openTutorial();
       else if (command.type === "loadMission") openLoadMission();
       else if (command.type === "options") openOptions();
       else if (command.type === "toggleSound") toggleSound();
@@ -88,7 +88,7 @@ export function useMenuController() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [view, openNewGame, openLoadMission, openOptions, toggleSound, toggleMusic, launch, randomize]);
+  }, [view, openNewGame, openTutorial, openLoadMission, openOptions, toggleSound, toggleMusic, launch, randomize]);
 
   return {
     code,
@@ -100,6 +100,7 @@ export function useMenuController() {
       ? `${preview.world.name} · ${preview.factions[0].name} vs ${preview.factions[1].name}`
       : "Four digits lock a theater — or roll a random war",
     openNewGame,
+    openTutorial,
     openLoadMission,
     openOptions,
     openOperations,

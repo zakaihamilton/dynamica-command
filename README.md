@@ -15,7 +15,7 @@ yarn install --frozen-lockfile
 yarn dev
 ```
 
-Open the app, then choose **New Game** or type a seed such as `0421` and choose **Launch**. Progress autosaves in the browser under that seed. The first deploy of a seed runs a guided **tutorial**. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load, portable export, and briefing. The generated sprite browser is public at **`/assets`**, with a public JSON API at **`/api/assets`**.
+Open the app, then choose **New Game** or type a seed such as `0421` and choose **Launch**. Progress autosaves in the browser under that seed. The welcome screen **TUTORIAL** opens a guided training range on seed `0000` with no time limit. The welcome screen **Options** (and pause Options) control **music and sound effects**, including separate volume sliders. Pause also opens save/load, portable export, and briefing. The generated sprite browser is public at **`/assets`**, with a public JSON API at **`/api/assets`**.
 
 | Script | What it does |
 | --- | --- |

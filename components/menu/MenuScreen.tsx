@@ -36,6 +36,7 @@ export function MenuScreen() {
             <MenuHero />
             <MenuMainPanel
               onNewGame={controller.openNewGame}
+              onTutorial={controller.openTutorial}
               onLoadMission={controller.openLoadMission}
               onOptions={controller.openOptions}
             />

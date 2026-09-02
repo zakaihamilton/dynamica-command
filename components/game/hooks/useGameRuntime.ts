@@ -13,7 +13,6 @@ import { useGameRenderer } from "./useGameRenderer";
 import { useGameSession } from "./useGameSession";
 import { useGameSelection } from "./useGameSelection";
 import { useGameRuntimeState } from "./useGameRuntimeState";
-import type { NavigationOrigin } from "./missionRoutes";
 import { clearRenderSessionCaches } from "@/lib/render/sessionCache";
 
 export function useGameRuntime({
@@ -22,14 +21,12 @@ export function useGameRuntime({
   resume,
   fresh = false,
   tutorial = false,
-  tutorialOrigin = "menu",
 }: {
   seed: number;
   mission: number;
   resume: boolean;
   fresh?: boolean;
   tutorial?: boolean;
-  tutorialOrigin?: NavigationOrigin;
 }) {
   const {
     campaign,
@@ -174,7 +171,7 @@ export function useGameRuntime({
     settings: audioSettings,
     setSettings: setAudioSettings,
     saveSession,
-    tutorialOrigin,
+    tutorial,
     browserBackGuardEnabled: !tutorial && state.result === "playing",
     onBrowserBackLeave: resetTransientMobileUi,
   });
@@ -269,6 +266,7 @@ export function useGameRuntime({
     redraw,
     onAlert,
     onTacticalAnnouncement: announceTactical,
+    persistCampaign: !tutorial,
   });
 
   useGameAudioLifecycle({ seed, missionIndex: state.missionIndex, tutorial, paused });

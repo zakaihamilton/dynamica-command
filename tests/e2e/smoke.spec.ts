@@ -7,23 +7,7 @@ import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/s
 import { SETTINGS_KEY, SETTINGS_VERSION } from "../../lib/persist/settings";
 import type { SimState } from "../../lib/types";
 
-/** Fixture so briefing/play tests can skip the first-deploy /tutorial gate. */
-async function markTutorialComplete(page: Page, seed = 421) {
-  const progress = { ...freshCampaignProgress(seed), tutorialComplete: true };
-  await page.addInitScript(({ key, raw }) => {
-    localStorage.setItem(key, raw);
-  }, {
-    key: campaignKey(seed),
-    raw: JSON.stringify({
-      version: CAMPAIGN_PROGRESS_VERSION,
-      savedAt: Date.now(),
-      progress,
-    }),
-  });
-}
-
-async function openBriefingSkippingTutorial(page: Page) {
-  await markTutorialComplete(page);
+async function openBriefing(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
   const seed = page.getByLabel("Four digit theater seed");
@@ -33,7 +17,7 @@ async function openBriefingSkippingTutorial(page: Page) {
 }
 
 async function deployToBattlefield(page: Page) {
-  await openBriefingSkippingTutorial(page);
+  await openBriefing(page);
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
 }
@@ -77,16 +61,21 @@ async function browserSupportsNativeAac(page: Page): Promise<boolean> {
   });
 }
 
-test("first deploy routes through tutorial to briefing", async ({ page }) => {
+test("welcome tutorial opens the seed 0000 training range", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "NEW GAME" }).click();
-  await page.getByLabel("Four digit theater seed").fill("0421");
-  await page.getByRole("button", { name: "Launch" }).click();
-  await expect(page).toHaveURL(/\/tutorial\?seed=0421/);
+  await page.getByRole("button", { name: "TUTORIAL" }).click();
+  await expect(page).toHaveURL(/\/tutorial/);
   await expect(page.getByTestId("tutorial-overlay")).toBeVisible();
+  await expect(page.getByTestId("seed")).toHaveText("Seed 0000");
+  await expect(page.getByTestId("objective")).toHaveText("Training range — no time limit");
+  await expect(page.getByTestId("time-remaining")).toHaveCount(0);
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await page.getByRole("button", { name: "Skip training" }).click();
-  await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("new game launch goes to briefing without training", async ({ page }) => {
+  await openBriefing(page);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();
 
   await page.getByRole("button", { name: "Launch" }).click();
@@ -95,7 +84,7 @@ test("first deploy routes through tutorial to briefing", async ({ page }) => {
 });
 
 test("launches a seeded campaign from menu to battlefield", async ({ page }) => {
-  await openBriefingSkippingTutorial(page);
+  await openBriefing(page);
   await expect(page.getByTestId("mission-objectives")).toBeVisible();
   await expect(page.getByTestId("mission-objectives")).toContainText(/construction yard/i);
   await expect(page.getByTestId("mission-objectives")).toContainText("9 min");
@@ -109,7 +98,6 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
 });
 
 test("opens the operations map and launches an available mission", async ({ page }) => {
-  await markTutorialComplete(page);
   await page.goto("/campaign?seed=0421");
 
   await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
@@ -125,7 +113,6 @@ test("opens the operations map and launches an available mission", async ({ page
 });
 
 test("returns from the operations map with Escape", async ({ page }) => {
-  await markTutorialComplete(page);
   await page.goto("/campaign?seed=0421");
 
   await expect(page.getByRole("heading", { name: "Operations map" })).toBeVisible();
@@ -380,7 +367,7 @@ test("toggles music and sound from welcome options", async ({ page }) => {
 });
 
 test("shows briefing portraits before launch", async ({ page }) => {
-  await openBriefingSkippingTutorial(page);
+  await openBriefing(page);
   await expect(page.getByTestId("briefing-portrait").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Replay" })).toBeVisible();
 });
@@ -448,7 +435,7 @@ test("cancels a soundtrack export without closing the panel", async ({ page }) =
 });
 
 test("replays the incoming transmission from the start", async ({ page }) => {
-  await openBriefingSkippingTutorial(page);
+  await openBriefing(page);
   await page.keyboard.press(" ");
   const lastLine = page.getByTestId("briefing-line").nth(2);
   await expect(lastLine).toBeVisible();
