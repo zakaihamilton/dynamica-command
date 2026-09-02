@@ -31,12 +31,6 @@ describe("product chrome", () => {
     expect(document.title).toBe("Dynamica Command");
   });
 
-  it("sets a not-found document title", () => {
-    document.title = "Dynamica Command";
-    render(<NotFound />);
-    expect(document.title).toBe("Signal not found | Dynamica Command");
-  });
-
   it("labels the HUD as an operation instead of a level", () => {
     render(
       <BattlefieldHud

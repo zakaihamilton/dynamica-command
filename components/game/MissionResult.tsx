@@ -28,7 +28,7 @@ export function MissionResult({
   onMenu: () => void;
 }) {
   const [soundtrackOpen, setSoundtrackOpen] = useState(false);
-  const dialogRef = useModalFocus(state.result !== "playing" && !soundtrackOpen, state.result);
+  const dialogRef = useModalFocus(state.result !== "playing" && !soundtrackOpen, state.result, "dialog");
   if (state.result === "playing") return null;
   const debrief = missionDebrief(state);
   return (

@@ -22,7 +22,7 @@ export function SaveImportDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const dialogRef = useModalFocus(true, fileName);
+  const dialogRef = useModalFocus(true, fileName, "dialog");
   return (
     <div className={styles.backdrop} role="presentation">
       <MetalPanel

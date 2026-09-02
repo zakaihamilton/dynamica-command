@@ -8,12 +8,12 @@ import { useModalFocus } from "../components/ui/useModalFocus";
 
 afterEach(() => cleanup());
 
-function Trap() {
-  const ref = useModalFocus(true);
+function Trap({ initial = "first" }: { initial?: "dialog" | "first" }) {
+  const ref = useModalFocus(true, initial, initial);
   return (
     <div>
       <button type="button">Outside</button>
-      <div ref={ref as Ref<HTMLDivElement>} tabIndex={-1} role="dialog">
+      <div ref={ref as Ref<HTMLDivElement>} tabIndex={-1} role="dialog" aria-label="Dialog">
         <button type="button">First</button>
         <button type="button">Last</button>
       </div>
@@ -32,6 +32,11 @@ describe("useModalFocus", () => {
 
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(screen.getByRole("button", { name: "Last" })).toHaveFocus();
+  });
+
+  it("can start on the dialog so button tooltips do not pop on open", () => {
+    render(<Trap initial="dialog" />);
+    expect(screen.getByRole("dialog", { name: "Dialog" })).toHaveFocus();
   });
 
   it("pulls focus back when tab starts outside the dialog", () => {

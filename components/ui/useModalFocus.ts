@@ -15,7 +15,11 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)];
 }
 
-export function useModalFocus(active: boolean, resetKey?: string | number): RefObject<HTMLElement | null> {
+export function useModalFocus(
+  active: boolean,
+  resetKey?: string | number,
+  initial: "dialog" | "first" = "first",
+): RefObject<HTMLElement | null> {
   const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -23,19 +27,20 @@ export function useModalFocus(active: boolean, resetKey?: string | number): RefO
     const node = ref.current;
     if (!node) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const initial = focusableElements(node)[0] ?? node;
-    initial.focus();
+    const items = focusableElements(node);
+    const start = initial === "first" ? (items[0] ?? node) : node;
+    start.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
-      const items = focusableElements(node);
-      if (items.length === 0) {
+      const cycle = focusableElements(node);
+      if (cycle.length === 0) {
         event.preventDefault();
         node.focus();
         return;
       }
-      const first = items[0]!;
-      const last = items[items.length - 1]!;
+      const first = cycle[0]!;
+      const last = cycle[cycle.length - 1]!;
       const activeEl = document.activeElement;
       const inside = activeEl instanceof Node && node.contains(activeEl);
       if (!inside) {
@@ -43,10 +48,10 @@ export function useModalFocus(active: boolean, resetKey?: string | number): RefO
         (event.shiftKey ? last : first).focus();
         return;
       }
-      if (event.shiftKey && activeEl === first) {
+      if (event.shiftKey && (activeEl === first || activeEl === node)) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && activeEl === last) {
+      } else if (!event.shiftKey && (activeEl === last || activeEl === node)) {
         event.preventDefault();
         first.focus();
       }
@@ -57,7 +62,7 @@ export function useModalFocus(active: boolean, resetKey?: string | number): RefO
       document.removeEventListener("keydown", onKeyDown, true);
       if (previous?.isConnected) previous.focus();
     };
-  }, [active, resetKey]);
+  }, [active, initial, resetKey]);
 
   return ref;
 }

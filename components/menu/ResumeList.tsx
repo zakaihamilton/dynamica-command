@@ -27,7 +27,7 @@ export function ResumeList({
   onDelete: (seed: string) => void;
 }) {
   const [pendingDelete, setPendingDelete] = useState<Save | null>(null);
-  const deleteDialogRef = useModalFocus(Boolean(pendingDelete), pendingDelete?.seed);
+  const deleteDialogRef = useModalFocus(Boolean(pendingDelete), pendingDelete?.seed, "dialog");
 
   useEffect(() => {
     if (!pendingDelete) return;

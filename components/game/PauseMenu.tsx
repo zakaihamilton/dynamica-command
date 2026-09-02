@@ -54,7 +54,7 @@ export function PauseMenu({
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
 }) {
-  const dialogRef = useModalFocus(view !== "soundtrack", view);
+  const dialogRef = useModalFocus(view !== "soundtrack", view, "dialog");
   return (
     <div className={styles.overlay} data-testid="pause-menu">
       {view === "soundtrack" ? (
