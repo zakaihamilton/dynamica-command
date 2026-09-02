@@ -66,6 +66,10 @@
   min-width: 0;
 }
 
+.rowSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .item {
   width: 100%;
   padding: 0.5rem 0.75rem;
@@ -73,6 +77,11 @@
   font-size: 0.75rem;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.selected {
+  color: var(--chrome-cyan);
+  border-color: var(--chrome-cyan-dim);
 }
 
 .delete {

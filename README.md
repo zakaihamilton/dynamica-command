@@ -15,7 +15,7 @@ yarn install --frozen-lockfile
 yarn dev
 ```
 
-Open the app, then choose **New Game** or type a seed such as `0421` and choose **Launch**. Progress autosaves under that seed. **Tutorial** opens a guided training range with no time limit. **Options** (welcome and pause) control **music and sound effects**, including volume sliders. Pause also opens save, load, backup download, and briefing. Browse unit and building art at **`/assets`**.
+Open the app, then choose **New Game** or type a seed such as `0421` and choose **Launch**. Progress autosaves under that seed. **Tutorial** opens a guided training range with no time limit. **Options** (welcome and pause) control **music and sound effects**, including volume sliders. Pause also opens named save slots, load, and briefing. Browse unit and building art at **`/assets`**.
 
 | Script | What it does |
 | --- | --- |
@@ -37,7 +37,7 @@ For local E2E runs, the preflight launches the same headless browser used by Pla
 
 ## How a seed works
 
-A seed is a four-digit campaign code. Enter the same number later and you get the same world, factions, and eight missions. Progress (units, credits, explored map, and build queues) is saved on this device for that seed. Music and sound settings are saved separately.
+A seed is a four-digit campaign code. Enter the same number later and you get the same world, factions, and eight missions. Progress (units, credits, explored map, and build queues) autosaves on this device for that seed. Pause **Save Mission** also writes a named slot you can keep beside that autosave. Music and sound settings are saved separately.
 
 ```text
 seed 0421
@@ -50,7 +50,7 @@ seed 0421
        └─ map (size, heightmap, resources, bases)
 ```
 
-Share a seed to share a universe. **Load Mission** lists every save on this device, and each campaign has an **operations map**. From New Game, enter or roll a seed and choose Operations map to inspect the theater before deployment. Select an operation to preview its primary and secondary objectives, expected duration, map scale, and unlocks before deploying. Unlocked operations launch from their briefing; completed operations can be replayed for better medals and scores.
+Share a seed to share a universe. **Load Mission** lists named save slots and autosaves on this device, and each campaign has an **operations map**. From New Game, enter or roll a seed and choose Operations map to inspect the theater before deployment. Select an operation to preview its primary and secondary objectives, expected duration, map scale, and unlocks before deploying. Unlocked operations launch from their briefing; completed operations can be replayed for better medals and scores.
 
 ## Campaign
 

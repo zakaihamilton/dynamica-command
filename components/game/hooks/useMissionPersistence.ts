@@ -1,19 +1,26 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useRouter } from "next/navigation";
 import { beep } from "@/lib/audio/synth";
 import {
   cachedLocalStorage,
+  defaultSlotName,
+  hasLoadableSaves,
+  listPauseLoadEntries,
+  listSlots,
   readSave,
-  saveExportFilename,
-  serializeSaveExport,
+  readSlot,
+  writeSave,
+  writeSlot,
+  type ArchiveEntry,
 } from "@/lib/persist/save";
 import type { SaveSession } from "@/lib/persist/save";
-import { readCampaignProgress } from "@/lib/persist/campaign";
+import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission, enterTutorialStage } from "@/lib/sim/tutorial";
+import { formatSeed } from "@/lib/seed/rng";
 import type { Command, SimState } from "@/lib/types";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { FxBurst } from "@/lib/render/fx";
-import { downloadSaveExport } from "@/lib/persist/saveDownload";
 
 export type MissionPersistenceParams = {
   seed: number;
@@ -54,41 +61,9 @@ export function useMissionPersistence({
   saveSession,
   tutorial = false,
 }: MissionPersistenceParams) {
-  const saveMissionNow = useCallback(() => {
-    if (tutorial) {
-      setPauseNotice("Training isn't saved to a campaign.");
-      return;
-    }
-    const status = saveSession.write(stateRef.current, "explicit");
-    setPauseNotice(status === "saved" ? "Mission saved." : "Couldn't save. Check that this browser allows site data.");
-  }, [saveSession, setPauseNotice, stateRef, tutorial]);
+  const router = useRouter();
 
-  const exportMissionNow = useCallback(() => {
-    if (tutorial) {
-      setPauseNotice("Training isn't saved to a campaign.");
-      return;
-    }
-    try {
-      const current = stateRef.current;
-      const campaign = readCampaignProgress(cachedLocalStorage(), seed);
-      const contents = serializeSaveExport(current, campaign);
-      downloadSaveExport(contents, saveExportFilename(seed));
-      setPauseNotice("Save downloaded.");
-    } catch {
-      setPauseNotice("Couldn't download a backup of this campaign.");
-    }
-  }, [seed, setPauseNotice, stateRef, tutorial]);
-
-  const loadMissionNow = useCallback(() => {
-    if (tutorial) {
-      setPauseNotice("Training isn't saved to a campaign.");
-      return;
-    }
-    const loaded = readSave(cachedLocalStorage(), seed);
-    if (!loaded) {
-      setPauseNotice("No save found for this campaign.");
-      return;
-    }
+  const applyLoadedState = useCallback((loaded: SimState, notice: string) => {
     stateRef.current = loaded;
     saveSession.adoptCurrent();
     campaignRecordedRef.current = loaded.result === "won";
@@ -100,7 +75,8 @@ export function useMissionPersistence({
     clearTools();
     resetInput();
     resetCamera(loaded);
-    setPauseNotice("Loaded the last save.");
+    setPauseView("main");
+    setPauseNotice(notice);
   }, [
     campaignRecordedRef,
     clearTools,
@@ -109,14 +85,99 @@ export function useMissionPersistence({
     fxRef,
     resetCamera,
     resetInput,
-    seed,
     saveSession,
     setPauseNotice,
+    setPauseView,
     setState,
     stateRef,
     terminalSaveRef,
-    tutorial,
   ]);
+
+  const openSaveSlots = useCallback(() => {
+    if (tutorial) {
+      setPauseNotice("Training isn't saved to a campaign.");
+      return;
+    }
+    setPauseNotice("");
+    setPauseView("save");
+  }, [setPauseNotice, setPauseView, tutorial]);
+
+  const openLoadSlots = useCallback(() => {
+    if (tutorial) {
+      setPauseNotice("Training isn't saved to a campaign.");
+      return;
+    }
+    if (!hasLoadableSaves(cachedLocalStorage(), seed)) {
+      setPauseNotice("No save slots.");
+      return;
+    }
+    setPauseNotice("");
+    setPauseView("load");
+  }, [seed, setPauseNotice, setPauseView, tutorial]);
+
+  const saveNamedSlot = useCallback((name: string, overwriteId: string | null) => {
+    if (tutorial) {
+      setPauseNotice("Training isn't saved to a campaign.");
+      return false;
+    }
+    const current = stateRef.current;
+    const storage = cachedLocalStorage();
+    const written = writeSlot(storage, {
+      id: overwriteId ?? undefined,
+      name,
+      state: current,
+      campaign: readCampaignProgress(storage, current.seed),
+    });
+    if (!written.ok) {
+      setPauseNotice("Couldn't save. Check that this browser allows site data.");
+      return false;
+    }
+    const status = saveSession.write(current, "explicit");
+    if (status !== "saved") {
+      setPauseNotice("Couldn't save. Check that this browser allows site data.");
+      return false;
+    }
+    const slot = readSlot(storage, written.id);
+    setPauseView("main");
+    setPauseNotice(`Saved “${slot?.name ?? name}”.`);
+    return true;
+  }, [saveSession, setPauseNotice, setPauseView, stateRef, tutorial]);
+
+  const loadArchiveEntry = useCallback((entry: ArchiveEntry) => {
+    if (tutorial) {
+      setPauseNotice("Training isn't saved to a campaign.");
+      return;
+    }
+    const storage = cachedLocalStorage();
+    if (entry.kind === "autosave") {
+      const loaded = readSave(storage, Number(entry.seed));
+      if (!loaded) {
+        setPauseNotice("No save found for this campaign.");
+        return;
+      }
+      if (loaded.seed === seed && loaded.missionIndex === stateRef.current.missionIndex) {
+        applyLoadedState(loaded, "Loaded the autosave.");
+        return;
+      }
+      router.push(`/play?seed=${formatSeed(loaded.seed)}&mission=${loaded.missionIndex}&resume=1`);
+      return;
+    }
+
+    const slot = readSlot(storage, entry.id);
+    if (!slot) {
+      setPauseNotice("Couldn't load that save slot.");
+      return;
+    }
+    writeCampaignProgress(storage, slot.campaign);
+    if (slot.state.seed === seed && slot.state.missionIndex === stateRef.current.missionIndex) {
+      const autosave = saveSession.write(slot.state, "explicit");
+      if (autosave !== "saved") writeSave(storage, slot.state);
+      applyLoadedState(slot.state, `Loaded “${slot.name}”.`);
+      return;
+    }
+    writeSave(storage, slot.state);
+    router.push(`/play?seed=${formatSeed(slot.state.seed)}&mission=${slot.state.missionIndex}&slot=${slot.id}`);
+  }, [applyLoadedState, router, saveSession, seed, setPauseNotice, stateRef, tutorial]);
 
   const restartMissionNow = useCallback(() => {
     const world = stateRef.current;
@@ -162,5 +223,15 @@ export function useMissionPersistence({
     setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
   }, [setState, stateRef]);
 
-  return { saveMissionNow, exportMissionNow, loadMissionNow, restartMissionNow, advanceTutorial };
+  return {
+    openSaveSlots,
+    openLoadSlots,
+    saveNamedSlot,
+    loadArchiveEntry,
+    defaultSlotName: () => defaultSlotName(stateRef.current),
+    listSaveSlots: () => listSlots(cachedLocalStorage()),
+    listLoadEntries: () => listPauseLoadEntries(cachedLocalStorage(), seed),
+    restartMissionNow,
+    advanceTutorial,
+  };
 }

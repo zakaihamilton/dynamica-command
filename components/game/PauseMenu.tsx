@@ -4,11 +4,14 @@ import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { useModalFocus } from "@/components/ui/useModalFocus";
 import type { AudioVolumeKey } from "@/lib/audio/mixer";
+import type { ArchiveEntry, SlotMeta } from "@/lib/persist/save";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import { PauseControls } from "./PauseControls";
+import { PauseLoadSlots } from "./PauseLoadSlots";
 import { PauseMainMenu } from "./PauseMainMenu";
 import { PauseOptions } from "./PauseOptions";
+import { PauseSaveSlots } from "./PauseSaveSlots";
 import styles from "./PauseMenu.module.css";
 
 export function PauseMenu({
@@ -17,13 +20,17 @@ export function PauseMenu({
   settings,
   seed,
   missionIndex,
+  saveSlots,
+  loadEntries,
+  defaultSlotName,
   onResume,
   onSave,
-  onExport = () => {},
   onLoad,
+  onCommitSave,
+  onLoadEntry,
   onBriefing,
   onRestart,
-      onControls,
+  onControls,
   onSoundtrack,
   onOptions,
   onMenu,
@@ -38,10 +45,14 @@ export function PauseMenu({
   settings: GameSettings;
   seed: number;
   missionIndex: number;
+  saveSlots: SlotMeta[];
+  loadEntries: ArchiveEntry[];
+  defaultSlotName: string;
   onResume: () => void;
   onSave: () => void;
-  onExport?: () => void;
   onLoad: () => void;
+  onCommitSave: (name: string, overwriteId: string | null) => boolean;
+  onLoadEntry: (entry: ArchiveEntry) => void;
   onBriefing: () => void;
   onRestart: () => void;
   onControls: () => void;
@@ -72,7 +83,6 @@ export function PauseMenu({
             <PauseMainMenu
               onResume={onResume}
               onSave={onSave}
-              onExport={onExport}
               onLoad={onLoad}
               onBriefing={onBriefing}
               onRestart={onRestart}
@@ -83,6 +93,19 @@ export function PauseMenu({
             />
           ) : view === "controls" ? (
             <PauseControls onBack={onBack} />
+          ) : view === "save" ? (
+            <PauseSaveSlots
+              defaultName={defaultSlotName}
+              slots={saveSlots}
+              onCommit={onCommitSave}
+              onBack={onBack}
+            />
+          ) : view === "load" ? (
+            <PauseLoadSlots
+              entries={loadEntries}
+              onLoad={onLoadEntry}
+              onBack={onBack}
+            />
           ) : (
             <PauseOptions
               settings={settings}

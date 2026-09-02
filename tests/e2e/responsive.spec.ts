@@ -616,7 +616,7 @@ test.describe("mobile-first layouts", () => {
 
     await page.getByRole("button", { name: "LOAD MISSION" }).click();
     await expect(page.getByTestId("campaign-archive")).toBeVisible();
-    await expect(page.getByRole("button", { name: "IMPORT SAVE" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
     const archiveScrollContainers = await page.getByTestId("campaign-archive").evaluate((element) => {
       const containers: string[] = [];

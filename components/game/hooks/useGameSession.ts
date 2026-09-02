@@ -2,8 +2,14 @@ import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } fr
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission } from "@/lib/sim/tutorial";
-import { cachedLocalStorage, readSave } from "@/lib/persist/save";
+import {
+  cachedLocalStorage,
+  readSave,
+  readSlot,
+  writeSave,
+} from "@/lib/persist/save";
 import { consumeFreshLaunchIntent } from "@/lib/persist/navigation";
+import { writeCampaignProgress } from "@/lib/persist/campaign";
 import type { SaveSession } from "@/lib/persist/save";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { SimState } from "@/lib/types";
@@ -32,8 +38,17 @@ export function initialMission(
   resume: boolean,
   tutorial: boolean,
   fresh = false,
+  slotId?: string | null,
 ): SimState {
   if (tutorial) return createTutorialMission();
+  if (slotId && typeof window !== "undefined") {
+    const slot = readSlot(cachedLocalStorage(), slotId);
+    if (slot && slot.state.seed === seed) {
+      writeCampaignProgress(cachedLocalStorage(), slot.campaign);
+      writeSave(cachedLocalStorage(), slot.state);
+      return slot.state;
+    }
+  }
   const freshLaunchIntent = consumeFreshLaunchIntent(seed, mission);
   const startFresh = fresh && (freshLaunchIntent || !isBrowserReload());
   if (!startFresh && typeof window !== "undefined") {
@@ -106,10 +121,6 @@ export function useGameSession({
     tutorial,
   });
   const confirmation = useMissionConfirmation({
-    seed,
-    setPauseNotice,
-    saveNow: persistence.saveMissionNow,
-    loadNow: persistence.loadMissionNow,
     restartNow: persistence.restartMissionNow,
     goHomeNow: confirmGoHome,
   });
@@ -154,9 +165,13 @@ export function useGameSession({
     cancelConfirmation,
     openPauseMenu,
     resumeMission,
-    saveMission: confirmation.saveMission,
-    exportMission: persistence.exportMissionNow,
-    loadMission: confirmation.loadMission,
+    saveMission: persistence.openSaveSlots,
+    loadMission: persistence.openLoadSlots,
+    saveNamedSlot: persistence.saveNamedSlot,
+    loadArchiveEntry: persistence.loadArchiveEntry,
+    defaultSlotName: persistence.defaultSlotName,
+    listSaveSlots: persistence.listSaveSlots,
+    listLoadEntries: persistence.listLoadEntries,
     viewMissionBriefing: routes.viewMissionBriefing,
     restartMission: confirmation.restartMission,
     toggleSound,

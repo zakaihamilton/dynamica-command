@@ -29,10 +29,14 @@ export function GamePauseSurface({
       settings={settings}
       seed={seed}
       missionIndex={missionIndex}
+      saveSlots={session.listSaveSlots()}
+      loadEntries={session.listLoadEntries()}
+      defaultSlotName={session.defaultSlotName()}
       onResume={session.resumeMission}
       onSave={session.saveMission}
-      onExport={session.exportMission}
       onLoad={session.loadMission}
+      onCommitSave={session.saveNamedSlot}
+      onLoadEntry={session.loadArchiveEntry}
       onBriefing={session.viewMissionBriefing}
       onRestart={session.restartMission}
       onControls={() => {

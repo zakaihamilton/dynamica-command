@@ -16,7 +16,7 @@ import { useMissionRoutes } from "../components/game/hooks/useMissionRoutes";
 import { useMissionBackGuard } from "../components/game/hooks/useMissionBackGuard";
 import { useMenuController } from "../components/menu/useMenuController";
 import { consumeFreshLaunchIntent } from "../lib/persist/navigation";
-import { createSaveSession, localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
+import { createSaveSession, listSlots, localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
 import { defaultSettings } from "../lib/persist/settings";
 import { makeFixture, addBuilding, addUnit } from "../lib/sim/fixtures";
 import type { Command } from "../lib/types";
@@ -295,9 +295,11 @@ describe("game lifecycle hooks", () => {
     expect(router.push).toHaveBeenCalledWith("/tutorial");
   });
 
-  it("requires confirmation before saving, loading, restarting, or leaving a mission", () => {
+  it("opens save and load slot panels and restores a named slot in place", () => {
     const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
     const stateRef = { current: state };
+    const setPauseView = vi.fn();
+    const setPauseNotice = vi.fn();
     const props: Parameters<typeof useGameSession>[0] = {
       seed: 421,
       stateRef,
@@ -310,8 +312,8 @@ describe("game lifecycle hooks", () => {
       resetCamera: vi.fn(),
       pausedRef: { current: true },
       setPaused: vi.fn(),
-      setPauseView: vi.fn(),
-      setPauseNotice: vi.fn(),
+      setPauseView,
+      setPauseNotice,
       campaignRecordedRef: { current: false },
       terminalSaveRef: { current: false },
       settings: defaultSettings(),
@@ -321,23 +323,23 @@ describe("game lifecycle hooks", () => {
     const { result } = renderHook(() => useGameSession(props));
 
     act(() => result.current.saveMission());
-    expect(result.current.confirmation).toMatchObject({
-      action: "save",
-      message: "Save this mission?",
-    });
-    expect(readSave(localStorageAdapter(), 421)).toBeNull();
-    act(() => result.current.confirmAction());
+    expect(setPauseView).toHaveBeenCalledWith("save");
     expect(result.current.confirmation).toBeNull();
-    expect(readSave(localStorageAdapter(), 421)?.seed).toBe(421);
+    expect(readSave(localStorageAdapter(), 421)).toBeNull();
 
-    stateRef.current.tick = 77;
-    act(() => result.current.saveMission());
-    act(() => result.current.confirmAction());
+    act(() => {
+      expect(result.current.saveNamedSlot("Bridgehead", null)).toBe(true);
+    });
+    expect(readSave(localStorageAdapter(), 421)?.seed).toBe(421);
+    expect(listSlots(localStorageAdapter())[0]?.name).toBe("Bridgehead");
+    expect(setPauseNotice).toHaveBeenCalledWith('Saved “Bridgehead”.');
+
     stateRef.current.tick = 99;
     act(() => result.current.loadMission());
-    expect(result.current.confirmation).toMatchObject({ action: "load" });
-    act(() => result.current.confirmAction());
-    expect(stateRef.current.tick).toBe(77);
+    expect(setPauseView).toHaveBeenCalledWith("load");
+    const loaded = result.current.listLoadEntries()[0]!;
+    act(() => result.current.loadArchiveEntry(loaded));
+    expect(stateRef.current.tick).toBe(0);
     expect(props.cmdQRef.current).toEqual([]);
     expect(props.fxRef.current).toEqual([]);
     expect(props.clearTools).toHaveBeenCalledOnce();

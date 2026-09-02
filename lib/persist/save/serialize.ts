@@ -1,6 +1,6 @@
 import { formatSeed } from "../../seed/rng";
 import { SURFACE_NONE } from "../../types";
-import type { CampaignProgress, SimState, UnitKind } from "../../types";
+import type { SimState, UnitKind } from "../../types";
 import { generateWorld } from "../../gen/world";
 import { expandFog } from "../../sim/fog";
 import { compactDestroyedEntities, compactedState } from "../../sim/world/lifecycle";
@@ -8,8 +8,6 @@ import { isSupportUnit, UNIT_KINDS, UNIT_STATS } from "../../catalog";
 import {
   SAVE_CONTENT_VERSION,
   isStateShape,
-  isNormalizableStateInput,
-  isCampaignProgressShape,
   isNumber,
   assertSupportedContentVersion,
 } from "./validation";
@@ -21,10 +19,6 @@ export const SAVE_VERSION = 2;
 const LEGACY_SAVE_VERSION = 1;
 const LEGACY_SAVE_CONTENT_VERSION = 1;
 
-export const SAVE_EXPORT_FORMAT = "dynamica-command-save" as const;
-export const SAVE_EXPORT_VERSION = 1 as const;
-export const SAVE_TRANSFER_KEY = "dynamica-command:save-transfer";
-
 export type SaveEnvelope = {
   version: typeof SAVE_VERSION;
   contentVersion: typeof SAVE_CONTENT_VERSION;
@@ -32,20 +26,11 @@ export type SaveEnvelope = {
   state: unknown;
 };
 
-export type SaveExportEnvelope = {
-  format: typeof SAVE_EXPORT_FORMAT;
-  version: typeof SAVE_EXPORT_VERSION;
-  contentVersion: typeof SAVE_CONTENT_VERSION;
-  exportedAt: number;
-  state: SimState;
-  campaign: CampaignProgress;
-};
-
-export type ParsedSaveExport = {
-  state: SimState;
-  campaign: CampaignProgress;
-  exportedAt: number;
-};
+export function decodeSavedState(value: unknown): SimState {
+  const state = normalizeState(value);
+  if (!isStateShape(state)) throw new Error("Invalid save state");
+  return state;
+}
 
 export function decodeSave(raw: string): { state: SimState; savedAt: number } {
   const parsed: unknown = JSON.parse(raw);
@@ -64,54 +49,7 @@ export function decodeSave(raw: string): { state: SimState; savedAt: number } {
     assertSupportedContentVersion(LEGACY_SAVE_CONTENT_VERSION);
     savedAt = parsed.savedAt;
   }
-  const state = normalizeState(value);
-  if (!isStateShape(state)) throw new Error("Invalid save state");
-  return { state, savedAt };
-}
-
-export function serializeSaveExport(
-  state: SimState,
-  campaign: CampaignProgress,
-  exportedAt = Date.now(),
-): string {
-  if (!isCampaignProgressShape(campaign)) throw new Error("Invalid campaign progress");
-  if (!isStateShape(state)) throw new Error("Invalid save state");
-  if (state.seed !== campaign.seed) throw new Error("Save and campaign seeds must match");
-  const envelope: SaveExportEnvelope = {
-    format: SAVE_EXPORT_FORMAT,
-    version: SAVE_EXPORT_VERSION,
-    contentVersion: SAVE_CONTENT_VERSION,
-    exportedAt,
-    state: compactedState(state),
-    campaign,
-  };
-  return JSON.stringify(envelope);
-}
-
-export function parseSaveExport(raw: string): ParsedSaveExport {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    console.debug("[persist] Failed to parse save export JSON:", err);
-    throw new Error("This is not a Dynamica Command save file.");
-  }
-  if (!isRecord(parsed) || parsed.format !== SAVE_EXPORT_FORMAT || parsed.version !== SAVE_EXPORT_VERSION) {
-    throw new Error("This save file isn't compatible.");
-  }
-  if (parsed.contentVersion !== SAVE_CONTENT_VERSION || !isNumber(parsed.exportedAt)) {
-    throw new Error("This save is from a newer version of the game.");
-  }
-  if (!isCampaignProgressShape(parsed.campaign)) throw new Error("This save could not be read.");
-  if (!isNormalizableStateInput(parsed.state)) throw new Error("This save could not be read.");
-  const state = normalizeState(parsed.state);
-  if (!isStateShape(state)) throw new Error("This save could not be read.");
-  if (state.seed !== parsed.campaign.seed) throw new Error("This save doesn't match its campaign.");
-  return { state, campaign: parsed.campaign, exportedAt: parsed.exportedAt };
-}
-
-export function saveExportFilename(seed: number): string {
-  return `dynamica-command-${formatSeed(seed)}-save.json`;
+  return { state: decodeSavedState(value), savedAt };
 }
 
 export function saveKey(seed: number): string {

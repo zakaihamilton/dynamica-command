@@ -1,39 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
-import { DocumentTitle } from "@/components/ui/DocumentTitle";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
-import { cachedLocalStorage, hasSaveForSeed, listSaves, listUnreadableSaves, parseSaveExport, removeSave, type ParsedSaveExport } from "@/lib/persist/save";
-import { importSaveAtomically } from "@/lib/persist/saveTransfer";
+import {
+  cachedLocalStorage,
+  listArchiveEntries,
+  listUnreadableSaves,
+  listUnreadableSlots,
+  removeSave,
+  removeSlot,
+  type ArchiveEntry,
+} from "@/lib/persist/save";
 import { MenuBackdrop } from "@/components/menu/MenuBackdrop";
-import { ResumeList } from "@/components/menu/ResumeList";
-import { SaveImportDialog } from "@/components/menu/SaveImportDialog";
-import { formatSeed } from "@/lib/seed/rng";
+import { SaveSlotList } from "@/components/menu/SaveSlotList";
 import styles from "./CampaignArchiveScreen.module.css";
-
-type Save = ReturnType<typeof listSaves>[number];
 
 export function CampaignArchiveScreen() {
   const router = useRouter();
-  const [saves, setSaves] = useState<Save[]>([]);
+  const [entries, setEntries] = useState<ArchiveEntry[]>([]);
   const [unreadableSaves, setUnreadableSaves] = useState<string[]>([]);
-  const [importPreview, setImportPreview] = useState<{
-    fileName: string;
-    save: ParsedSaveExport;
-    collision: boolean;
-  } | null>(null);
-  const [importError, setImportError] = useState("");
-  const [importNotice, setImportNotice] = useState("");
-  const importInputRef = useRef<HTMLInputElement>(null);
+  const [unreadableSlots, setUnreadableSlots] = useState<string[]>([]);
 
   const refreshSaves = useCallback(() => {
     const storage = cachedLocalStorage();
-    setSaves(listSaves(storage));
+    setEntries(listArchiveEntries(storage));
     setUnreadableSaves(listUnreadableSaves(storage));
+    setUnreadableSlots(listUnreadableSlots(storage));
   }, []);
 
   useEffect(() => {
@@ -41,28 +37,21 @@ export function CampaignArchiveScreen() {
     return () => cancelAnimationFrame(frame);
   }, [refreshSaves]);
 
-  const cancelImport = useCallback(() => {
-    setImportPreview(null);
-    setImportError("");
-  }, []);
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
-      if (importPreview) {
-        cancelImport();
-        return;
-      }
       router.push("/");
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelImport, importPreview, router]);
+  }, [router]);
 
-  const deleteSave = useCallback((seed: string) => {
-    removeSave(cachedLocalStorage(), Number(seed));
+  const deleteEntry = useCallback((entry: ArchiveEntry) => {
+    const storage = cachedLocalStorage();
+    if (entry.kind === "slot") removeSlot(storage, entry.id);
+    else removeSave(storage, Number(entry.seed));
     refreshSaves();
   }, [refreshSaves]);
 
@@ -71,30 +60,21 @@ export function CampaignArchiveScreen() {
     refreshSaves();
   }, [refreshSaves]);
 
-  const handleImportFile = useCallback(async (file: File) => {
-    setImportError("");
-    setImportNotice("");
-    try {
-      const parsed = parseSaveExport(await file.text());
-      const collision = hasSaveForSeed(cachedLocalStorage(), parsed.state.seed);
-      setImportPreview({ fileName: file.name, save: parsed, collision });
-    } catch (cause) {
-      setImportPreview(null);
-      setImportError(cause instanceof Error ? cause.message : "Couldn't read that save file.");
-    }
-  }, []);
+  const resetUnreadableSlot = useCallback((id: string) => {
+    removeSlot(cachedLocalStorage(), id);
+    refreshSaves();
+  }, [refreshSaves]);
 
-  const confirmImport = useCallback(() => {
-    if (!importPreview) return;
-    const imported = importSaveAtomically(cachedLocalStorage(), importPreview.save);
-    if (!imported) {
-      setImportError("Couldn't save this campaign on this device.");
+  const resumeEntry = useCallback((entry: ArchiveEntry) => {
+    if (entry.kind === "slot") {
+      router.push(`/play?seed=${entry.seed}&mission=${entry.missionIndex}&slot=${entry.id}`);
       return;
     }
-    setImportPreview(null);
-    setImportNotice(`Imported campaign ${formatSeed(importPreview.save.state.seed)}. Choose Resume or Operations when ready.`);
-    refreshSaves();
-  }, [importPreview, refreshSaves]);
+    router.push(`/play?seed=${entry.seed}&resume=1`);
+  }, [router]);
+
+  const damagedCount = unreadableSaves.length + unreadableSlots.length;
+  const slotCount = entries.filter((entry) => entry.kind === "slot").length;
 
   return (
     <main
@@ -102,7 +82,6 @@ export function CampaignArchiveScreen() {
       style={{ "--scene-art": `url("${RASTER_ART.menu}")` } as React.CSSProperties}
       data-testid="campaign-archive-screen"
     >
-      <DocumentTitle title="Campaign Archive | Dynamica Command" />
       <MenuBackdrop />
       <div className={styles.vignette} />
       <div className={styles.scanlines} />
@@ -113,72 +92,66 @@ export function CampaignArchiveScreen() {
             <span className={styles.brandMark}>DC</span>
             <span>DYNAMICA COMMAND</span>
             <span className={styles.topbarDivider}>/</span>
-            <span className={styles.topbarMuted}>CAMPAIGN ARCHIVE</span>
+            <span className={styles.topbarMuted}>SAVE SLOTS</span>
           </div>
           <div className={styles.topbarStatus}>
             <span className={styles.statusDot} aria-hidden="true" />
-            <span>SAVES ON THIS DEVICE</span>
+            <span>LOCAL SAVE INDEX</span>
           </div>
         </header>
 
         <div className={styles.content}>
           <MetalPanel as="section" className={styles.panel} data-testid="campaign-archive" aria-labelledby="load-mission-title">
             <header className={styles.header}>
-              <ConsoleLabel>Dynamica command // Campaign archive</ConsoleLabel>
+              <ConsoleLabel>Dynamica command // Save slots</ConsoleLabel>
               <h1 id="load-mission-title" className={styles.title}>Load mission</h1>
-              <p className={styles.subtitle}>SELECT A SAVED THEATER</p>
-              <p className={styles.copy}>Resume a local mission, inspect its operations map, or remove an archive you no longer need.</p>
+              <p className={styles.subtitle}>SELECT A SAVE SLOT</p>
+              <p className={styles.copy}>Resume a named save or an autosave, inspect its operations map, or remove a slot you no longer need.</p>
             </header>
 
             <div className={styles.summary} aria-label="Campaign archive summary">
               <div>
-                <span>Stored theaters</span>
-                <strong>{saves.length}</strong>
+                <span>Stored slots</span>
+                <strong>{slotCount}</strong>
               </div>
               <div>
                 <span>Damaged saves</span>
-                <strong className={unreadableSaves.length ? styles.alertValue : undefined}>{unreadableSaves.length}</strong>
+                <strong className={damagedCount ? styles.alertValue : undefined}>{damagedCount}</strong>
               </div>
             </div>
 
             <div className={styles.archiveHeader}>
-              <ConsoleLabel as="h2">Campaign archive</ConsoleLabel>
+              <ConsoleLabel as="h2">Save slots</ConsoleLabel>
               <div className={styles.archiveControls}>
-                <span className={styles.archiveStatus}>{saves.length ? "READY TO RESUME" : "ARCHIVE EMPTY"}</span>
-                <ConsoleButton muted className={styles.importButton} onClick={() => importInputRef.current?.click()} tooltip="Import a Dynamica Command save file">
-                  IMPORT SAVE
-                </ConsoleButton>
-                <input
-                  ref={importInputRef}
-                  className={styles.hiddenInput}
-                  type="file"
-                  accept="application/json,.json"
-                  aria-label="Choose a Dynamica Command save file"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.target.value = "";
-                    if (file) void handleImportFile(file);
-                  }}
-                />
+                <span className={styles.archiveStatus}>{entries.length ? "READY TO RESUME" : "ARCHIVE EMPTY"}</span>
               </div>
             </div>
-            {importError ? <p className={styles.importError} role="alert">{importError}</p> : null}
-            {importNotice ? <p className={styles.importNotice} role="status">{importNotice}</p> : null}
-            <ResumeList
-              saves={saves}
-              showHeading={false}
+            <SaveSlotList
+              entries={entries}
+              emptyLabel="No save slots."
               expanded
-              onResume={(seed) => router.push(`/play?seed=${seed}&resume=1`)}
+              showActions
+              onResume={resumeEntry}
               onCampaignMap={(seed) => router.push(`/campaign?seed=${seed}`)}
-              onDelete={deleteSave}
+              onDelete={deleteEntry}
             />
 
-            {unreadableSaves.length ? (
+            {unreadableSaves.length || unreadableSlots.length ? (
               <div className={styles.recovery} role="alert">
-                <span>Damaged save{unreadableSaves.length === 1 ? "" : "s"}: {unreadableSaves.join(", ")}</span>
+                {unreadableSaves.length ? (
+                  <span>Damaged save{unreadableSaves.length === 1 ? "" : "s"}: {unreadableSaves.join(", ")}</span>
+                ) : null}
+                {unreadableSlots.length ? (
+                  <span>Damaged slot{unreadableSlots.length === 1 ? "" : "s"}: {unreadableSlots.join(", ")}</span>
+                ) : null}
                 {unreadableSaves.map((seed) => (
                   <ConsoleButton key={seed} tooltip={`Remove damaged save ${seed}`} onClick={() => resetUnreadableSave(seed)}>
                     Reset {seed}
+                  </ConsoleButton>
+                ))}
+                {unreadableSlots.map((id) => (
+                  <ConsoleButton key={id} tooltip={`Remove damaged save slot ${id}`} onClick={() => resetUnreadableSlot(id)}>
+                    Reset {id.slice(0, 8)}
                   </ConsoleButton>
                 ))}
               </div>
@@ -193,22 +166,12 @@ export function CampaignArchiveScreen() {
         </div>
 
         <footer className={styles.footer}>
-          <span>SAVED ON THIS DEVICE</span>
+          <span>LOCAL SAVE SLOTS</span>
           <span className={styles.footerRule} aria-hidden="true" />
           <span>RESUME / OPERATIONS / DELETE</span>
           <span className={styles.footerVersion}>ESC TO RETURN</span>
         </footer>
       </div>
-      {importPreview ? (
-        <SaveImportDialog
-          fileName={importPreview.fileName}
-          save={importPreview.save}
-          collision={importPreview.collision}
-          error={importError}
-          onConfirm={confirmImport}
-          onCancel={cancelImport}
-        />
-      ) : null}
     </main>
   );
 }

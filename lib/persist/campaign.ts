@@ -1,5 +1,5 @@
 import type { CampaignProgress } from "../types";
-import { readPendingSaveTransfer, safeSetItem, type StorageAdapter } from "./save";
+import { safeSetItem, type StorageAdapter } from "./save";
 import { formatSeed } from "../seed/rng";
 import { isRecord, readPersistedEnvelope } from "./utils";
 
@@ -54,8 +54,6 @@ export function normalizeCampaignProgress(value: unknown, seed: number): Campaig
 }
 
 export function readCampaignProgress(storage: StorageAdapter, seed: number): CampaignProgress {
-  const pending = readPendingSaveTransfer(storage);
-  if (pending?.campaign.seed === seed) return pending.campaign;
   return readPersistedEnvelope(
     storage,
     campaignKey(seed),
@@ -89,34 +87,5 @@ export function completeMission(
     unlockedMission: Math.max(progress.unlockedMission, Math.min(7, missionIndex + 1)),
     medals: { ...progress.medals, [key]: Math.max(progress.medals[key] ?? 0, medals) },
     bestScores: { ...progress.bestScores, [key]: Math.max(progress.bestScores[key] ?? 0, score) },
-  };
-}
-
-/**
- * Merge imported progress without allowing a portable save to erase local
- * campaign progress for the same seed.
- */
-export function mergeCampaignProgress(
-  local: CampaignProgress,
-  imported: CampaignProgress,
-): CampaignProgress {
-  if (local.seed !== imported.seed) throw new Error("Campaign seed mismatch");
-  const missionKeys = new Set([...local.completedMissions, ...imported.completedMissions]);
-  const medals = { ...local.medals };
-  const bestScores = { ...local.bestScores };
-  for (const [key, value] of Object.entries(imported.medals)) {
-    medals[key] = Math.max(medals[key] ?? 0, value);
-  }
-  for (const [key, value] of Object.entries(imported.bestScores)) {
-    bestScores[key] = Math.max(bestScores[key] ?? 0, value);
-  }
-  return {
-    version: CAMPAIGN_PROGRESS_VERSION,
-    seed: local.seed,
-    tutorialComplete: local.tutorialComplete || imported.tutorialComplete,
-    unlockedMission: Math.max(local.unlockedMission, imported.unlockedMission),
-    completedMissions: [...missionKeys].sort((a, b) => a - b),
-    medals,
-    bestScores,
   };
 }

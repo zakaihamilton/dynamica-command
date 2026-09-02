@@ -88,13 +88,13 @@ Performance-sensitive work should be measured with `yarn health:performance`. Th
 
 ## Persistence boundaries
 
-- `lib/persist/save`: versioned simulation serialization and validation.
+- `lib/persist/save`: versioned simulation serialization, per-seed autosaves, and named save slots.
 - `lib/persist/campaign`: unlocks, medals, and best scores.
 - `lib/persist/settings`: audio and UI preferences.
 - `lib/persist/telemetry`: bounded local mission metrics.
 - `SaveSession`: best-effort same-tab and cross-tab conflict detection around `localStorage`.
 
-Explicit save/load actions may adopt a new snapshot. Implicit autosaves refuse to overwrite a detected external change so another tab or imported transfer is not silently lost.
+Explicit save/load actions may adopt a new snapshot. Implicit autosaves refuse to overwrite a detected external change so another tab is not silently lost. Named slots store a mission snapshot plus that moment's campaign progress; loading a slot restores both.
 
 ## Adding a feature
 

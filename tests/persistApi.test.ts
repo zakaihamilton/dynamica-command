@@ -7,80 +7,29 @@ import {
   listSaves,
   listUnreadableSaves,
   hasSaveForSeed,
-  readPendingSaveTransfer,
-  writePendingSaveTransfer,
   createSaveSession,
   saveKey,
-  SAVE_TRANSFER_KEY,
 } from "../lib/persist/save";
-import { freshCampaignProgress } from "../lib/persist/campaign";
 import { makeFixture } from "../lib/sim/fixtures";
 
 function makeState(seed: number) {
   return makeFixture({ seed, win: { kind: "annihilate" } });
 }
 
-describe("readPendingSaveTransfer", () => {
-  it("returns null when no pending transfer exists", () => {
-    const storage = memoryStorage();
-    expect(readPendingSaveTransfer(storage)).toBeNull();
-  });
-
-  it("returns null when pending transfer is malformed", () => {
-    const storage = memoryStorage();
-    storage.setItem(SAVE_TRANSFER_KEY, "not-valid-json");
-    expect(readPendingSaveTransfer(storage)).toBeNull();
-  });
-});
-
-describe("writePendingSaveTransfer", () => {
-  it("returns true on success", () => {
-    const storage = memoryStorage();
-    const state = makeState(1000);
-    const campaign = freshCampaignProgress(1000);
-    expect(writePendingSaveTransfer(storage, state, campaign)).toBe(true);
-    expect(storage.getItem(SAVE_TRANSFER_KEY)).toBeTruthy();
-  });
-
-  it("returns false when storage throws", () => {
-    const storage = memoryStorage();
-    storage.setItem = () => { throw new Error("quota"); };
-    const state = makeState(1000);
-    const campaign = freshCampaignProgress(1000);
-    expect(writePendingSaveTransfer(storage, state, campaign)).toBe(false);
-  });
-});
-
 describe("hasSaveForSeed", () => {
-  it("returns true when a pending transfer matches the seed", () => {
-    const storage = memoryStorage();
-    const state = makeState(421);
-    writePendingSaveTransfer(storage, state, freshCampaignProgress(421));
-    expect(hasSaveForSeed(storage, 421)).toBe(true);
-  });
-
   it("returns true when a local save exists", () => {
     const storage = memoryStorage();
     writeSave(storage, makeState(421));
     expect(hasSaveForSeed(storage, 421)).toBe(true);
   });
 
-  it("returns false when neither exists", () => {
+  it("returns false when no save exists", () => {
     const storage = memoryStorage();
     expect(hasSaveForSeed(storage, 421)).toBe(false);
   });
 });
 
 describe("readSave", () => {
-  it("reads from pending transfer first", () => {
-    const storage = memoryStorage();
-    const state = makeState(421);
-    writePendingSaveTransfer(storage, state, freshCampaignProgress(421));
-    const loaded = readSave(storage, 421);
-    expect(loaded).not.toBeNull();
-    expect(loaded!.seed).toBe(421);
-  });
-
   it("returns null on corrupt save data", () => {
     const storage = memoryStorage();
     storage.setItem(saveKey(421), "corrupt-data");
@@ -140,18 +89,6 @@ describe("SaveSession", () => {
     expect(readSave(storage, 421)?.tick).toBe(12);
   });
 
-  it("treats pending transfers as conflicts for implicit writes", () => {
-    const storage = memoryStorage();
-    const session = createSaveSession(storage, 421);
-    expect(session.write(makeState(421), "implicit")).toBe("saved");
-    expect(writePendingSaveTransfer(storage, makeState(421), freshCampaignProgress(421))).toBe(true);
-
-    const local = makeState(421);
-    local.tick = 12;
-    expect(session.write(local, "implicit")).toBe("conflict");
-    expect(readPendingSaveTransfer(storage)?.state.tick).toBe(0);
-  });
-
   it("can adopt an externally selected save before continuing implicit writes", () => {
     const storage = memoryStorage();
     const session = createSaveSession(storage, 421);
@@ -190,36 +127,9 @@ describe("removeSave", () => {
     removeSave(storage, 421);
     expect(readSave(storage, 421)).toBeNull();
   });
-
-  it("also removes matching pending transfer", () => {
-    const storage = memoryStorage();
-    writePendingSaveTransfer(storage, makeState(421), freshCampaignProgress(421));
-    removeSave(storage, 421);
-    expect(readPendingSaveTransfer(storage)).toBeNull();
-  });
 });
 
 describe("listSaves", () => {
-  it("includes pending transfer as first entry", () => {
-    const storage = memoryStorage();
-    const state = makeState(421);
-    state.missionIndex = 3;
-    state.tick = 500;
-    writePendingSaveTransfer(storage, state, freshCampaignProgress(421));
-    const saves = listSaves(storage);
-    expect(saves).toHaveLength(1);
-    expect(saves[0]!.seed).toBe("0421");
-    expect(saves[0]!.missionIndex).toBe(3);
-  });
-
-  it("skips pending seed in local saves loop", () => {
-    const storage = memoryStorage();
-    writePendingSaveTransfer(storage, makeState(421), freshCampaignProgress(421));
-    writeSave(storage, makeState(421));
-    const saves = listSaves(storage);
-    expect(saves).toHaveLength(1);
-  });
-
   it("skips unreadable saves gracefully", () => {
     const storage = memoryStorage();
     storage.setItem(saveKey(421), "not-json");
@@ -252,13 +162,6 @@ describe("listUnreadableSaves", () => {
   it("skips non-4-digit seed keys", () => {
     const storage = memoryStorage();
     storage.setItem("dynamica-command:save:abc", "value");
-    expect(listUnreadableSaves(storage)).toEqual([]);
-  });
-
-  it("skips pending transfer seeds", () => {
-    const storage = memoryStorage();
-    writePendingSaveTransfer(storage, makeState(421), freshCampaignProgress(421));
-    storage.setItem(saveKey(421), "corrupt");
     expect(listUnreadableSaves(storage)).toEqual([]);
   });
 

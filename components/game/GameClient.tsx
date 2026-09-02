@@ -13,15 +13,17 @@ export function GameClient({
   mission,
   resume,
   fresh = false,
+  slot,
   tutorial = false,
 }: {
   seed: number;
   mission: number;
   resume: boolean;
   fresh?: boolean;
+  slot?: string;
   tutorial?: boolean;
 }) {
-  const { palette, playField, overlays } = useGameRuntime({ seed, mission, resume, fresh, tutorial });
+  const { palette, playField, overlays } = useGameRuntime({ seed, mission, resume, fresh, slot, tutorial });
   const title = tutorial
     ? "Training Range | Dynamica Command"
     : `Seed ${formatSeed(seed)} · Operation ${mission + 1} | Dynamica Command`;
