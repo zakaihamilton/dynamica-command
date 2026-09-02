@@ -7,6 +7,7 @@ import { BriefingScreen } from "../components/briefing/BriefingScreen";
 import { CampaignArchiveScreen } from "../components/campaign/CampaignArchiveScreen";
 import { CampaignCompleteScreen } from "../components/campaign/CampaignCompleteScreen";
 import { MenuScreen } from "../components/menu/MenuScreen";
+import overlayStyles from "../components/menu/MenuSignalOverlay.module.css";
 import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
 import { localStorageAdapter } from "../lib/persist/save";
 
@@ -45,6 +46,23 @@ beforeEach(() => {
   window.localStorage.clear();
 });
 
+function stubMatchMedia(matchesReducedMotion: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: query.includes("prefers-reduced-motion") ? matchesReducedMotion : false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      onchange: null,
+    }),
+  });
+}
+
 afterEach(() => cleanup());
 
 describe("MenuScreen", () => {
@@ -63,6 +81,35 @@ describe("MenuScreen", () => {
 
     expect(screen.getByText("COMMAND DESK")).toBeVisible();
     expect(screen.queryByText("DYNAMICA COMMAND")).toBeNull();
+  });
+
+  it("renders the ISR signal overlay over the welcome scene", () => {
+    render(<MenuScreen />);
+
+    const overlay = screen.getByTestId("menu-signal-overlay");
+    expect(overlay).toBeInTheDocument();
+    expect(overlay).toHaveAttribute("data-reduced-motion", "false");
+    expect(overlay).not.toHaveClass(overlayStyles.static);
+    expect(overlay.querySelectorAll("[data-lock]")).toHaveLength(3);
+  });
+
+  it("freezes the signal overlay in its locked pose when motion is reduced", () => {
+    const originalMatchMedia = window.matchMedia;
+    stubMatchMedia(true);
+    try {
+      render(<MenuScreen />);
+
+      const overlay = screen.getByTestId("menu-signal-overlay");
+      expect(overlay).toHaveAttribute("data-reduced-motion", "true");
+      expect(overlay).toHaveClass(overlayStyles.static);
+      expect(overlay.querySelectorAll("[data-lock]")).toHaveLength(3);
+    } finally {
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        writable: true,
+        value: originalMatchMedia,
+      });
+    }
   });
 });
 
