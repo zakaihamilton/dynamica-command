@@ -17,7 +17,7 @@ export const CINEMA_SHOTS: readonly CinemaShot[] = [
 
 export const PREVIEW_SHOT_COUNT = CINEMA_SHOTS.length;
 
-export const PIP_ZOOM = 0.62;
+export const PIP_ZOOM = 1.5;
 
 export function cinemaShotCamera(
   scene: CinemaScene,

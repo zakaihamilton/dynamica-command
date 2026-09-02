@@ -9,7 +9,7 @@ import { CINEMA_SCROLL_PAD, scrollLayerBlitOffset, scrollLayerPaintCamera } from
 import { terrainColors } from "@/lib/render/terrainMaterials";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
 import type { Facing } from "@/lib/types";
-import { CINEMA_SEED, type Actor, type CinemaScene, type Shot } from "./scene";
+import { type Actor, type CinemaScene, type Shot } from "./scene";
 import { tileKind, cinemaCamera, cinemaOrigin, paintCinemaTile, paintCinemaStatic } from "./paint";
 
 type CinemaTerrainCache = {
@@ -139,8 +139,8 @@ export function renderCinemaFrame(
     }
   }
 
-  const profile0 = generateVisualProfile(CINEMA_SEED, 0);
-  const profile1 = generateVisualProfile(CINEMA_SEED, 1);
+  const profile0 = generateVisualProfile(scene.seed, 0);
+  const profile1 = generateVisualProfile(scene.seed, 1);
   const ordered = preview
     ? [...actors].sort((left, right) => left.x + left.y - (right.x + right.y))
     : actors;

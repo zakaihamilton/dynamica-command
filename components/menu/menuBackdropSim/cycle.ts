@@ -1,3 +1,4 @@
+import { CINEMA_SEED } from "./scene";
 import { PREVIEW_SHOT_COUNT } from "./shots";
 
 export const PREVIEW_PLAY_MS = 5000;
@@ -10,7 +11,12 @@ export type PreviewPhase = {
   expanded: boolean;
   lockIndex: number;
   shotIndex: number;
+  cycleIndex: number;
 };
+
+export function previewSeed(cycleIndex: number): number {
+  return (((CINEMA_SEED + Math.max(0, cycleIndex | 0) * 137) % 10000) + 10000) % 10000;
+}
 
 export function previewAt(
   elapsedMs: number,
@@ -24,6 +30,6 @@ export function previewAt(
     expanded: phase < PREVIEW_PLAY_MS,
     lockIndex: cycleIndex % Math.max(1, lockCount),
     shotIndex: cycleIndex % Math.max(1, shotCount),
+    cycleIndex,
   };
 }
-

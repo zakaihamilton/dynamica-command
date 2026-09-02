@@ -7,8 +7,10 @@ import {
   createCinemaScene,
   PREVIEW_LOCK_IDS,
   previewAt,
+  previewSeed,
   renderCinemaFrame,
   stepCinemaScene,
+  type CinemaScene,
   type PreviewPhase,
   type Shot,
 } from "./menuBackdropSim";
@@ -38,7 +40,12 @@ function usePrefersReducedMotion() {
 }
 
 function previewChanged(a: PreviewPhase, b: PreviewPhase): boolean {
-  return a.expanded !== b.expanded || a.lockIndex !== b.lockIndex || a.shotIndex !== b.shotIndex;
+  return (
+    a.expanded !== b.expanded ||
+    a.lockIndex !== b.lockIndex ||
+    a.shotIndex !== b.shotIndex ||
+    a.cycleIndex !== b.cycleIndex
+  );
 }
 
 export function MenuSignalOverlay() {
@@ -50,7 +57,9 @@ export function MenuSignalOverlay() {
   useEffect(() => {
     if (reducedMotion) return;
 
-    const scene = createCinemaScene();
+    let scene = createCinemaScene(previewSeed(0));
+    let nextScene: CinemaScene | null = null;
+    let cycleIndex = 0;
     const shots: Shot[] = [];
     let raf = 0;
     let t = 0;
@@ -58,8 +67,16 @@ export function MenuSignalOverlay() {
 
     const frame = (now: number) => {
       t += 1;
-      stepCinemaScene(scene, shots, t);
       const next = previewAt(now - started);
+      if (next.cycleIndex !== cycleIndex) {
+        scene = nextScene ?? createCinemaScene(previewSeed(next.cycleIndex));
+        nextScene = null;
+        shots.length = 0;
+        cycleIndex = next.cycleIndex;
+      } else if (!next.expanded && nextScene === null) {
+        nextScene = createCinemaScene(previewSeed(next.cycleIndex + 1));
+      }
+      stepCinemaScene(scene, shots, t);
       if (next.expanded) {
         const canvas = canvasRefs.current[next.lockIndex];
         const ctx = canvas?.getContext("2d");
@@ -103,6 +120,7 @@ export function MenuSignalOverlay() {
             data-lock={id}
             data-expanded={expanded ? "true" : "false"}
             data-shot={expanded ? String(preview.shotIndex) : undefined}
+            data-seed={expanded ? String(previewSeed(preview.cycleIndex)) : undefined}
           >
             {!reducedMotion ? (
               <canvas
