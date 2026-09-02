@@ -40,7 +40,13 @@ const metadataBase = new URL(
 export const metadata: Metadata = {
   metadataBase,
   title: "Dynamica Command",
+  applicationName: "Dynamica Command",
   description: DESCRIPTION,
+  appleWebApp: {
+    capable: true,
+    title: "Dynamica Command",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "Dynamica Command",
     description: DESCRIPTION,
