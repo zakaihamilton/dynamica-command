@@ -9,6 +9,7 @@ const ICONS = [
   ["public/icons/pwa-512.png", 512],
   ["public/icons/pwa-maskable-512.png", 512],
   ["app/apple-icon.png", 180],
+  ["app/icon.png", 192],
 ] as const;
 
 function icoDirectory(file: Buffer): { count: number; sizes: number[] } {
