@@ -59,7 +59,7 @@
   z-index: 10;
   box-sizing: border-box;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   width: 100%;
@@ -68,12 +68,12 @@
   padding: 1.1rem clamp(1rem, 4vw, 4rem) 0.9rem;
 }
 
-.topbar,
-.footer {
+.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-width: 0;
+  min-height: 2.1rem;
   font-family: var(--font-mono);
   font-size: 0.56rem;
   font-weight: 700;
@@ -81,17 +81,12 @@
   line-height: 1.4;
   text-transform: uppercase;
   text-shadow: 0 1px var(--chrome-void);
-}
-
-.topbar {
-  min-height: 2.1rem;
   border-block: 1px solid color-mix(in srgb, var(--chrome-cyan) 20%, transparent);
   color: var(--chrome-body);
 }
 
 .topbarBrand,
-.topbarStatus,
-.footer {
+.topbarStatus {
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -110,8 +105,7 @@
   box-shadow: 0 0 12px color-mix(in srgb, var(--chrome-cyan) 18%, transparent);
 }
 
-.topbarMuted,
-.footerVersion {
+.topbarMuted {
   color: var(--chrome-muted);
 }
 
@@ -238,23 +232,6 @@
   animation:
     type-tagline 1.35s steps(26, end) 0.55s forwards,
     caret-blink 0.7s step-end 1.9s infinite;
-}
-
-.footer {
-  justify-content: flex-start;
-  min-height: 2rem;
-  color: var(--chrome-muted);
-}
-
-.footerRule {
-  width: 2.4rem;
-  height: 1px;
-  background: var(--chrome-cyan-dim);
-  opacity: 0.7;
-}
-
-.footerVersion {
-  margin-inline-start: auto;
 }
 
 @keyframes ken-burns {
@@ -387,8 +364,7 @@
     padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.65rem, env(safe-area-inset-bottom));
   }
 
-  .topbar,
-  .footer {
+  .topbar {
     font-size: 0.45rem;
     letter-spacing: 0.1em;
   }
@@ -398,8 +374,7 @@
   }
 
   .topbarBrand > :nth-child(n + 3),
-  .topbarStatus > :not(.statusDot):not(.topbarCode),
-  .footer > :not(.footerVersion) {
+  .topbarStatus > :not(.statusDot):not(.topbarCode) {
     display: none;
   }
 
@@ -434,10 +409,6 @@
   .tagline {
     font-size: clamp(0.74rem, 3.6vw, 0.95rem);
     letter-spacing: 0.12em;
-  }
-
-  .footer {
-    justify-content: flex-end;
   }
 }
 
