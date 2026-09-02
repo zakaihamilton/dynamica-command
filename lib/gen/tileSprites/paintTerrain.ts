@@ -148,6 +148,7 @@ function paintBoulder(
     cx - 12 + ox, cy + 5 + oy,
   ], body, INK, 1));
   shapes.push(poly([cx - 6 + ox, cy + 1 + oy, cx - 2 + ox, cy - 12 + oy, cx + 6 + ox, cy - 3 + oy, cx + 4 + ox, cy + 4 + oy], facet));
+  shapes.push(poly([cx + 2 + ox, cy + 2 + oy, cx + 6 + ox, cy - 3 + oy, cx + 15 + ox, cy - 2 + oy, cx + 11 + ox, cy + 4 + oy], mixHex(body, "#171d20", 0.35)));
   shapes.push(line(cx - 4 + ox, cy - 4 + oy, cx + 3 + ox, cy + 3 + oy, mixHex(p.dark, body, 0.35), 1));
   if (lush) {
     shapes.push(ell(cx - 8 + ox, cy - 2 + oy, 8, 4, mixHex(p.secondary, "#3c633a", 0.4)));

@@ -63,6 +63,8 @@ function drawBoulder(
   ]);
   ctx.fillStyle = rgbOf(facet);
   fillPoly(ctx, [-6 * z, 1 * z, -1 * z, -12 * z, 6 * z, -3 * z, 4 * z, 4 * z]);
+  ctx.fillStyle = rgbOf(mixRgb(body, mats.dark, 0.45));
+  fillPoly(ctx, [2 * z, 2 * z, 6 * z, -3 * z, 13 * z + twist * 0.4, -1.4 * z, 9 * z, 5.4 * z]);
   ctx.strokeStyle = rgbOf(mixRgb(mats.dark, body, 0.35));
   ctx.lineWidth = Math.max(0.7, 0.85 * z);
   ctx.beginPath();

@@ -173,7 +173,8 @@ describe("seeded terrain atlas", () => {
     const concrete = atlasPixelAtTile(atlas, 7, 7);
     expect(water[2]).toBeGreaterThan(water[0]);
     expect(sampleTerrainMaterial(state, 1, 1).water).toBe(true);
-    expect(atlasCellGoldSpread(atlas, 2, 2)).toBeGreaterThan(atlasCellGoldSpread(atlas, 0, 0));
+    expect(atlasCellGoldSpread(atlas, 2, 2)).toBeGreaterThan(atlasCellGoldSpread(atlas, 7, 7));
+    expect(atlasPixelAtTile(atlas, 2, 2)).not.toEqual(ground);
     expect(high[0] + high[1] + high[2]).toBeGreaterThan(ground[0] + ground[1] + ground[2]);
     expect(road).not.toEqual(ground);
     expect(concrete).not.toEqual(ground);
