@@ -43,7 +43,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
   if (!def) {
     return (
       <div className={styles.missing}>
-        <p>This mission isn't available.</p>
+        <p>{"This mission isn't available."}</p>
         <ConsoleButton muted onClick={controller.back}>{backLabel}</ConsoleButton>
       </div>
     );
