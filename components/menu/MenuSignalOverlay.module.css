@@ -61,8 +61,8 @@
 
 .lock {
   --lock-size: 2.35rem;
-  --lock-feed-w: 15rem;
-  --lock-feed-h: 9.5rem;
+  --lock-feed-w: 24rem;
+  --lock-feed-h: 16rem;
   z-index: 3;
   box-sizing: border-box;
   width: var(--lock-size);
@@ -86,23 +86,23 @@
 }
 
 .lock[data-lock="a"] {
-  left: 58%;
-  top: 32%;
+  left: 60%;
+  top: 34%;
   animation:
     lock-drift-a 9s ease-in-out infinite,
     lock-acquire 2.8s ease-in-out infinite;
 }
 
 .lock[data-lock="b"] {
-  left: 74%;
-  top: 48%;
+  left: 70%;
+  top: 50%;
   animation:
     lock-drift-b 11s ease-in-out infinite,
     lock-acquire 3.4s ease-in-out 0.6s infinite;
 }
 
 .lock[data-lock="c"] {
-  left: 86%;
+  left: 78%;
   top: 28%;
   animation:
     lock-drift-c 8.2s ease-in-out infinite,
@@ -116,7 +116,18 @@
   overflow: hidden;
   opacity: 1;
   animation: none;
+  filter: none;
   translate: calc((var(--lock-size) - var(--lock-feed-w)) / 2) calc((var(--lock-size) - var(--lock-feed-h)) / 2);
+  background: none;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--chrome-cyan) 28%, transparent);
+}
+
+.lock[data-expanded="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
   background:
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left top / 0.7rem 1.5px no-repeat,
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left top / 1.5px 0.7rem no-repeat,
@@ -125,19 +136,17 @@
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left bottom / 0.7rem 1.5px no-repeat,
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left bottom / 1.5px 0.7rem no-repeat,
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right bottom / 0.7rem 1.5px no-repeat,
-    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right bottom / 1.5px 0.7rem no-repeat,
-    color-mix(in srgb, var(--chrome-void) 88%, #000);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--chrome-cyan) 35%, transparent);
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right bottom / 1.5px 0.7rem no-repeat;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--chrome-cyan) 70%, transparent));
 }
 
 .feed {
   position: absolute;
-  inset: 0.38rem;
-  width: calc(100% - 0.76rem);
-  height: calc(100% - 0.76rem);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
   object-fit: cover;
-  image-rendering: pixelated;
   transition: opacity 0.22s ease;
 }
 
@@ -193,8 +202,8 @@
   }
 
   .lock {
-    --lock-feed-w: 10.5rem;
-    --lock-feed-h: 6.6rem;
+    --lock-feed-w: 15rem;
+    --lock-feed-h: 10rem;
   }
 
   .lock[data-lock="a"] {

@@ -6,7 +6,7 @@ import {
   PREVIEW_PLAY_MS,
   previewAt,
 } from "../components/menu/menuBackdropSim/cycle";
-import { CINEMA_SHOTS, cinemaShotCamera, PREVIEW_SHOT_COUNT } from "../components/menu/menuBackdropSim/shots";
+import { CINEMA_SHOTS, cinemaShotCamera, PIP_ZOOM, PREVIEW_SHOT_COUNT } from "../components/menu/menuBackdropSim/shots";
 import { stepCinemaScene } from "../components/menu/menuBackdropSim/render";
 import { createCinemaScene } from "../components/menu/menuBackdropSim/scene";
 
@@ -46,12 +46,13 @@ describe("welcome target cinema shots", () => {
     expect(new Set(keys).size).toBe(CINEMA_SHOTS.length);
   });
 
-  it("frames different shots at different camera origins", () => {
+  it("frames different shots at different zoomed-out camera origins", () => {
     const scene = createCinemaScene();
-    const cameras = CINEMA_SHOTS.map((_, index) => cinemaShotCamera(scene, index, 240, 152, 0));
+    const cameras = CINEMA_SHOTS.map((_, index) => cinemaShotCamera(scene, index, 768, 512, 0));
     const origins = new Set(cameras.map((cam) => `${cam.x.toFixed(1)},${cam.y.toFixed(1)}`));
     expect(origins.size).toBe(CINEMA_SHOTS.length);
-    expect(cameras.every((cam) => cam.zoom === cameras[0]!.zoom)).toBe(true);
+    expect(cameras.every((cam) => cam.zoom === PIP_ZOOM)).toBe(true);
+    expect(PIP_ZOOM).toBeLessThan(0.92);
   });
 
   it("steps actors independently of rendering", () => {

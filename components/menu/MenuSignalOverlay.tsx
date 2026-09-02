@@ -15,8 +15,8 @@ import {
 import styles from "./MenuSignalOverlay.module.css";
 
 const REDUCE_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-const FEED_WIDTH = 240;
-const FEED_HEIGHT = 152;
+const FEED_WIDTH = 768;
+const FEED_HEIGHT = 512;
 
 function subscribeReduceMotion(onStoreChange: () => void) {
   const media = window.matchMedia?.(REDUCE_MOTION_QUERY);

@@ -3,9 +3,13 @@ import {
 } from "@/lib/gen/assets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/iso";
+import { animFrame, toFacing, unitMovementOffset } from "@/lib/render/anim";
 import { rasterize } from "@/lib/render/sprites";
 import { CINEMA_SCROLL_PAD, scrollLayerBlitOffset, scrollLayerPaintCamera } from "@/lib/render/scrollLayer";
-import { CINEMA_SEED, type CinemaScene, type Shot } from "./scene";
+import { terrainColors } from "@/lib/render/terrainMaterials";
+import { drawUnitShadow } from "@/lib/render/unitMotion";
+import type { Facing } from "@/lib/types";
+import { CINEMA_SEED, type Actor, type CinemaScene, type Shot } from "./scene";
 import { tileKind, cinemaCamera, cinemaOrigin, paintCinemaTile, paintCinemaStatic } from "./paint";
 
 type CinemaTerrainCache = {
@@ -95,15 +99,22 @@ export function renderCinemaFrame(
   const cam = options?.camera ?? cinemaCamera(w, h, t);
   const paintAmbient = options?.paintAmbient ?? true;
   const useTerrainCache = options?.useTerrainCache ?? true;
+  const preview = !paintAmbient;
 
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = preview;
+  if (preview && "imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
 
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, "#0a1018");
-  sky.addColorStop(0.45, "#12180f");
-  sky.addColorStop(1, "#1a140c");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
+  if (preview) {
+    ctx.fillStyle = terrainColors(scene.map.biome).mid;
+    ctx.fillRect(0, 0, w, h);
+  } else {
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, "#0a1018");
+    sky.addColorStop(0.45, "#12180f");
+    sky.addColorStop(1, "#1a140c");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+  }
 
   const cached = useTerrainCache ? ensureCinemaTerrain(scene, w, h) : null;
   if (cached?.canvas) {
@@ -130,15 +141,11 @@ export function renderCinemaFrame(
 
   const profile0 = generateVisualProfile(CINEMA_SEED, 0);
   const profile1 = generateVisualProfile(CINEMA_SEED, 1);
-  for (const a of actors) {
-    const elev = map.heights[Math.floor(a.y) * map.width + Math.floor(a.x)] ?? 1;
-    const s = tileToScreen(a.x, a.y, cam, elev);
-    const pal = a.owner === 0 ? scene.us.palette : scene.them.palette;
-    const spec = unitSprite(a.kind, pal, { profile: a.owner === 0 ? profile0 : profile1 });
-    const img = rasterize(spec);
-    const ax = (spec.anchorX ?? spec.w / 2) * cam.zoom;
-    const ay = (spec.anchorY ?? spec.h) * cam.zoom;
-    ctx.drawImage(img, s.x - ax, s.y + (TILE_H / 2) * cam.zoom - ay, spec.w * cam.zoom, spec.h * cam.zoom);
+  const ordered = preview
+    ? [...actors].sort((left, right) => left.x + left.y - (right.x + right.y))
+    : actors;
+  for (const a of ordered) {
+    paintCinemaActor(ctx, scene, cam, a, t, preview, profile0, profile1);
   }
 
   for (const sh of shots) {
@@ -147,7 +154,7 @@ export function renderCinemaFrame(
     const sa = tileToScreen(sh.ax, sh.ay, cam, ea);
     const sb = tileToScreen(sh.bx, sh.by, cam, eb);
     ctx.strokeStyle = "#ffe27d";
-    ctx.lineWidth = 1.8;
+    ctx.lineWidth = preview ? 1.05 : 1.8;
     ctx.beginPath();
     ctx.moveTo(sa.x, sa.y);
     ctx.lineTo(sb.x, sb.y);
@@ -155,6 +162,50 @@ export function renderCinemaFrame(
   }
 
   if (paintAmbient) paintAmbientSignals(ctx, w, h, t);
+}
+
+function actorFacing(actor: Actor): Facing {
+  const dest = actor.waypoints[actor.wi]!;
+  let dx = dest.x - actor.x;
+  let dy = dest.y - actor.y;
+  if (Math.hypot(dx, dy) < 0.05) {
+    const next = actor.waypoints[(actor.wi + 1) % actor.waypoints.length]!;
+    dx = next.x - actor.x;
+    dy = next.y - actor.y;
+  }
+  return toFacing(dx, dy);
+}
+
+function paintCinemaActor(
+  ctx: CanvasRenderingContext2D,
+  scene: CinemaScene,
+  cam: Camera,
+  actor: Actor,
+  t: number,
+  preview: boolean,
+  profile0: ReturnType<typeof generateVisualProfile>,
+  profile1: ReturnType<typeof generateVisualProfile>,
+): void {
+  const elev = scene.map.heights[Math.floor(actor.y) * scene.map.width + Math.floor(actor.x)] ?? 1;
+  const s = tileToScreen(actor.x, actor.y, cam, elev);
+  const pal = actor.owner === 0 ? scene.us.palette : scene.them.palette;
+  const facing = preview ? actorFacing(actor) : 0;
+  const frame = preview ? animFrame(t * 17, actor.kind === "antiArmor" ? 105 : 90, 4) : 0;
+  const spec = unitSprite(actor.kind, pal, {
+    profile: actor.owner === 0 ? profile0 : profile1,
+    facing,
+    animationFrame: frame,
+  });
+  const img = rasterize(spec);
+  const ax = (spec.anchorX ?? spec.w / 2) * cam.zoom;
+  const ay = (spec.anchorY ?? spec.h) * cam.zoom;
+  const groundX = s.x;
+  const groundY = s.y + (TILE_H / 2) * cam.zoom;
+  if (preview) {
+    drawUnitShadow(ctx, actor.kind, groundX, groundY, cam.zoom, 1, true);
+  }
+  const bob = preview ? unitMovementOffset(actor.kind, frame).bobY * cam.zoom : 0;
+  ctx.drawImage(img, s.x - ax, groundY - ay + bob, spec.w * cam.zoom, spec.h * cam.zoom);
 }
 
 function paintAmbientSignals(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void {
