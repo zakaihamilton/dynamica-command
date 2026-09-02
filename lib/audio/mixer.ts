@@ -22,6 +22,7 @@ let enabled: Record<AudioBus, boolean> = { music: true, sfx: true };
 let master: GainNode | null = null;
 let music: GainNode | null = null;
 let sfx: GainNode | null = null;
+let sfxLimiter: DynamicsCompressorNode | null = null;
 
 export function clampAudioVolume(value: number): number {
   return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
@@ -35,13 +36,20 @@ function applyLevels(audio: AudioContext): void {
 }
 
 function ensureMixer(audio: AudioContext): void {
-  if (master && music && sfx) return;
+  if (master && music && sfx && sfxLimiter) return;
 
   master = audio.createGain();
   music = audio.createGain();
   sfx = audio.createGain();
+  sfxLimiter = audio.createDynamicsCompressor();
+  sfxLimiter.threshold.setValueAtTime(-14, audio.currentTime);
+  sfxLimiter.knee.setValueAtTime(8, audio.currentTime);
+  sfxLimiter.ratio.setValueAtTime(4, audio.currentTime);
+  sfxLimiter.attack.setValueAtTime(0.003, audio.currentTime);
+  sfxLimiter.release.setValueAtTime(0.15, audio.currentTime);
   music.connect(master);
-  sfx.connect(master);
+  sfx.connect(sfxLimiter);
+  sfxLimiter.connect(master);
   master.connect(audio.destination);
   applyLevels(audio);
 }
@@ -85,4 +93,5 @@ export function resetAudioMixerForTests(): void {
   master = null;
   music = null;
   sfx = null;
+  sfxLimiter = null;
 }

@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { dispatchBattlefieldAudio } from "../lib/audio/battlefield";
+import {
+  destructionCueFor,
+  dispatchBattlefieldAudio,
+  fireSfxFor,
+  impactSfxFor,
+  supportSfxFor,
+} from "../lib/audio/battlefield";
 import { playSfx } from "../lib/audio/synth";
 import { createCamera } from "../lib/iso";
+import type { BuildingKind, SimEvent, UnitKind, WeaponType } from "../lib/types";
 
 vi.mock("../lib/audio/synth", () => ({
   playSfx: vi.fn(),
@@ -16,6 +23,63 @@ function onScreenCamera() {
   return camera;
 }
 
+function combatEvent(overrides: Partial<Extract<SimEvent, { type: "combat" }>> = {}): Extract<SimEvent, { type: "combat" }> {
+  return {
+    type: "combat",
+    owner: 0,
+    attackerKind: "tank",
+    weapon: "cannon",
+    x: 6,
+    y: 6,
+    targetX: 6,
+    targetY: 6,
+    targetOwner: 1,
+    targetKind: "infantry",
+    destroyed: false,
+    ...overrides,
+  };
+}
+
+describe("battlefield audio mapping", () => {
+  it("maps fire cues by attacker kind with weapon fallback", () => {
+    expect(fireSfxFor("infantry", "smallArms")).toBe("smallArms");
+    expect(fireSfxFor("antiArmor", "antiArmor")).toBe("antiArmor");
+    expect(fireSfxFor("tank", "cannon")).toBe("cannon");
+    expect(fireSfxFor("turret", "cannon")).toBe("turret");
+    expect(fireSfxFor("harvester", "smallArms")).toBe("smallArms");
+    expect(fireSfxFor("power", "cannon")).toBe("cannon");
+  });
+
+  it("maps impact and destruction cues by target domain", () => {
+    const humans: UnitKind[] = ["infantry", "medic", "antiArmor"];
+    const vehicles: UnitKind[] = ["tank", "harvester", "repairTruck", "convoyTruck"];
+    const buildings: BuildingKind[] = ["power", "turret", "constructionYard"];
+
+    for (const kind of humans) {
+      expect(impactSfxFor(kind)).toBe("impactFlesh");
+      expect(destructionCueFor(kind)).toEqual({ kind: "wreckHuman", heavy: false });
+    }
+    for (const kind of vehicles) {
+      expect(impactSfxFor(kind)).toBe("impactMetal");
+      expect(destructionCueFor(kind)).toEqual({ kind: "wreckVehicle", heavy: false });
+    }
+    for (const kind of buildings) {
+      expect(impactSfxFor(kind)).toBe("impact");
+      expect(destructionCueFor(kind)).toEqual({ kind: "destruction", heavy: true });
+    }
+  });
+
+  it("maps support cues by provider", () => {
+    expect(supportSfxFor("medic")).toBe("heal");
+    expect(supportSfxFor("repairTruck")).toBe("repair");
+  });
+
+  it("covers every weapon fallback", () => {
+    const weapons: WeaponType[] = ["smallArms", "antiArmor", "cannon"];
+    expect(weapons.map((weapon) => fireSfxFor("objective", weapon))).toEqual(["smallArms", "antiArmor", "cannon"]);
+  });
+});
+
 describe("battlefield audio dispatch", () => {
   beforeEach(() => {
     play.mockClear();
@@ -23,24 +87,43 @@ describe("battlefield audio dispatch", () => {
 
   it("plays spatial combat and impact cues", () => {
     dispatchBattlefieldAudio(
-      [{
-        type: "combat",
-        owner: 0,
-        weapon: "cannon",
-        x: 6,
-        y: 6,
-        targetX: 6,
-        targetY: 6,
-        targetOwner: 1,
-        targetKind: "infantry",
-        destroyed: false,
-      }],
+      [combatEvent()],
       onScreenCamera(),
       800,
       500,
     );
     expect(play).toHaveBeenCalledWith("cannon", expect.objectContaining({ pan: expect.any(Number), gain: expect.any(Number) }));
-    expect(play).toHaveBeenCalledWith("impact", expect.objectContaining({ pan: expect.any(Number) }));
+    expect(play).toHaveBeenCalledWith("impactFlesh", expect.objectContaining({ pan: expect.any(Number) }));
+  });
+
+  it("plays distinct fire cues for infantry, tanks, and turrets", () => {
+    dispatchBattlefieldAudio(
+      [
+        combatEvent({ attackerKind: "infantry", weapon: "smallArms", targetKind: "tank" }),
+        combatEvent({ attackerKind: "tank", weapon: "cannon", targetKind: "power", x: 7, y: 7 }),
+        combatEvent({ attackerKind: "turret", weapon: "cannon", targetKind: "harvester", x: 8, y: 8 }),
+      ],
+      onScreenCamera(),
+      800,
+      500,
+    );
+    expect(play).toHaveBeenCalledWith("smallArms", expect.objectContaining({ gain: expect.any(Number) }));
+    expect(play).toHaveBeenCalledWith("cannon", expect.objectContaining({ gain: expect.any(Number) }));
+    expect(play).toHaveBeenCalledWith("turret", expect.objectContaining({ gain: expect.any(Number) }));
+    expect(play).toHaveBeenCalledWith("impactMetal", expect.any(Object));
+    expect(play).toHaveBeenCalledWith("impact", expect.any(Object));
+  });
+
+  it("does not duck enemy fire relative to the player", () => {
+    dispatchBattlefieldAudio(
+      [combatEvent({ owner: 1, attackerKind: "infantry", weapon: "smallArms" })],
+      onScreenCamera(),
+      800,
+      500,
+    );
+    const shot = play.mock.calls.find((call) => call[0] === "smallArms");
+    expect(shot?.[1]).toEqual(expect.objectContaining({ gain: expect.any(Number) }));
+    expect((shot?.[1] as { gain: number }).gain).toBeGreaterThanOrEqual(0.8);
   });
 
   it("plays a heavier destruction cue for buildings", () => {
@@ -51,6 +134,58 @@ describe("battlefield audio dispatch", () => {
       500,
     );
     expect(play).toHaveBeenCalledWith("destruction", expect.objectContaining({ heavy: true }));
+  });
+
+  it("plays distinct wreck cues for humans and vehicles", () => {
+    dispatchBattlefieldAudio(
+      [
+        { type: "destroyed", id: 4, owner: 1, kind: "infantry", x: 6, y: 6 },
+        { type: "destroyed", id: 5, owner: 1, kind: "tank", x: 7, y: 7 },
+      ],
+      onScreenCamera(),
+      800,
+      500,
+    );
+    expect(play).toHaveBeenCalledWith("wreckHuman", expect.objectContaining({ heavy: false }));
+    expect(play).toHaveBeenCalledWith("wreckVehicle", expect.objectContaining({ heavy: false }));
+  });
+
+  it("plays medic heal and repair-truck weld cues", () => {
+    dispatchBattlefieldAudio(
+      [
+        {
+          type: "support",
+          owner: 0,
+          providerId: 1,
+          providerKind: "medic",
+          targetId: 2,
+          targetKind: "infantry",
+          amount: 12,
+          x: 6,
+          y: 6,
+          targetX: 6,
+          targetY: 6,
+        },
+        {
+          type: "support",
+          owner: 0,
+          providerId: 3,
+          providerKind: "repairTruck",
+          targetId: 4,
+          targetKind: "tank",
+          amount: 20,
+          x: 7,
+          y: 7,
+          targetX: 7,
+          targetY: 7,
+        },
+      ],
+      onScreenCamera(),
+      800,
+      500,
+    );
+    expect(play).toHaveBeenCalledWith("heal", expect.objectContaining({ minInterval: 0.18 }));
+    expect(play).toHaveBeenCalledWith("repair", expect.objectContaining({ minInterval: 0.18 }));
   });
 
   it("plays credit, power, and deadline cues for the player", () => {

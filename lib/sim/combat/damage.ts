@@ -38,6 +38,7 @@ export function strike(
   events.push({
     type: "combat",
     owner: e.owner,
+    attackerKind: e.kind,
     weapon: stats.weapon,
     x: e.x,
     y: e.y,

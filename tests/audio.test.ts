@@ -352,8 +352,15 @@ describe("generated audio", () => {
       playSfx("smallArms", { pan: -0.8 });
       playSfx("antiArmor");
       playSfx("cannon", { pan: 0.8 });
+      playSfx("turret");
       playSfx("impact");
+      playSfx("impactFlesh");
+      playSfx("impactMetal");
       playSfx("destruction", { heavy: true });
+      playSfx("wreckHuman");
+      playSfx("wreckVehicle");
+      playSfx("heal");
+      playSfx("repair");
       playSfx("contact");
       playSfx("warning");
       setMusicIntensity("critical");
@@ -381,6 +388,7 @@ describe("generated audio", () => {
     expect(spatialAudioForWorld(0, 0, camera, 800, 500).pan).toBeLessThanOrEqual(0.85);
     expect(spatialAudioForWorld(0, 0, camera, 800, 500).pan).toBeGreaterThanOrEqual(-0.85);
     expect(spatialAudioForWorld(6, 6, camera, 800, 500).audible).toBe(true);
+    expect(spatialAudioForWorld(6, 6, camera, 800, 500).gain).toBeGreaterThanOrEqual(0.8);
   });
 
   it("tracks the music enable flag without requiring an audio device", () => {

@@ -80,6 +80,7 @@ describe("combat targeting", () => {
     expect(combat).toMatchObject({
       type: "combat",
       owner: 0,
+      attackerKind: "tank",
       weapon: "cannon",
       x: attacker.x,
       y: attacker.y,
