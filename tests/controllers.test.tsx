@@ -15,7 +15,6 @@ import { useGameSelection } from "../components/game/hooks/useGameSelection";
 import { useMissionRoutes } from "../components/game/hooks/useMissionRoutes";
 import { useMissionBackGuard } from "../components/game/hooks/useMissionBackGuard";
 import { useMenuController } from "../components/menu/useMenuController";
-import { freshCampaignProgress, writeCampaignProgress } from "../lib/persist/campaign";
 import { consumeFreshLaunchIntent } from "../lib/persist/navigation";
 import { createSaveSession, localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
 import { defaultSettings } from "../lib/persist/settings";
@@ -41,9 +40,6 @@ afterEach(() => {
 
 describe("useMenuController", () => {
   it("loads settings and routes valid launches", () => {
-    const progress = freshCampaignProgress(421);
-    progress.tutorialComplete = true;
-    writeCampaignProgress(localStorageAdapter(), progress);
     const { result } = renderHook(() => useMenuController());
 
     act(() => result.current.setCode("0421"));
@@ -51,6 +47,15 @@ describe("useMenuController", () => {
 
     expect(result.current.previewLine).toContain("·");
     expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&from=menu");
+  });
+
+  it("opens the training range from the tutorial command", () => {
+    const { result } = renderHook(() => useMenuController());
+    act(() => result.current.openTutorial());
+    expect(router.push).toHaveBeenCalledWith("/tutorial");
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "t" })));
+    expect(router.push).toHaveBeenCalledWith("/tutorial");
   });
 
   it("reports invalid launch input and handles keyboard navigation", () => {
@@ -257,7 +262,6 @@ describe("game lifecycle hooks", () => {
     replacement.tick = 77;
     expect(writeSave(storage, replacement)).toBe(true);
     const { result } = renderHook(() => useMissionRoutes({
-      seed: 421,
       stateRef: { current: state },
       saveSession: session,
     }));
@@ -266,6 +270,29 @@ describe("game lifecycle hooks", () => {
 
     expect(readSave(storage, 421)?.tick).toBe(77);
     expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&return=game&from=result");
+  });
+
+  it("returns tutorial skip and back to the command desk without writing campaign progress", () => {
+    const state = makeFixture({ seed: 0, win: { kind: "holdTheLine" } });
+    const storage = localStorageAdapter();
+    const session = createSaveSession(storage, 0);
+    const { result } = renderHook(() => useMissionRoutes({
+      stateRef: { current: state },
+      saveSession: session,
+      tutorial: true,
+    }));
+
+    act(() => result.current.exitTutorial());
+    expect(router.push).toHaveBeenCalledWith("/");
+    expect(readSave(storage, 0)).toBeNull();
+
+    router.push.mockClear();
+    act(() => result.current.backTutorial());
+    expect(router.push).toHaveBeenCalledWith("/");
+
+    router.push.mockClear();
+    act(() => result.current.goRetry());
+    expect(router.push).toHaveBeenCalledWith("/tutorial");
   });
 
   it("requires confirmation before saving, loading, restarting, or leaving a mission", () => {

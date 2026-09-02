@@ -1,7 +1,6 @@
 import { useCallback, type MutableRefObject } from "react";
 import { useRouter } from "next/navigation";
-import { cachedLocalStorage, type SaveSession } from "@/lib/persist/save";
-import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
+import type { SaveSession } from "@/lib/persist/save";
 import type { SimState } from "@/lib/types";
 import {
   briefingPath,
@@ -9,41 +8,32 @@ import {
   campaignPath,
   menuPath,
   resultPrimaryPath,
-  type NavigationOrigin,
+  tutorialPath,
 } from "./missionRoutes";
 
 export function useMissionRoutes({
-  seed,
   stateRef,
   saveSession,
-  tutorialOrigin = "menu",
+  tutorial = false,
 }: {
-  seed: number;
   stateRef: MutableRefObject<SimState>;
   saveSession: SaveSession;
-  tutorialOrigin?: NavigationOrigin;
+  tutorial?: boolean;
 }) {
   const router = useRouter();
 
   const viewMissionBriefing = useCallback(() => {
-    saveSession.write(stateRef.current, "implicit");
+    if (!tutorial) saveSession.write(stateRef.current, "implicit");
     router.push(briefingPath(stateRef.current.seed, stateRef.current.missionIndex, true, "result"));
-  }, [router, saveSession, stateRef]);
+  }, [router, saveSession, stateRef, tutorial]);
 
   const exitTutorial = useCallback(() => {
-    const progress = readCampaignProgress(cachedLocalStorage(), seed);
-    progress.tutorialComplete = true;
-    writeCampaignProgress(cachedLocalStorage(), progress);
-    router.push(briefingPath(seed, 0, false, tutorialOrigin));
-  }, [router, seed, tutorialOrigin]);
+    router.push(menuPath());
+  }, [router]);
 
   const backTutorial = useCallback(() => {
-    if (tutorialOrigin === "campaign") {
-      router.push(campaignPath(seed));
-      return;
-    }
     router.push(menuPath());
-  }, [router, seed, tutorialOrigin]);
+  }, [router]);
 
   const resultPrimary = useCallback(() => {
     router.push(resultPrimaryPath(stateRef.current));
@@ -61,9 +51,13 @@ export function useMissionRoutes({
     router.push(campaignPath(stateRef.current.seed));
   }, [router, stateRef]);
   const goRetry = useCallback(() => {
+    if (tutorial) {
+      router.push(tutorialPath());
+      return;
+    }
     const world = stateRef.current;
     router.push(briefingPath(world.seed, world.missionIndex, false, "result"));
-  }, [router, stateRef]);
+  }, [router, stateRef, tutorial]);
 
   return {
     router,

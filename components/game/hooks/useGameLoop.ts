@@ -40,6 +40,7 @@ export function useGameLoop({
   onAlert,
   onTacticalAnnouncement,
   saveSession,
+  persistCampaign = true,
 }: {
   stateRef: MutableRefObject<SimState>;
   setState: (s: SimState) => void;
@@ -61,6 +62,7 @@ export function useGameLoop({
   onAlert: (text: string) => void;
   onTacticalAnnouncement: (text: string) => void;
   saveSession: SaveSession;
+  persistCampaign?: boolean;
 }) {
   useEffect(() => {
     let appliedIntensity: MusicIntensity = "calm";
@@ -78,6 +80,7 @@ export function useGameLoop({
       idleHandle = null;
     };
     const scheduleAutosave = () => {
+      if (!persistCampaign) return;
       cancelIdle();
       const run = () => {
         idleHandle = null;
@@ -92,6 +95,7 @@ export function useGameLoop({
       }
     };
     const saveOnPageHide = () => {
+      if (!persistCampaign) return;
       const current = stateRef.current;
       saveSession.write(current, "implicit");
     };
@@ -203,14 +207,16 @@ export function useGameLoop({
         }
         if (s.result !== "playing" && !terminalSaveRef.current) {
           terminalSaveRef.current = true;
-          saveSession.write(s, "implicit");
-          recordTelemetry(
-            cachedLocalStorage(),
-            telemetryFromMission(s, { commandsIssued, commandRejections }),
-          );
+          if (persistCampaign) {
+            saveSession.write(s, "implicit");
+            recordTelemetry(
+              cachedLocalStorage(),
+              telemetryFromMission(s, { commandsIssued, commandRejections }),
+            );
+          }
           setState({ ...s, entities: [...s.entities] });
         }
-        if (s.result === "won" && !campaignRecordedRef.current) {
+        if (persistCampaign && s.result === "won" && !campaignRecordedRef.current) {
           if (now >= nextCampaignSaveAttemptMs) {
             const progress = readCampaignProgress(cachedLocalStorage(), s.seed);
             const recorded = writeCampaignProgress(
@@ -252,5 +258,6 @@ export function useGameLoop({
     stateRef,
     terminalSaveRef,
     saveSession,
+    persistCampaign,
   ]);
 }

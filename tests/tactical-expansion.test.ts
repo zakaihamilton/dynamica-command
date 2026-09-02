@@ -73,7 +73,7 @@ describe("tactical expansion", () => {
   });
 
   it("gates tutorial orders until the matching stage", () => {
-    const state = createTutorialMission(42);
+    const state = createTutorialMission();
     const unit = state.entities.find((entity) => entity.owner === 0 && entity.class === "unit")!;
     const result = tick(state, [{ type: "move", unitIds: [unit.id], x: unit.x + 2, y: unit.y }]);
     expect(result.events).toContainEqual({ type: "commandRejected", reason: "training step: move" });

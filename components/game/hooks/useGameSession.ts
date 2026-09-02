@@ -10,7 +10,6 @@ import type { SimState } from "@/lib/types";
 import { useMissionConfirmation } from "./useMissionConfirmation";
 import { useMissionPersistence, type MissionPersistenceParams } from "./useMissionPersistence";
 import { useMissionRoutes } from "./useMissionRoutes";
-import type { NavigationOrigin } from "./missionRoutes";
 import { useMissionBackGuard } from "./useMissionBackGuard";
 
 export type { MissionConfirmation, MissionConfirmationAction } from "./missionConfirmation";
@@ -33,7 +32,7 @@ export function initialMission(
   tutorial: boolean,
   fresh = false,
 ): SimState {
-  if (tutorial) return createTutorialMission(seed);
+  if (tutorial) return createTutorialMission();
   const freshLaunchIntent = consumeFreshLaunchIntent(seed, mission);
   const startFresh = fresh && (freshLaunchIntent || !isBrowserReload());
   if (!startFresh && typeof window !== "undefined") {
@@ -62,19 +61,19 @@ export function useGameSession({
   settings,
   setSettings,
   saveSession,
-  tutorialOrigin = "menu",
+  tutorial = false,
   browserBackGuardEnabled = false,
   onBrowserBackLeave,
 }: MissionPersistenceParams & {
   settings: GameSettings;
   setSettings: Dispatch<SetStateAction<GameSettings>>;
   saveSession: SaveSession;
-  tutorialOrigin?: NavigationOrigin;
+  tutorial?: boolean;
   browserBackGuardEnabled?: boolean;
   onBrowserBackLeave?: () => void;
 }) {
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
-  const routes = useMissionRoutes({ seed, stateRef, saveSession, tutorialOrigin });
+  const routes = useMissionRoutes({ stateRef, saveSession, tutorial });
   const { goHomeNow } = routes;
   const browserBackRef = useRef(false);
   const leaveBackRef = useRef<() => void>(() => undefined);
@@ -103,6 +102,7 @@ export function useGameSession({
     campaignRecordedRef,
     terminalSaveRef,
     saveSession,
+    tutorial,
   });
   const confirmation = useMissionConfirmation({
     seed,

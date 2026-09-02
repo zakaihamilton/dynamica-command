@@ -7,8 +7,9 @@ import {
   serializeSaveExport,
 } from "@/lib/persist/save";
 import type { SaveSession } from "@/lib/persist/save";
-import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
+import { readCampaignProgress } from "@/lib/persist/campaign";
 import { createMission } from "@/lib/sim/api";
+import { createTutorialMission } from "@/lib/sim/tutorial";
 import type { Command, SimState } from "@/lib/types";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { FxBurst } from "@/lib/render/fx";
@@ -31,6 +32,7 @@ export type MissionPersistenceParams = {
   campaignRecordedRef: MutableRefObject<boolean>;
   terminalSaveRef: MutableRefObject<boolean>;
   saveSession: SaveSession;
+  tutorial?: boolean;
 };
 
 export function useMissionPersistence({
@@ -50,13 +52,22 @@ export function useMissionPersistence({
   campaignRecordedRef,
   terminalSaveRef,
   saveSession,
+  tutorial = false,
 }: MissionPersistenceParams) {
   const saveMissionNow = useCallback(() => {
+    if (tutorial) {
+      setPauseNotice("Training range is not saved to a campaign.");
+      return;
+    }
     const status = saveSession.write(stateRef.current, "explicit");
     setPauseNotice(status === "saved" ? "Mission saved." : "Unable to save: browser storage is unavailable.");
-  }, [saveSession, setPauseNotice, stateRef]);
+  }, [saveSession, setPauseNotice, stateRef, tutorial]);
 
   const exportMissionNow = useCallback(() => {
+    if (tutorial) {
+      setPauseNotice("Training range is not saved to a campaign.");
+      return;
+    }
     try {
       const current = stateRef.current;
       const campaign = readCampaignProgress(cachedLocalStorage(), seed);
@@ -66,9 +77,13 @@ export function useMissionPersistence({
     } catch {
       setPauseNotice("Unable to export save: browser downloads are unavailable.");
     }
-  }, [seed, setPauseNotice, stateRef]);
+  }, [seed, setPauseNotice, stateRef, tutorial]);
 
   const loadMissionNow = useCallback(() => {
+    if (tutorial) {
+      setPauseNotice("Training range is not saved to a campaign.");
+      return;
+    }
     const loaded = readSave(cachedLocalStorage(), seed);
     if (!loaded) {
       setPauseNotice("No save found for this seed.");
@@ -100,11 +115,12 @@ export function useMissionPersistence({
     setState,
     stateRef,
     terminalSaveRef,
+    tutorial,
   ]);
 
   const restartMissionNow = useCallback(() => {
     const world = stateRef.current;
-    const fresh = createMission({ seed: world.seed, missionIndex: world.missionIndex });
+    const fresh = tutorial ? createTutorialMission() : createMission({ seed: world.seed, missionIndex: world.missionIndex });
     stateRef.current = fresh;
     terminalSaveRef.current = false;
     campaignRecordedRef.current = false;
@@ -135,6 +151,7 @@ export function useMissionPersistence({
     setState,
     stateRef,
     terminalSaveRef,
+    tutorial,
   ]);
 
   const advanceTutorial = useCallback(() => {
@@ -143,12 +160,7 @@ export function useMissionPersistence({
     const next = stages[Math.min(stages.length - 1, stages.indexOf(current) + 1)]!;
     stateRef.current.tutorialStage = next;
     setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
-    if (next === "complete") {
-      const progress = readCampaignProgress(cachedLocalStorage(), seed);
-      progress.tutorialComplete = true;
-      writeCampaignProgress(cachedLocalStorage(), progress);
-    }
-  }, [seed, setState, stateRef]);
+  }, [setState, stateRef]);
 
   return { saveMissionNow, exportMissionNow, loadMissionNow, restartMissionNow, advanceTutorial };
 }

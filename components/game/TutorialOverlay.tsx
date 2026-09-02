@@ -8,7 +8,7 @@ export function TutorialOverlay({ prompt, complete, onAdvance, onSkip, onBack }:
       <p className={styles.prompt}>{prompt}</p>
       <div className={styles.actions}>
         <ConsoleButton muted onClick={onBack}>Back</ConsoleButton>
-        <ConsoleButton onClick={onAdvance}>{complete ? "Deploy to mission 1" : "Continue"}</ConsoleButton>
+        <ConsoleButton onClick={onAdvance}>{complete ? "Return to command desk" : "Continue"}</ConsoleButton>
         <ConsoleButton muted onClick={onSkip}>Skip training</ConsoleButton>
       </div>
     </section>

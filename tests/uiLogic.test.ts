@@ -8,10 +8,9 @@ import { freshCampaignProgress } from "../lib/persist/campaign";
 import { addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 
 describe("menu navigation policy", () => {
-  it("rejects incomplete seeds and routes first deployments through training", () => {
-    expect(menuLaunchPath("42", false)).toBeNull();
-    expect(menuLaunchPath("0421", false)).toBe("/tutorial?seed=0421&from=menu");
-    expect(menuLaunchPath("0421", true)).toBe("/briefing?seed=0421&mission=0&from=menu");
+  it("rejects incomplete seeds and routes valid launches to briefing", () => {
+    expect(menuLaunchPath("42")).toBeNull();
+    expect(menuLaunchPath("0421")).toBe("/briefing?seed=0421&mission=0&from=menu");
   });
 });
 

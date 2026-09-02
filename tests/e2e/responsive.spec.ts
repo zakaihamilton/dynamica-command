@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "../../components/game/hooks/useGameCamera";
 import { cameraPanBounds, clampCamera } from "../../lib/render/camera";
 import { TILE_H, tileToScreen } from "../../lib/iso";
-import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey } from "../../lib/persist/save";
 import { SETTINGS_KEY, SETTINGS_VERSION, defaultSettings } from "../../lib/persist/settings";
 import { createMission } from "../../lib/sim/api";
@@ -13,17 +12,6 @@ import type { Entity, SimState } from "../../lib/types";
 const TEST_SEED = 421;
 
 async function openBriefingSkippingTutorial(page: import("@playwright/test").Page) {
-  const progress = { ...freshCampaignProgress(TEST_SEED), tutorialComplete: true };
-  await page.addInitScript(({ key, raw }) => {
-    localStorage.setItem(key, raw);
-  }, {
-    key: campaignKey(TEST_SEED),
-    raw: JSON.stringify({
-      version: CAMPAIGN_PROGRESS_VERSION,
-      savedAt: Date.now(),
-      progress,
-    }),
-  });
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
   await page.getByLabel("Four digit theater seed").fill("0421");
@@ -274,7 +262,7 @@ test.describe("short-height layouts", () => {
 
   test("keeps the tutorial overlay inside a short landscape viewport", async ({ page }) => {
     await page.setViewportSize({ width: 700, height: 400 });
-    await page.goto("/tutorial?seed=0421");
+    await page.goto("/tutorial");
     const tutorial = page.getByTestId("tutorial-overlay");
     await expect(tutorial).toBeVisible();
     await expectNoHorizontalOverflow(page);
@@ -603,7 +591,7 @@ test.describe("mobile-first layouts", () => {
 
   test("keeps tutorial controls above the battlefield and reachable on small phones", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
-    await page.goto("/tutorial?seed=0421");
+    await page.goto("/tutorial");
     const tutorial = page.getByTestId("tutorial-overlay");
     await expect(tutorial).toBeVisible();
     await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();

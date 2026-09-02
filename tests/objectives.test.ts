@@ -109,6 +109,11 @@ describe("win categories", () => {
     expect(objectiveProgress(s).label).toBe("Hold 03:07 remaining");
     s.tick = 187 * TICKS_PER_SECOND;
     expect(objectiveProgress(s).label).toBe("Held");
+
+    const untimed = makeFixture({ win: { kind: "holdTheLine" } });
+    addBuilding(untimed, 0, "constructionYard", 0, 0);
+    expect(objectiveProgress(untimed).label).toBe("Training range — no time limit");
+    expect(objectiveProgress(untimed).timeRemainingTicks).toBeUndefined();
   });
 
   it("uses the full escort limit for the speed secondary objective", () => {
