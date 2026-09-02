@@ -2,6 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import { addUnit, makeFixture, setTile } from "../lib/sim/fixtures";
 import { minimapRegionForCell, terrainColors } from "../lib/render/minimap";
 import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../lib/types";
+import type { BiomeName } from "../lib/types";
+import {
+  ARID_SCATTER,
+  LUSH_SCATTER,
+  blockerPropKind,
+  scatterForTile,
+  withAlpha,
+} from "../lib/render/terrainPaint";
 import { generateMap } from "../lib/gen/map";
 import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../lib/iso";
 import {
@@ -575,5 +583,109 @@ describe("minimap classification", () => {
 
     const selected = minimapCacheKeys(state, view, 96, 96, new Set([1, 3]));
     expect(selected.overlayKey).not.toBe(next.overlayKey);
+  });
+});
+
+function collectScatter(state: ReturnType<typeof makeFixture>) {
+  const items = [];
+  for (let y = 0; y < state.height; y++) {
+    for (let x = 0; x < state.width; x++) {
+      items.push(...scatterForTile(state, x, y));
+    }
+  }
+  return items;
+}
+
+describe("terrain scatter artifacts", () => {
+  it("is deterministic for a seed and cell", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    const a = scatterForTile(state, 4, 5);
+    expect(scatterForTile(state, 4, 5)).toEqual(a);
+    expect(a.length).toBeLessThanOrEqual(3);
+    const here = collectScatter(state);
+    const other = collectScatter({ ...state, seed: 3209 });
+    expect(here.length).toBeGreaterThan(0);
+    expect(JSON.stringify(other)).not.toBe(JSON.stringify(here));
+  });
+
+  it("varies across neighboring cells and biomes", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    const signatures = new Set<string>();
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        signatures.add(JSON.stringify(scatterForTile(state, x, y)));
+      }
+    }
+    expect(signatures.size).toBeGreaterThan(8);
+    const jungle = { ...state, biome: "jungle wreckage" as BiomeName };
+    expect(JSON.stringify(collectScatter(jungle))).not.toBe(JSON.stringify(collectScatter(state)));
+  });
+
+  it("skips water, concrete, ore, and blocked tiles", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    setTile(state, 1, 1, TILE_WATER);
+    setTile(state, 2, 2, TILE_RESOURCE, 800);
+    setTile(state, 3, 3, TILE_BLOCKED);
+    state.surfaces[4 * state.width + 4] = SURFACE_CONCRETE;
+    expect(scatterForTile(state, 1, 1)).toEqual([]);
+    expect(scatterForTile(state, 2, 2)).toEqual([]);
+    expect(scatterForTile(state, 3, 3)).toEqual([]);
+    expect(scatterForTile(state, 4, 4)).toEqual([]);
+  });
+
+  it("keeps roads sparse and prefers biome-appropriate clutter", () => {
+    const ground = makeFixture({ width: 16, height: 16, win: { kind: "annihilate" }, seed: 832 });
+    const road = makeFixture({ width: 16, height: 16, win: { kind: "annihilate" }, seed: 832 });
+    road.surfaces.fill(SURFACE_ROAD);
+    expect(collectScatter(road).length).toBeLessThan(collectScatter(ground).length);
+
+    const jungle = { ...ground, biome: "jungle wreckage" as BiomeName };
+    const desert = { ...ground, biome: "glass desert" as BiomeName };
+    const lushCount = collectScatter(jungle).filter((item) => LUSH_SCATTER.has(item.kind)).length;
+    const jungleArid = collectScatter(jungle).filter((item) => ARID_SCATTER.has(item.kind)).length;
+    const aridCount = collectScatter(desert).filter((item) => ARID_SCATTER.has(item.kind)).length;
+    const desertLush = collectScatter(desert).filter((item) => LUSH_SCATTER.has(item.kind)).length;
+    expect(lushCount).toBeGreaterThan(jungleArid);
+    expect(aridCount).toBeGreaterThan(desertLush);
+    expect(aridCount).toBeGreaterThan(0);
+  });
+
+  it("keeps blocker props deterministic and biome-keyed", () => {
+    expect(blockerPropKind("ash plains", 9)).toBe(blockerPropKind("ash plains", 9));
+    const jungle = new Set(Array.from({ length: 40 }, (_, v) => blockerPropKind("jungle wreckage", v)));
+    const desert = new Set(Array.from({ length: 40 }, (_, v) => blockerPropKind("glass desert", v)));
+    const tundra = new Set(Array.from({ length: 40 }, (_, v) => blockerPropKind("tundra grid", v)));
+    expect(jungle.has("tree")).toBe(true);
+    expect(desert.has("sandstone") || desert.has("deadShrub")).toBe(true);
+    expect(tundra.has("pine") || tundra.has("snowRock")).toBe(true);
+    expect(blockerPropKind("jungle wreckage", 3)).not.toBe(blockerPropKind("glass desert", 3));
+  });
+
+  it("is deterministic on skirt samples", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    const skirt = scatterForTile(state, -1, 2);
+    expect(scatterForTile(state, -1, 2)).toEqual(skirt);
+    expect(skirt.length).toBeLessThanOrEqual(3);
+  });
+
+  it("honors an explicit tile kind so callers can reuse scenery samples", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    expect(scatterForTile(state, 0, 0, TILE_WATER)).toEqual([]);
+    expect(scatterForTile(state, 0, 0, TILE_BLOCKED)).toEqual([]);
+  });
+
+  it("multiplies parent canvas alpha instead of resetting it", () => {
+    const stack: number[] = [];
+    let alpha = 0.4;
+    const ctx = {
+      get globalAlpha() { return alpha; },
+      set globalAlpha(value: number) { alpha = value; },
+      save() { stack.push(alpha); },
+      restore() { alpha = stack.pop() ?? 1; },
+    } as CanvasRenderingContext2D;
+    withAlpha(ctx, 0.5, () => {
+      expect(alpha).toBeCloseTo(0.2);
+    });
+    expect(alpha).toBe(0.4);
   });
 });

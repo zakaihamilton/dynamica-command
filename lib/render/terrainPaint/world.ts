@@ -11,6 +11,7 @@ import { drawConcreteSlab } from "../terrainPlates";
 import { isoDiamondPath } from "../isoDiamond";
 import { paintShroudOverlay, paintShroudMaskTile, drawAtlasDiamond } from "./tile";
 import { smoothFogGain, drawBlockerProp, drawOreCrystals } from "./details";
+import { drawTerrainScatter } from "./scatter";
 import { SHROUD_FILL, SHROUD_RGB, TERRAIN_COVER } from "./constants";
 import { drawElevationFaces } from "./cliffs";
 
@@ -116,6 +117,21 @@ function paintCell(
   ctx.restore();
 }
 
+function paintCellScatter(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  x: number,
+  y: number,
+): void {
+  const scenery = memoScenery(state, x, y);
+  if (scenery.kind === TILE_WATER) return;
+  const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
+  const surface = inMap ? state.surfaces[y * state.width + x] : 0;
+  const s = tileToScreen(x, y, cam, scenery.elev);
+  drawTerrainScatter(ctx, state, x, y, s.x, s.y, cam.zoom, scenery.kind, surface);
+}
+
 function paintCellProps(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -123,8 +139,8 @@ function paintCellProps(
   x: number,
   y: number,
 ): void {
+  if (fogAt(state, x, y) === 0) return;
   const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
-  if (!inMap || fogAt(state, x, y) === 0) return;
   const scenery = memoScenery(state, x, y);
   const elev = scenery.elev;
   const s = tileToScreen(x, y, cam, elev);
@@ -135,7 +151,7 @@ function paintCellProps(
   if (scenery.kind === TILE_BLOCKED && !isMountainScenery(scenery)) {
     drawBlockerProp(ctx, state, x, y, s.x, s.y, z);
   }
-  if (state.tiles[y * state.width + x] === TILE_RESOURCE) {
+  if (inMap && state.tiles[y * state.width + x] === TILE_RESOURCE) {
     drawOreCrystals(ctx, state, cam, x, y, elev, z);
   }
   ctx.restore();
@@ -280,6 +296,11 @@ export function paintTerrainWorld(
   });
   visitVisibleTiles(ctx, state, cam, (x, y) => {
     paintCell(ctx, state, cam, atlas, x, y, true);
+  });
+  // Low scatter sits with the atlas so the shroud darkens unexplored clutter.
+  // Tall blockers and ore stay after the shroud and remain vision-gated.
+  visitVisibleTiles(ctx, state, cam, (x, y) => {
+    paintCellScatter(ctx, state, cam, x, y);
   });
   paintShroudLayer(ctx, state, cam);
   visitVisibleTiles(ctx, state, cam, (x, y) => {
