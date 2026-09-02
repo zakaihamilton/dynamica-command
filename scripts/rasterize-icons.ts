@@ -43,7 +43,33 @@ async function rasterizeMaskable(px: number): Promise<Buffer> {
     .toBuffer();
 }
 
-function pngIco(frames: { size: number; png: Buffer }[]): Buffer {
+function bmpIcoFrame(size: number, rgba: Buffer): Buffer {
+  const headerSize = 40;
+  const xorSize = size * size * 4;
+  const andRowBytes = Math.ceil(size / 32) * 4;
+  const andSize = andRowBytes * size;
+  const dib = Buffer.alloc(headerSize + xorSize + andSize);
+  dib.writeUInt32LE(headerSize, 0);
+  dib.writeInt32LE(size, 4);
+  dib.writeInt32LE(size * 2, 8);
+  dib.writeUInt16LE(1, 12);
+  dib.writeUInt16LE(32, 14);
+  dib.writeUInt32LE(xorSize + andSize, 20);
+  for (let y = 0; y < size; y++) {
+    const srcY = size - 1 - y;
+    for (let x = 0; x < size; x++) {
+      const src = (srcY * size + x) * 4;
+      const dest = headerSize + (y * size + x) * 4;
+      dib[dest] = rgba[src + 2]!;
+      dib[dest + 1] = rgba[src + 1]!;
+      dib[dest + 2] = rgba[src]!;
+      dib[dest + 3] = rgba[src + 3]!;
+    }
+  }
+  return dib;
+}
+
+function icoFromBmps(frames: { size: number; dib: Buffer }[]): Buffer {
   const header = Buffer.alloc(6);
   header.writeUInt16LE(1, 2);
   header.writeUInt16LE(frames.length, 4);
@@ -55,12 +81,21 @@ function pngIco(frames: { size: number; png: Buffer }[]): Buffer {
     entry.writeUInt8(frame.size === 256 ? 0 : frame.size, 1);
     entry.writeUInt16LE(1, 4);
     entry.writeUInt16LE(32, 6);
-    entry.writeUInt32LE(frame.png.length, 8);
+    entry.writeUInt32LE(frame.dib.length, 8);
     entry.writeUInt32LE(offset, 12);
     entries.push(entry);
-    offset += frame.png.length;
+    offset += frame.dib.length;
   }
-  return Buffer.concat([header, ...entries, ...frames.map((frame) => frame.png)]);
+  return Buffer.concat([header, ...entries, ...frames.map((frame) => frame.dib)]);
+}
+
+async function icoFrame(px: number): Promise<{ size: number; dib: Buffer }> {
+  const { data } = await sharp(SOURCE)
+    .resize(px, px, { fit: "fill", kernel: "lanczos3" })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return { size: px, dib: bmpIcoFrame(px, data) };
 }
 
 async function writePng(path: string, png: Buffer): Promise<void> {
@@ -71,9 +106,7 @@ async function writePng(path: string, png: Buffer): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const favicon16 = await rasterize(16);
-  const favicon32 = await rasterize(32);
-  writeFileSync(FAVICON_ICO, pngIco([{ size: 16, png: favicon16 }, { size: 32, png: favicon32 }]));
+  writeFileSync(FAVICON_ICO, icoFromBmps([await icoFrame(16), await icoFrame(32)]));
   console.log(`${relative(ROOT, FAVICON_ICO)}  16x16+32x32`);
   await writePng(APP_ICON, await rasterize(192));
   await writePng(APPLE_ICON, await rasterize(180));
