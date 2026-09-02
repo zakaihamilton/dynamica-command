@@ -6,7 +6,9 @@ export function MenuHero() {
       <h1 className={styles.title}>DYNAMICA</h1>
       <p className={styles.subtitle}>COMMAND</p>
       <div className={styles.heroRule} aria-hidden="true"><span /></div>
-      <p className={styles.tagline}>Harvest. Build. Conquer.</p>
+      <p className={styles.tagline}>
+        <span className={styles.taglineText}>Harvest. Build. Conquer.</span>
+      </p>
     </div>
   );
 }

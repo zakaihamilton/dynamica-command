@@ -5,6 +5,7 @@ import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { MenuHero } from "./MenuHero";
 import { MenuMainPanel } from "./MenuMainPanel";
 import { MenuOverlay } from "./MenuOverlay";
+import { MenuSignalOverlay } from "./MenuSignalOverlay";
 import { useMenuController } from "./useMenuController";
 import styles from "./MenuScreen.module.css";
 
@@ -16,6 +17,8 @@ export function MenuScreen() {
       className={styles.screen}
       style={{ "--scene-art": `url("${RASTER_ART.menu}")` } as CSSProperties}
     >
+      <div className={styles.scene} />
+      <MenuSignalOverlay />
       <div className={styles.vignette} />
 
       <div className={styles.uiLayer}>

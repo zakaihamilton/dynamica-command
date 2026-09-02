@@ -4,6 +4,15 @@
   min-height: 100dvh;
   overflow: hidden;
   color: var(--chrome-body);
+  background: var(--chrome-void);
+}
+
+.scene {
+  pointer-events: none;
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  transform-origin: 72% 42%;
   background:
     linear-gradient(
       90deg,
@@ -21,12 +30,14 @@
     ),
     var(--scene-art) center right / cover no-repeat,
     var(--chrome-void);
+  animation: ken-burns 40s ease-in-out infinite alternate;
 }
 
 .vignette {
   pointer-events: none;
   position: absolute;
   inset: 0;
+  z-index: 2;
   background:
     linear-gradient(
       90deg,
@@ -110,6 +121,7 @@
   border-radius: 50%;
   background: var(--chrome-success);
   box-shadow: 0 0 10px color-mix(in srgb, var(--chrome-success) 78%, transparent);
+  animation: status-acquire 0.36s ease-in-out 3;
 }
 
 .topbarCode {
@@ -156,6 +168,8 @@
     0 0 42px color-mix(in srgb, var(--chrome-cyan) 45%, transparent),
     0 2px 0 var(--chrome-void),
     0 8px 24px rgba(0, 0, 0, 0.65);
+  clip-path: inset(0 100% 0 0);
+  animation: stencil-wipe 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .subtitle {
@@ -171,6 +185,8 @@
     0 0 48px color-mix(in srgb, var(--chrome-cyan) 50%, transparent),
     0 2px 0 var(--chrome-void),
     0 8px 24px rgba(0, 0, 0, 0.65);
+  clip-path: inset(0 100% 0 0);
+  animation: stencil-wipe 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
 }
 
 .heroRule {
@@ -212,6 +228,18 @@
     0 2px 0 var(--chrome-void);
 }
 
+.taglineText {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 0;
+  vertical-align: bottom;
+  white-space: nowrap;
+  border-right: 0.08em solid var(--chrome-cyan);
+  animation:
+    type-tagline 1.35s steps(26, end) 0.55s forwards,
+    caret-blink 0.7s step-end 1.9s infinite;
+}
+
 .footer {
   justify-content: flex-start;
   min-height: 2rem;
@@ -229,8 +257,79 @@
   margin-inline-start: auto;
 }
 
+@keyframes ken-burns {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to { transform: scale(1.08) translate3d(-2.4%, 1.2%, 0); }
+}
+
+@keyframes ken-burns-mobile {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to { transform: scale(1.06) translate3d(-1%, 0.6%, 0); }
+}
+
+@keyframes stencil-wipe {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    text-shadow:
+      0 0 8px #fff,
+      0 0 28px color-mix(in srgb, var(--chrome-cyan) 92%, transparent),
+      0 0 52px color-mix(in srgb, var(--chrome-cyan) 60%, transparent),
+      0 2px 0 var(--chrome-void),
+      0 8px 24px rgba(0, 0, 0, 0.65);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes type-tagline {
+  from { max-width: 0; }
+  to { max-width: 28em; }
+}
+
+@keyframes caret-blink {
+  0%, 49% { border-right-color: var(--chrome-cyan); }
+  50%, 100% { border-right-color: transparent; }
+}
+
+@keyframes status-acquire {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--chrome-success) 78%, transparent);
+  }
+  50% {
+    opacity: 0.35;
+    box-shadow: 0 0 18px color-mix(in srgb, var(--chrome-success) 90%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene {
+    inset: 0;
+    animation: none !important;
+    transform: none;
+  }
+
+  .title,
+  .subtitle {
+    clip-path: none;
+    animation: none !important;
+  }
+
+  .taglineText {
+    max-width: none;
+    border-right: 0;
+    animation: none !important;
+  }
+
+  .statusDot {
+    animation: none !important;
+  }
+}
+
 @media (max-width: 959px) {
-  .screen {
+  .scene {
+    transform-origin: 50% 42%;
     background:
       linear-gradient(
         180deg,
@@ -246,6 +345,7 @@
       ),
       var(--scene-art) center / cover no-repeat,
       var(--chrome-void);
+    animation-name: ken-burns-mobile;
   }
 
   .vignette {

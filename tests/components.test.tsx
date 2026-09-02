@@ -304,6 +304,7 @@ describe("MenuHero", () => {
 
     expect(screen.getByRole("heading", { name: "DYNAMICA" })).toBeVisible();
     expect(screen.getByText("COMMAND")).toBeVisible();
+    expect(screen.getByText("Harvest. Build. Conquer.")).toBeInTheDocument();
     expect(screen.queryByText("Dynamica command")).toBeNull();
   });
 });
