@@ -28,8 +28,43 @@ export function paintShroudCliffs(
   if (geo.wedge) fillElevationPoly(ctx, sx, sy, geo.wedge, undefined, seal);
 }
 
-function shroudStampRadius(w: number, h: number): number {
-  return SHROUD_CORNER_RADIUS_FRAC * Math.min(w, h);
+function rgbaStop(fill: string, alpha: number): string {
+  if (fill.startsWith("#") && (fill.length === 7 || fill.length === 4)) {
+    const hex = fill.length === 4
+      ? `#${fill[1]}${fill[1]}${fill[2]}${fill[2]}${fill[3]}${fill[3]}`
+      : fill;
+    const r = Number.parseInt(hex.slice(1, 3), 16);
+    const g = Number.parseInt(hex.slice(3, 5), 16);
+    const b = Number.parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  return alpha >= 1 ? fill : "rgba(0,0,0,0)";
+}
+
+function fillShroudStamp(
+  ctx: CanvasRenderingContext2D,
+  cover: { x: number; y: number; w: number; h: number },
+  radii: IsoDiamondCornerRadii,
+): void {
+  const fill = String(ctx.fillStyle);
+  const cx = cover.x;
+  const cy = cover.y + cover.h / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(cover.w * 0.58, cover.h * 0.58);
+  const feather = ctx.createRadialGradient(0, 0, 0.12, 0, 0, 1);
+  feather.addColorStop(0, rgbaStop(fill, 1));
+  feather.addColorStop(0.76, rgbaStop(fill, 1));
+  feather.addColorStop(1, rgbaStop(fill, 0));
+  ctx.fillStyle = feather;
+  ctx.beginPath();
+  ctx.arc(0, 0, 1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  const core = expandIsoDiamond(cover.x, cover.y, cover.w, cover.h, 0.78);
+  const coreRadii: IsoDiamondCornerRadii = [radii[0] * 0.78, radii[1] * 0.78, radii[2] * 0.78, radii[3] * 0.78];
+  roundedIsoDiamondPath(ctx, core.x, core.y, core.w, core.h, coreRadii);
+  ctx.fill();
 }
 
 export function shroudCornerRadii(
@@ -76,12 +111,10 @@ export function paintShroudMaskTile(
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.lineWidth = Math.max(1.35, 1.25 * z);
-  const cover = expandIsoDiamond(sx, sy, tw, th, srcAlpha >= 0.98 ? SHROUD_COVER : 1);
-  const radius = shroudStampRadius(cover.w, cover.h);
+  const cover = expandIsoDiamond(sx, sy, tw, th, SHROUD_COVER);
+  const radius = SHROUD_CORNER_RADIUS_FRAC * Math.min(cover.w, cover.h);
   const radii = shroudCornerRadii(state, tileX, tileY, radius, (fog) => fog >= 1);
-  roundedIsoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h, radii);
-  ctx.fill();
-  if (srcAlpha >= 0.98) ctx.stroke();
+  fillShroudStamp(ctx, cover, radii);
   paintShroudCliffs(ctx, sx, sy, tw, th, dropE, dropS, step, tileX, tileY, seed, srcAlpha >= 0.98);
 }
 
@@ -110,11 +143,9 @@ export function paintShroudOverlay(
   ctx.lineCap = "round";
   ctx.lineWidth = Math.max(1.35, 1.25 * z);
   const cover = expandIsoDiamond(sx, sy, tw, th, SHROUD_COVER);
-  const radius = shroudStampRadius(cover.w, cover.h);
+  const radius = SHROUD_CORNER_RADIUS_FRAC * Math.min(cover.w, cover.h);
   const radii = shroudCornerRadii(state, tileX, tileY, radius, (fog) => fog < 2);
-  roundedIsoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h, radii);
-  ctx.fill();
-  ctx.stroke();
+  fillShroudStamp(ctx, cover, radii);
   paintShroudCliffs(ctx, sx, sy, tw, th, dropE, dropS, step, tileX, tileY, seed, true);
   ctx.restore();
 }

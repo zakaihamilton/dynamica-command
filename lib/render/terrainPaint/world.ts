@@ -256,6 +256,7 @@ function paintShroudLayer(
   fog.globalAlpha = 1;
   ctx.save();
   ctx.globalCompositeOperation = "source-over";
+  ctx.filter = `blur(${Math.max(5, 0.3 * th)}px)`;
   ctx.drawImage(shroudMask, 0, 0);
   ctx.restore();
 }
