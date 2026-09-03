@@ -24,3 +24,12 @@ export function withAlpha(
   paint();
   ctx.restore();
 }
+
+export function fillPoly(ctx: CanvasRenderingContext2D, pts: number[]): void {
+  if (pts.length < 6) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0]!, pts[1]!);
+  for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i]!, pts[i + 1]!);
+  ctx.closePath();
+  ctx.fill();
+}
