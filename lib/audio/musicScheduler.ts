@@ -14,7 +14,7 @@ import {
 } from "./musicGraph";
 import type { AudioGraphContext, MusicGraph } from "./musicGraph";
 import { playSynthTone, playTransition, retunePad, schedulePadGate, syncDelay } from "./musicSynth";
-import { playKick, playSnare, playClap, playHat, playTom, playImpact } from "./musicDrums";
+import { playKick, playSnare, playClap, playHat, playTom, playImpact, playRim, playShaker } from "./musicDrums";
 import {
   intensity,
   pendingIntensity,
@@ -74,6 +74,14 @@ function duckPad(audio: AudioGraphContext, g: MusicGraph, time: number): void {
   g.padGain.gain.linearRampToValueAtTime(g.padBase, t + 0.12);
 }
 
+function duckBass(audio: AudioGraphContext, g: MusicGraph, time: number): void {
+  const t = Math.max(time, audio.currentTime);
+  g.bassDuck.gain.cancelScheduledValues(t);
+  g.bassDuck.gain.setValueAtTime(Math.max(0.001, g.bassDuck.gain.value), t);
+  g.bassDuck.gain.linearRampToValueAtTime(0.42, t + 0.018);
+  g.bassDuck.gain.linearRampToValueAtTime(1, t + 0.13);
+}
+
 export function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern, when: number, index: number, value: MusicIntensity): void {
   const stepDuration = 60 / p.bpm / 4;
   const t = when + (index % 2 === 1 ? p.swing * stepDuration : 0);
@@ -111,11 +119,14 @@ export function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPa
     if (event.kind === "kick") {
       playKick(audio, g, t, velocity);
       duckPad(audio, g, t);
+      duckBass(audio, g, t);
     } else if (event.kind === "snare") playSnare(audio, g, t, velocity, !!event.accent);
     else if (event.kind === "clap") playClap(audio, g, t, velocity, !!event.accent);
     else if (event.kind === "hat") playHat(audio, g, t, velocity, false);
     else if (event.kind === "openHat") playHat(audio, g, t, velocity, true);
     else if (event.kind === "tom") playTom(audio, g, t, velocity);
+    else if (event.kind === "rim") playRim(audio, g, t, velocity);
+    else if (event.kind === "shaker") playShaker(audio, g, t, velocity);
     else playImpact(audio, g, t, velocity);
   }
 }

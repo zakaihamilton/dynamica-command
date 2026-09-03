@@ -7,9 +7,12 @@ import {
   ARID_SCATTER,
   LUSH_SCATTER,
   blockerPropKind,
+  drawBlockerProp,
+  drawTerrainScatter,
   scatterForTile,
   withAlpha,
 } from "../lib/render/terrainPaint";
+import { hash } from "../lib/gen/tilePalette";
 import { generateMap } from "../lib/gen/map";
 import { tileSprite } from "../lib/gen/assets";
 import { TERRAIN_ART } from "../lib/gen/visualAssets";
@@ -58,19 +61,18 @@ import { paintShroudMaskTile, shroudCornerRadii } from "../lib/render/terrainPai
 import { SHROUD_COVER, SHROUD_CORE_COVER, SHROUD_CORNER_RADIUS_FRAC, SHROUD_FILL, SHROUD_RGB } from "../lib/render/terrainPaint/constants";
 import { fogIndex, makeFog } from "../lib/sim/fog";
 
-function atlasCellGoldSpread(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
+function atlasCellGoldScore(atlas: TerrainAtlasData, tileX: number, tileY: number): number {
   const rect = atlasRectForTile(tileX, tileY, atlas.mapWidth);
-  let min = 510;
-  let max = 0;
+  let sum = 0;
+  let count = 0;
   for (let ly = 0; ly < rect.sh; ly++) {
     for (let lx = 0; lx < rect.sw; lx++) {
       const i = ((rect.sy + ly) * atlas.width + (rect.sx + lx)) * 4;
-      const gold = (atlas.data[i] ?? 0) + (atlas.data[i + 1] ?? 0);
-      if (gold < min) min = gold;
-      if (gold > max) max = gold;
+      sum += (atlas.data[i] ?? 0) + (atlas.data[i + 1] ?? 0) - (atlas.data[i + 2] ?? 0);
+      count += 1;
     }
   }
-  return max - min;
+  return count === 0 ? 0 : sum / count;
 }
 
 describe("seeded terrain atlas", () => {
@@ -174,7 +176,9 @@ describe("seeded terrain atlas", () => {
     const concrete = atlasPixelAtTile(atlas, 7, 7);
     expect(water[2]).toBeGreaterThan(water[0]);
     expect(sampleTerrainMaterial(state, 1, 1).water).toBe(true);
-    expect(atlasCellGoldSpread(atlas, 2, 2)).toBeGreaterThan(atlasCellGoldSpread(atlas, 0, 0));
+    expect(atlasCellGoldScore(atlas, 2, 2)).toBeGreaterThan(atlasCellGoldScore(atlas, 0, 0));
+    expect(atlasCellGoldScore(atlas, 2, 2)).toBeGreaterThan(atlasCellGoldScore(atlas, 7, 7));
+    expect(atlasPixelAtTile(atlas, 2, 2)).not.toEqual(ground);
     expect(high[0] + high[1] + high[2]).toBeGreaterThan(ground[0] + ground[1] + ground[2]);
     expect(road).not.toEqual(ground);
     expect(concrete).not.toEqual(ground);
@@ -758,6 +762,12 @@ describe("biome ground patches", () => {
       .toEqual(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle));
     expect(applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5.25, 5.25, 41, jungle))
       .not.toEqual(applyBiomeGroundPattern(desert.mid, "glass desert", 5.25, 5.25, 41, desert));
+    const jungleMarks = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      const sample = applyBiomeGroundPattern(jungle.mid, "jungle wreckage", 5 + i * 0.08, 5.2, 41, jungle);
+      jungleMarks.add(`${sample.r|0},${sample.g|0},${sample.b|0}`);
+    }
+    expect(jungleMarks.size).toBeGreaterThan(1);
   });
 
   it("varies open ground across tiles and biomes while leaving water and pads alone", () => {
@@ -795,13 +805,93 @@ describe("biome ground patches", () => {
 });
 
 describe("tile sprite blockers", () => {
+  function blockedSprite(biome: BiomeName, kind: ReturnType<typeof blockerPropKind>) {
+    for (let variant = 0; variant < 64; variant++) {
+      const hashed = hash((variant & 0xff) + 17);
+      if (blockerPropKind(biome, hashed) === kind) {
+        return tileSprite("blocked", 1, { biome, variant });
+      }
+    }
+    throw new Error(`no ${kind} sprite for ${biome}`);
+  }
+
   it("paints biome-specific blocker silhouettes", () => {
-    const jungle = tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 });
-    const desert = tileSprite("blocked", 1, { biome: "glass desert", variant: 3 });
-    const tundra = tileSprite("blocked", 1, { biome: "tundra grid", variant: 3 });
+    const jungle = blockedSprite("jungle wreckage", "tree");
+    const desert = blockedSprite("glass desert", "sandstone");
+    const tundra = blockedSprite("tundra grid", "pine");
     expect(jungle.shapes).not.toEqual(desert.shapes);
     expect(tundra.shapes).not.toEqual(jungle.shapes);
-    expect(tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes).toEqual(jungle.shapes);
+    expect(jungle.shapes.filter((shape) => shape.type === "ellipse").length).toBeGreaterThanOrEqual(6);
+    expect(tundra.shapes.filter((shape) => shape.type === "poly" && (shape.points?.length ?? 0) === 6).length).toBeGreaterThanOrEqual(5);
+    expect(desert.shapes.filter((shape) => shape.type === "poly").length).toBeGreaterThanOrEqual(4);
+    expect(tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes).toEqual(
+      tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes,
+    );
+  });
+});
+
+function createPaintMock() {
+  const ops: string[] = [];
+  const stack: number[] = [];
+  let alpha = 1;
+  const ctx = {
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
+    get globalAlpha() { return alpha; },
+    set globalAlpha(value: number) { alpha = value; },
+    save() { stack.push(alpha); },
+    restore() { alpha = stack.pop() ?? 1; },
+    translate() {},
+    beginPath() {},
+    moveTo() {},
+    lineTo() {},
+    quadraticCurveTo() {},
+    closePath() {},
+    fill() { ops.push(`fill:${ctx.fillStyle}`); },
+    stroke() { ops.push(`stroke:${ctx.strokeStyle}`); },
+    ellipse() {},
+  };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, ops };
+}
+
+describe("terrain adornment painting", () => {
+  it("paints layered scatter and blocker props deterministically", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    let scatterTile = { x: 0, y: 0 };
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        if (scatterForTile(state, x, y).length > 0) {
+          scatterTile = { x, y };
+          break;
+        }
+      }
+    }
+    const scatterA = createPaintMock();
+    drawTerrainScatter(scatterA.ctx, state, scatterTile.x, scatterTile.y, 40, 40, 1);
+    const scatterB = createPaintMock();
+    drawTerrainScatter(scatterB.ctx, state, scatterTile.x, scatterTile.y, 40, 40, 1);
+    expect(scatterA.ops.length).toBeGreaterThan(4);
+    expect(scatterB.ops).toEqual(scatterA.ops);
+
+    const jungle = { ...state, biome: "jungle wreckage" as BiomeName };
+    const desert = { ...state, biome: "glass desert" as BiomeName };
+    const tundra = { ...state, biome: "tundra grid" as BiomeName };
+    const junglePaint = createPaintMock();
+    const desertPaint = createPaintMock();
+    const tundraPaint = createPaintMock();
+    drawBlockerProp(junglePaint.ctx, jungle, 4, 4, 40, 40, 1);
+    drawBlockerProp(desertPaint.ctx, desert, 4, 4, 40, 40, 1);
+    drawBlockerProp(tundraPaint.ctx, tundra, 4, 4, 40, 40, 1);
+    expect(junglePaint.ops.length).toBeGreaterThan(6);
+    expect(desertPaint.ops.length).toBeGreaterThan(6);
+    expect(tundraPaint.ops.length).toBeGreaterThan(6);
+    expect(junglePaint.ops).not.toEqual(desertPaint.ops);
+    const jungleAgain = createPaintMock();
+    drawBlockerProp(jungleAgain.ctx, jungle, 4, 4, 40, 40, 1);
+    expect(jungleAgain.ops).toEqual(junglePaint.ops);
   });
 });
 
@@ -835,10 +925,10 @@ describe("gameplay ground sprites", () => {
     const campaign = generateCampaignVisualProfile(421);
     expect(water).toBeNull();
     expect(land?.imageTextureSrc).toBe(TERRAIN_ART[campaign.terrainTreatment]);
-    expect(land?.id).toBe("tile:tactical-surface-v12-treatment-plate:clear:ash plains:2:expeditionary:red:1:3:0:15:0:0:none");
-    expect(ore?.id).toBe("tile:tactical-surface-v12-treatment-plate:resource:ash plains:2:expeditionary:red:1:1:0:15:0:2:none");
-    expect(blocked?.id).toBe("tile:tactical-surface-v12-treatment-plate:clear:ash plains:2:expeditionary:red:1:3:0:15:0:0:none");
-    expect(pad?.id).toBe("tile:tactical-surface-v12-treatment-plate:clear:ash plains:2:expeditionary:red:1:1:0:15:2:0:none");
+    expect(land?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:3:0:15:0:0:none");
+    expect(ore?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:resource:ash plains:2:expeditionary:red:1:1:0:15:0:2:none");
+    expect(blocked?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:3:0:15:0:0:none");
+    expect(pad?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:1:0:15:2:0:none");
     expect(pad?.id).not.toBe(land?.id);
     expect(pad?.imageTextureSrc).toBe(land?.imageTextureSrc);
   });

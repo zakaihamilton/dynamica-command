@@ -16,40 +16,40 @@ export type MusicMissionContext = {
 };
 
 const BIOME_STYLES: Record<BiomeName, readonly MusicStyleName[]> = {
-  "ash plains": ["foundry-stomp", "industrial-march", "cinematic-tension"],
+  "ash plains": ["foundry-stomp", "industrial-march", "cinematic-tension", "tape-static", "break-wire", "disco-command"],
   "volcanic shelf": ["foundry-stomp", "night-raid", "acid-grid"],
-  "rust canyons": ["industrial-march", "chrome-fanfare", "signal-chase"],
-  "crystal flats": ["glass-chime", "neon-arpeggio", "chrome-fanfare"],
-  "glass desert": ["acid-grid", "glass-chime", "signal-chase"],
+  "rust canyons": ["industrial-march", "chrome-fanfare", "signal-chase", "tape-static", "resonant-coil", "disco-command"],
+  "crystal flats": ["glass-chime", "neon-arpeggio", "chrome-fanfare", "bit-garrison", "choir-vector"],
+  "glass desert": ["acid-grid", "glass-chime", "signal-chase", "dune-cipher", "resonant-coil"],
   "tundra grid": ["ice-protocol", "low-orbit", "cinematic-tension"],
-  "jungle wreckage": ["night-raid", "orbital-drift", "neon-arpeggio"],
-  "salt marshes": ["orbital-drift", "low-orbit", "ice-protocol"],
+  "jungle wreckage": ["night-raid", "orbital-drift", "neon-arpeggio", "bit-garrison", "break-wire"],
+  "salt marshes": ["orbital-drift", "low-orbit", "ice-protocol", "relay-dub", "dune-cipher"],
 };
 
 const BIOME_STYLES_SECONDARY: Record<BiomeName, readonly MusicStyleName[]> = {
-  "ash plains": ["chrome-fanfare", "signal-chase", "night-raid"],
-  "volcanic shelf": ["industrial-march", "cinematic-tension", "foundry-stomp"],
-  "rust canyons": ["foundry-stomp", "cinematic-tension", "acid-grid"],
-  "crystal flats": ["acid-grid", "orbital-drift", "signal-chase"],
-  "glass desert": ["neon-arpeggio", "night-raid", "chrome-fanfare"],
-  "tundra grid": ["orbital-drift", "glass-chime", "cinematic-tension"],
-  "jungle wreckage": ["low-orbit", "acid-grid", "signal-chase"],
-  "salt marshes": ["night-raid", "cinematic-tension", "glass-chime"],
+  "ash plains": ["chrome-fanfare", "signal-chase", "night-raid", "resonant-coil"],
+  "volcanic shelf": ["industrial-march", "cinematic-tension", "foundry-stomp", "tape-static", "resonant-coil"],
+  "rust canyons": ["foundry-stomp", "cinematic-tension", "acid-grid", "break-wire"],
+  "crystal flats": ["acid-grid", "orbital-drift", "signal-chase", "disco-command"],
+  "glass desert": ["neon-arpeggio", "night-raid", "chrome-fanfare", "tape-static"],
+  "tundra grid": ["orbital-drift", "glass-chime", "cinematic-tension", "choir-vector", "relay-dub"],
+  "jungle wreckage": ["low-orbit", "acid-grid", "signal-chase", "tape-static"],
+  "salt marshes": ["night-raid", "cinematic-tension", "glass-chime", "choir-vector"],
 };
 
 const KIND_STYLES: Partial<Record<MissionKind, readonly MusicStyleName[]>> = {
-  harvestQuota: ["chrome-fanfare", "neon-arpeggio", "orbital-drift", "signal-chase"],
-  forceQuota: ["chrome-fanfare", "neon-arpeggio", "signal-chase"],
-  structureQuota: ["industrial-march", "chrome-fanfare", "cinematic-tension"],
-  holdTheLine: ["cinematic-tension", "industrial-march", "foundry-stomp"],
-  sabotage: ["acid-grid", "signal-chase", "night-raid"],
-  destroyMarked: ["signal-chase", "acid-grid", "night-raid"],
-  razeAll: ["foundry-stomp", "industrial-march", "signal-chase"],
-  annihilate: ["foundry-stomp", "signal-chase", "night-raid"],
-  decapitate: ["industrial-march", "cinematic-tension", "foundry-stomp"],
-  escort: ["neon-arpeggio", "signal-chase", "chrome-fanfare"],
-  rescue: ["neon-arpeggio", "night-raid", "orbital-drift"],
-  extraction: ["signal-chase", "neon-arpeggio", "glass-chime"],
+  harvestQuota: ["chrome-fanfare", "neon-arpeggio", "orbital-drift", "signal-chase", "disco-command"],
+  forceQuota: ["chrome-fanfare", "neon-arpeggio", "signal-chase", "disco-command", "bit-garrison"],
+  structureQuota: ["industrial-march", "chrome-fanfare", "cinematic-tension", "choir-vector"],
+  holdTheLine: ["cinematic-tension", "industrial-march", "foundry-stomp", "choir-vector"],
+  sabotage: ["acid-grid", "signal-chase", "night-raid", "break-wire", "tape-static"],
+  destroyMarked: ["signal-chase", "acid-grid", "night-raid", "break-wire"],
+  razeAll: ["foundry-stomp", "industrial-march", "signal-chase", "resonant-coil"],
+  annihilate: ["foundry-stomp", "signal-chase", "night-raid", "break-wire"],
+  decapitate: ["industrial-march", "cinematic-tension", "foundry-stomp", "tape-static"],
+  escort: ["neon-arpeggio", "signal-chase", "chrome-fanfare", "disco-command"],
+  rescue: ["neon-arpeggio", "night-raid", "orbital-drift", "relay-dub"],
+  extraction: ["signal-chase", "neon-arpeggio", "glass-chime", "dune-cipher", "relay-dub"],
 };
 
 const KIND_ARRANGEMENTS: Partial<Record<MissionKind, readonly MusicArrangementName[]>> = {

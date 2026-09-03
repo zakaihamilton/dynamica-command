@@ -1,6 +1,15 @@
 import type { Entity, Owner } from "../../types";
 import { iffColors } from "../iff";
 
+/** Dark steel housing, matching `--chrome-void`. */
+const METER_HOUSING = "rgba(5, 8, 14, 0.92)";
+/** Inset stroke, matching `--chrome-steel-hi`. */
+const METER_STEEL = "rgba(58, 77, 94, 0.85)";
+const METER_TRACK = "rgba(12, 16, 20, 0.95)";
+const METER_SEGMENT = "rgba(5, 8, 14, 0.45)";
+const METER_SELECT = "#f5e6a8";
+const SEGMENT_PX = 4;
+
 export function entityHasWorldHealthMeter(e: Pick<Entity, "class" | "kind">): boolean {
   return e.class === "unit" || (e.class === "building" && e.kind === "turret");
 }
@@ -23,14 +32,18 @@ export function worldHealthMeterLayout(
   return { barW, meterY, centerX };
 }
 
+export function worldHealthMeterHeight(z: number): number {
+  return Math.max(2, Math.round(2.25 * z));
+}
+
 export function healthMeterColors(ratio: number): { top: string; bottom: string } {
   if (ratio > 0.5) {
-    return { top: "#4ade80", bottom: "#16a34a" };
+    return { top: "#6b8f4e", bottom: "#3f5c32" };
   }
   if (ratio > 0.25) {
-    return { top: "#fde047", bottom: "#d97706" };
+    return { top: "#c4a24a", bottom: "#7a5e22" };
   }
-  return { top: "#f87171", bottom: "#dc2626" };
+  return { top: "#a84a42", bottom: "#6b2a26" };
 }
 
 export function drawUnitHealthMeter(
@@ -49,23 +62,23 @@ export function drawUnitHealthMeter(
   if (maxHp <= 0 || hp <= 0) return;
   const ratio = Math.max(0, Math.min(1, hp / maxHp));
   const w = barWidth ?? Math.max(16, Math.round(20 * z));
-  const h = Math.max(3, Math.round(3.5 * z));
+  const h = worldHealthMeterHeight(z);
   const x = Math.round(centerX - w / 2);
   const y = Math.round(topY);
-  const pipW = Math.max(3, Math.round(2.5 * z));
+  const pipW = Math.max(2, Math.round(1.5 * z));
   const iff = iffColors(owner, neutral);
 
   ctx.save();
   ctx.globalAlpha = alpha;
 
-  ctx.fillStyle = "rgba(8, 12, 14, 0.9)";
+  ctx.fillStyle = METER_HOUSING;
   ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
 
-  ctx.strokeStyle = iff.frame;
+  ctx.strokeStyle = METER_STEEL;
   ctx.lineWidth = 1;
   ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
 
-  ctx.fillStyle = "rgba(18, 22, 26, 0.95)";
+  ctx.fillStyle = METER_TRACK;
   ctx.fillRect(x, y, w, h);
 
   const fillW = Math.max(0, Math.min(w, Math.round(w * ratio)));
@@ -77,9 +90,9 @@ export function drawUnitHealthMeter(
     ctx.fillStyle = grad;
     ctx.fillRect(x, y, fillW, h);
 
-    if (h >= 3) {
-      ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
-      ctx.fillRect(x, y, fillW, 1);
+    ctx.fillStyle = METER_SEGMENT;
+    for (let sx = x + SEGMENT_PX; sx < x + fillW; sx += SEGMENT_PX) {
+      ctx.fillRect(sx, y, 1, h);
     }
   }
 
@@ -87,8 +100,8 @@ export function drawUnitHealthMeter(
   ctx.fillRect(x - 1, y, pipW, h);
 
   if (isSelected) {
-    ctx.fillStyle = "#f5e6a8";
-    ctx.fillRect(x, y - 2, w, 1);
+    ctx.fillStyle = METER_SELECT;
+    ctx.fillRect(x, y + h + 1, w, 1);
   }
 
   ctx.restore();
