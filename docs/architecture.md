@@ -1,6 +1,6 @@
 # Architecture
 
-Dynamica Command is a deterministic, client-side real-time strategy game. The URL seed and mission identify a generated theater; the browser owns the mutable simulation session and persists it locally.
+Dynamica Command is a deterministic, client-side real-time strategy game. The URL seed and mission identify a generated campaign; the browser owns the mutable simulation session and persists it locally.
 
 ## Boundaries
 

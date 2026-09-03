@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +15,7 @@ import { useGameSelection } from "../components/game/hooks/useGameSelection";
 import { useMissionRoutes } from "../components/game/hooks/useMissionRoutes";
 import { useMissionBackGuard } from "../components/game/hooks/useMissionBackGuard";
 import { useMenuController } from "../components/menu/useMenuController";
+import { dailySeed } from "../components/menu/menuLaunch";
 import { consumeFreshLaunchIntent } from "../lib/persist/navigation";
 import { createSaveSession, listSlots, localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
 import { defaultSettings } from "../lib/persist/settings";
@@ -43,6 +44,7 @@ afterEach(() => {
   router.push.mockReset();
   window.localStorage.clear();
   window.sessionStorage.clear();
+  window.history.replaceState({}, "", "/");
 });
 
 describe("useMenuController", () => {
@@ -80,6 +82,33 @@ describe("useMenuController", () => {
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "l" })));
     expect(router.push).toHaveBeenCalledWith("/load");
   });
+
+  it("copies a campaign share link and opens a shared seed from the URL", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+
+    const { result } = renderHook(() => useMenuController());
+    act(() => result.current.setCode("0421"));
+    await act(async () => {
+      await result.current.copyLink();
+    });
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?seed=0421`);
+    expect(result.current.copied).toBe(true);
+
+    window.history.replaceState({}, "", "/?seed=421");
+    const shared = renderHook(() => useMenuController());
+    await waitFor(() => {
+      expect(shared.result.current.code).toBe("0421");
+      expect(shared.result.current.view).toBe("newGame");
+    });
+  });
+
+  it("restores today's daily seed", () => {
+    const { result } = renderHook(() => useMenuController());
+    act(() => result.current.setCode("0421"));
+    act(() => result.current.restoreDaily());
+    expect(result.current.code).toBe(dailySeed());
+  });
 });
 
 describe("useBriefingController", () => {
@@ -103,7 +132,7 @@ describe("useBriefingController", () => {
     expect(replay).toHaveBeenCalledOnce();
   });
 
-  it("marks a new-theater launch as fresh across client-side navigation", () => {
+  it("marks a new-campaign launch as fresh across client-side navigation", () => {
     const { result } = renderHook(() => useBriefingController({
       seed: 421,
       mission: 0,

@@ -3,29 +3,37 @@ import { useRouter } from "next/navigation";
 import { createCampaign } from "@/lib/gen/campaign";
 import { cachedLocalStorage } from "@/lib/persist/save";
 import { defaultSettings, readSettings, type GameSettings } from "@/lib/persist/settings";
-import { parseSeed } from "@/lib/seed/rng";
+import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import type { MenuView } from "./MenuOverlay";
 import { tutorialPath } from "../game/hooks/missionRoutes";
-import { menuLaunchPath, rollSeed } from "./menuLaunch";
+import { dailySeed, menuLaunchPath, rollSeed } from "./menuLaunch";
 
 export function useMenuController() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const [view, setView] = useState<MenuView>("main");
   const [settings, setSettings] = useState<GameSettings>(() => defaultSettings());
   const inputRef = useRef<HTMLInputElement>(null);
+  const copyTimer = useRef(0);
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const storage = cachedLocalStorage();
       setSettings(readSettings(storage));
+      const parsed = parseSeed(new URLSearchParams(window.location.search).get("seed") ?? "");
+      if (parsed === null) return;
+      setCode(formatSeed(parsed));
+      setView("newGame");
     });
     return () => cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => () => window.clearTimeout(copyTimer.current), []);
 
   const preview = useMemo(() => {
     const seed = parseSeed(code);
@@ -34,8 +42,9 @@ export function useMenuController() {
   }, [code]);
 
   const openNewGame = useCallback(() => {
-    setCode((current) => current.length === 4 ? current : rollSeed());
+    setCode((current) => current.length === 4 ? current : dailySeed());
     setError("");
+    setCopied(false);
     setView("newGame");
   }, []);
 
@@ -46,12 +55,36 @@ export function useMenuController() {
   const randomize = useCallback(() => {
     setCode(rollSeed());
     setError("");
+    setCopied(false);
   }, []);
+
+  const restoreDaily = useCallback(() => {
+    setCode(dailySeed());
+    setError("");
+    setCopied(false);
+  }, []);
+
+  const copyLink = useCallback(() => {
+    const seed = parseSeed(code);
+    if (seed === null || code.length < 4) return;
+    const url = `${window.location.origin}/?seed=${formatSeed(seed)}`;
+    if (!navigator.clipboard?.writeText) {
+      setError("Could not copy the campaign link.");
+      return;
+    }
+    return navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      window.clearTimeout(copyTimer.current);
+      copyTimer.current = window.setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {
+      setError("Could not copy the campaign link.");
+    });
+  }, [code]);
 
   const launch = useCallback(() => {
     const path = menuLaunchPath(code);
     if (!path) {
-      setError("Enter a 4-digit seed (0000–9999), or roll a random theater.");
+      setError("Enter a 4-digit seed (0000–9999), or roll a random campaign.");
       return;
     }
     setError("");
@@ -84,17 +117,21 @@ export function useMenuController() {
   return {
     code,
     error,
+    copied,
     view,
     settings,
     inputRef,
+    preview,
     previewLine: preview
       ? `${preview.world.name} · ${preview.factions[0].name} vs ${preview.factions[1].name}`
-      : "Enter a 4-digit campaign code — or roll a random theater",
+      : "Enter a 4-digit campaign code — or roll a random campaign",
     openNewGame,
     openTutorial,
     openLoadMission,
     openOptions,
     randomize,
+    restoreDaily,
+    copyLink,
     launch,
     toggleSound,
     toggleMusic,
@@ -103,7 +140,11 @@ export function useMenuController() {
     setCode: (value: string) => {
       setCode(value);
       setError("");
+      setCopied(false);
     },
-    goBack: () => setView("main"),
+    goBack: () => {
+      setCopied(false);
+      setView("main");
+    },
   };
 }

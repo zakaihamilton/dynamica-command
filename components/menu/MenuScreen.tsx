@@ -31,7 +31,7 @@ export function MenuScreen() {
           </div>
           <div className={styles.topbarStatus}>
             <span className={styles.statusDot} aria-hidden="true" />
-            <span>LOCAL THEATER LINK</span>
+            <span>LOCAL CAMPAIGN LINK</span>
             <span className={styles.topbarCode}>DC-01</span>
           </div>
         </header>
@@ -54,10 +54,14 @@ export function MenuScreen() {
         code={controller.code}
         error={controller.error}
         previewLine={controller.previewLine}
+        preview={controller.preview}
+        copied={controller.copied}
         inputRef={controller.inputRef}
         settings={controller.settings}
         onChange={controller.setCode}
         onRandomize={controller.randomize}
+        onToday={controller.restoreDaily}
+        onCopyLink={controller.copyLink}
         onLaunch={controller.launch}
         onToggleSound={controller.toggleSound}
         onToggleMusic={controller.toggleMusic}

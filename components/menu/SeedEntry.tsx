@@ -10,6 +10,8 @@ export function SeedEntry({
   inputRef,
   onChange,
   onRandomize,
+  onToday,
+  todayDisabled = false,
   onLaunch,
 }: {
   code: string;
@@ -18,6 +20,8 @@ export function SeedEntry({
   inputRef: RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onRandomize: () => void;
+  onToday?: () => void;
+  todayDisabled?: boolean;
   onLaunch: () => void;
 }) {
   return (
@@ -37,6 +41,11 @@ export function SeedEntry({
             onFocus={(e) => {
               if (code.length === 4) e.currentTarget.select();
             }}
+            onMouseUp={(e) => {
+              if (code.length !== 4) return;
+              e.preventDefault();
+              e.currentTarget.select();
+            }}
             onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -47,18 +56,31 @@ export function SeedEntry({
             maxLength={4}
             inputMode="numeric"
             autoComplete="off"
-            aria-label="Four digit theater seed"
+            aria-label="Four digit campaign seed"
             className={styles.input}
           />
         </div>
-        <ConsoleButton
-          className={styles.roll}
-          tooltip="Roll a random theater"
-          shortcut={SHORTCUT.randomize}
-          onClick={onRandomize}
-        >
-          Roll
-        </ConsoleButton>
+        <div className={styles.seedActions}>
+          <ConsoleButton
+            className={styles.roll}
+            tooltip="Roll a random campaign"
+            shortcut={SHORTCUT.randomize}
+            onClick={onRandomize}
+          >
+            Roll
+          </ConsoleButton>
+          {onToday && (
+            <ConsoleButton
+              muted
+              className={styles.today}
+              tooltip={todayDisabled ? "Already on today's campaign" : "Return to today's daily campaign"}
+              onClick={onToday}
+              disabled={todayDisabled}
+            >
+              Today
+            </ConsoleButton>
+          )}
+        </div>
       </div>
       <div className={styles.status}>
         <p className={styles.preview}>{previewLine}</p>

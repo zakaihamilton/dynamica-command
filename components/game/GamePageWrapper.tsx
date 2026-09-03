@@ -6,7 +6,7 @@ import { PageFallback } from "@/components/ui/PageFallback";
 
 export const DynamicGameClient = dynamic(
   () => import("@/components/game/GameClient").then((m) => m.GameClient),
-  { ssr: false, loading: () => <PageFallback>Loading theater…</PageFallback> },
+  { ssr: false, loading: () => <PageFallback>Loading campaign…</PageFallback> },
 );
 
 export function GamePageContainer({

@@ -10,7 +10,7 @@ import type { SimState } from "../../lib/types";
 async function openBriefing(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
-  const seed = page.getByLabel("Four digit theater seed");
+  const seed = page.getByLabel("Four digit campaign seed");
   await seed.fill("0421");
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
@@ -217,8 +217,12 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
 
   await page.getByRole("button", { name: "NEW GAME" }).click();
   await expect(page.getByTestId("deploy-screen")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "New theater" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New campaign" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Operations map" })).toHaveCount(0);
+  await expect(page.getByLabel("Four digit campaign seed")).toHaveValue(/^\d{4}$/);
+  await expect(page.getByTestId("campaign-backdrop")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy link" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Today" })).toBeDisabled();
 
   const deployOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(deployOverflow).toBe(false);
@@ -229,6 +233,26 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   const operationsOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(operationsOverflow).toBe(false);
   await expect(page.getByTestId("mission-detail")).toBeVisible();
+});
+
+test("copies a campaign link and opens a shared seed", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/");
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await expect(page.getByTestId("deploy-screen")).toBeVisible();
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("button", { name: "Link copied!" })).toBeVisible();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toMatch(/\?seed=\d{4}$/);
+
+  await page.goto("/?seed=0777");
+  await expect(page.getByTestId("deploy-screen")).toBeVisible();
+  await expect(page.getByLabel("Four digit campaign seed")).toHaveValue("0777");
+  await expect(page.getByTestId("campaign-backdrop")).toBeVisible();
+  await page.getByRole("button", { name: "Today" }).click();
+  await expect(page.getByLabel("Four digit campaign seed")).not.toHaveValue("0777");
+  await expect(page.getByRole("button", { name: "Today" })).toBeDisabled();
 });
 
 test("opens the campaign archive from the main menu", async ({ page }) => {
@@ -666,7 +690,7 @@ test("starts a new same-seed mission after reloading before a fresh launch", asy
   await expect(page.getByTestId("menu-dashboard")).toBeVisible();
 
   await page.getByRole("button", { name: "NEW GAME" }).click();
-  await page.getByLabel("Four digit theater seed").fill("0421");
+  await page.getByLabel("Four digit campaign seed").fill("0421");
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
   await page.getByRole("button", { name: "Launch" }).click();

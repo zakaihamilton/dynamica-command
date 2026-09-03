@@ -215,14 +215,14 @@ describe("SeedEntry", () => {
   it("selects an existing seed so typing replaces it", async () => {
     const user = userEvent.setup();
     render(<ControlledSeedEntry />);
-    const input = screen.getByLabelText<HTMLInputElement>("Four digit theater seed");
+    const input = screen.getByLabelText<HTMLInputElement>("Four digit campaign seed");
 
-    input.focus();
+    await user.click(input);
     expect(input.selectionStart).toBe(0);
     expect(input.selectionEnd).toBe(4);
 
-    await user.keyboard("9876");
-    expect(input).toHaveValue("9876");
+    await user.keyboard("0000");
+    expect(input).toHaveValue("0000");
   });
 
   it("sanitizes input and launches on Enter or Roll", async () => {
@@ -241,7 +241,7 @@ describe("SeedEntry", () => {
         onLaunch={onLaunch}
       />,
     );
-    const input = screen.getByLabelText("Four digit theater seed");
+    const input = screen.getByLabelText("Four digit campaign seed");
     fireEvent.change(input, { target: { value: "a1b23456" } });
     expect(onChange).toHaveBeenCalledWith("1234");
     fireEvent.keyDown(input, { key: "Enter" });
@@ -272,11 +272,15 @@ describe("MenuOverlay", () => {
     const props = {
       code: "0421",
       error: "",
-      previewLine: "Theater",
+      previewLine: "Campaign",
+      preview: null,
+      copied: false,
       inputRef: createRef<HTMLInputElement>(),
       settings: defaultSettings(),
       onChange: vi.fn(),
       onRandomize: vi.fn(),
+      onToday: vi.fn(),
+      onCopyLink: vi.fn(),
       onLaunch: vi.fn(),
       onToggleSound: vi.fn(),
       onToggleMusic: vi.fn(),
@@ -286,7 +290,7 @@ describe("MenuOverlay", () => {
     const { rerender } = render(<MenuOverlay {...props} view="main" />);
     expect(screen.queryByRole("dialog")).toBeNull();
     rerender(<MenuOverlay {...props} view="newGame" />);
-    expect(screen.getByRole("dialog", { name: "New theater" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "New campaign" })).toBeVisible();
     rerender(<MenuOverlay {...props} view="options" />);
     expect(screen.getByRole("dialog", { name: "Game options" })).toBeVisible();
   });
@@ -298,17 +302,139 @@ describe("NewGameSetup", () => {
       <NewGameSetup
         code="0421"
         error=""
-        previewLine="Theater"
+        previewLine="Campaign"
+        preview={null}
+        copied={false}
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
+        onToday={vi.fn()}
+        onCopyLink={vi.fn()}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("dialog", { name: "New theater" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "New campaign" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Operations map" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Copy link" })).toBeDisabled();
+    expect(screen.queryByTestId("campaign-backdrop")).toBeNull();
+  });
+
+  it("shows campaign backdrop, details, and copied-link state", () => {
+    const campaign = createCampaign(421);
+    const onCopyLink = vi.fn();
+    const { rerender } = render(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Campaign"
+        preview={campaign}
+        copied={false}
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onToday={vi.fn()}
+        onCopyLink={onCopyLink}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("campaign-backdrop")).toBeVisible();
+    expect(screen.getByText(campaign.world.name)).toBeVisible();
+    expect(screen.getByText(campaign.characters.commander.name)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    expect(onCopyLink).toHaveBeenCalledOnce();
+
+    rerender(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Campaign"
+        preview={campaign}
+        copied
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onToday={vi.fn()}
+        onCopyLink={onCopyLink}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Link copied!" })).toBeVisible();
+  });
+
+  it("uses a versus layout when faction names are long", () => {
+    const campaign = createCampaign(421);
+    render(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Campaign"
+        preview={campaign}
+        copied={false}
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onToday={vi.fn()}
+        onCopyLink={vi.fn()}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("campaign-details")).toHaveAttribute("data-wide", "true");
+    expect(screen.getByText(campaign.factions[0].name)).toBeVisible();
+    expect(screen.getByText(campaign.factions[1].name)).toBeVisible();
+    expect(screen.queryByText(`${campaign.factions[0].name} vs ${campaign.factions[1].name}`)).toBeNull();
+  });
+
+  it("keeps a compact faction line when names are short", () => {
+    const campaign = createCampaign(201);
+    render(
+      <NewGameSetup
+        code="0201"
+        error=""
+        previewLine="Campaign"
+        preview={campaign}
+        copied={false}
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onToday={vi.fn()}
+        onCopyLink={vi.fn()}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("campaign-details")).not.toHaveAttribute("data-wide");
+    expect(screen.getByText(`${campaign.factions[0].name} vs ${campaign.factions[1].name}`)).toBeVisible();
+  });
+
+  it("restores the daily seed from Today", () => {
+    const onToday = vi.fn();
+    render(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Campaign"
+        preview={createCampaign(421)}
+        copied={false}
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onToday={onToday}
+        onCopyLink={vi.fn()}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    expect(onToday).toHaveBeenCalledOnce();
   });
 });
 
@@ -396,7 +522,7 @@ describe("PauseMenu", () => {
     expect(screen.getByTestId("pause-menu")).toHaveTextContent("Mission saved.");
     expect(screen.getByText("Mission")).toBeVisible();
     expect(screen.getByText("Operation")).toBeVisible();
-    expect(screen.getByText("Theater")).toBeVisible();
+    expect(screen.getByText("Campaign")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Export Save" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Resume Mission" }));
     expect(onResume).toHaveBeenCalledOnce();
