@@ -3,7 +3,7 @@ import type { BiomeName, MissionKind } from "../../types";
 export type MusicCue = "menu" | "briefing" | "mission" | "victory" | "defeat";
 export type MusicIntensity = "calm" | "engaged" | "critical";
 export type MusicVoiceType = "triangle" | "sawtooth" | "square" | "sine";
-export type MusicGroove = "march" | "pulse" | "shuffle" | "half-time";
+export type MusicGroove = "march" | "pulse" | "shuffle" | "half-time" | "breakbeat" | "four-floor" | "offbeat";
 export type MusicScaleName =
   | "natural minor"
   | "dorian"
@@ -11,7 +11,13 @@ export type MusicScaleName =
   | "major"
   | "phrygian"
   | "harmonic minor"
-  | "minor pentatonic";
+  | "minor pentatonic"
+  | "lydian"
+  | "double harmonic"
+  | "blues";
+export type MusicVoiceEngine = "dual-osc" | "acid-res" | "pwm" | "fm-bell" | "chip";
+export type MusicDrumKit = "gated" | "analog-808" | "chip-noise" | "industrial";
+export type MusicPulseRole = "arp" | "stab" | "offbeat" | "none";
 export type MusicBassRiffFamily =
   | "classic"
   | "industrial"
@@ -21,7 +27,10 @@ export type MusicBassRiffFamily =
   | "descending"
   | "restless"
   | "walking"
-  | "pedal";
+  | "pedal"
+  | "acid-slide"
+  | "chip-ostinato"
+  | "dub-space";
 export type MusicFillStyle = "snare-tom" | "kick-roll" | "hat-chatter" | "tom-only";
 export type MusicArrangementName =
   | "slow-burn"
@@ -52,7 +61,15 @@ export type MusicStyleName =
   | "glass-chime"
   | "foundry-stomp"
   | "night-raid"
-  | "ice-protocol";
+  | "ice-protocol"
+  | "bit-garrison"
+  | "resonant-coil"
+  | "break-wire"
+  | "dune-cipher"
+  | "relay-dub"
+  | "disco-command"
+  | "choir-vector"
+  | "tape-static";
 export type MusicSectionName =
   | "intro"
   | "groove"
@@ -63,7 +80,7 @@ export type MusicSectionName =
   | "climax"
   | "turnaround";
 export type MusicStem = "bass" | "pulse" | "melody" | "counter";
-export type MusicDrumKind = "kick" | "snare" | "clap" | "hat" | "openHat" | "tom" | "impact";
+export type MusicDrumKind = "kick" | "snare" | "clap" | "hat" | "openHat" | "tom" | "impact" | "rim" | "shaker";
 
 export type MusicDrumProfile = {
   kickStart: number;
@@ -130,6 +147,10 @@ export type MusicStyleProfile = {
   rhythmShift: 0 | 1 | 2;
   counterChance: number;
   drumDensity: number;
+  voiceEngine: MusicVoiceEngine;
+  drumKit: MusicDrumKit;
+  pulseRole: MusicPulseRole;
+  saturationAmount: number;
   drum: MusicDrumProfile;
 };
 
@@ -148,6 +169,9 @@ export const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 export const PHRYGIAN = [0, 1, 3, 5, 7, 8, 10];
 export const HARMONIC_MINOR = [0, 2, 3, 5, 7, 8, 11];
 export const MINOR_PENTATONIC = [0, 3, 5, 7, 10];
+export const LYDIAN = [0, 2, 4, 6, 7, 9, 11];
+export const DOUBLE_HARMONIC = [0, 1, 4, 5, 7, 8, 11];
+export const BLUES = [0, 3, 5, 6, 7, 10];
 
 export const MINOR_PROGRESSIONS: readonly number[][] = [
   [0, 5, 2, 6, 0, 5, 3, 4],
@@ -202,6 +226,39 @@ export const HARMONIC_MINOR_PROGRESSIONS: readonly number[][] = [
   [0, 6, 4, 5, 0, 3, 4, 6],
   [3, 0, 4, 6, 5, 0, 4, 3],
   [0, 5, 4, 3, 6, 4, 0, 5],
+];
+
+export const LYDIAN_PROGRESSIONS: readonly number[][] = [
+  [0, 1, 4, 3, 0, 1, 4, 5],
+  [0, 4, 1, 5, 0, 3, 4, 1],
+  [1, 0, 4, 5, 1, 3, 0, 4],
+  [0, 3, 1, 4, 0, 5, 1, 4],
+  [0, 1, 5, 4, 2, 0, 4, 3],
+  [4, 0, 1, 5, 3, 0, 4, 1],
+  [0, 2, 4, 1, 0, 5, 3, 4],
+  [1, 4, 0, 5, 1, 0, 3, 4],
+];
+
+export const DOUBLE_HARMONIC_PROGRESSIONS: readonly number[][] = [
+  [0, 1, 4, 0, 3, 1, 4, 5],
+  [0, 4, 1, 0, 5, 1, 3, 4],
+  [1, 0, 4, 3, 1, 0, 5, 4],
+  [0, 1, 3, 4, 0, 5, 1, 4],
+  [0, 5, 1, 4, 0, 1, 3, 4],
+  [4, 0, 1, 5, 3, 0, 1, 4],
+  [0, 3, 1, 0, 4, 1, 5, 4],
+  [1, 4, 0, 3, 1, 5, 0, 4],
+];
+
+export const BLUES_PROGRESSIONS: readonly number[][] = [
+  [0, 0, 3, 0, 4, 3, 0, 4],
+  [0, 3, 0, 4, 0, 3, 4, 0],
+  [0, 4, 3, 0, 4, 0, 3, 4],
+  [3, 0, 4, 0, 3, 4, 0, 3],
+  [0, 3, 4, 3, 0, 4, 3, 0],
+  [0, 0, 4, 3, 0, 3, 4, 0],
+  [4, 0, 3, 0, 4, 3, 0, 4],
+  [0, 4, 0, 3, 0, 4, 3, 4],
 ];
 
 export const PENTATONIC_PROGRESSIONS: readonly number[][] = [

@@ -11,7 +11,6 @@ import {
 } from "../../anim";
 import { TILE_H, tileToScreen, type Camera } from "../../../iso";
 import { drawSprite, isRasterReady, rasterize } from "../../sprites";
-import { drawUnitIffMarker } from "../../iff";
 import { drawUnitShadow, paintUnitMovementFx } from "../../unitMotion";
 import { computeUnitDynamicTransform, updateUnitHistory } from "../../gl/unitTransformTracker";
 import { isPerfHudEnabled, type WorldPhaseTimings } from "../../perfHud";
@@ -37,6 +36,7 @@ import {
   drawUnitGlow,
   drawUnitHealthMeter,
   entityHasWorldHealthMeter,
+  worldHealthMeterHeight,
   worldHealthMeterLayout,
 } from "../../renderOverlays";
 import {
@@ -207,19 +207,6 @@ export function renderEntityPhase(
       );
     }
 
-    if (e.class === "unit") {
-      drawUnitIffMarker(
-        ctx,
-        e.kind as UnitKind,
-        groundX,
-        groundY,
-        z,
-        entityAlpha,
-        e.owner,
-        e.neutral === true,
-      );
-    }
-
     if (bAnim) drawBuildingFx(ctx, e, s, z, bAnim);
     if (e.kind === "turret" && e.class === "building") {
       const targetEntity = e.attackTarget !== undefined ? entityById.get(e.attackTarget) : undefined;
@@ -263,7 +250,7 @@ export function renderEntityPhase(
       if (e.class === "unit" && (e.suppression ?? 0) > 0) {
         const suppW = barW;
         const suppX = Math.round(centerX - suppW / 2);
-        const suppY = meterY + Math.max(3, Math.round(3.5 * z)) + 2;
+        const suppY = meterY + worldHealthMeterHeight(z) + 2;
         ctx.save();
         ctx.globalAlpha = spriteAlpha;
         ctx.fillStyle = "rgba(8, 12, 14, 0.85)";

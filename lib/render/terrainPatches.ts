@@ -29,39 +29,67 @@ export function applyBiomeGroundPattern(
   mats: BiomeMaterials,
 ): Rgb {
   const n = hash2(Math.floor(mapX * 8), Math.floor(mapY * 8), salt + 419);
+  const n2 = hash2(Math.floor(mapX * 16), Math.floor(mapY * 16), salt + 431);
   switch (biome) {
     case "glass desert": {
-      const ripple = 0.5 + 0.5 * Math.sin(mapX * 3.1 + mapY * 0.85);
-      return mixRgb(color, mats.patchA, ripple * 0.18 + (n - 0.5) * 0.06);
+      const dune = 0.5 + 0.5 * Math.sin(mapX * 3.1 + mapY * 0.85);
+      const ripple = 0.5 + 0.5 * Math.sin(mapX * 7.4 - mapY * 2.1);
+      let out = mixRgb(color, mats.patchA, dune * 0.24 + ripple * 0.12 + (n - 0.5) * 0.08);
+      if (n2 > 0.88) out = mixRgb(out, mats.patchB, 0.3);
+      return out;
     }
     case "rust canyons": {
       const stripe = ((mapX * 0.85 + mapY * 1.6) % 1 + 1) % 1;
-      const band = stripe < 0.16 || stripe > 0.84 ? 0.26 : 0.04;
-      return mixRgb(color, mats.patchB, band);
+      const strata = stripe < 0.12 || stripe > 0.88 ? 0.4 : stripe < 0.22 || stripe > 0.78 ? 0.18 : 0.05;
+      const scratch = n > 0.82 ? 0.24 : 0;
+      return mixRgb(mixRgb(color, mats.patchB, strata), mats.patchA, scratch);
     }
     case "tundra grid": {
-      const speckle = n > 0.74 ? 0.42 : n > 0.58 ? 0.12 : 0;
-      return mixRgb(color, mats.patchA, speckle);
+      const frost = n > 0.7 ? 0.52 : n > 0.52 ? 0.18 : 0.04;
+      const vein = Math.abs(Math.sin(mapX * 5.2 + mapY * 0.4));
+      let out = mixRgb(color, mats.patchA, frost);
+      if (vein > 0.9) out = mixRgb(out, mats.light, 0.32);
+      if (n2 > 0.86) out = mixRgb(out, mats.patchB, 0.2);
+      return out;
     }
     case "volcanic shelf": {
       const crack = Math.abs(Math.sin(mapX * 7.3) * Math.sin(mapY * 5.1));
-      return mixRgb(color, mats.patchB, crack > 0.86 ? 0.38 : 0.05);
+      const seam = crack > 0.86 ? 0.5 : crack > 0.72 ? 0.2 : 0.06;
+      let out = mixRgb(color, mats.patchB, seam);
+      if (n2 > 0.9) out = mixRgb(out, mats.ore, 0.24);
+      return out;
     }
     case "salt marshes": {
       const wet = 0.5 + 0.5 * Math.sin(mapX * 1.7 + mapY * 1.3);
-      return mixRgb(color, mats.patchA, 0.08 + wet * 0.22);
+      const puddle = 0.5 + 0.5 * Math.sin(mapX * 4.2 - mapY * 3.1);
+      return mixRgb(
+        mixRgb(color, mats.patchA, 0.1 + wet * 0.28),
+        mats.patchB,
+        puddle > 0.76 ? 0.2 : 0.05,
+      );
     }
     case "jungle wreckage": {
-      const fleck = n > 0.62 ? 0.28 : 0.07;
-      return mixRgb(color, n > 0.86 ? mats.patchA : mats.patchB, fleck);
+      const litter = n > 0.76 ? 0.4 : n > 0.52 ? 0.18 : 0.08;
+      const moss = n2 > 0.68 ? mats.patchA : mats.patchB;
+      let out = mixRgb(color, moss, litter);
+      if (n > 0.92) out = mixRgb(out, mats.high, 0.16);
+      return out;
     }
     case "crystal flats": {
-      const glint = n > 0.9 ? 0.48 : n > 0.76 ? 0.16 : 0.03;
-      return mixRgb(color, mats.patchB, glint);
+      const glint = n > 0.86 ? 0.58 : n > 0.7 ? 0.24 : 0.05;
+      const facet = Math.abs(Math.sin(mapX * 6.1 - mapY * 4.4));
+      let out = mixRgb(color, mats.patchB, glint);
+      if (facet > 0.88) out = mixRgb(out, mats.light, 0.3);
+      return out;
     }
     default: {
       const streak = 0.5 + 0.5 * Math.sin(mapX * 0.9 - mapY * 2.2);
-      return mixRgb(color, streak > 0.62 ? mats.patchA : mats.patchB, 0.1 + streak * 0.14);
+      const ash = n > 0.78 ? 0.24 : 0.08;
+      return mixRgb(
+        mixRgb(color, streak > 0.56 ? mats.patchA : mats.patchB, 0.12 + streak * 0.18),
+        mats.dark,
+        ash,
+      );
     }
   }
 }

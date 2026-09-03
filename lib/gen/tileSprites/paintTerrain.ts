@@ -1,6 +1,7 @@
 import { type BiomeName, type Palette, type ShapeSpec } from "../../types";
 import { hash, mixHex, pick, signed, ORE } from "../tilePalette";
-import { blockerPropKind, type BlockerPropKind } from "../terrainDecorKinds";
+import { appendPropArtShapes, blockerPropPrims, blockerToneFromPalette } from "../blockerPropArt";
+import { blockerPropKind } from "../terrainDecorKinds";
 import { tileCx, tileCy, INK, poly, ell, line, irregularIso } from "./constants";
 import { wetGround, shoreSand, waterDeep, waterMid, waterHi, foam, rockColors, diamondEdges, insetBand } from "./colors";
 
@@ -121,96 +122,6 @@ export function paintOreField(shapes: ShapeSpec[], biome: BiomeName, v: number, 
   shapes.push(line(cx - 18, cy + 8, cx + 18, cy - 7, ORE.glint, 1));
 }
 
-function paintBoulder(
-  shapes: ShapeSpec[],
-  p: Palette,
-  v: number,
-  cx: number,
-  cy: number,
-  biome: BiomeName,
-  snowCap: boolean,
-): void {
-  const ox = signed(v, 3, 5);
-  const oy = signed(v, 4, 2);
-  const body = biome === "volcanic shelf" ? "#473331" : biome === "glass desert" ? "#675947" : mixHex(p.secondary, p.dark, 0.38);
-  const side = mixHex(body, "#171d20", 0.48);
-  const top = snowCap ? mixHex(p.light, "#e8f2f4", 0.55) : mixHex(p.light, "#a5b2ad", 0.28);
-  shapes.push(ell(cx - 17 + ox, cy + 2 + oy, 34, 10, "rgba(8, 12, 14, 0.42)"));
-  shapes.push(poly([cx - 17 + ox, cy + 2 + oy, cx + 16 + ox, cy + 2 + oy, cx + 12 + ox, cy + 9 + oy, cx - 13 + ox, cy + 9 + oy], side, INK, 1));
-  shapes.push(poly([cx - 14 + ox, cy + 2 + oy, cx - 4 + ox, cy - 12 + oy, cx + 15 + ox, cy - 2 + oy, cx + 11 + ox, cy + 4 + oy, cx - 12 + ox, cy + 5 + oy], body, INK, 1));
-  shapes.push(poly([cx - 4 + ox, cy - 12 + oy, cx + 15 + ox, cy - 2 + oy, cx + 8 + ox, cy, cx - 8 + ox, cy - 7 + oy], top, INK, 1));
-}
-
-function paintSpriteBlocker(
-  shapes: ShapeSpec[],
-  kind: BlockerPropKind,
-  biome: BiomeName,
-  p: Palette,
-  v: number,
-  cx: number,
-  cy: number,
-): void {
-  if (kind === "boulder" || kind === "sandstone" || kind === "snowRock") {
-    paintBoulder(shapes, p, v, cx, cy, biome, kind === "snowRock");
-    return;
-  }
-  const ox = signed(v, 3, 4);
-  const oy = signed(v, 4, 2);
-  const x = cx + ox;
-  const y = cy + oy;
-  shapes.push(ell(x - 14, y + 2, 28, 8, "rgba(8, 12, 14, 0.38)"));
-  if (kind === "tree") {
-    const canopy = biome === "salt marshes" ? "#3e5a3c" : "#2f5a30";
-    const hi = biome === "salt marshes" ? "#6a7a48" : "#5a8a40";
-    shapes.push(line(x, y + 4, x + signed(v, 5, 2), y - 16, mixHex(p.dark, "#3a2818", 0.4), 3));
-    shapes.push(ell(x - 12, y - 20, 18, 12, mixHex(canopy, p.dark, 0.2), INK));
-    shapes.push(ell(x - 2, y - 22, 14, 10, canopy));
-    shapes.push(ell(x - 4, y - 24, 8, 5, hi));
-    return;
-  }
-  if (kind === "pine") {
-    const needle = mixHex(p.secondary, "#30603e", 0.35);
-    shapes.push(line(x, y + 4, x, y - 8, p.dark, 2));
-    for (let i = 0; i < 3; i++) {
-      const w = 14 - i * 3;
-      const top = y - 4 - i * 7;
-      shapes.push(poly([x - w, top + 7, x, top - 6, x + w, top + 7], i === 2 ? mixHex(needle, p.light, 0.18) : needle, INK, 1));
-    }
-    return;
-  }
-  if (kind === "deadTree" || kind === "deadShrub") {
-    const wood = mixHex(p.dark, p.secondary, 0.25);
-    const tall = kind === "deadTree";
-    shapes.push(line(x, y + 4, x + signed(v, 6, 2), y - (tall ? 14 : 8), wood, tall ? 2 : 1));
-    shapes.push(line(x - 1, y - 5, x - 7, y - (tall ? 11 : 8), wood, 1));
-    shapes.push(line(x + 1, y - 6, x + 6, y - (tall ? 12 : 9), wood, 1));
-    if (!tall) {
-      shapes.push(ell(x - 6, y - 8, 5, 3, mixHex(p.light, p.secondary, 0.3)));
-      shapes.push(ell(x + 3, y - 9, 4, 2, mixHex(p.light, p.secondary, 0.3)));
-    }
-    return;
-  }
-  if (kind === "crystalOutcrop") {
-    const gem = mixHex(p.accent, p.light, 0.35);
-    shapes.push(poly([x - 8, y + 3, x - 4, y - 12, x, y + 2], gem, INK, 1));
-    shapes.push(poly([x - 1, y + 3, x + 2, y - 16, x + 6, y + 2], mixHex(gem, "#d8fff4", 0.3), INK, 1));
-    shapes.push(poly([x + 4, y + 3, x + 9, y - 10, x + 12, y + 2], mixHex(p.dark, gem, 0.4), INK, 1));
-    return;
-  }
-  if (kind === "wreckage") {
-    const rust = mixHex(p.secondary, "#c16f3d", 0.4);
-    const iron = mixHex(p.dark, p.secondary, 0.2);
-    shapes.push(poly([x - 12, y + 3, x + 4, y - 6, x + 13, y + 1, x + 8, y + 7, x - 9, y + 7], iron, INK, 1));
-    shapes.push(poly([x - 6, y + 1, x + 7, y - 4, x + 10, y + 2, x - 3, y + 5], rust, INK, 1));
-    shapes.push(line(x - 8, y + 2, x + 6, y - 2, mixHex(p.light, rust, 0.4), 1));
-    return;
-  }
-  const rock = mixHex(p.secondary, p.dark, 0.25);
-  const glow = mixHex(p.accent, "#d25024", 0.4);
-  shapes.push(poly([x - 7, y + 5, x - 2, y - 16, x + 3, y - 8, x + 8, y + 5, x - 4, y + 7], rock, INK, 1));
-  shapes.push(poly([x - 1, y + 2, x - 1, y - 14, x + 2, y - 6], glow));
-}
-
 export function paintBlocker(
   shapes: ShapeSpec[],
   biome: BiomeName,
@@ -219,5 +130,12 @@ export function paintBlocker(
   cx: number,
   cy: number,
 ): void {
-  paintSpriteBlocker(shapes, blockerPropKind(biome, v), biome, p, v, cx, cy);
+  const ox = signed(v, 3, 4);
+  const oy = signed(v, 4, 2);
+  appendPropArtShapes(
+    shapes,
+    blockerPropPrims(blockerPropKind(biome, v), v, blockerToneFromPalette(p), biome),
+    cx + ox,
+    cy + oy,
+  );
 }

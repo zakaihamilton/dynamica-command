@@ -60,9 +60,13 @@
 }
 
 .lock {
+  --lock-size: 2.35rem;
+  --lock-feed-w: 24rem;
+  --lock-feed-h: 16rem;
   z-index: 3;
-  width: 2.35rem;
-  height: 2.35rem;
+  box-sizing: border-box;
+  width: var(--lock-size);
+  height: var(--lock-size);
   opacity: 0.88;
   background:
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left top / 0.55rem 1.5px no-repeat,
@@ -74,30 +78,80 @@
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right bottom / 0.55rem 1.5px no-repeat,
     linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right bottom / 1.5px 0.55rem no-repeat;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--chrome-cyan) 70%, transparent));
+  transition:
+    width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    translate 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.25s ease;
 }
 
 .lock[data-lock="a"] {
-  left: 58%;
-  top: 32%;
+  left: 57%;
+  top: 18%;
   animation:
     lock-drift-a 9s ease-in-out infinite,
     lock-acquire 2.8s ease-in-out infinite;
 }
 
 .lock[data-lock="b"] {
-  left: 74%;
-  top: 48%;
+  left: 82%;
+  top: 58%;
   animation:
     lock-drift-b 11s ease-in-out infinite,
     lock-acquire 3.4s ease-in-out 0.6s infinite;
 }
 
 .lock[data-lock="c"] {
-  left: 86%;
-  top: 28%;
+  left: 55%;
+  top: 78%;
   animation:
     lock-drift-c 8.2s ease-in-out infinite,
     lock-acquire 3.1s ease-in-out 1.1s infinite;
+}
+
+.lock[data-expanded="true"] {
+  z-index: 5;
+  width: var(--lock-feed-w);
+  height: var(--lock-feed-h);
+  overflow: hidden;
+  opacity: 1;
+  animation: none;
+  filter: none;
+  translate: calc((var(--lock-size) - var(--lock-feed-w)) / 2) calc((var(--lock-size) - var(--lock-feed-h)) / 2);
+  background: none;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--chrome-cyan) 28%, transparent);
+}
+
+.lock[data-expanded="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left top / 0.7rem 1.5px no-repeat,
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left top / 1.5px 0.7rem no-repeat,
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right top / 0.7rem 1.5px no-repeat,
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right top / 1.5px 0.7rem no-repeat,
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left bottom / 0.7rem 1.5px no-repeat,
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) left bottom / 1.5px 0.7rem no-repeat,
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right bottom / 0.7rem 1.5px no-repeat,
+    linear-gradient(var(--chrome-cyan), var(--chrome-cyan)) right bottom / 1.5px 0.7rem no-repeat;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--chrome-cyan) 70%, transparent));
+}
+
+.feed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  object-fit: cover;
+  transition: opacity 0.22s ease;
+}
+
+.lock[data-expanded="true"] .feed {
+  opacity: 1;
 }
 
 .static .sweep {
@@ -108,6 +162,7 @@
 
 .static .lock {
   animation: none;
+  transition: none;
 }
 
 @keyframes radar-scan {
@@ -146,19 +201,24 @@
     );
   }
 
+  .lock {
+    --lock-feed-w: 15rem;
+    --lock-feed-h: 10rem;
+  }
+
   .lock[data-lock="a"] {
-    left: 22%;
-    top: 28%;
+    left: 6%;
+    top: 8%;
   }
 
   .lock[data-lock="b"] {
-    left: 70%;
-    top: 46%;
+    left: 78%;
+    top: 10%;
   }
 
   .lock[data-lock="c"] {
-    left: 48%;
-    top: 62%;
+    left: 12%;
+    top: 42%;
   }
 }
 
@@ -171,5 +231,10 @@
 
   .lock {
     animation: none !important;
+    transition: none !important;
+  }
+
+  .feed {
+    transition: none !important;
   }
 }

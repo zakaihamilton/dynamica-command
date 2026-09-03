@@ -9,7 +9,7 @@ import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { HEIGHT_STEP, TILE_H, TILE_W, tileToScreen, type Camera } from "@/lib/iso";
 import { rasterize } from "@/lib/render/sprites";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "@/lib/types";
-import { CINEMA_SEED } from "./scene";
+import type { CinemaScene } from "./scene";
 import { drawElevationFaces } from "@/lib/render/terrainPaint/cliffs";
 
 export function tileKind(tile: number): "clear" | "water" | "resource" | "blocked" {
@@ -33,7 +33,7 @@ export function cinemaOrigin(w: number, h: number): { x: number; y: number } {
 
 export function paintCinemaTile(
   ctx: CanvasRenderingContext2D,
-  scene: ReturnType<typeof import("./scene").createCinemaScene>,
+  scene: CinemaScene,
   cam: Camera,
   x: number,
   y: number,
@@ -85,7 +85,7 @@ export function paintCinemaTile(
 
 export function paintCinemaStatic(
   ctx: CanvasRenderingContext2D,
-  scene: ReturnType<typeof import("./scene").createCinemaScene>,
+  scene: CinemaScene,
   cam: Camera,
   w: number,
   h: number,
@@ -102,8 +102,8 @@ export function paintCinemaStatic(
       paintCinemaTile(ctx, scene, cam, x, y, kind);
     }
   }
-  const profile0 = generateVisualProfile(CINEMA_SEED, 0);
-  const profile1 = generateVisualProfile(CINEMA_SEED, 1);
+  const profile0 = generateVisualProfile(scene.seed, 0);
+  const profile1 = generateVisualProfile(scene.seed, 1);
   for (const b of buildings) {
     const elev = map.heights[Math.floor(b.y) * map.width + Math.floor(b.x)] ?? 1;
     const s = tileToScreen(b.x, b.y, cam, elev);

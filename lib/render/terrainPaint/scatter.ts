@@ -12,7 +12,7 @@ import {
 import { blockerPropKind, type BlockerPropKind } from "../../gen/terrainDecorKinds";
 import { biomeMaterials, tileVariant } from "../terrainAtlas";
 import type { BiomeMaterials } from "../terrainMaterials";
-import { mixRgb, rgbOf, withAlpha } from "./style";
+import { fillPoly, mixRgb, rgbOf, withAlpha } from "./style";
 
 export { blockerPropKind };
 export type { BlockerPropKind };
@@ -152,25 +152,46 @@ function drawPebble(
   variant: number,
 ): void {
   const s = z * scale;
-  const lean = ((variant % 5) - 2) * 0.35 * s;
-  const body = mixRgb(mats.dark, mats.light, 0.28);
-  const hi = mixRgb(mats.light, mats.mid, 0.55);
-  shadow(ctx, s, 5.2, 1.9, 2.6);
+  const lean = ((variant % 5) - 2) * 0.32 * s;
+  const body = mixRgb(mats.dark, mats.light, 0.3);
+  const facet = mixRgb(mats.mid, mats.dark, 0.28);
+  const hi = mixRgb(mats.light, mats.mid, 0.52);
+  shadow(ctx, s, 5.4, 2.0, 2.6);
+  ctx.fillStyle = rgbOf(mats.dark);
+  fillPoly(ctx, [
+    -5.2 * s + lean, 1.4 * s,
+    4.8 * s + lean, 1.6 * s,
+    4.2 * s, 3.2 * s,
+    -4.4 * s, 3.1 * s,
+  ]);
   ctx.fillStyle = rgbOf(body);
-  ctx.beginPath();
-  ctx.moveTo(-5.4 * s + lean, 0.6 * s);
-  ctx.lineTo(-1.8 * s, -3.8 * s);
-  ctx.lineTo(4.6 * s + lean, -1.8 * s);
-  ctx.lineTo(5.2 * s, 2.2 * s);
-  ctx.lineTo(-4.0 * s, 2.8 * s);
-  ctx.closePath();
-  ctx.fill();
-  withAlpha(ctx, 0.45, () => {
+  fillPoly(ctx, [
+    -5.6 * s + lean, 0.8 * s,
+    -2.4 * s + lean * 0.4, -3.6 * s,
+    1.2 * s, -4.4 * s,
+    5.0 * s + lean, -1.4 * s,
+    5.4 * s, 2.4 * s,
+    -4.2 * s, 2.9 * s,
+  ]);
+  ctx.fillStyle = rgbOf(facet);
+  fillPoly(ctx, [
+    -2.2 * s, 0.4 * s,
+    1.0 * s, -4.0 * s,
+    4.6 * s + lean, -1.2 * s,
+    3.4 * s, 1.6 * s,
+  ]);
+  withAlpha(ctx, 0.5, () => {
     ctx.fillStyle = rgbOf(hi);
     ctx.beginPath();
-    ctx.ellipse(-0.6 * s, -1.2 * s, 2.2 * s, 1.1 * s, -0.4, 0, Math.PI * 2);
+    ctx.ellipse(-0.4 * s, -1.6 * s, 2.0 * s, 1.05 * s, -0.45, 0, Math.PI * 2);
     ctx.fill();
   });
+  ctx.strokeStyle = rgbOf(mixRgb(mats.light, body, 0.45));
+  ctx.lineWidth = Math.max(0.45, 0.5 * s);
+  ctx.beginPath();
+  ctx.moveTo(-1.8 * s, -2.4 * s);
+  ctx.lineTo(2.2 * s, -0.6 * s);
+  ctx.stroke();
 }
 
 function drawPebbleCluster(
@@ -181,10 +202,11 @@ function drawPebbleCluster(
   variant: number,
 ): void {
   const n = 2 + (variant % 2);
+  const sizes = [1.05, 0.72, 0.58, 0.46];
   for (let i = 0; i < n; i++) {
     ctx.save();
-    ctx.translate(((i * 37 + variant) % 11 - 5) * z * 0.55, ((i * 19 + variant) % 7 - 3) * z * 0.22);
-    drawPebble(ctx, mats, z, scale * (0.7 + (i % 3) * 0.12), variant + i * 13);
+    ctx.translate(((i * 37 + variant) % 11 - 5) * z * 0.62, ((i * 19 + variant) % 7 - 3) * z * 0.24);
+    drawPebble(ctx, mats, z, scale * (sizes[i] ?? 0.5), variant + i * 13);
     ctx.restore();
   }
 }
@@ -197,18 +219,22 @@ function drawTuft(
   variant: number,
 ): void {
   const s = z * scale;
-  const blades = 4 + (variant % 2);
+  const blades = 5 + (variant % 3);
   const stem = mixRgb(mats.dark, mats.blocked, 0.15);
   const tip = mixRgb(mats.light, mats.high, 0.45);
-  shadow(ctx, s, 5.4, 1.7, 2.4);
+  const wind = ((variant % 5) - 2) * 0.55 * s;
+  shadow(ctx, s, 5.6, 1.8, 2.4);
   ctx.lineCap = "round";
+  ctx.lineJoin = "round";
   for (let i = 0; i < blades; i++) {
-    const lean = ((i - (blades - 1) / 2) * 1.7 + ((variant >>> i) % 3 - 1) * 0.45) * s;
-    ctx.strokeStyle = i === 1 ? rgbOf(tip) : rgbOf(stem);
-    ctx.lineWidth = Math.max(0.85, 1.05 * s);
+    const t = i - (blades - 1) / 2;
+    const lean = t * 1.55 * s + ((variant >>> i) % 3 - 1) * 0.4 * s + wind * 0.35;
+    const rise = 5.4 * s + (i % 3) * 0.85 * s;
+    ctx.strokeStyle = i % 3 === 1 ? rgbOf(tip) : rgbOf(stem);
+    ctx.lineWidth = Math.max(0.75, (1.25 - Math.abs(t) * 0.12) * s);
     ctx.beginPath();
-    ctx.moveTo(i * 0.45 * s, 1.8 * s);
-    ctx.lineTo(lean, -4.8 * s - (i % 2) * 1.1 * s);
+    ctx.moveTo(t * 0.35 * s, 1.9 * s);
+    ctx.quadraticCurveTo(lean * 0.45, -rise * 0.35, lean, -rise);
     ctx.stroke();
   }
 }
@@ -224,23 +250,35 @@ function drawShrub(
   const dark = mixRgb(mats.high, mats.blocked, 0.32);
   const mid = mixRgb(mats.high, mats.light, 0.35);
   const hi = mats.light;
-  shadow(ctx, s, 5.8, 1.9, 2.4);
-  ctx.fillStyle = rgbOf(dark);
+  const lobes = 4 + (variant % 2);
+  shadow(ctx, s, 6.2, 2.0, 2.5);
+  ctx.strokeStyle = rgbOf(mixRgb(mats.dark, { r: 58, g: 40, b: 26 }, 0.4));
+  ctx.lineWidth = Math.max(1.1, 1.5 * s);
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.ellipse(-1.8 * s, -2.4 * s, 5.6 * s, 3.2 * s, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = rgbOf(mid);
-  ctx.beginPath();
-  ctx.ellipse(2.0 * s, -3.0 * s, 4.4 * s, 2.6 * s, 0.15, 0, Math.PI * 2);
-  ctx.fill();
-  if (variant % 2 === 0) {
-    withAlpha(ctx, 0.5, () => {
-      ctx.fillStyle = rgbOf(hi);
-      ctx.beginPath();
-      ctx.ellipse(0.6 * s, -3.8 * s, 2.2 * s, 1.4 * s, -0.2, 0, Math.PI * 2);
-      ctx.fill();
-    });
+  ctx.moveTo(0, 2.2 * s);
+  ctx.lineTo(((variant % 3) - 1) * 0.35 * s, -2.4 * s);
+  ctx.stroke();
+  const spots = [
+    { x: -2.2, y: -3.2, rx: 5.4, ry: 3.1, rot: -0.15, fill: dark },
+    { x: 2.4, y: -3.6, rx: 4.6, ry: 2.8, rot: 0.2, fill: mid },
+    { x: 0.2, y: -5.0, rx: 3.6, ry: 2.3, rot: -0.05, fill: mid },
+    { x: -3.4, y: -1.6, rx: 3.2, ry: 2.0, rot: 0.1, fill: dark },
+    { x: 3.2, y: -1.8, rx: 2.8, ry: 1.8, rot: -0.2, fill: dark },
+  ];
+  for (let i = 0; i < lobes; i++) {
+    const lobe = spots[i]!;
+    ctx.fillStyle = rgbOf(lobe.fill);
+    ctx.beginPath();
+    ctx.ellipse(lobe.x * s, lobe.y * s, lobe.rx * s, lobe.ry * s, lobe.rot, 0, Math.PI * 2);
+    ctx.fill();
   }
+  withAlpha(ctx, 0.48, () => {
+    ctx.fillStyle = rgbOf(hi);
+    ctx.beginPath();
+    ctx.ellipse(0.4 * s, -4.6 * s, 2.1 * s, 1.3 * s, -0.25, 0, Math.PI * 2);
+    ctx.fill();
+  });
 }
 
 function drawDebris(
@@ -253,30 +291,41 @@ function drawDebris(
   const s = z * scale;
   const rust = mixRgb(mats.ore, mats.blocked, 0.35);
   const iron = mixRgb(mats.dark, mats.blocked, 0.2);
-  shadow(ctx, s, 6.6, 2.0, 2.6);
+  const seam = mixRgb(mats.light, rust, 0.45);
+  shadow(ctx, s, 6.8, 2.1, 2.6);
   ctx.fillStyle = rgbOf(iron);
-  ctx.beginPath();
-  ctx.moveTo(-6.4 * s, 0.9 * s);
-  ctx.lineTo(5.4 * s, -1.2 * s);
-  ctx.lineTo(6.6 * s, 1.8 * s);
-  ctx.lineTo(-4.8 * s, 3.2 * s);
-  ctx.closePath();
-  ctx.fill();
+  fillPoly(ctx, [
+    -6.8 * s, 1.0 * s,
+    2.2 * s, -2.4 * s,
+    6.8 * s, 0.6 * s,
+    5.4 * s, 3.2 * s,
+    -5.2 * s, 3.4 * s,
+  ]);
   ctx.fillStyle = rgbOf(rust);
+  fillPoly(ctx, [
+    -3.2 * s, -0.2 * s,
+    4.0 * s, -2.4 * s,
+    5.0 * s, 0.6 * s,
+    -1.6 * s, 1.8 * s,
+  ]);
+  ctx.fillStyle = rgbOf(mixRgb(iron, mats.light, 0.18));
+  fillPoly(ctx, [
+    -5.4 * s, 0.6 * s,
+    -1.2 * s, -0.8 * s,
+    0.4 * s, 0.4 * s,
+    -4.2 * s, 2.2 * s,
+  ]);
+  ctx.strokeStyle = rgbOf(seam);
+  ctx.lineWidth = Math.max(0.55, 0.65 * s);
   ctx.beginPath();
-  ctx.moveTo(-2.6 * s, -0.3 * s);
-  ctx.lineTo(3.6 * s, -2.1 * s);
-  ctx.lineTo(4.2 * s, 0.3 * s);
-  ctx.lineTo(-1.8 * s, 1.6 * s);
-  ctx.closePath();
-  ctx.fill();
-  if (variant % 3 === 0) {
-    ctx.strokeStyle = rgbOf(mixRgb(mats.light, rust, 0.5));
-    ctx.lineWidth = Math.max(0.6, 0.7 * s);
+  ctx.moveTo(-4.2 * s, 0.6 * s);
+  ctx.lineTo(3.4 * s, -0.8 * s + (variant % 3) * 0.25 * s);
+  ctx.stroke();
+  ctx.fillStyle = rgbOf(mixRgb(seam, mats.dark, 0.35));
+  for (let i = 0; i < 3; i++) {
     ctx.beginPath();
-    ctx.moveTo(-3 * s, 0.4 * s);
-    ctx.lineTo(1.6 * s, -0.6 * s);
-    ctx.stroke();
+    ctx.ellipse((-3 + i * 2.4) * s, (0.4 + (i % 2) * 0.5) * s, 0.45 * s, 0.35 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -290,22 +339,17 @@ function drawCrystalChip(
   const s = z * scale;
   const gem = mixRgb(mats.ore, mats.light, 0.4);
   const dark = mixRgb(mats.dark, mats.ore, 0.35);
+  const inner = mixRgb(gem, { r: 228, g: 255, b: 246 }, 0.42);
   const lean = ((variant % 5) - 2) * 0.5 * s;
-  shadow(ctx, s, 4.0, 1.5, 2.4);
+  shadow(ctx, s, 4.2, 1.6, 2.4);
   ctx.fillStyle = rgbOf(dark);
-  ctx.beginPath();
-  ctx.moveTo(-2.6 * s, 1.8 * s);
-  ctx.lineTo(lean, -4.6 * s);
-  ctx.lineTo(2.8 * s, 1.5 * s);
-  ctx.closePath();
-  ctx.fill();
+  fillPoly(ctx, [-3.0 * s, 2.0 * s, lean - 0.4 * s, -5.0 * s, 3.2 * s, 1.7 * s]);
   ctx.fillStyle = rgbOf(gem);
-  ctx.beginPath();
-  ctx.moveTo(-0.6 * s, 0.9 * s);
-  ctx.lineTo(lean * 0.6, -4.2 * s);
-  ctx.lineTo(1.8 * s, 0.6 * s);
-  ctx.closePath();
-  ctx.fill();
+  fillPoly(ctx, [-0.8 * s, 1.0 * s, lean * 0.65, -4.4 * s, 2.0 * s, 0.7 * s]);
+  withAlpha(ctx, 0.55, () => {
+    ctx.fillStyle = rgbOf(inner);
+    fillPoly(ctx, [-0.15 * s, 0.2 * s, lean * 0.4, -3.6 * s, 1.05 * s, 0.15 * s]);
+  });
 }
 
 function drawReed(
@@ -318,17 +362,24 @@ function drawReed(
   const s = z * scale;
   const stem = mixRgb(mats.blocked, mats.dark, 0.15);
   const hi = mixRgb(mats.light, mats.high, 0.25);
-  shadow(ctx, s, 5.6, 1.7, 2.4);
+  const wind = ((variant % 5) - 2) * 0.4 * s;
+  shadow(ctx, s, 5.8, 1.8, 2.4);
   ctx.lineCap = "round";
-  const n = 4 + (variant % 2);
+  const n = 5 + (variant % 2);
   for (let i = 0; i < n; i++) {
-    const x = (i - (n - 1) / 2) * 2.2 * s;
+    const x = (i - (n - 1) / 2) * 2.05 * s;
+    const tipX = x + ((variant >>> i) % 3 - 1) * 0.7 * s + wind * 0.4;
+    const tipY = -5.4 * s - (i % 2) * 1.15 * s;
     ctx.strokeStyle = i % 2 ? rgbOf(hi) : rgbOf(stem);
-    ctx.lineWidth = Math.max(0.85, 1.05 * s);
+    ctx.lineWidth = Math.max(0.8, 1.05 * s);
     ctx.beginPath();
     ctx.moveTo(x, 2.4 * s);
-    ctx.lineTo(x + ((variant >>> i) % 3 - 1) * 0.55 * s, -5.0 * s - (i % 2) * 1.0 * s);
+    ctx.quadraticCurveTo(x + wind * 0.2, -1.2 * s, tipX, tipY);
     ctx.stroke();
+    ctx.fillStyle = rgbOf(i % 2 ? hi : mixRgb(stem, mats.high, 0.35));
+    ctx.beginPath();
+    ctx.ellipse(tipX, tipY, 0.7 * s, 1.15 * s, 0.15, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -341,17 +392,26 @@ function drawCinder(
 ): void {
   const s = z * scale;
   const ember = mixRgb(mats.ore, { r: 210, g: 90, b: 40 }, 0.45);
+  const glow = mixRgb(ember, { r: 255, g: 170, b: 70 }, 0.4);
   const ash = mixRgb(mats.dark, mats.blocked, 0.3);
-  shadow(ctx, s, 4.2, 1.5, 2.4);
+  shadow(ctx, s, 4.4, 1.6, 2.4);
   ctx.fillStyle = rgbOf(ash);
   ctx.beginPath();
-  ctx.ellipse(0, 0.5 * s, 4.0 * s, 2.1 * s, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0.55 * s, 4.2 * s, 2.2 * s, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.fillStyle = rgbOf(mixRgb(ash, mats.mid, 0.25));
+  fillPoly(ctx, [-2.4 * s, 0.4 * s, 0.6 * s, -1.6 * s, 2.8 * s, 0.8 * s, -0.4 * s, 1.6 * s]);
   if (variant % 3 !== 0) {
-    withAlpha(ctx, 0.7, () => {
+    withAlpha(ctx, 0.55, () => {
+      ctx.fillStyle = rgbOf(glow);
+      ctx.beginPath();
+      ctx.ellipse(0.2 * s, -0.1 * s, 2.3 * s, 1.35 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    withAlpha(ctx, 0.8, () => {
       ctx.fillStyle = rgbOf(ember);
       ctx.beginPath();
-      ctx.ellipse(0.5 * s, -0.3 * s, 1.7 * s, 1.05 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(0.45 * s, -0.25 * s, 1.35 * s, 0.85 * s, 0, 0, Math.PI * 2);
       ctx.fill();
     });
   }
@@ -367,29 +427,36 @@ function drawIceChip(
   const s = z * scale;
   const ice = mixRgb(mats.light, { r: 220, g: 236, b: 238 }, 0.45);
   const edge = mixRgb(mats.dark, mats.high, 0.35);
-  shadow(ctx, s, 4.8, 1.7, 2.5);
+  const facet = mixRgb(ice, { r: 255, g: 255, b: 255 }, 0.35);
+  shadow(ctx, s, 5.0, 1.8, 2.5);
   ctx.fillStyle = rgbOf(edge);
-  ctx.beginPath();
-  ctx.moveTo(-4.8 * s, 1.2 * s);
-  ctx.lineTo(-0.9 * s, -4.0 * s);
-  ctx.lineTo(4.8 * s, -0.6 * s);
-  ctx.lineTo(2.1 * s, 2.7 * s);
-  ctx.closePath();
-  ctx.fill();
+  fillPoly(ctx, [
+    -5.0 * s, 1.3 * s,
+    -1.4 * s, -4.4 * s,
+    3.2 * s, -3.2 * s,
+    5.2 * s, -0.4 * s,
+    2.2 * s, 2.9 * s,
+  ]);
   ctx.fillStyle = rgbOf(ice);
-  ctx.beginPath();
-  ctx.moveTo(-2.4 * s, 0.3 * s);
-  ctx.lineTo(-0.3 * s, -3.2 * s);
-  ctx.lineTo(3.3 * s, -0.3 * s);
-  ctx.lineTo(0.9 * s, 1.6 * s);
-  ctx.closePath();
-  ctx.fill();
+  fillPoly(ctx, [
+    -2.6 * s, 0.4 * s,
+    -0.5 * s, -3.4 * s,
+    2.4 * s, -2.2 * s,
+    3.4 * s, -0.2 * s,
+    1.0 * s, 1.7 * s,
+  ]);
+  ctx.fillStyle = rgbOf(facet);
+  fillPoly(ctx, [
+    -0.8 * s, -0.4 * s,
+    0.4 * s, -2.6 * s,
+    2.0 * s, -1.2 * s,
+  ]);
   if (variant % 2 === 0) {
-    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
     ctx.lineWidth = Math.max(0.5, 0.55 * s);
     ctx.beginPath();
-    ctx.moveTo(-0.4 * s, -1.6 * s);
-    ctx.lineTo(1.4 * s, 0.4 * s);
+    ctx.moveTo(-0.3 * s, -1.8 * s);
+    ctx.lineTo(1.6 * s, 0.5 * s);
     ctx.stroke();
   }
 }

@@ -20,15 +20,17 @@ export type Actor = {
 
 export type Shot = { ax: number; ay: number; bx: number; by: number; life: number };
 
-export function createCinemaScene() {
-  const map = generateMap(CINEMA_SEED, {
+export function createCinemaScene(seed = CINEMA_SEED) {
+  const theater = ((seed | 0) % 10000 + 10000) % 10000;
+
+  const map = generateMap(theater, {
     index: 0,
     win: { kind: "razeAll" },
     mapSize: 28,
-    biome: generateWorld(CINEMA_SEED).biome,
+    biome: generateWorld(theater).biome,
   });
-  const [us, them] = generateFactions(CINEMA_SEED);
-  const campaignProfile = generateCampaignVisualProfile(CINEMA_SEED);
+  const [us, them] = generateFactions(theater);
+  const campaignProfile = generateCampaignVisualProfile(theater);
 
   const p0 = map.playerStart;
   const e0 = map.enemyStart;
@@ -122,5 +124,7 @@ export function createCinemaScene() {
     },
   ];
 
-  return { map, us, them, campaignProfile, buildings, actors };
+  return { seed: theater, map, us, them, campaignProfile, buildings, actors };
 }
+
+export type CinemaScene = ReturnType<typeof createCinemaScene>;

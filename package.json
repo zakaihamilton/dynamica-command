@@ -18,6 +18,7 @@
     "sim": "tsx scripts/sim.ts",
     "balance": "tsx scripts/balance.ts",
     "compress-art": "tsx scripts/compress-art.ts",
+    "rasterize-icons": "tsx scripts/rasterize-icons.ts",
     "calibrate-portraits": "tsx scripts/calibrate-portraits.ts",
     "test:e2e": "tsx scripts/e2e-preflight.ts && playwright test",
     "health": "repnix check",

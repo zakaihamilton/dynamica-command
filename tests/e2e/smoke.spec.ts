@@ -142,6 +142,75 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await expect(page.getByRole("navigation", { name: "Main menu" })).toBeVisible();
   await expect(page.getByTestId("menu-dashboard").getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);
 
+  const expandedLock = page.locator("[data-lock][data-expanded='true']");
+  await expect(expandedLock).toHaveCount(1);
+  await expect(expandedLock.locator("canvas")).toBeAttached();
+  const lockBox = await expandedLock.boundingBox();
+  const newGameBox = await page.getByRole("button", { name: "NEW GAME" }).boundingBox();
+  expect(lockBox).toBeTruthy();
+  expect(newGameBox).toBeTruthy();
+  expect(lockBox!.x).toBeGreaterThan(newGameBox!.x + newGameBox!.width - 24);
+
+  const collapsedLocks = page.locator("[data-lock][data-expanded='false']");
+  await expect(collapsedLocks).toHaveCount(2);
+  const pipCollisions = await page.evaluate(() => {
+    const overlay = document.querySelector("[data-testid='menu-signal-overlay']");
+    if (!(overlay instanceof HTMLElement)) throw new Error("Missing signal overlay");
+    const overlayBox = overlay.getBoundingClientRect();
+    const rootPx = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const toPx = (value: string) => {
+      const token = value.trim();
+      if (token.endsWith("rem")) return Number.parseFloat(token) * rootPx;
+      return Number.parseFloat(token);
+    };
+    const intersects = (
+      a: { x: number; y: number; width: number; height: number },
+      b: { x: number; y: number; width: number; height: number },
+    ) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+    const locks = [...overlay.querySelectorAll("[data-lock]")].map((node) => {
+      const el = node as HTMLElement;
+      const style = getComputedStyle(el);
+      const size = toPx(style.getPropertyValue("--lock-size"));
+      const feedW = toPx(style.getPropertyValue("--lock-feed-w"));
+      const feedH = toPx(style.getPropertyValue("--lock-feed-h"));
+      const left = Number.parseFloat(style.left);
+      const top = Number.parseFloat(style.top);
+      const drift = 16;
+      return {
+        id: el.dataset.lock,
+        expanded: {
+          x: overlayBox.x + left + (size - feedW) / 2,
+          y: overlayBox.y + top + (size - feedH) / 2,
+          width: feedW,
+          height: feedH,
+        },
+        collapsed: {
+          x: overlayBox.x + left - drift,
+          y: overlayBox.y + top - drift,
+          width: size + drift * 2,
+          height: size + drift * 2,
+        },
+      };
+    });
+    const hits: string[] = [];
+    for (const source of locks) {
+      for (const target of locks) {
+        if (source.id === target.id) continue;
+        if (intersects(source.expanded, target.collapsed)) hits.push(`${source.id}->${target.id}`);
+      }
+    }
+    return hits;
+  });
+  expect(pipCollisions).toEqual([]);
+  const collapsedBoxes = await collapsedLocks.all();
+  for (const lock of collapsedBoxes) {
+    const otherBox = await lock.boundingBox();
+    expect(otherBox).toBeTruthy();
+    const overlapX = lockBox!.x < otherBox!.x + otherBox!.width && lockBox!.x + lockBox!.width > otherBox!.x;
+    const overlapY = lockBox!.y < otherBox!.y + otherBox!.height && lockBox!.y + lockBox!.height > otherBox!.y;
+    expect(overlapX && overlapY).toBe(false);
+  }
+
   const menuOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(menuOverflow).toBe(false);
 
