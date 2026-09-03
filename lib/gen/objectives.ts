@@ -4,6 +4,8 @@ import type { BuildingKind, MissionDef, MissionKind, SecondaryObjective, UnitKin
 import {
   CONVOY_STAGING_MINUTES,
   CONVOY_STAGING_TICKS,
+  CONVOY_COMPLETION_BUFFER_MINUTES,
+  CONVOY_COMPLETION_BUFFER_TICKS,
   DEADLINE_DURATION_MULT,
   formatMissionClockFromTicks,
   formatMissionMinutesFromTicks,
@@ -37,7 +39,7 @@ function activeMissionDurationMinutes(kind: MissionKind, minutes: number): numbe
   return minutes;
 }
 
-/** Returns the expected operation window in minutes, including escort staging. */
+/** Returns the expected operation window in minutes, including escort staging and its approach buffer. */
 export function missionDurationMinutesFor(
   seed: number,
   missionIndex: number,
@@ -45,13 +47,13 @@ export function missionDurationMinutesFor(
 ): number {
   const minutes = baseMissionDurationMinutes(seed, missionIndex, kind);
   const activeMinutes = activeMissionDurationMinutes(kind, minutes);
-  return kind === "escort" ? activeMinutes + CONVOY_STAGING_MINUTES : activeMinutes;
+  return kind === "escort" ? activeMinutes + CONVOY_STAGING_MINUTES + CONVOY_COMPLETION_BUFFER_MINUTES : activeMinutes;
 }
 
-/** Returns the full player-facing time limit, including escort staging. */
+/** Returns the full player-facing time limit, including escort staging and its approach buffer. */
 export function missionTimeLimitTicks(win: Pick<WinCategory, "kind" | "ticks">): number | undefined {
   if (win.ticks === undefined) return undefined;
-  return win.ticks + (win.kind === "escort" ? CONVOY_STAGING_TICKS : 0);
+  return win.ticks + (win.kind === "escort" ? CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS : 0);
 }
 
 export function missionTimeLimitClock(win: Pick<WinCategory, "kind" | "ticks">): string | undefined {

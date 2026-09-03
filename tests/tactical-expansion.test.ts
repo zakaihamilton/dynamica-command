@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONVOY_STAGING_TICKS, createMission, issue, tick, inspect } from "../lib/sim/api";
+import { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS, createMission, issue, tick, inspect } from "../lib/sim/api";
 import { tickCombat } from "../lib/sim/combat";
 import { createTutorialMission, tutorialPrompt } from "../lib/sim/tutorial";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
@@ -67,7 +67,7 @@ describe("tactical expansion", () => {
     expect(missionDifficulty(7)).toMatchObject({
       enemyProductionStart: 120,
       enemyProductionEvery: 108,
-      enemyAssaultEvery: 540,
+      enemyAssaultEvery: 600,
       startingGuards: 2,
     });
   });
@@ -103,7 +103,7 @@ describe("tactical expansion", () => {
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
       expect(CONVOY_STAGING_TICKS).toBe(7 * 60 * TICKS_PER_SECOND);
-      expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS);
+      expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS);
       for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) tick(state);
       expect(state.entities.filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined)).toEqual([]);
       tick(state);
@@ -136,6 +136,32 @@ describe("tactical expansion", () => {
       expect(distanceFromPlayer).toBeGreaterThanOrEqual(routeDistance * 0.55);
       expect(distanceFromPlayer).toBeLessThanOrEqual(routeDistance * 0.8);
     }
+  });
+
+  it("repaths a convoy after a partial route is consumed", () => {
+    const state = makeFixture({ width: 24, height: 24, win: { kind: "escort", targetCount: 1, ticks: 5000 } });
+    addBuilding(state, 0, "constructionYard", 1, 1);
+    const convoy = addUnit(state, 0, "convoyTruck", 4, 4);
+    convoy.neutral = true;
+    convoy.scenarioRole = "convoy";
+    convoy.orderDestination = { x: 20, y: 20 };
+    convoy.routePending = true;
+    convoy.idle = false;
+    state.runtime = {
+      kind: "escort",
+      phase: "active",
+      targetIds: [convoy.id],
+      zone: { x: 20, y: 20 },
+      deadline: 5000,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    tick(state);
+
+    expect(convoy.path.length).toBeGreaterThan(0);
+    expect(convoy.x).not.toBe(4);
   });
 
   it("frees rescue actors when a player unit reaches them", () => {

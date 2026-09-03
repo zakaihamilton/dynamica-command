@@ -549,9 +549,27 @@ describe("generated audio", () => {
   it("does not require optional offline suspend controls for export availability", async () => {
     const isConfigSupported = vi.fn().mockResolvedValue({ supported: true });
     class OfflineAudioContextStub {}
+    class AudioDataStub {
+      close() {}
+    }
+    class AudioEncoderStub {
+      static isConfigSupported = isConfigSupported;
+      state: "unconfigured" | "configured" | "closed" = "unconfigured";
+      encodeQueueSize = 0;
+      configure() {
+        this.state = "configured";
+      }
+      encode() {}
+      flush() {
+        return Promise.resolve();
+      }
+      close() {
+        this.state = "closed";
+      }
+    }
     vi.stubGlobal("window", {
-      AudioEncoder: { isConfigSupported },
-      AudioData: class AudioDataStub {},
+      AudioEncoder: AudioEncoderStub,
+      AudioData: AudioDataStub,
       OfflineAudioContext: OfflineAudioContextStub,
     });
 

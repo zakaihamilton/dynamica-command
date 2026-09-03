@@ -9,8 +9,8 @@ const CLASSIC_DURATION_STEP = 480;
 export function directorTimeline(state: SimState): { pressureStart: number; finaleStart: number } {
   const convoyStaging = state.runtime?.kind === "escort" ? state.runtime.convoyStartTick ?? 0 : 0;
   const duration = Math.max(
-    360,
-    (state.win.ticks ?? CLASSIC_DIRECTOR_DURATION + state.missionIndex * CLASSIC_DURATION_STEP) + convoyStaging,
+    state.tick + 360,
+    state.runtime?.deadline ?? (state.win.ticks ?? CLASSIC_DIRECTOR_DURATION + state.missionIndex * CLASSIC_DURATION_STEP) + convoyStaging,
   );
   const difficulty = missionDifficulty(state.missionIndex);
   const pressureStart = state.runtime?.kind === "escort"

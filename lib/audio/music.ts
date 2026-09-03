@@ -1,4 +1,4 @@
-import { composeMusic, MUSIC_BARS, MUSIC_STEPS, STEPS_PER_BAR, BARS_PER_SECTION, TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue, type MusicIntensity } from "./compose";
+import { composeMusic, MUSIC_BARS, STEPS_PER_BAR, BARS_PER_SECTION, TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue, type MusicIntensity } from "./compose";
 import { peekAudioContext, unlockAudioContext } from "./context";
 import { setAudioBusEnabled } from "./mixer";
 import {
@@ -152,6 +152,11 @@ export async function renderMissionMusic(
   options: {
     signal?: AbortSignal;
     onProgress?: (progress: number) => void;
+    /** Internal export window used to keep long offline renders bounded. */
+    barStart?: number;
+    barCount?: number;
+    /** Extra audio rendered after an export window for seam handling. */
+    tailSeconds?: number;
   } = {},
 ): Promise<AudioBuffer> {
   if (typeof window === "undefined" || typeof window.OfflineAudioContext === "undefined") {
@@ -159,9 +164,12 @@ export async function renderMissionMusic(
   }
   throwIfRenderAborted(options.signal);
   const renderedPattern = composeMusic(seedValue, "mission", mission);
+  const barStart = Math.max(0, Math.min(MUSIC_BARS - 1, Math.floor(options.barStart ?? 0)));
+  const barCount = Math.max(1, Math.min(MUSIC_BARS - barStart, Math.floor(options.barCount ?? MUSIC_BARS)));
+  const barEnd = barStart + barCount;
   const stepDuration = 60 / renderedPattern.bpm / 4;
-  const musicalDuration = renderedPattern.steps * stepDuration;
-  const tailSeconds = 2.2;
+  const musicalDuration = barCount * STEPS_PER_BAR * stepDuration;
+  const tailSeconds = Math.max(0, options.tailSeconds ?? (barEnd === MUSIC_BARS ? 2.2 : 0));
   const length = Math.ceil((musicalDuration + tailSeconds) * sampleRate);
   const renderDuration = length / sampleRate;
   const offline = new window.OfflineAudioContext(2, length, sampleRate);
@@ -171,20 +179,24 @@ export async function renderMissionMusic(
     for (const oscillator of [offlineGraph.padOscA, offlineGraph.padOscB, offlineGraph.padOscC, offlineGraph.padOscD, offlineGraph.padLfo]) {
       oscillator.stop(Math.max(0, renderDuration - 0.01));
     }
-    for (let bar = 0; bar < MUSIC_BARS; bar++) {
+    for (let bar = barStart; bar < barEnd; bar++) {
       throwIfRenderAborted(options.signal);
       const value = arc[Math.floor(bar / BARS_PER_SECTION)] ?? "engaged";
-      applyIntensityAt(offline, offlineGraph, value, bar * STEPS_PER_BAR * stepDuration, false);
+      applyIntensityAt(offline, offlineGraph, value, (bar - barStart) * STEPS_PER_BAR * stepDuration, false);
     }
     syncDelay(offline, offlineGraph, renderedPattern);
-    for (let index = 0; index < MUSIC_STEPS; index++) {
+    const firstStep = barStart * STEPS_PER_BAR;
+    const lastStep = barEnd * STEPS_PER_BAR;
+    for (let index = firstStep; index < lastStep; index++) {
       if (index % STEPS_PER_BAR === 0) throwIfRenderAborted(options.signal);
       const value = arc[Math.floor(index / STEPS_PER_BAR / BARS_PER_SECTION)] ?? "engaged";
-      scheduleStep(offline, offlineGraph, renderedPattern, index * stepDuration, index, value);
+      scheduleStep(offline, offlineGraph, renderedPattern, (index - firstStep) * stepDuration, index, value);
     }
-    const fadeAt = Math.max(0, musicalDuration - 1.35);
-    offlineGraph.master.gain.setValueAtTime(masterGain("engaged", false), fadeAt);
-    offlineGraph.master.gain.linearRampToValueAtTime(0.0001, musicalDuration + tailSeconds);
+    if (barEnd === MUSIC_BARS) {
+      const fadeAt = Math.max(0, musicalDuration - 1.35);
+      offlineGraph.master.gain.setValueAtTime(masterGain("engaged", false), fadeAt);
+      offlineGraph.master.gain.linearRampToValueAtTime(0.0001, musicalDuration + tailSeconds);
+    }
     return await renderOfflineAudio(offline, renderDuration, options.signal, options.onProgress);
   } finally {
     disconnectGraph(offlineGraph);

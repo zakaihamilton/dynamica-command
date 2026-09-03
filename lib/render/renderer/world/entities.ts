@@ -243,8 +243,6 @@ export function renderEntityPhase(
         spriteAlpha,
         isSelected,
         barW,
-        e.owner,
-        e.neutral === true,
       );
 
       if (e.class === "unit" && (e.suppression ?? 0) > 0) {

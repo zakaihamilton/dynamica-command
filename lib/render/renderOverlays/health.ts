@@ -1,5 +1,4 @@
-import type { Entity, Owner } from "../../types";
-import { iffColors } from "../iff";
+import type { Entity } from "../../types";
 
 /** Dark steel housing, matching `--chrome-void`. */
 const METER_HOUSING = "rgba(5, 8, 14, 0.92)";
@@ -56,8 +55,6 @@ export function drawUnitHealthMeter(
   alpha = 1,
   isSelected = false,
   barWidth?: number,
-  owner: Owner = 0,
-  neutral = false,
 ): void {
   if (maxHp <= 0 || hp <= 0) return;
   const ratio = Math.max(0, Math.min(1, hp / maxHp));
@@ -65,8 +62,6 @@ export function drawUnitHealthMeter(
   const h = worldHealthMeterHeight(z);
   const x = Math.round(centerX - w / 2);
   const y = Math.round(topY);
-  const pipW = Math.max(2, Math.round(1.5 * z));
-  const iff = iffColors(owner, neutral);
 
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -95,9 +90,6 @@ export function drawUnitHealthMeter(
       ctx.fillRect(sx, y, 1, h);
     }
   }
-
-  ctx.fillStyle = iff.pip;
-  ctx.fillRect(x - 1, y, pipW, h);
 
   if (isSelected) {
     ctx.fillStyle = METER_SELECT;

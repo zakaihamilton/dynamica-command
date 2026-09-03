@@ -69,13 +69,13 @@ const DIFFICULTY_CURVE: MissionDifficulty[] = [
   {
     enemyProductionStart: 120,
     enemyProductionEvery: 108,
-    enemyAssaultEvery: 600,
+    enemyAssaultEvery: 660,
     startingTank: true,
     startingTurret: true,
     offensiveStartingTurrets: 0,
     assaultSupport: true,
     holdLineReinforcements: 3,
-    startingGuards: 3,
+    startingGuards: 2,
   },
   {
     enemyProductionStart: 108,
@@ -91,7 +91,7 @@ const DIFFICULTY_CURVE: MissionDifficulty[] = [
   {
     enemyProductionStart: 120,
     enemyProductionEvery: 108,
-    enemyAssaultEvery: 540,
+    enemyAssaultEvery: 600,
     startingTank: true,
     startingTurret: true,
     offensiveStartingTurrets: 0,

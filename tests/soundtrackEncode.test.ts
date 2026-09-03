@@ -116,9 +116,10 @@ describe("soundtrack AAC encoding", () => {
 
     await exportMissionSoundtrack(421, 0);
 
-    expect(MockAudioEncoder.encodeCount).toBe(24);
-    expect(MockAudioEncoder.flushCount).toBe(1);
-    expect(addAudioChunk).toHaveBeenCalledTimes(24);
+    expect(renderMissionMusic).toHaveBeenCalledTimes(8);
+    expect(MockAudioEncoder.encodeCount).toBe(1 + 108);
+    expect(MockAudioEncoder.flushCount).toBe(2);
+    expect(addAudioChunk).toHaveBeenCalledTimes(108);
   });
 
   it("does not flush to relieve encoder backpressure", async () => {
@@ -144,7 +145,7 @@ describe("soundtrack AAC encoding", () => {
 
     await exportMissionSoundtrack(421, 0);
 
-    expect(MockAudioEncoder.encodeCount).toBe(12);
-    expect(MockAudioEncoder.flushCount).toBe(1);
+    expect(MockAudioEncoder.encodeCount).toBe(1 + 54);
+    expect(MockAudioEncoder.flushCount).toBe(2);
   });
 });

@@ -1,9 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { createMission } from "../lib/sim/api";
-import { tickMissionDirector } from "../lib/sim/director";
+import { directorTimeline, tickMissionDirector } from "../lib/sim/director";
 import { createTutorialMission } from "../lib/sim/tutorial";
+import { createCampaign } from "../lib/gen/campaign";
 
 describe("mission director", () => {
+  it("uses the full escort operation deadline for its finale", () => {
+    const campaign = createCampaign(421);
+    const mission = campaign.missions.find((item) => item.win.kind === "escort");
+    expect(mission).toBeDefined();
+    const state = createMission({ seed: 421, missionIndex: mission!.index });
+    const runtime = state.runtime!;
+    const timeline = directorTimeline(state);
+    const expectedDuration = Math.max(state.tick + 360, runtime.deadline!);
+
+    expect(timeline.finaleStart).toBe(Math.max(timeline.pressureStart + 360, Math.round(expectedDuration * 0.75)));
+  });
+
   it("escalates a mission with deterministic reserve waves", () => {
     const state = createMission({ seed: 421, missionIndex: 0 });
     const director = state.runtime?.director;

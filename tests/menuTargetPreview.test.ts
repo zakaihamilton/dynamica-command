@@ -12,10 +12,6 @@ import { cinemaGroundWorld } from "../components/menu/menuBackdropSim/paint";
 import { stepCinemaScene } from "../components/menu/menuBackdropSim/render";
 import { CINEMA_SEED, createCinemaScene } from "../components/menu/menuBackdropSim/scene";
 import { createMission } from "../lib/sim/api";
-import { TILE_CLEAR, TILE_RESOURCE, TILE_WATER } from "../lib/types";
-import { TERRAIN_ART } from "../lib/gen/visualAssets";
-import { generateCampaignVisualProfile } from "../lib/gen/visualProfile";
-import { worldGroundSprite } from "../lib/render/terrainPaint";
 
 describe("welcome target preview cycle", () => {
   it("expands for 5 seconds then idles for 3", () => {
@@ -103,23 +99,14 @@ describe("welcome target cinema shots", () => {
     expect(shots.length).toBeGreaterThan(0);
   });
 
-  it("uses the same tactical land sprites and campaign plates as gameplay", () => {
+  it("shares the same atlas-compatible ground world used by gameplay", () => {
     const scene = createCinemaScene(previewSeed(0));
     const world = cinemaGroundWorld(scene);
-    let land: ReturnType<typeof worldGroundSprite> = null;
-    for (let i = 0; i < scene.map.tiles.length; i++) {
-      const kind = scene.map.tiles[i]!;
-      if (kind === TILE_WATER || kind === TILE_RESOURCE) continue;
-      const x = i % scene.map.width;
-      const y = Math.floor(i / scene.map.width);
-      land = worldGroundSprite(world, x, y, { kind, elev: scene.map.heights[i]! });
-      if (land) break;
-    }
-    const campaign = generateCampaignVisualProfile(scene.seed);
     const mission = createMission({ seed: scene.seed, missionIndex: 0 });
-    const play = worldGroundSprite(mission, 0, 0, { kind: TILE_CLEAR, elev: 1 });
-    expect(land?.imageTextureSrc).toBe(TERRAIN_ART[campaign.terrainTreatment]);
-    expect(land?.id).toContain(":clear:");
-    expect(play?.imageTextureSrc).toBe(land?.imageTextureSrc);
+    expect(world).toBe(scene.ground);
+    expect(world.seed).toBe(mission.seed);
+    expect(world.biome).toBe(mission.biome);
+    expect(world.tiles).toEqual(mission.tiles);
+    expect(world.surfaces).toEqual(mission.surfaces);
   });
 });

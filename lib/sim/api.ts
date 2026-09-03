@@ -22,7 +22,7 @@ import { missionDifficulty } from "./difficulty";
 import { tickMovement } from "./movement";
 
 export { issue, inspect };
-export { CONVOY_STAGING_TICKS } from "./scenarios";
+export { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS } from "./scenarios";
 
 export function createMission(opts: { seed: number; missionIndex: number }): SimState {
   const campaign = createCampaign(opts.seed);

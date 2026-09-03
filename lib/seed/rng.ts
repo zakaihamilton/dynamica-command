@@ -1,5 +1,7 @@
 export const SEED_MIN = 0;
 export const SEED_MAX = 9999;
+export const MISSION_MIN = 0;
+export const MISSION_MAX = 7;
 
 export function formatSeed(seed: number): string {
   return Math.max(SEED_MIN, Math.min(SEED_MAX, seed | 0))
@@ -13,6 +15,14 @@ export function parseSeed(raw: string): number | null {
   const n = Number.parseInt(trimmed, 10);
   if (n < SEED_MIN || n > SEED_MAX) return null;
   return n;
+}
+
+/** Parse a mission query parameter without allowing NaN, fractions, or out-of-range indices. */
+export function parseMissionIndex(raw: string | null | undefined): number | null {
+  const trimmed = raw?.trim() ?? "";
+  if (!/^\d{1,2}$/.test(trimmed)) return null;
+  const mission = Number.parseInt(trimmed, 10);
+  return mission >= MISSION_MIN && mission <= MISSION_MAX ? mission : null;
 }
 
 export function hash32(input: string): number {

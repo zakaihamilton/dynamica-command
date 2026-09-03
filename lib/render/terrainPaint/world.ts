@@ -2,18 +2,18 @@ import { cliffFaces } from "../../gen/assets";
 import { MAP_SKIRT, isMountainScenery } from "../../gen/map";
 import { generateCampaignVisualProfile } from "../../gen/visualProfile";
 import type { SimState } from "../../types";
-import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../../types";
+import { SURFACE_CONCRETE, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../../types";
 import { HEIGHT_STEP, TILE_H, TILE_W, expandIsoDiamond, screenToTile, tileToScreen, type Camera } from "../../iso";
 import { fogAt } from "../../sim/fog";
 import { biomeMaterials, fogTerrainGain, getTerrainAtlas, tileVariant, type AtlasWorld, type TerrainAtlas } from "../terrainAtlas";
 import { SceneryMemo } from "../sceneryMemo";
+import { drawConcreteSlab } from "../terrainPlates";
 import { isoDiamondPath } from "../isoDiamond";
 import { paintShroudOverlay, paintShroudMaskTile, drawAtlasDiamond } from "./tile";
 import { smoothFogGain, drawBlockerProp, drawOreCrystals } from "./details";
 import { drawTerrainScatter } from "./scatter";
 import { SHROUD_FILL, SHROUD_RGB, TERRAIN_COVER } from "./constants";
 import { drawElevationFaces } from "./cliffs";
-import { paintWorldGroundSprite } from "./worldGround";
 
 const sceneryMemo = new SceneryMemo();
 
@@ -58,7 +58,9 @@ function paintCell(
   const z = cam.zoom;
   const tw = TILE_W * z;
   const th = TILE_H * z;
-  const cover = expandIsoDiamond(s.x, s.y, tw, th, water ? WATER_COVER : TERRAIN_COVER);
+  const inMap = x >= 0 && y >= 0 && x < state.width && y < state.height;
+  const concrete = inMap && state.surfaces[y * state.width + x] === SURFACE_CONCRETE;
+  const cover = expandIsoDiamond(s.x, s.y, tw, th, concrete ? 1 : water ? WATER_COVER : TERRAIN_COVER);
   const eastSc = memoScenery(state, x + 1, y);
   const southSc = memoScenery(state, x, y + 1);
   const dropE = water ? 0 : Math.max(0, elev - eastSc.elev);
@@ -98,16 +100,18 @@ function paintCell(
     ctx.restore();
   }
 
-  if (!water && paintWorldGroundSprite(ctx, state, cam, x, y, scenery)) return;
-
   ctx.save();
   isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
   ctx.clip();
-  if (atlas.canvas) {
+  if (concrete) {
+    drawConcreteSlab(ctx, s.x, s.y, tw, th, z, tileVariant(state.seed, x, y), 1);
+  } else if (atlas.canvas) {
     drawAtlasDiamond(ctx, atlas, x, y, s.x, s.y, tw, th);
   } else {
     const mats = biomeMaterials(state.biome);
-    ctx.fillStyle = `rgb(${mats.waterMid.r},${mats.waterMid.g},${mats.waterMid.b})`;
+    ctx.fillStyle = water
+      ? `rgb(${mats.waterMid.r},${mats.waterMid.g},${mats.waterMid.b})`
+      : `rgb(${mats.mid.r},${mats.mid.g},${mats.mid.b})`;
     isoDiamondPath(ctx, cover.x, cover.y, cover.w, cover.h);
     ctx.fill();
   }

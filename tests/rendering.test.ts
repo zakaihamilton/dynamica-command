@@ -17,7 +17,6 @@ import { generateMap } from "../lib/gen/map";
 import { tileSprite } from "../lib/gen/assets";
 import { TERRAIN_ART } from "../lib/gen/visualAssets";
 import { generateCampaignVisualProfile } from "../lib/gen/visualProfile";
-import { worldGroundSprite } from "../lib/render/terrainPaint";
 import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../lib/iso";
 import {
   ATLAS_CELL,
@@ -830,6 +829,21 @@ describe("tile sprite blockers", () => {
   });
 });
 
+describe("standalone tile sprite assets", () => {
+  it("keeps campaign terrain plates on land sprites but not water", () => {
+    const modular = { ...generateCampaignVisualProfile(0), family: 0 as const, terrainTreatment: "modular" as const };
+    const armored = { ...modular, terrainTreatment: "armored" as const };
+    const land = tileSprite("clear", 1, { biome: "ash plains", variant: 3, campaignProfile: modular });
+    const water = tileSprite("water", 0, { biome: "ash plains", variant: 3, campaignProfile: modular });
+    const plated = tileSprite("clear", 1, { biome: "ash plains", variant: 3, campaignProfile: armored });
+    expect(land.imageTextureSrc).toBe(TERRAIN_ART.modular);
+    expect(land.imageTextureOpacity).toBe(0.3);
+    expect(water.imageTextureSrc).toBeUndefined();
+    expect(plated.imageTextureSrc).toBe(TERRAIN_ART.armored);
+    expect(plated.imageTextureSrc).not.toBe(land.imageTextureSrc);
+  });
+});
+
 function createPaintMock() {
   const ops: string[] = [];
   const stack: number[] = [];
@@ -894,44 +908,3 @@ describe("terrain adornment painting", () => {
     expect(jungleAgain.ops).toEqual(junglePaint.ops);
   });
 });
-
-describe("campaign terrain plates on tactical tiles", () => {
-  it("composites the campaign treatment plate onto land tiles but not water", () => {
-    const modular = { ...generateCampaignVisualProfile(0), family: 0 as const, terrainTreatment: "modular" as const };
-    const armored = { ...modular, terrainTreatment: "armored" as const };
-    const land = tileSprite("clear", 1, { biome: "ash plains", variant: 3, campaignProfile: modular });
-    const water = tileSprite("water", 0, { biome: "ash plains", variant: 3, campaignProfile: modular });
-    const plated = tileSprite("clear", 1, { biome: "ash plains", variant: 3, campaignProfile: armored });
-    expect(land.imageTextureSrc).toBe(TERRAIN_ART.modular);
-    expect(land.imageTextureOpacity).toBe(0.3);
-    expect(water.imageTextureSrc).toBeUndefined();
-    expect(plated.imageTextureSrc).toBe(TERRAIN_ART.armored);
-    expect(plated.imageTextureSrc).not.toBe(land.imageTextureSrc);
-  });
-});
-
-describe("gameplay ground sprites", () => {
-  it("uses tactical land sprites with the campaign plate and keeps water on the atlas path", () => {
-    const state = makeFixture({ win: { kind: "annihilate" }, seed: 421, width: 8, height: 8 });
-    setTile(state, 2, 2, TILE_WATER);
-    setTile(state, 3, 3, TILE_RESOURCE, 400);
-    setTile(state, 4, 4, TILE_BLOCKED);
-    state.surfaces[1 * state.width + 1] = SURFACE_CONCRETE;
-    const land = worldGroundSprite(state, 0, 0, { kind: TILE_CLEAR, elev: 1 });
-    const water = worldGroundSprite(state, 2, 2, { kind: TILE_WATER, elev: 0 });
-    const ore = worldGroundSprite(state, 3, 3, { kind: TILE_RESOURCE, elev: 1 });
-    const blocked = worldGroundSprite(state, 4, 4, { kind: TILE_BLOCKED, elev: 1 });
-    const pad = worldGroundSprite(state, 1, 1, { kind: TILE_CLEAR, elev: 1 });
-    const campaign = generateCampaignVisualProfile(421);
-    expect(water).toBeNull();
-    expect(land?.imageTextureSrc).toBe(TERRAIN_ART[campaign.terrainTreatment]);
-    expect(land?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:3:0:15:0:0:none");
-    expect(ore?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:resource:ash plains:2:expeditionary:red:1:1:0:15:0:2:none");
-    expect(blocked?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:3:0:15:0:0:none");
-    expect(pad?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:1:0:15:2:0:none");
-    expect(pad?.id).not.toBe(land?.id);
-    expect(pad?.imageTextureSrc).toBe(land?.imageTextureSrc);
-  });
-});
-
-

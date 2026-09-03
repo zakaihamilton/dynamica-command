@@ -186,7 +186,10 @@ export function tickMovement(state: SimState): void {
   const swapped = new Set<number>();
   prepareFlowFieldRoutes(state, occupancy, reserved);
   for (const e of state.entities) {
-    if (e.hp <= 0 || e.class !== "unit" || e.neutral || e.flowGoal || e.path.length || !e.orderDestination) continue;
+    // Convoys are neutral so combat targeting ignores them, but they still
+    // need the normal background repath when a bounded search returned only
+    // a partial route. Other neutral scenario actors have no movement orders.
+    if (e.hp <= 0 || e.class !== "unit" || (e.neutral && e.scenarioRole !== "convoy") || e.flowGoal || e.path.length || !e.orderDestination) continue;
     if (holdingDestination(e)) continue;
     const dest = e.orderDestination;
     const destX = Math.round(dest.x);

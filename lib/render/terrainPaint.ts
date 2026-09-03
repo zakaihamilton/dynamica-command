@@ -17,5 +17,4 @@ export {
   paintTerrainBlockers,
   WATER_COVER,
 } from "./terrainPaint/world";
-export { worldGroundSprite, paintWorldGroundSprite } from "./terrainPaint/worldGround";
 export { paintBuildingPlates } from "./terrainPlates";

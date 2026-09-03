@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TICKS_PER_SECOND } from "../lib/catalog";
-import { CONVOY_STAGING_TICKS, createMission, tick } from "../lib/sim/api";
+import { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS, createMission, tick } from "../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
 import { formatHoldClock, inspect, objectiveProgress, evaluateObjectives } from "../lib/sim/objectives";
 import { createCampaign } from "../lib/gen/campaign";
@@ -119,14 +119,14 @@ describe("win categories", () => {
   it("uses the full escort limit for the speed secondary objective", () => {
     const activeWindow = minutesToTicks(8);
     expect(missionTimeLimitTicks({ kind: "sabotage", ticks: activeWindow })).toBe(activeWindow);
-    expect(missionTimeLimitTicks({ kind: "escort", ticks: activeWindow })).toBe(activeWindow + CONVOY_STAGING_TICKS);
-    expect(missionTimeLimitClock({ kind: "escort", ticks: activeWindow })).toBe("15:00");
-    expect(missionTimeLimitLabel({ kind: "escort", ticks: activeWindow })).toBe("15 min");
+    expect(missionTimeLimitTicks({ kind: "escort", ticks: activeWindow })).toBe(activeWindow + CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS);
+    expect(missionTimeLimitClock({ kind: "escort", ticks: activeWindow })).toBe("17:00");
+    expect(missionTimeLimitLabel({ kind: "escort", ticks: activeWindow })).toBe("17 min");
 
     const secondary = secondaryObjectivesForMissionSeed(421, { index: 2, win: { kind: "escort", ticks: activeWindow } });
     expect(secondary[1]).toMatchObject({
-      label: "Speed bonus: complete the operation within 15 min total",
-      target: activeWindow + CONVOY_STAGING_TICKS,
+      label: "Speed bonus: complete the operation within 17 min total",
+      target: activeWindow + CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS,
     });
   });
 
@@ -313,7 +313,7 @@ describe("mission briefing objectives", () => {
       expect(secondaryObjectivesForMissionSeed(421, mission).map(({ id, kind, label, target }) => ({ id, kind, label, target })))
         .toEqual(state.runtime?.secondary.map(({ id, kind, label, target }) => ({ id, kind, label, target })));
       if (mission.win.ticks !== undefined) {
-        const staging = mission.win.kind === "escort" ? CONVOY_STAGING_TICKS : 0;
+        const staging = mission.win.kind === "escort" ? CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS : 0;
         expect(mission.win.ticks + staging).toBe(minutesToTicks(missionDurationMinutesFor(421, mission.index, mission.win.kind)));
       }
     }
@@ -330,7 +330,7 @@ describe("mission briefing objectives", () => {
     expect(missionObjectives(hold!, campaign)[0]?.text).toContain("for 10 min");
 
     const fallbackEscort = { index: 2, win: { kind: "escort" as const } };
-    expect(missionObjectives(fallbackEscort, campaign)[0]?.text).toContain("within 12 min");
+    expect(missionObjectives(fallbackEscort, campaign)[0]?.text).toContain("within 14 min");
     expect(secondaryObjectivesForMissionSeed(421, fallbackEscort)[1]?.label)
       .toBe("Speed bonus: complete the operation within 5 min total");
   });

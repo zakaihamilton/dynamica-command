@@ -1,18 +1,21 @@
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import { formatSeed } from "../seed/rng";
+import { MUSIC_BARS } from "./compose";
 import { AUDIO_SAMPLE_RATE } from "./constants";
 import { MusicExportCancelledError, renderMissionMusic } from "./music";
 
 export { MusicExportCancelledError } from "./music";
 
 export const MUSIC_EXPORT_SAMPLE_RATE = AUDIO_SAMPLE_RATE;
-// Keep the expensive shared synth graph practical to render; the final AAC
-// input remains at the live graph's 44.1 kHz rate after this upsample.
+// Render the synth graph at half the encoder rate; the resample below is
+// delegated to the browser's native audio engine rather than JavaScript.
 const MUSIC_RENDER_SAMPLE_RATE = 22_050;
 export const MUSIC_EXPORT_BITRATE = 160_000;
 export const MUSIC_EXPORT_CODEC = "mp4a.40.2";
 const ENCODER_QUEUE_LIMIT = 8;
 const ENCODE_YIELD_EVERY_CHUNKS = 32;
+const MUSIC_EXPORT_CHUNK_BARS = 16;
+const MUSIC_EXPORT_CROSSFADE_SECONDS = 0.5;
 
 export type MusicExportPhase = "checking" | "rendering" | "encoding" | "complete";
 
@@ -79,13 +82,48 @@ export async function supportsM4aExport(): Promise<boolean> {
   const Offline = typeof window === "undefined" ? undefined : window.OfflineAudioContext;
   if (!Encoder || !AudioDataClass || !Offline) return false;
   try {
-    const support = await Encoder.isConfigSupported({
+    const config = {
       codec: MUSIC_EXPORT_CODEC,
       sampleRate: MUSIC_EXPORT_SAMPLE_RATE,
       numberOfChannels: 2,
       bitrate: MUSIC_EXPORT_BITRATE,
-    });
-    return support.supported === true;
+    } as const;
+    const support = await Encoder.isConfigSupported(config);
+    if (support.supported !== true) return false;
+
+    // isConfigSupported() only validates the configuration. Probe one AAC
+    // frame as well, so the UI does not advertise an export path that fails
+    // when the encoder is actually opened.
+    let encoder: InstanceType<EncoderConstructor> | null = null;
+    let audioData: InstanceType<AudioDataConstructor> | null = null;
+    try {
+      encoder = new Encoder({ output: () => undefined, error: () => undefined });
+      encoder.configure(config);
+      audioData = new AudioDataClass({
+        format: "f32",
+        numberOfChannels: 2,
+        numberOfFrames: 1024,
+        sampleRate: MUSIC_EXPORT_SAMPLE_RATE,
+        timestamp: 0,
+        data: new Float32Array(new ArrayBuffer(2 * 1024 * Float32Array.BYTES_PER_ELEMENT)),
+      });
+      encoder.encode(audioData);
+      audioData.close();
+      audioData = null;
+      await encoder.flush();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      audioData?.close();
+      if (encoder && encoder.state !== "closed") {
+        try {
+          encoder.close();
+        } catch {
+          /* Ignore cleanup errors from a failed capability probe. */
+        }
+      }
+    }
   } catch {
     return false;
   }
@@ -107,6 +145,67 @@ function interleaveAudioBuffer(buffer: AudioBuffer, start: number, count: number
   return output;
 }
 
+/**
+ * Join independently rendered windows while carrying a short effect tail
+ * across each boundary. The overlap keeps fresh offline graphs from making
+ * audible clicks when the export is kept within a bounded render size.
+ */
+function mergeAudioBuffers(buffers: readonly AudioBuffer[], requestedOverlap: number): AudioBuffer {
+  if (buffers.length === 0) throw new Error("No audio was rendered.");
+  if (buffers.length === 1) return buffers[0]!;
+  const sampleRate = buffers[0]!.sampleRate;
+  const overlap = Math.min(
+    Math.max(0, Math.floor(requestedOverlap)),
+    ...buffers.map((buffer) => Math.floor(buffer.length / 2)),
+  );
+  const totalFrames = buffers.reduce((sum, buffer) => sum + buffer.length, 0) - overlap * (buffers.length - 1);
+  const outputChannels = [
+    new Float32Array(totalFrames),
+    new Float32Array(totalFrames),
+  ];
+  const sourceChannel = (buffer: AudioBuffer, channel: number): Float32Array =>
+    buffer.getChannelData(Math.min(channel, Math.max(0, buffer.numberOfChannels - 1)));
+  const copy = (buffer: AudioBuffer, sourceStart: number, sourceEnd: number, outputStart: number) => {
+    for (let channel = 0; channel < outputChannels.length; channel++) {
+      outputChannels[channel]!.set(sourceChannel(buffer, channel).subarray(sourceStart, sourceEnd), outputStart);
+    }
+  };
+
+  let outputFrame = 0;
+  const first = buffers[0]!;
+  const firstMainEnd = first.length - overlap;
+  copy(first, 0, firstMainEnd, outputFrame);
+  outputFrame += firstMainEnd;
+
+  for (let index = 1; index < buffers.length; index++) {
+    const previous = buffers[index - 1]!;
+    const current = buffers[index]!;
+    for (let frame = 0; frame < overlap; frame++) {
+      const fadeIn = (frame + 1) / (overlap + 1);
+      const fadeOut = 1 - fadeIn;
+      for (let channel = 0; channel < outputChannels.length; channel++) {
+        const previousData = sourceChannel(previous, channel);
+        const currentData = sourceChannel(current, channel);
+        outputChannels[channel]![outputFrame + frame] =
+          previousData[previous.length - overlap + frame]! * fadeOut + currentData[frame]! * fadeIn;
+      }
+    }
+    outputFrame += overlap;
+    const currentMainEnd = index === buffers.length - 1 ? current.length : current.length - overlap;
+    copy(current, overlap, currentMainEnd, outputFrame);
+    outputFrame += currentMainEnd - overlap;
+  }
+
+  return {
+    length: totalFrames,
+    numberOfChannels: outputChannels.length,
+    sampleRate,
+    getChannelData(channel: number) {
+      return outputChannels[Math.min(channel, outputChannels.length - 1)]!;
+    },
+  } as unknown as AudioBuffer;
+}
+
 async function resampleAudioBuffer(
   buffer: AudioBuffer,
   targetSampleRate: number,
@@ -117,38 +216,21 @@ async function resampleAudioBuffer(
     onProgress?.(1);
     return buffer;
   }
-  if (typeof window === "undefined" || typeof window.AudioBuffer === "undefined") {
+  if (typeof window === "undefined" || typeof window.OfflineAudioContext === "undefined") {
     throw new Error("Audio resampling is not supported in this browser.");
   }
-
+  throwIfExportAborted(signal);
   const targetLength = Math.ceil(buffer.length * targetSampleRate / buffer.sampleRate);
-  const channels = Math.max(1, Math.min(2, buffer.numberOfChannels));
-  const output = new window.AudioBuffer({ numberOfChannels: 2, length: targetLength, sampleRate: targetSampleRate });
-  const sourceStep = buffer.sampleRate / targetSampleRate;
-  const totalFrames = 2 * targetLength;
-  let processed = 0;
-
-  for (let channel = 0; channel < 2; channel++) {
-    const source = buffer.getChannelData(Math.min(channel, channels - 1));
-    const target = output.getChannelData(channel);
-    for (let frame = 0; frame < targetLength; frame++) {
-      const sourcePosition = frame * sourceStep;
-      const sourceIndex = Math.floor(sourcePosition);
-      const fraction = sourcePosition - sourceIndex;
-      const first = source[sourceIndex] ?? 0;
-      const second = source[sourceIndex + 1] ?? first;
-      target[frame] = first + (second - first) * fraction;
-      processed += 1;
-      if (processed % 16_384 === 0) {
-        throwIfExportAborted(signal);
-        onProgress?.(processed / totalFrames);
-        await waitForTimeout(0);
-      }
-    }
-  }
+  const offline = new window.OfflineAudioContext(2, targetLength, targetSampleRate);
+  const source = offline.createBufferSource();
+  source.buffer = buffer;
+  source.connect(offline.destination);
+  source.start(0);
+  onProgress?.(0);
+  const rendered = await offline.startRendering();
   throwIfExportAborted(signal);
   onProgress?.(1);
-  return output;
+  return rendered;
 }
 
 async function encodeM4a(
@@ -248,23 +330,40 @@ export async function exportMissionSoundtrack(
   if (!(await supportsM4aExport())) throw new Error("M4A export is unavailable in this browser. Try a browser with native AAC WebCodecs support.");
   throwIfExportAborted(options.signal);
   onProgress?.({ phase: "rendering", progress: 0.08, phaseProgress: 0 });
-  const rendered = await renderMissionMusic(seed, missionIndex, MUSIC_RENDER_SAMPLE_RATE, {
-    signal: options.signal,
-    onProgress: (phaseProgress) => onProgress?.({
-      phase: "rendering",
-      progress: 0.08 + phaseProgress * 0.4,
-      phaseProgress: phaseProgress * 0.8,
-    }),
-  });
-  throwIfExportAborted(options.signal);
-  const normalized = await resampleAudioBuffer(rendered, MUSIC_EXPORT_SAMPLE_RATE, options.signal, (phaseProgress) => onProgress?.({
-    phase: "rendering",
-    progress: 0.48 + phaseProgress * 0.07,
-    phaseProgress: 0.8 + phaseProgress * 0.2,
-  }));
+  const normalized: AudioBuffer[] = [];
+  for (let barStart = 0; barStart < MUSIC_BARS; barStart += MUSIC_EXPORT_CHUNK_BARS) {
+    const barCount = Math.min(MUSIC_EXPORT_CHUNK_BARS, MUSIC_BARS - barStart);
+    const isFinalChunk = barStart + barCount === MUSIC_BARS;
+    const rendered = await renderMissionMusic(seed, missionIndex, MUSIC_RENDER_SAMPLE_RATE, {
+      barStart,
+      barCount,
+      tailSeconds: isFinalChunk ? 2.2 : MUSIC_EXPORT_CROSSFADE_SECONDS,
+      signal: options.signal,
+      onProgress: (phaseProgress) => {
+        const overall = (barStart + phaseProgress * barCount) / MUSIC_BARS;
+        onProgress?.({
+          phase: "rendering",
+          progress: 0.08 + overall * 0.4,
+          phaseProgress: overall * 0.8,
+        });
+      },
+    });
+    throwIfExportAborted(options.signal);
+    const normalizedChunk = await resampleAudioBuffer(rendered, MUSIC_EXPORT_SAMPLE_RATE, options.signal, (phaseProgress) => {
+      const overall = (barStart + phaseProgress * barCount) / MUSIC_BARS;
+      onProgress?.({
+        phase: "rendering",
+        progress: 0.48 + overall * 0.07,
+        phaseProgress: 0.8 + overall * 0.2,
+      });
+    });
+    normalized.push(normalizedChunk);
+    throwIfExportAborted(options.signal);
+  }
+  const merged = mergeAudioBuffers(normalized, MUSIC_EXPORT_CROSSFADE_SECONDS * MUSIC_EXPORT_SAMPLE_RATE);
   throwIfExportAborted(options.signal);
   onProgress?.({ phase: "encoding", progress: 0.55, phaseProgress: 0 });
-  const blob = await encodeM4a(normalized, (nextProgress) => onProgress?.({
+  const blob = await encodeM4a(merged, (nextProgress) => onProgress?.({
     phase: "encoding",
     progress: 0.55 + nextProgress.phaseProgress * 0.44,
     phaseProgress: nextProgress.phaseProgress,

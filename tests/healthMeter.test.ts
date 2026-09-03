@@ -6,7 +6,6 @@ import {
   worldHealthMeterHeight,
   worldHealthMeterLayout,
 } from "../lib/render/renderOverlays";
-import { iffColors } from "../lib/render/iff";
 
 describe("health meter colors", () => {
   it("returns olive for health ratio > 0.5", () => {
@@ -90,7 +89,7 @@ describe("drawUnitHealthMeter canvas rendering", () => {
     expect(ctx.fillRect).toHaveBeenCalledWith(98, 50, 1, 2);
     expect(ctx.fillRect).toHaveBeenCalledWith(102, 50, 1, 2);
     expect(ctx.fillRect).toHaveBeenCalledWith(106, 50, 1, 2);
-    expect(ctx.fillRect).toHaveBeenCalledWith(89, 50, 2, 2); // ally pip
+    expect(ctx.fillRect).not.toHaveBeenCalledWith(89, 50, 2, 2); // no owner-colored overlay
   });
 
   it("renders proportional fill and only ticks inside the filled width", () => {
@@ -118,23 +117,6 @@ describe("drawUnitHealthMeter canvas rendering", () => {
     expect(ctx.fillRect).toHaveBeenCalledWith(179, 99, 42, 7);
   });
 
-  it("colors the pip by owner, and gold for neutrals, without an IFF frame stroke", () => {
-    const ally = createMockCtx();
-    drawUnitHealthMeter(ally, 100, 50, 100, 100, 1, 1, false, 20, 0);
-    expect(ally.strokeStyle).toBe("rgba(58, 77, 94, 0.85)");
-    expect(ally.fillStyle).toBe(iffColors(0).pip);
-
-    const enemy = createMockCtx();
-    drawUnitHealthMeter(enemy, 100, 50, 100, 100, 1, 1, false, 20, 1);
-    expect(enemy.strokeStyle).toBe("rgba(58, 77, 94, 0.85)");
-    expect(enemy.fillStyle).toBe(iffColors(1).pip);
-
-    const neutral = createMockCtx();
-    drawUnitHealthMeter(neutral, 100, 50, 100, 100, 1, 1, false, 20, 0, true);
-    expect(neutral.strokeStyle).toBe("rgba(58, 77, 94, 0.85)");
-    expect(neutral.fillStyle).toBe(iffColors(0, true).pip);
-    expect(neutral.fillStyle).not.toBe(iffColors(1).pip);
-  });
 });
 
 describe("entityHasWorldHealthMeter", () => {

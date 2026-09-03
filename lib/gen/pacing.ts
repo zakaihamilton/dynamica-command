@@ -25,6 +25,9 @@ export function minutesToTicks(minutes: number): number {
 /** Escort missions spend this long staging the convoy before it starts moving. */
 export const CONVOY_STAGING_MINUTES = 7;
 export const CONVOY_STAGING_TICKS = minutesToTicks(CONVOY_STAGING_MINUTES);
+/** Extra escort time covers the final approach through a contested route. */
+export const CONVOY_COMPLETION_BUFFER_MINUTES = 2;
+export const CONVOY_COMPLETION_BUFFER_TICKS = minutesToTicks(CONVOY_COMPLETION_BUFFER_MINUTES);
 
 /** Formats a player-facing mission clock with a stable two-digit minute field. */
 export function formatMissionClock(seconds: number): string {
@@ -51,5 +54,5 @@ export function formatMissionMinutesFromTicks(ticks: number): string {
 export const MIN_MISSION_TICKS = minutesToTicks(MIN_MISSION_MINUTES);
 export const MAX_MISSION_TICKS = minutesToTicks(MAX_MISSION_MINUTES);
 export const MAX_DEADLINE_TICKS = minutesToTicks(MAX_DEADLINE_MINUTES);
-/** Longest player-facing fail-deadline, including escort staging. */
-export const MAX_OPERATION_TICKS = minutesToTicks(MAX_DEADLINE_MINUTES + CONVOY_STAGING_MINUTES);
+/** Longest player-facing fail-deadline, including escort staging and its approach buffer. */
+export const MAX_OPERATION_TICKS = minutesToTicks(MAX_DEADLINE_MINUTES + CONVOY_STAGING_MINUTES + CONVOY_COMPLETION_BUFFER_MINUTES);

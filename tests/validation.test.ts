@@ -9,6 +9,7 @@ import {
   assertSupportedContentVersion,
   SAVE_CONTENT_VERSION,
 } from "../lib/persist/save/validation";
+import { createMission } from "../lib/sim/api";
 
 describe("isFiniteNumber", () => {
   it("accepts finite numbers", () => {
@@ -82,6 +83,12 @@ describe("isEntity", () => {
   it("rejects non-finite hp or maxHp", () => {
     expect(isEntity({ ...validUnit, hp: NaN })).toBe(false);
     expect(isEntity({ ...validUnit, maxHp: Infinity })).toBe(false);
+  });
+
+  it("rejects impossible health ranges", () => {
+    expect(isEntity({ ...validUnit, hp: -1 })).toBe(false);
+    expect(isEntity({ ...validUnit, hp: 101 })).toBe(false);
+    expect(isEntity({ ...validUnit, maxHp: 0 })).toBe(false);
   });
 
   it("rejects negative cooldown", () => {
@@ -278,6 +285,37 @@ describe("isStateShape", () => {
     expect(isStateShape({ ...base, entities: [entity, entity] })).toBe(false);
   });
 
+  it("rejects impossible scenario progress and duplicate targets", () => {
+    const overcounted = createMission({ seed: 421, missionIndex: 0 });
+    overcounted.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [1],
+      rescued: 2,
+      required: 1,
+      secondary: [],
+    };
+    expect(isStateShape(overcounted)).toBe(false);
+
+    const duplicated = createMission({ seed: 421, missionIndex: 0 });
+    duplicated.runtime = {
+      kind: "escort",
+      phase: "active",
+      targetIds: [1, 1],
+      rescued: 0,
+      required: 2,
+      secondary: [],
+    };
+    expect(isStateShape(duplicated)).toBe(false);
+  });
+
+  it("rejects entities and paths outside the saved map", () => {
+    const entity = { class: "unit", kind: "infantry", id: 1, owner: 0, x: 0, y: 0, hp: 100, maxHp: 100, cooldown: 0, path: [], carry: 0, constructing: 0, queue: [], marked: false, idle: false };
+    const base = { width: 1, height: 1, seed: 0, missionIndex: 0, tick: 0, tiles: [0], heights: [1], surfaces: [0], resourceAmount: [0], fog: [0], nextId: 2, credits: [0, 0], creditsEarned: [0, 0], unitsProduced: [0, 0], unitsProducedByRole: { harvester: 0, infantry: 0, antiArmor: 0, tank: 0, medic: 0, repairTruck: 0 }, buildingsCompleted: [0, 0], buildingsCompletedByKind: {}, losses: { units: [0, 0], buildings: [0, 0] }, win: { kind: "annihilate" }, result: "playing", rngState: 0, factions: [{ id: 0, name: "A", adjective: "a", palette: { primary: "#000", secondary: "#000", accent: "#000", outline: "#000", light: "#000", dark: "#000" } }, { id: 1, name: "B", adjective: "b", palette: { primary: "#000", secondary: "#000", accent: "#000", outline: "#000", light: "#000", dark: "#000" } }], missionName: "Test" };
+    expect(isStateShape({ ...base, entities: [{ ...entity, x: 1 }] })).toBe(false);
+    expect(isStateShape({ ...base, entities: [{ ...entity, path: [{ x: 1, y: 0 }] }] })).toBe(false);
+  });
+
   it("rejects nextId too low for entities", () => {
     const entity = { class: "unit", kind: "infantry", id: 5, owner: 0, x: 0, y: 0, hp: 100, maxHp: 100, cooldown: 0, path: [], carry: 0, constructing: 0, queue: [], marked: false, idle: false };
     const base = { width: 1, height: 1, seed: 0, missionIndex: 0, tick: 0, tiles: [0], heights: [1], surfaces: [0], resourceAmount: [0], fog: [0], entities: [entity], nextId: 3, credits: [0, 0], creditsEarned: [0, 0], unitsProduced: [0, 0], unitsProducedByRole: { harvester: 0, infantry: 0, antiArmor: 0, tank: 0, medic: 0, repairTruck: 0 }, buildingsCompleted: [0, 0], buildingsCompletedByKind: {}, losses: { units: [0, 0], buildings: [0, 0] }, win: { kind: "annihilate" }, result: "playing", rngState: 0, factions: [{ id: 0, name: "A", adjective: "a", palette: { primary: "#000", secondary: "#000", accent: "#000", outline: "#000", light: "#000", dark: "#000" } }, { id: 1, name: "B", adjective: "b", palette: { primary: "#000", secondary: "#000", accent: "#000", outline: "#000", light: "#000", dark: "#000" } }], missionName: "Test" };
@@ -359,6 +397,14 @@ describe("isCampaignProgressShape", () => {
   it("rejects non-integer seed", () => {
     expect(isCampaignProgressShape({
       version: 1, seed: 1.5, tutorialComplete: true,
+      unlockedMission: 0, completedMissions: [],
+      medals: {}, bestScores: {},
+    })).toBe(false);
+  });
+
+  it("rejects out-of-range seed", () => {
+    expect(isCampaignProgressShape({
+      version: 1, seed: 10000, tutorialComplete: true,
       unlockedMission: 0, completedMissions: [],
       medals: {}, bestScores: {},
     })).toBe(false);

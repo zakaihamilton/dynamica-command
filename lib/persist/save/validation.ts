@@ -1,6 +1,7 @@
 import { BUILDING_KINDS, UNIT_KINDS } from "../../catalog";
 import type { BuildingKind, CampaignProgress, Entity, SimState, UnitKind } from "../../types";
 import { fogGridHeight, fogGridWidth } from "../../sim/fog";
+import { MISSION_MAX, MISSION_MIN, SEED_MAX, SEED_MIN } from "../../seed/rng";
 import { isRecord } from "../utils";
 
 export const SAVE_CONTENT_VERSION = 1;
@@ -27,6 +28,10 @@ const RNG_STATE_MAX = 0xffffffff;
 
 function isNumberPair(value: unknown): value is [number, number] {
   return Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number" && Number.isFinite(item));
+}
+
+function isNonNegativeNumberPair(value: unknown): value is [number, number] {
+  return isNumberPair(value) && value.every((item) => item >= 0);
 }
 
 export function isFiniteNumber(value: unknown): value is number {
@@ -87,7 +92,7 @@ export function isEntity(value: unknown): value is Entity {
     !isIntegerInRange(value.id, 0, Number.MAX_SAFE_INTEGER) ||
     (value.owner !== 0 && value.owner !== 1) ||
     !isFiniteNumber(value.x) || !isFiniteNumber(value.y) ||
-    !isFiniteNumber(value.hp) || !isFiniteNumber(value.maxHp) ||
+    !isFiniteNumber(value.hp) || !isFiniteNumber(value.maxHp) || value.maxHp <= 0 || value.hp < 0 || value.hp > value.maxHp ||
     !isNonNegativeNumber(value.cooldown) || !Array.isArray(value.path) || !value.path.every(isVec2) ||
     !isNonNegativeNumber(value.carry) || !isNonNegativeNumber(value.constructing) ||
     !Array.isArray(value.queue) || !value.queue.every(isUnitKind) ||
@@ -121,9 +126,9 @@ export function isWin(value: unknown): boolean {
   if (value.target !== undefined && !isNonNegativeNumber(value.target)) return false;
   if (value.role !== undefined && !isUnitKind(value.role)) return false;
   if (value.building !== undefined && !isBuildingKind(value.building)) return false;
-  if (value.targetCount !== undefined && !isNonNegativeNumber(value.targetCount)) return false;
-  if (value.targetIds !== undefined && (!Array.isArray(value.targetIds) || !value.targetIds.every((id) => isIntegerInRange(id, 0, Number.MAX_SAFE_INTEGER)))) return false;
-  if (value.ticks !== undefined && !isNonNegativeNumber(value.ticks)) return false;
+  if (value.targetCount !== undefined && !isIntegerInRange(value.targetCount, 0, Number.MAX_SAFE_INTEGER)) return false;
+  if (value.targetIds !== undefined && (!Array.isArray(value.targetIds) || !value.targetIds.every((id) => isIntegerInRange(id, 0, Number.MAX_SAFE_INTEGER)) || new Set(value.targetIds).size !== value.targetIds.length)) return false;
+  if (value.ticks !== undefined && !isIntegerInRange(value.ticks, 0, Number.MAX_SAFE_INTEGER)) return false;
   return true;
 }
 
@@ -137,13 +142,21 @@ function isSecondaryObjective(value: unknown): boolean {
 function isRuntime(value: unknown): boolean {
   if (!isRecord(value)) return false;
   if (!isOneOf(value.kind, MISSION_KINDS) || !isOneOf(value.phase, ["active", "extraction", "complete"] as const)) return false;
-  if (!Array.isArray(value.targetIds) || !value.targetIds.every((id) => isIntegerInRange(id, 0, Number.MAX_SAFE_INTEGER))) return false;
+  const targetIds = value.targetIds;
+  if (!Array.isArray(targetIds) || !targetIds.every((id) => isIntegerInRange(id, 0, Number.MAX_SAFE_INTEGER)) || new Set(targetIds).size !== targetIds.length) return false;
   if (!isIntegerInRange(value.rescued, 0, Number.MAX_SAFE_INTEGER) || !isIntegerInRange(value.required, 0, Number.MAX_SAFE_INTEGER)) return false;
+  if (isOneOf(value.kind, ["escort", "rescue", "extraction"] as const) &&
+    (value.required > targetIds.length || value.rescued > value.required)) return false;
   if (!Array.isArray(value.secondary) || !value.secondary.every(isSecondaryObjective)) return false;
   if (value.convoyStartTick !== undefined && !isIntegerInRange(value.convoyStartTick, 0, Number.MAX_SAFE_INTEGER)) return false;
   if (value.zone !== undefined && !isVec2(value.zone)) return false;
   if (value.deadline !== undefined && !isIntegerInRange(value.deadline, 0, Number.MAX_SAFE_INTEGER)) return false;
-  if (value.extractedIds !== undefined && (!Array.isArray(value.extractedIds) || !value.extractedIds.every((id) => isIntegerInRange(id, 0, Number.MAX_SAFE_INTEGER)))) return false;
+  if (value.extractedIds !== undefined && (
+    !Array.isArray(value.extractedIds) ||
+    !value.extractedIds.every((id) => isIntegerInRange(id, 0, Number.MAX_SAFE_INTEGER)) ||
+    new Set(value.extractedIds).size !== value.extractedIds.length ||
+    value.extractedIds.some((id) => !targetIds.includes(id))
+  )) return false;
   if (value.director !== undefined) {
     if (!isRecord(value.director) || !isOneOf(value.director.phase, ["opening", "pressure", "finale"] as const)) return false;
     if (!isIntegerInRange(value.director.pressureStart, 0, Number.MAX_SAFE_INTEGER) || !isIntegerInRange(value.director.finaleStart, 0, Number.MAX_SAFE_INTEGER) || !isIntegerInRange(value.director.eventCount, 0, Number.MAX_SAFE_INTEGER)) return false;
@@ -153,7 +166,7 @@ function isRuntime(value: unknown): boolean {
 
 export function isNormalizableStateInput(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false;
-  if (!isIntegerInRange(value.seed, 0, 9999) || !isIntegerInRange(value.width, 1, 256) || !isIntegerInRange(value.height, 1, 256)) return false;
+  if (!isIntegerInRange(value.seed, SEED_MIN, SEED_MAX) || !isIntegerInRange(value.width, 1, 256) || !isIntegerInRange(value.height, 1, 256)) return false;
   if ((value.width as number) * (value.height as number) > 256 * 256) return false;
   if (!Array.isArray(value.entities) || !value.entities.every(isRecord)) return false;
   if (value.runtime !== undefined && (!isRecord(value.runtime) || (value.runtime.targetIds !== undefined && !Array.isArray(value.runtime.targetIds)))) return false;
@@ -165,7 +178,7 @@ export function isStateShape(value: unknown): value is SimState {
   const width = value.width;
   const height = value.height;
   if (!isIntegerInRange(width, 1, 256) || !isIntegerInRange(height, 1, 256) || width * height > 256 * 256) return false;
-  if (!isIntegerInRange(value.seed, 0, 9999) || !isIntegerInRange(value.missionIndex, 0, 7) || !isIntegerInRange(value.tick, 0, Number.MAX_SAFE_INTEGER)) return false;
+  if (!isIntegerInRange(value.seed, SEED_MIN, SEED_MAX) || !isIntegerInRange(value.missionIndex, MISSION_MIN, MISSION_MAX) || !isIntegerInRange(value.tick, 0, Number.MAX_SAFE_INTEGER)) return false;
   if (!isIntegerInRange(value.navigationRevision, 0, Number.MAX_SAFE_INTEGER)) return false;
   if (!Array.isArray(value.tiles) || value.tiles.length !== width * height || !value.tiles.every((tile) => typeof tile === "number" && TILE_KINDS.includes(tile as typeof TILE_KINDS[number]))) return false;
   if (!Array.isArray(value.heights) || value.heights.length !== width * height || !value.heights.every(isFiniteNumber)) return false;
@@ -175,14 +188,16 @@ export function isStateShape(value: unknown): value is SimState {
   const fogHeight = fogGridHeight(height);
   if (!Array.isArray(value.fog) || value.fog.length !== fogWidth * fogHeight || !value.fog.every((cell) => isIntegerInRange(cell, 0, 2))) return false;
   if (!Array.isArray(value.entities) || !value.entities.every(isEntity)) return false;
-  if (new Set(value.entities.map((entity) => entity.id)).size !== value.entities.length) return false;
+  const entities = value.entities as Entity[];
+  if (new Set(entities.map((entity) => entity.id)).size !== entities.length) return false;
+  if (entities.some((entity) => entity.x < 0 || entity.x >= width || entity.y < 0 || entity.y >= height || entity.path.some((point) => point.x < 0 || point.x >= width || point.y < 0 || point.y >= height))) return false;
   const nextId = value.nextId;
-  if (!isIntegerInRange(nextId, 1, Number.MAX_SAFE_INTEGER) || value.entities.some((entity) => entity.id >= nextId)) return false;
-  if (!isNumberPair(value.credits) || !isNumberPair(value.creditsEarned) || !isNumberPair(value.unitsProduced) || !isNumberPair(value.buildingsCompleted)) return false;
+  if (!isIntegerInRange(nextId, 1, Number.MAX_SAFE_INTEGER) || entities.some((entity) => entity.id >= nextId)) return false;
+  if (!isNonNegativeNumberPair(value.credits) || !isNonNegativeNumberPair(value.creditsEarned) || !isNonNegativeNumberPair(value.unitsProduced) || !isNonNegativeNumberPair(value.buildingsCompleted)) return false;
   const unitsProducedByRole = value.unitsProducedByRole;
   if (!isRecord(unitsProducedByRole) || !UNIT_KINDS.every((kind) => isNonNegativeNumber(unitsProducedByRole[kind]))) return false;
   if (!isRecord(value.buildingsCompletedByKind) || !Object.values(value.buildingsCompletedByKind).every(isNonNegativeNumber)) return false;
-  if (!isRecord(value.losses) || !isNumberPair(value.losses.units) || !isNumberPair(value.losses.buildings)) return false;
+  if (!isRecord(value.losses) || !isNonNegativeNumberPair(value.losses.units) || !isNonNegativeNumberPair(value.losses.buildings)) return false;
   if (!isWin(value.win) || !["playing", "won", "lost"].includes(value.result as string)) return false;
   if (value.lossReason !== undefined && !isOneOf(value.lossReason, LOSS_REASONS)) return false;
   if (!isRngState(value.rngState) || !isOneOf(value.biome, BIOMES)) return false;
@@ -199,12 +214,12 @@ export function isStateShape(value: unknown): value is SimState {
 
 export function isCampaignProgressShape(value: unknown): value is CampaignProgress {
   if (!isRecord(value)) return false;
-  if (value.version !== 1 || !Number.isInteger(value.seed) || typeof value.tutorialComplete !== "boolean") return false;
+  if (value.version !== 1 || !isIntegerInRange(value.seed, SEED_MIN, SEED_MAX) || typeof value.tutorialComplete !== "boolean") return false;
   if (!Number.isInteger(value.unlockedMission)) return false;
   const unlockedMission = value.unlockedMission as number;
-  if (unlockedMission < 0 || unlockedMission > 7) return false;
+  if (unlockedMission < MISSION_MIN || unlockedMission > MISSION_MAX) return false;
   if (!Array.isArray(value.completedMissions)) return false;
-  if (value.completedMissions.some((mission) => !Number.isInteger(mission) || mission < 0 || mission > 7)) return false;
+  if (value.completedMissions.some((mission) => !Number.isInteger(mission) || mission < MISSION_MIN || mission > MISSION_MAX)) return false;
   if (new Set(value.completedMissions).size !== value.completedMissions.length) return false;
   if (value.completedMissions.some((mission) => mission > unlockedMission)) return false;
   if (!isRecord(value.medals) || !isRecord(value.bestScores)) return false;
