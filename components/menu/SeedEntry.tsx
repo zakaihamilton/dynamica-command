@@ -47,13 +47,13 @@ export function SeedEntry({
             maxLength={4}
             inputMode="numeric"
             autoComplete="off"
-            aria-label="Four digit theater seed"
+            aria-label="Four digit campaign seed"
             className={styles.input}
           />
         </div>
         <ConsoleButton
           className={styles.roll}
-          tooltip="Roll a random theater"
+          tooltip="Roll a random campaign"
           shortcut={SHORTCUT.randomize}
           onClick={onRandomize}
         >

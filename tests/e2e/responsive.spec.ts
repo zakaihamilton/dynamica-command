@@ -14,7 +14,7 @@ const TEST_SEED = 421;
 async function openBriefingSkippingTutorial(page: import("@playwright/test").Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
-  await page.getByLabel("Four digit theater seed").fill("0421");
+  await page.getByLabel("Four digit campaign seed").fill("0421");
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
 }
@@ -634,7 +634,7 @@ test.describe("mobile-first layouts", () => {
     await page.getByRole("button", { name: "NEW GAME" }).click();
     await expectNoHorizontalOverflow(page);
     await expect(page.getByTestId("deploy-screen")).toBeVisible();
-    await expect(page.getByLabel("Four digit theater seed")).toBeVisible();
+    await expect(page.getByLabel("Four digit campaign seed")).toBeVisible();
 
     await page.goto("/briefing?seed=0421&mission=0");
     await expect(page.getByTestId("briefing-actions")).toBeVisible();

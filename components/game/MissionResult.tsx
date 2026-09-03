@@ -46,7 +46,7 @@ export function MissionResult({
         aria-modal="true"
         aria-labelledby="mission-result-title"
       >
-        <ConsoleLabel>Theater status</ConsoleLabel>
+        <ConsoleLabel>Campaign status</ConsoleLabel>
         <h2 id="mission-result-title" className={styles.title}>
           {state.result === "won" ? "Mission complete" : "Mission failed"}
         </h2>

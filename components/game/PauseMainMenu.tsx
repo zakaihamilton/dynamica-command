@@ -42,7 +42,7 @@ export function PauseMainMenu({
           <ConsoleButton className={styles.action} tooltip="Keyboard and pointer reference" shortcut={SHORTCUT.controls} onClick={onControls}>Controls</ConsoleButton>
         </div>
         <div className={styles.group}>
-          <ConsoleLabel className={styles.groupLabel}>Theater</ConsoleLabel>
+          <ConsoleLabel className={styles.groupLabel}>Campaign</ConsoleLabel>
           <ConsoleButton className={styles.action} tooltip="Download this mission's music" onClick={onSoundtrack}>Soundtrack</ConsoleButton>
           <ConsoleButton className={styles.action} tooltip="Audio and game options" shortcut={SHORTCUT.options} onClick={onOptions}>Options</ConsoleButton>
           <ConsoleButton muted className={styles.action} tooltip="Leave the campaign" shortcut={SHORTCUT.menu} onClick={onMenu}>Main Menu</ConsoleButton>

@@ -38,12 +38,46 @@
   color: var(--chrome-body);
 }
 
+.campaignDetails {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 1.5rem;
+  max-width: 28rem;
+  margin-top: 1.4rem;
+  padding: 0.75rem 0.85rem;
+  background: color-mix(in srgb, var(--chrome-steel) 50%, transparent);
+  border: 1px solid var(--chrome-line);
+  border-radius: 4px;
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.detailLabel {
+  color: var(--chrome-muted);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.detailValue {
+  color: var(--chrome-text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
 .introReadout {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.55rem 1rem;
   max-width: 28rem;
-  margin-top: 2rem;
+  margin-top: 1.2rem;
   padding-top: 0.85rem;
   border-top: 1px solid var(--chrome-line);
   color: var(--chrome-muted);
@@ -94,6 +128,11 @@
     linear-gradient(105deg, color-mix(in srgb, var(--chrome-cyan) 24%, transparent), transparent 32%),
     linear-gradient(color-mix(in srgb, var(--chrome-steel-hi) 70%, var(--chrome-cyan-dim)), var(--chrome-steel));
   border-color: color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-bevel));
+}
+
+.copyLink {
+  width: 100%;
+  text-align: left;
 }
 
 .back {

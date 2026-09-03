@@ -28,7 +28,7 @@ export function BriefingMast({
         </p>
       </div>
       <p className={styles.aside}>
-        {campaign.factions[0].name} theater brief
+        {campaign.factions[0].name} campaign brief
         <span className={styles.objective} data-testid="objective">
           {objectiveHeadline(def.win)}
         </span>

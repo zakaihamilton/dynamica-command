@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import type { AudioVolumeKey } from "@/lib/audio/mixer";
 import type { GameSettings } from "@/lib/persist/settings";
+import type { Campaign } from "@/lib/types";
 import { MenuOptions } from "./MenuOptions";
 import { NewGameSetup } from "./NewGameSetup";
 import styles from "./MenuOverlay.module.css";
@@ -12,10 +13,13 @@ export function MenuOverlay({
   code,
   error,
   previewLine,
+  preview,
+  copied,
   inputRef,
   settings,
   onChange,
   onRandomize,
+  onCopyLink,
   onLaunch,
   onToggleSound,
   onToggleMusic,
@@ -27,10 +31,13 @@ export function MenuOverlay({
   code: string;
   error: string;
   previewLine: string;
+  preview: Campaign | null;
+  copied: boolean;
   inputRef: RefObject<HTMLInputElement | null>;
   settings: GameSettings;
   onChange: (value: string) => void;
   onRandomize: () => void;
+  onCopyLink: () => void;
   onLaunch: () => void;
   onToggleSound: () => void;
   onToggleMusic: () => void;
@@ -48,9 +55,12 @@ export function MenuOverlay({
             code={code}
             error={error}
             previewLine={previewLine}
+            preview={preview}
+            copied={copied}
             inputRef={inputRef}
             onChange={onChange}
             onRandomize={onRandomize}
+            onCopyLink={onCopyLink}
             onLaunch={onLaunch}
             onBack={onBack}
           />

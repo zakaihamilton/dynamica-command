@@ -8,12 +8,13 @@ import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import type { MenuView } from "./MenuOverlay";
 import { tutorialPath } from "../game/hooks/missionRoutes";
-import { menuLaunchPath, rollSeed } from "./menuLaunch";
+import { dailySeed, menuLaunchPath, rollSeed } from "./menuLaunch";
 
 export function useMenuController() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const [view, setView] = useState<MenuView>("main");
   const [settings, setSettings] = useState<GameSettings>(() => defaultSettings());
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,6 +28,15 @@ export function useMenuController() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const seedParam = params.get("seed");
+    if (seedParam && parseSeed(seedParam) !== null && seedParam.length === 4) {
+      setCode(seedParam);
+      setView("newGame");
+    }
+  }, []);
+
   const preview = useMemo(() => {
     const seed = parseSeed(code);
     if (seed === null || code.length < 4) return null;
@@ -34,7 +44,7 @@ export function useMenuController() {
   }, [code]);
 
   const openNewGame = useCallback(() => {
-    setCode((current) => current.length === 4 ? current : rollSeed());
+    setCode((current) => current.length === 4 ? current : dailySeed());
     setError("");
     setView("newGame");
   }, []);
@@ -46,12 +56,23 @@ export function useMenuController() {
   const randomize = useCallback(() => {
     setCode(rollSeed());
     setError("");
+    setCopied(false);
   }, []);
+
+  const copyLink = useCallback(() => {
+    const seed = parseSeed(code);
+    if (seed === null || code.length < 4) return;
+    const url = `${window.location.origin}?seed=${code}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }, [code]);
 
   const launch = useCallback(() => {
     const path = menuLaunchPath(code);
     if (!path) {
-      setError("Enter a 4-digit seed (0000–9999), or roll a random theater.");
+      setError("Enter a 4-digit seed (0000–9999), or roll a random campaign.");
       return;
     }
     setError("");
@@ -84,17 +105,20 @@ export function useMenuController() {
   return {
     code,
     error,
+    copied,
     view,
     settings,
     inputRef,
+    preview,
     previewLine: preview
       ? `${preview.world.name} · ${preview.factions[0].name} vs ${preview.factions[1].name}`
-      : "Enter a 4-digit campaign code — or roll a random theater",
+      : "Enter a 4-digit campaign code — or roll a random campaign",
     openNewGame,
     openTutorial,
     openLoadMission,
     openOptions,
     randomize,
+    copyLink,
     launch,
     toggleSound,
     toggleMusic,
@@ -103,6 +127,7 @@ export function useMenuController() {
     setCode: (value: string) => {
       setCode(value);
       setError("");
+      setCopied(false);
     },
     goBack: () => setView("main"),
   };

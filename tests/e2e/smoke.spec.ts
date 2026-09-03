@@ -10,7 +10,7 @@ import type { SimState } from "../../lib/types";
 async function openBriefing(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
-  const seed = page.getByLabel("Four digit theater seed");
+  const seed = page.getByLabel("Four digit campaign seed");
   await seed.fill("0421");
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
@@ -217,7 +217,7 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
 
   await page.getByRole("button", { name: "NEW GAME" }).click();
   await expect(page.getByTestId("deploy-screen")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "New theater" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New campaign" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Operations map" })).toHaveCount(0);
 
   const deployOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
@@ -666,7 +666,7 @@ test("starts a new same-seed mission after reloading before a fresh launch", asy
   await expect(page.getByTestId("menu-dashboard")).toBeVisible();
 
   await page.getByRole("button", { name: "NEW GAME" }).click();
-  await page.getByLabel("Four digit theater seed").fill("0421");
+  await page.getByLabel("Four digit campaign seed").fill("0421");
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
   await page.getByRole("button", { name: "Launch" }).click();

@@ -215,7 +215,7 @@ describe("SeedEntry", () => {
   it("selects an existing seed so typing replaces it", async () => {
     const user = userEvent.setup();
     render(<ControlledSeedEntry />);
-    const input = screen.getByLabelText<HTMLInputElement>("Four digit theater seed");
+    const input = screen.getByLabelText<HTMLInputElement>("Four digit campaign seed");
 
     input.focus();
     expect(input.selectionStart).toBe(0);
@@ -241,7 +241,7 @@ describe("SeedEntry", () => {
         onLaunch={onLaunch}
       />,
     );
-    const input = screen.getByLabelText("Four digit theater seed");
+    const input = screen.getByLabelText("Four digit campaign seed");
     fireEvent.change(input, { target: { value: "a1b23456" } });
     expect(onChange).toHaveBeenCalledWith("1234");
     fireEvent.keyDown(input, { key: "Enter" });
@@ -272,11 +272,14 @@ describe("MenuOverlay", () => {
     const props = {
       code: "0421",
       error: "",
-      previewLine: "Theater",
+      previewLine: "Campaign",
+      preview: null,
+      copied: false,
       inputRef: createRef<HTMLInputElement>(),
       settings: defaultSettings(),
       onChange: vi.fn(),
       onRandomize: vi.fn(),
+      onCopyLink: vi.fn(),
       onLaunch: vi.fn(),
       onToggleSound: vi.fn(),
       onToggleMusic: vi.fn(),
@@ -286,7 +289,7 @@ describe("MenuOverlay", () => {
     const { rerender } = render(<MenuOverlay {...props} view="main" />);
     expect(screen.queryByRole("dialog")).toBeNull();
     rerender(<MenuOverlay {...props} view="newGame" />);
-    expect(screen.getByRole("dialog", { name: "New theater" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "New campaign" })).toBeVisible();
     rerender(<MenuOverlay {...props} view="options" />);
     expect(screen.getByRole("dialog", { name: "Game options" })).toBeVisible();
   });
@@ -298,16 +301,19 @@ describe("NewGameSetup", () => {
       <NewGameSetup
         code="0421"
         error=""
-        previewLine="Theater"
+        previewLine="Campaign"
+        preview={null}
+        copied={false}
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
+        onCopyLink={vi.fn()}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("dialog", { name: "New theater" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "New campaign" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Operations map" })).toBeNull();
   });
 });
@@ -396,7 +402,7 @@ describe("PauseMenu", () => {
     expect(screen.getByTestId("pause-menu")).toHaveTextContent("Mission saved.");
     expect(screen.getByText("Mission")).toBeVisible();
     expect(screen.getByText("Operation")).toBeVisible();
-    expect(screen.getByText("Theater")).toBeVisible();
+    expect(screen.getByText("Campaign")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Export Save" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Resume Mission" }));
     expect(onResume).toHaveBeenCalledOnce();

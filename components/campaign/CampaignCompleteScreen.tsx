@@ -137,7 +137,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           <strong>{selectedTimeLimit ?? `~${Math.max(1, missionDurationMinutesFor(seed, selectedMission.index, selectedMission.win.kind))} min`}</strong>
         </div>
         <div className={styles.detailBlock}>
-          <span>Theater</span>
+          <span>Campaign</span>
           <strong>{biomeLabel(selectedMission.biome)} · {selectedMission.mapSize}×{selectedMission.mapSize}</strong>
         </div>
         <div className={styles.detailBlock}>
