@@ -4,6 +4,7 @@ import { Barlow, Barlow_Condensed, IBM_Plex_Mono } from "next/font/google";
 import { AudioRoot } from "@/components/audio/AudioRoot";
 import { TooltipLayer } from "@/components/TooltipLayer";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { APP_DESCRIPTION, APP_NAME, APP_THEME_COLOR } from "@/lib/site";
 import styles from "./layout.module.css";
 
 const barlowCondensed = Barlow_Condensed({
@@ -27,8 +28,6 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
-const DESCRIPTION = "A seeded isometric RTS — one 4-digit code writes the war.";
-
 const metadataBase = new URL(
   process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -39,25 +38,31 @@ const metadataBase = new URL(
 
 export const metadata: Metadata = {
   metadataBase,
-  title: "Dynamica Command",
-  description: DESCRIPTION,
+  title: APP_NAME,
+  applicationName: APP_NAME,
+  description: APP_DESCRIPTION,
+  appleWebApp: {
+    capable: true,
+    title: APP_NAME,
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
-    title: "Dynamica Command",
-    description: DESCRIPTION,
-    siteName: "Dynamica Command",
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    siteName: APP_NAME,
     type: "website",
     images: [{ url: "/art/menu-command-vista.webp" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Dynamica Command",
-    description: DESCRIPTION,
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
     images: ["/art/menu-command-vista.webp"],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#05080e",
+  themeColor: APP_THEME_COLOR,
   colorScheme: "dark",
 };
 
