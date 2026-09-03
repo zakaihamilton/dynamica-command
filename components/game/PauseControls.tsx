@@ -13,6 +13,7 @@ const ROWS: { label: string; keys: string }[] = [
   { label: "Cameos", keys: SHORTCUT.cameo.join("–") },
   { label: "Repair / sell / stop", keys: `${SHORTCUT.repair} / ${SHORTCUT.sell} / ${SHORTCUT.stop}` },
   { label: "Select", keys: "Left click / drag" },
+  { label: "Select all of type", keys: "Double-click" },
   { label: "Move / attack / harvest", keys: "Right click" },
   { label: "Attack-move", keys: "Ctrl + right click" },
 ];

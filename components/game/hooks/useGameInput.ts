@@ -10,8 +10,8 @@ import type { MobileCommand } from "../mobileCommandTypes";
 import { canvasPointerPos } from "./canvasPointer";
 import { contextOrders, entityAt, pickSelectableEntity, pointerTile } from "./gameInputOrders";
 import { battlefieldCursor } from "@/lib/ui/battlefieldCursor";
-import { resolvePointerUp, type PointerUpEffect } from "./gamePointerUp";
-import { selectionProjectionPoint, type SelectionBox } from "./selectionBox";
+import { resolvePointerUp, isSameKindDoubleClick, type LastUnitClick, type PointerUpEffect } from "./gamePointerUp";
+import { selectionBoxDistance, selectionProjectionPoint, type SelectionBox } from "./selectionBox";
 import { useTouchGestures } from "./useTouchGestures";
 
 export function useGameInput({
@@ -68,6 +68,7 @@ export function useGameInput({
   const boxRef = useRef<SelectionBox | null>(null);
   const commandMarkerRef = useRef<CommandMarker | null>(null);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const lastUnitClickRef = useRef<LastUnitClick | null>(null);
 
   const syncCursor = useCallback((canvas?: HTMLCanvasElement | null) => {
     if (canvas) canvasElRef.current = canvas;
@@ -237,6 +238,23 @@ export function useGameInput({
     if (!s) return;
     if (e.pointerType === "touch" && endTouch(e)) return;
     const p = canvasPointerPos(e);
+    const cam = camRef.current;
+    const drag = Boolean(boxRef.current && selectionBoxDistance(boxRef.current, cam) > 8);
+    const nowMs = performance.now();
+    const { x: tx, y: ty } = pointerTile(s, p, cam);
+    const hoverHit = !drag && (e.button === 0 || e.pointerType === "touch")
+      ? pickSelectableEntity(s, p.x, p.y, tx, ty, cam)
+      : undefined;
+    const doubleClick = Boolean(
+      hoverHit &&
+        hoverHit.class === "unit" &&
+        isSameKindDoubleClick(lastUnitClickRef.current, {
+          atMs: nowMs,
+          kind: hoverHit.kind,
+          x: p.x,
+          y: p.y,
+        }),
+    );
     const effect = resolvePointerUp({
       pointerType: e.pointerType,
       button: e.button,
@@ -244,7 +262,7 @@ export function useGameInput({
       metaKey: e.metaKey,
       p,
       state: s,
-      cam: camRef.current,
+      cam,
       selectedIds: [...selectedRef.current],
       box: boxRef.current,
       selectionMode: selectionModeRef.current,
@@ -252,13 +270,29 @@ export function useGameInput({
       placeKind: placeRef.current,
       repairMode: repairRef.current,
       sellMode: sellRef.current,
+      doubleClick,
+      viewport: { width: e.currentTarget.width, height: e.currentTarget.height },
     });
+    const rememberUnitClick = () => {
+      if (
+        !drag &&
+        hoverHit &&
+        hoverHit.class === "unit" &&
+        effect.select?.includes(hoverHit.id)
+      ) {
+        lastUnitClickRef.current = { atMs: nowMs, kind: hoverHit.kind, x: p.x, y: p.y };
+      } else {
+        lastUnitClickRef.current = null;
+      }
+    };
     if (effect.contextOrder) {
+      lastUnitClickRef.current = null;
       if (effect.preventDefault) e.preventDefault();
       issueContextOrder(s, p, effect.attackMove);
       return;
     }
     applyPointerUp(effect, e);
+    rememberUnitClick();
   }, [applyEdgePan, applyPointerUp, camRef, endTouch, issueContextOrder, mobileCommandRef, placeRef, repairRef, selectedRef, selectionModeRef, sellRef, stateRef]);
 
   const onCancel = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
@@ -272,6 +306,7 @@ export function useGameInput({
     hoverRef.current = null;
     cursorRef.current = null;
     commandMarkerRef.current = null;
+    lastUnitClickRef.current = null;
     mobileCommandRef.current = null;
     setMobileCommandState(null);
     clearTools();
@@ -286,6 +321,7 @@ export function useGameInput({
     cursorRef.current = null;
     boxRef.current = null;
     commandMarkerRef.current = null;
+    lastUnitClickRef.current = null;
   }, [cancelTouch]);
 
   return {

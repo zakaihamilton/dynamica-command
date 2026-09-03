@@ -411,6 +411,7 @@ describe("PauseMenu", () => {
 
     rerender(<PauseMenu {...props} view="controls" notice="" />);
     expect(screen.getByTestId("pause-controls")).toBeVisible();
+    expect(screen.getByTestId("pause-controls")).toHaveTextContent("Double-click");
 
     rerender(<PauseMenu {...props} view="save" notice="" />);
     expect(screen.getByRole("heading", { name: "Save mission" })).toBeVisible();
