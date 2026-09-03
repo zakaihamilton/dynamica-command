@@ -146,6 +146,14 @@ describe("win categories", () => {
     tick(s);
     expect(inspect(s).result).toBe("lost");
   });
+
+  it("can advance a localized preview without resolving campaign objectives", () => {
+    const s = makeFixture({ win: { kind: "holdTheLine", ticks: 100 } });
+    const before = s.tick;
+    tick(s, undefined, { evaluateObjectives: false });
+    expect(s.tick).toBe(before + 1);
+    expect(s.result).toBe("playing");
+  });
 });
 
 describe("deadline warnings", () => {

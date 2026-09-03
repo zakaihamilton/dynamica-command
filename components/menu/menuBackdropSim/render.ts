@@ -123,7 +123,7 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
     const cx = scene.combatEpicenter.x;
     const cy = scene.combatEpicenter.y;
 
-    const { events } = tick(scene.state);
+    const { events } = tick(scene.state, undefined, { evaluateObjectives: false });
     scene.state.fog.fill(2);
     const now = typeof performance !== "undefined" ? performance.now() : Date.now();
     for (const ev of events) {

@@ -15,7 +15,7 @@ import {
 import { CINEMA_SHOTS, cinemaShotCamera, PIP_ZOOM, PREVIEW_SHOT_COUNT } from "../components/menu/menuBackdropSim/shots";
 import { cinemaGroundWorld } from "../components/menu/menuBackdropSim/paint";
 import { stepCinemaScene } from "../components/menu/menuBackdropSim/render";
-import { CINEMA_SCENARIO_KINDS, CINEMA_SEED, createCinemaScene } from "../components/menu/menuBackdropSim/scene";
+import { CINEMA_SCENARIO_KINDS, CINEMA_SEED, createCinemaScene, type Shot } from "../components/menu/menuBackdropSim/scene";
 import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
 import { tileToScreen } from "../lib/iso";
@@ -148,6 +148,34 @@ describe("welcome target cinema shots", () => {
     const combatUnits = scene.state.entities.filter((e) => e.class === "unit" && e.hp > 0);
     expect(combatUnits.length).toBeGreaterThanOrEqual(6);
     expect(scene.combatEpicenter).toBeDefined();
+  });
+
+  it("keeps every preview scenario playing while combat advances after warm-up", () => {
+    for (const kind of CINEMA_SCENARIO_KINDS) {
+      const scene = createCinemaScene(CINEMA_SEED, 0, kind);
+      const warmupTick = scene.state.tick;
+      const initialHealth = new Map(
+        scene.state.entities
+          .filter((entity) => entity.class === "unit" && entity.hp > 0)
+          .map((entity) => [entity.id, entity.hp]),
+      );
+      const shots: Shot[] = [];
+      let sawShot = false;
+
+      expect(scene.state.result).toBe("playing");
+      for (let frame = 0; frame < 120; frame++) {
+        stepCinemaScene(scene, shots, frame);
+        sawShot ||= shots.length > 0;
+      }
+
+      const healthChanged = scene.state.entities.some(
+        (entity) => entity.class === "unit" && initialHealth.has(entity.id) && entity.hp !== initialHealth.get(entity.id),
+      );
+      expect(scene.state.tick).toBeGreaterThan(warmupTick);
+      expect(scene.state.result).toBe("playing");
+      expect(sawShot).toBe(true);
+      expect(healthChanged).toBe(true);
+    }
   });
 
   it("frames all frontline battle units within the PIP feed bounds across all scenarios and shots", () => {

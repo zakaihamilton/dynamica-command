@@ -252,7 +252,7 @@ export function createCinemaScene(
 
   // Fast-forward ticks to bring combat into full swing
   for (let t = 0; t < 18; t++) {
-    const { events } = tick(state);
+    const { events } = tick(state, undefined, { evaluateObjectives: false });
     state.fog.fill(2);
     for (const u of [...pUnits, ...eUnits]) {
       if (u.orderDestination && Math.hypot(u.orderDestination.x - clashX, u.orderDestination.y - clashY) > 4) {
