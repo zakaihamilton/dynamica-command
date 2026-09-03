@@ -4,7 +4,8 @@ import { createMission, tick } from "@/lib/sim/api";
 import { expandFog } from "@/lib/sim/fog";
 import { isStaticWalkable, nearest, spawnBuilding, spawnUnit } from "@/lib/sim/world";
 import { assignAttack } from "@/lib/sim/ai/combat";
-import { BUILDING_STATS } from "@/lib/catalog";
+import { assignSupportTarget } from "@/lib/sim/support";
+import { BUILDING_STATS, isSupportUnit, UNIT_STATS } from "@/lib/catalog";
 import type { AtlasWorld } from "@/lib/render/terrainAtlas";
 import type { BuildingKind, UnitKind } from "@/lib/types";
 import { FX_DURATION, type FxBurst } from "@/lib/render/fx";
@@ -212,23 +213,49 @@ export function createCinemaScene(
 
   const assignClashTargets = () => {
     for (const u of pUnits) {
-      if (u.hp > 0 && (u.attackTarget === undefined || u.idle)) {
-        const target = nearest(state, u, (e) => e.owner === 1 && e.hp > 0 && Math.hypot(e.x - clashX, e.y - clashY) <= 8);
-        if (target) assignAttack(state, u, target);
+      if (u.hp <= 0) continue;
+      if (isSupportUnit(u.kind as UnitKind)) {
+        if (u.supportTargetId === undefined || u.idle) {
+          const target = nearest(state, u, (e) => e.owner === u.owner && e.hp > 0 && e.hp < e.maxHp && Math.hypot(e.x - clashX, e.y - clashY) <= 8);
+          if (target) assignSupportTarget(state, u, target);
+        }
+      } else if (UNIT_STATS[u.kind as UnitKind].damage > 0) {
+        if (u.attackTarget === undefined || u.idle) {
+          const target = nearest(state, u, (e) => e.owner === 1 && e.hp > 0 && Math.hypot(e.x - clashX, e.y - clashY) <= 8);
+          if (target) assignAttack(state, u, target);
+        }
       }
     }
     for (const u of eUnits) {
-      if (u.hp > 0 && (u.attackTarget === undefined || u.idle)) {
-        const target = nearest(state, u, (e) => e.owner === 0 && e.hp > 0 && Math.hypot(e.x - clashX, e.y - clashY) <= 8);
-        if (target) assignAttack(state, u, target);
+      if (u.hp <= 0) continue;
+      if (isSupportUnit(u.kind as UnitKind)) {
+        if (u.supportTargetId === undefined || u.idle) {
+          const target = nearest(state, u, (e) => e.owner === u.owner && e.hp > 0 && e.hp < e.maxHp && Math.hypot(e.x - clashX, e.y - clashY) <= 8);
+          if (target) assignSupportTarget(state, u, target);
+        }
+      } else if (UNIT_STATS[u.kind as UnitKind].damage > 0) {
+        if (u.attackTarget === undefined || u.idle) {
+          const target = nearest(state, u, (e) => e.owner === 0 && e.hp > 0 && Math.hypot(e.x - clashX, e.y - clashY) <= 8);
+          if (target) assignAttack(state, u, target);
+        }
       }
     }
   };
 
   // Fast-forward ticks to bring combat into full swing
   for (let t = 0; t < 18; t++) {
-    assignClashTargets();
     const { events } = tick(state);
+    state.fog.fill(2);
+    for (const u of [...pUnits, ...eUnits]) {
+      if (u.orderDestination && Math.hypot(u.orderDestination.x - clashX, u.orderDestination.y - clashY) > 4) {
+        u.path = [];
+        u.routePending = false;
+        u.orderDestination = undefined;
+        u.attackTarget = undefined;
+        u.orderMode = undefined;
+      }
+    }
+    assignClashTargets();
     for (const ev of events) {
       if (ev.type === "destroyed") {
         fx.push({

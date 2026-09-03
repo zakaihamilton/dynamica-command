@@ -15,14 +15,15 @@ import {
 } from "@/lib/render/scrollLayer";
 import { terrainColors } from "@/lib/render/terrainMaterials";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
-import { BUILDING_STATS } from "@/lib/catalog";
+import { BUILDING_STATS, isSupportUnit, UNIT_STATS } from "@/lib/catalog";
 import { FX_DURATION } from "@/lib/render/fx";
 import { renderWorld } from "@/lib/render/renderer";
 import { isTerrainAtlasReady } from "@/lib/render/terrainAtlas";
 import { tick } from "@/lib/sim/api";
 import { nearest } from "@/lib/sim/world";
 import { assignAttack } from "@/lib/sim/ai/combat";
-import type { Facing } from "@/lib/types";
+import { assignSupportTarget } from "@/lib/sim/support";
+import type { Facing, UnitKind } from "@/lib/types";
 import { type Actor, type CinemaScene, type Shot } from "./scene";
 import { cinemaCamera, cinemaOrigin, paintCinemaStatic } from "./paint";
 
@@ -121,26 +122,6 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
   if (scene.state && t % 5 === 0) {
     const cx = scene.combatEpicenter.x;
     const cy = scene.combatEpicenter.y;
-    const pUnits = scene.state.entities.filter((e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
-    const eUnits = scene.state.entities.filter((e) => e.owner === 1 && e.class === "unit" && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
-    for (const u of pUnits) {
-      if (u.attackTarget === undefined || u.idle) {
-        const target = nearest(scene.state, u, (e) => e.owner === 1 && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
-        if (target) assignAttack(scene.state, u, target);
-      }
-    }
-    for (const u of eUnits) {
-      if (u.orderDestination && Math.hypot(u.orderDestination.x - cx, u.orderDestination.y - cy) > 8) {
-        u.path = [];
-        u.routePending = false;
-        u.attackTarget = undefined;
-        u.orderDestination = undefined;
-      }
-      if (u.attackTarget === undefined || u.idle) {
-        const target = nearest(scene.state, u, (e) => e.owner === 0 && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
-        if (target) assignAttack(scene.state, u, target);
-      }
-    }
 
     const { events } = tick(scene.state);
     scene.state.fog.fill(2);
@@ -161,6 +142,51 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
           entityKind: ev.kind,
           entityClass: (ev.kind in BUILDING_STATS ? "building" : "unit") as "building" | "unit",
         });
+      }
+    }
+
+    // Cancel any distant retreat / sendHome paths from AI director so combatants hold the clash zone
+    for (const e of scene.state.entities) {
+      if (e.class !== "unit" || e.hp <= 0) continue;
+      if (e.orderDestination && Math.hypot(e.orderDestination.x - cx, e.orderDestination.y - cy) > 4) {
+        e.path = [];
+        e.routePending = false;
+        e.orderDestination = undefined;
+        e.attackTarget = undefined;
+        e.orderMode = undefined;
+      }
+    }
+
+    // Re-lock combat units onto active tactical opponents within the clash radius
+    const pCombat = scene.state.entities.filter(
+      (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !isSupportUnit(e.kind as UnitKind) && UNIT_STATS[e.kind as UnitKind].damage > 0,
+    );
+    const eCombat = scene.state.entities.filter(
+      (e) => e.owner === 1 && e.class === "unit" && e.hp > 0 && !isSupportUnit(e.kind as UnitKind) && UNIT_STATS[e.kind as UnitKind].damage > 0,
+    );
+
+    for (const u of eCombat) {
+      if (u.attackTarget === undefined || u.idle) {
+        const target = nearest(scene.state, u, (e) => e.owner === 0 && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
+        if (target) assignAttack(scene.state, u, target);
+      }
+    }
+
+    for (const u of pCombat) {
+      if (u.attackTarget === undefined || u.idle) {
+        const target = nearest(scene.state, u, (e) => e.owner === 1 && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
+        if (target) assignAttack(scene.state, u, target);
+      }
+    }
+
+    // Support units (medic, repairTruck) prioritize healing / repairing wounded friendly units
+    const supportUnits = scene.state.entities.filter(
+      (e) => e.class === "unit" && e.hp > 0 && isSupportUnit(e.kind as UnitKind),
+    );
+    for (const u of supportUnits) {
+      if (u.supportTargetId === undefined || u.idle) {
+        const target = nearest(scene.state, u, (e) => e.owner === u.owner && e.hp > 0 && e.hp < e.maxHp && Math.hypot(e.x - cx, e.y - cy) <= 8);
+        if (target) assignSupportTarget(scene.state, u, target);
       }
     }
 
@@ -212,6 +238,7 @@ export function renderCinemaFrame(
     try {
       renderWorld(ctx, scene.state, cam, new Set(), null, {
         clockMs: typeof performance !== "undefined" ? performance.now() : t * 16,
+        subTickAlpha: (t % 5) / 5,
         fx: scene.fx,
       });
       return;
