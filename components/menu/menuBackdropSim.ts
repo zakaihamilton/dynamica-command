@@ -15,3 +15,4 @@ export {
 export type { PreviewPhase } from "./menuBackdropSim/cycle";
 export { cinemaShotCamera, PREVIEW_SHOT_COUNT } from "./menuBackdropSim/shots";
 export { cinemaGroundWorld } from "./menuBackdropSim/paint";
+export { resetUnitTransformTracker } from "@/lib/render/gl/unitTransformTracker";

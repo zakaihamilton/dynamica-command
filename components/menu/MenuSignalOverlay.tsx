@@ -14,6 +14,7 @@ import {
   previewScenarioKind,
   previewSeed,
   renderCinemaFrame,
+  resetUnitTransformTracker,
   stepCinemaScene,
   type CinemaScene,
   type PreviewPhase,
@@ -72,6 +73,7 @@ export function MenuSignalOverlay() {
   useEffect(() => {
     if (reducedMotion) return;
 
+    resetUnitTransformTracker();
     const initialSeed = previewSeed(sessionOffset);
     let scene = createCinemaScene(
       initialSeed,
@@ -99,6 +101,7 @@ export function MenuSignalOverlay() {
         sessionOffset,
       );
       if (next.cycleIndex !== cycleIndex) {
+        resetUnitTransformTracker();
         const seed = previewSeed(next.cycleIndex);
         scene = nextScene ?? createCinemaScene(
           seed,

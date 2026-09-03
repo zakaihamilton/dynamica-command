@@ -113,6 +113,12 @@ export function createCinemaScene(
     { x: clashX,     y: clashY - 2 }, // (224, 32)
   ];
 
+  // Clear distant base entities from createMission:
+  // In the cinema highlight, only the localized clash units and buildings should exist.
+  // This completely eliminates AI director interference (such as sendHome orders) that causes units
+  // to flap and shift back and forth between advancing and retreating to a distant base.
+  state.entities = [];
+
   const pUnits: ReturnType<typeof spawnUnit>[] = [];
   const eUnits: ReturnType<typeof spawnUnit>[] = [];
 

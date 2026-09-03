@@ -245,4 +245,36 @@ describe("welcome target cinema shots", () => {
       }
     }
   });
+
+  it("keeps unit motion stable with no violent back-and-forth position flapping", () => {
+    for (const kind of CINEMA_SCENARIO_KINDS) {
+      const scene = createCinemaScene(CINEMA_SEED, 0, kind);
+      const shots: any[] = [];
+      const history = new Map<number, { x: number; y: number }[]>();
+
+      for (let f = 0; f < 100; f++) {
+        stepCinemaScene(scene, shots, f);
+        for (const u of scene.state.entities) {
+          if (u.class !== "unit" || u.hp <= 0) continue;
+          if (!history.has(u.id)) history.set(u.id, []);
+          const list = history.get(u.id)!;
+          list.push({ x: u.x, y: u.y });
+          if (list.length >= 3) {
+            const p0 = list[list.length - 3]!;
+            const p1 = list[list.length - 2]!;
+            const p2 = list[list.length - 1]!;
+            const dx1 = p1.x - p0.x;
+            const dy1 = p1.y - p0.y;
+            const dx2 = p2.x - p1.x;
+            const dy2 = p2.y - p1.y;
+            const dot = dx1 * dx2 + dy1 * dy2;
+            const dist1 = Math.hypot(dx1, dy1);
+            const dist2 = Math.hypot(dx2, dy2);
+            const isOscillating = dot < -0.001 && dist1 > 0.05 && dist2 > 0.05;
+            expect(isOscillating).toBe(false);
+          }
+        }
+      }
+    }
+  });
 });
