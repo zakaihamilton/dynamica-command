@@ -15,6 +15,11 @@ import {
 } from "@/lib/render/scrollLayer";
 import { terrainColors } from "@/lib/render/terrainMaterials";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
+import { FX_DURATION } from "@/lib/render/fx";
+import { renderWorld } from "@/lib/render/renderer";
+import { tick } from "@/lib/sim/api";
+import { nearest } from "@/lib/sim/world";
+import { assignAttack } from "@/lib/sim/ai/combat";
 import type { Facing } from "@/lib/types";
 import { type Actor, type CinemaScene, type Shot } from "./scene";
 import { cinemaCamera, cinemaOrigin, paintCinemaStatic } from "./paint";
@@ -110,11 +115,58 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
     }
   }
 
-  if (t % 48 === 0) {
+  // Live battle highlight simulation tick (every 3 frames ≈ 20 ticks/sec standard game rate)
+  if (scene.state && t % 3 === 0) {
+    const pUnits = scene.state.entities.filter((e) => e.owner === 0 && e.class === "unit" && e.hp > 0);
+    const eUnits = scene.state.entities.filter((e) => e.owner === 1 && e.class === "unit" && e.hp > 0);
+    for (const u of pUnits) {
+      if (u.attackTarget === undefined || u.idle) {
+        const target = nearest(scene.state, u, (e) => e.owner === 1 && e.hp > 0);
+        if (target) assignAttack(scene.state, u, target);
+      }
+    }
+    for (const u of eUnits) {
+      if (u.attackTarget === undefined || u.idle) {
+        const target = nearest(scene.state, u, (e) => e.owner === 0 && e.hp > 0);
+        if (target) assignAttack(scene.state, u, target);
+      }
+    }
+
+    const { events } = tick(scene.state);
+    scene.state.fog.fill(2);
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    for (const ev of events) {
+      if (ev.type === "combat") {
+        shots.push({ ax: ev.x, ay: ev.y, bx: ev.targetX, by: ev.targetY, life: 18 });
+      } else if (ev.type === "destroyed") {
+        scene.fx.push({
+          id: ev.id,
+          kind: "explosion",
+          x: ev.x,
+          y: ev.y,
+          elev: 1,
+          bornMs: now,
+          durationMs: FX_DURATION.explosion,
+          owner: ev.owner,
+          entityKind: ev.kind,
+          entityClass: "unit",
+        });
+      }
+    }
+
+    const fighting = scene.state.entities.filter((e) => e.class === "unit" && e.hp > 0);
+    if (fighting.length > 0) {
+      scene.combatEpicenter = {
+        x: fighting.reduce((sum, u) => sum + u.x, 0) / fighting.length,
+        y: fighting.reduce((sum, u) => sum + u.y, 0) / fighting.length,
+      };
+    }
+  } else if (t % 48 === 0 && actors.length >= 4) {
     const attacker = actors[1 + (t % 2)]!;
     const target = attacker.owner === 0 ? actors[3]! : actors[1]!;
     shots.push({ ax: attacker.x, ay: attacker.y, bx: target.x, by: target.y, life: 18 });
   }
+
   for (let i = shots.length - 1; i >= 0; i--) {
     shots[i]!.life -= 1;
     if (shots[i]!.life <= 0) shots.splice(i, 1);
@@ -142,6 +194,19 @@ export function renderCinemaFrame(
   const useTerrainCache = options?.useTerrainCache ?? true;
   const followCamera = Boolean(options?.camera);
   const preview = !paintAmbient;
+
+  // Render actual game gameplay directly onto PIP feed when available
+  if (preview && scene.state) {
+    try {
+      renderWorld(ctx, scene.state, cam, new Set(), null, {
+        clockMs: typeof performance !== "undefined" ? performance.now() : t * 16,
+        fx: scene.fx,
+      });
+      return;
+    } catch {
+      // Fall through to standard cinema renderer if renderWorld is unsupported in this context
+    }
+  }
 
   ctx.imageSmoothingEnabled = true;
   if (preview && "imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";

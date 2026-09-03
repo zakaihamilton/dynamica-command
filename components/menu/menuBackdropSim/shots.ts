@@ -28,8 +28,13 @@ export function cinemaShotCamera(
 ): Camera {
   const shot = CINEMA_SHOTS[((shotIndex % CINEMA_SHOTS.length) + CINEMA_SHOTS.length) % CINEMA_SHOTS.length]!;
   const focus = shot.type === "actor" ? scene.actors[shot.index]! : scene.buildings[shot.index]!;
-  const tx = focus.x;
-  const ty = focus.y;
+  let tx = focus.x;
+  let ty = focus.y;
+  if (t > 0 && scene.combatEpicenter) {
+    const blend = Math.min(0.85, t * 0.025);
+    tx = tx + (scene.combatEpicenter.x - tx) * blend;
+    ty = ty + (scene.combatEpicenter.y - ty) * blend;
+  }
   const elev = scene.map.heights[Math.floor(ty) * scene.map.width + Math.floor(tx)] ?? 1;
   const zoom = PIP_ZOOM;
   const driftX = Math.sin(t * 0.012) * 10;

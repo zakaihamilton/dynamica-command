@@ -5,6 +5,7 @@ import {
   PREVIEW_LOCK_COUNT,
   PREVIEW_PLAY_MS,
   previewAt,
+  previewMissionIndex,
   previewSeed,
 } from "../components/menu/menuBackdropSim/cycle";
 import { CINEMA_SHOTS, cinemaShotCamera, PIP_ZOOM, PREVIEW_SHOT_COUNT } from "../components/menu/menuBackdropSim/shots";
@@ -17,11 +18,11 @@ describe("welcome target preview cycle", () => {
   it("expands for 5 seconds then idles for 3", () => {
     expect(PREVIEW_PLAY_MS).toBe(5000);
     expect(PREVIEW_IDLE_MS).toBe(3000);
-    expect(previewAt(0)).toEqual({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0 });
+    expect(previewAt(0)).toEqual({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0, missionIndex: 0 });
     expect(previewAt(PREVIEW_PLAY_MS - 1)).toMatchObject({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0 });
     expect(previewAt(PREVIEW_PLAY_MS)).toMatchObject({ expanded: false, lockIndex: 0, shotIndex: 0, cycleIndex: 0 });
     expect(previewAt(PREVIEW_CYCLE_MS - 1)).toMatchObject({ expanded: false, lockIndex: 0, cycleIndex: 0 });
-    expect(previewAt(PREVIEW_CYCLE_MS)).toEqual({ expanded: true, lockIndex: 1, shotIndex: 1, cycleIndex: 1 });
+    expect(previewAt(PREVIEW_CYCLE_MS)).toEqual({ expanded: true, lockIndex: 1, shotIndex: 1, cycleIndex: 1, missionIndex: 1 });
   });
 
   it("round-robins locks and advances to a different shot each play window", () => {
@@ -108,5 +109,23 @@ describe("welcome target cinema shots", () => {
     expect(world.biome).toBe(mission.biome);
     expect(world.tiles).toEqual(mission.tiles);
     expect(world.surfaces).toEqual(mission.surfaces);
+  });
+
+  it("cycles mission index across campaign mission tiers", () => {
+    expect(previewMissionIndex(0)).toBe(0);
+    expect(previewMissionIndex(1)).toBe(1);
+    expect(previewMissionIndex(7)).toBe(7);
+    expect(previewMissionIndex(8)).toBe(0);
+    expect(previewMissionIndex(15)).toBe(7);
+  });
+
+  it("clears fog of war and primes frontline combat units in cinema scenes", () => {
+    const scene = createCinemaScene(1847, 2);
+    expect(scene.missionIndex).toBe(2);
+    expect(scene.state).toBeDefined();
+    expect(scene.state.fog.every((val) => val === 2)).toBe(true);
+    const combatUnits = scene.state.entities.filter((e) => e.class === "unit" && e.hp > 0);
+    expect(combatUnits.length).toBeGreaterThanOrEqual(6);
+    expect(scene.combatEpicenter).toBeDefined();
   });
 });

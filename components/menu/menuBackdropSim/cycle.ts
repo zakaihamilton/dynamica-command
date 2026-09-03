@@ -12,10 +12,15 @@ export type PreviewPhase = {
   lockIndex: number;
   shotIndex: number;
   cycleIndex: number;
+  missionIndex: number;
 };
 
 export function previewSeed(cycleIndex: number): number {
   return (((CINEMA_SEED + Math.max(0, cycleIndex | 0) * 137) % 10000) + 10000) % 10000;
+}
+
+export function previewMissionIndex(cycleIndex: number): number {
+  return Math.max(0, cycleIndex | 0) % 8;
 }
 
 export function previewAt(
@@ -31,5 +36,6 @@ export function previewAt(
     lockIndex: cycleIndex % Math.max(1, lockCount),
     shotIndex: cycleIndex % Math.max(1, shotCount),
     cycleIndex,
+    missionIndex: previewMissionIndex(cycleIndex),
   };
 }

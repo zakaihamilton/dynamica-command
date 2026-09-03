@@ -7,6 +7,7 @@ import {
   createCinemaScene,
   PREVIEW_LOCK_IDS,
   previewAt,
+  previewMissionIndex,
   previewSeed,
   renderCinemaFrame,
   stepCinemaScene,
@@ -57,7 +58,7 @@ export function MenuSignalOverlay() {
   useEffect(() => {
     if (reducedMotion) return;
 
-    let scene = createCinemaScene(previewSeed(0));
+    let scene = createCinemaScene(previewSeed(0), previewMissionIndex(0));
     let nextScene: CinemaScene | null = null;
     let cycleIndex = 0;
     const shots: Shot[] = [];
@@ -69,12 +70,12 @@ export function MenuSignalOverlay() {
       t += 1;
       const next = previewAt(now - started);
       if (next.cycleIndex !== cycleIndex) {
-        scene = nextScene ?? createCinemaScene(previewSeed(next.cycleIndex));
+        scene = nextScene ?? createCinemaScene(previewSeed(next.cycleIndex), previewMissionIndex(next.cycleIndex));
         nextScene = null;
         shots.length = 0;
         cycleIndex = next.cycleIndex;
       } else if (!next.expanded && nextScene === null) {
-        nextScene = createCinemaScene(previewSeed(next.cycleIndex + 1));
+        nextScene = createCinemaScene(previewSeed(next.cycleIndex + 1), previewMissionIndex(next.cycleIndex + 1));
       }
       stepCinemaScene(scene, shots, t);
       if (next.expanded) {
