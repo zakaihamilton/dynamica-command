@@ -42,5 +42,7 @@ describe("scroll layer cache", () => {
     expect(terrainScrollPad(1)).toBe(TILE_W * 4);
     expect(terrainScrollPad(0.5)).toBeGreaterThanOrEqual(96);
     expect(CINEMA_SCROLL_PAD).toBeGreaterThanOrEqual(140);
+    const pipPad = Math.max(CINEMA_SCROLL_PAD, terrainScrollPad(1.5));
+    expect(pipPad * 0.5).toBeGreaterThan(10);
   });
 });

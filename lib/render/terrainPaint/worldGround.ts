@@ -2,15 +2,15 @@ import { TILE_SPRITE_PAD_X, TILE_SPRITE_PAD_Y, tileSprite } from "../../gen/tile
 import { defaultContour } from "../../gen/tileSprites/constants";
 import { featureEdgeMask, isMountainScenery } from "../../gen/map";
 import { generateCampaignVisualProfile } from "../../gen/visualProfile";
-import type { SimState, SpriteSpec, SurfaceKind } from "../../types";
+import type { SpriteSpec, SurfaceKind } from "../../types";
 import { SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_RESOURCE, TILE_WATER } from "../../types";
 import { TILE_H, TILE_W, type Camera, tileToScreen } from "../../iso";
 import { rasterize } from "../sprites";
-import { tileVariant } from "../terrainAtlas";
+import { tileVariant, type AtlasWorld } from "../terrainAtlas";
 
 const GROUND_VARIANT_SPAN = 8;
 
-function contiguousSurfaceMask(state: SimState, x: number, y: number, surface: SurfaceKind): number {
+function contiguousSurfaceMask(state: AtlasWorld, x: number, y: number, surface: SurfaceKind): number {
   const same = (dx: number, dy: number) => {
     const nx = x + dx;
     const ny = y + dy;
@@ -25,7 +25,7 @@ function resourceSpriteLevel(amount: number): number {
 }
 
 export function worldGroundSprite(
-  state: SimState,
+  state: AtlasWorld,
   x: number,
   y: number,
   scenery: { kind: number; elev: number },
@@ -53,7 +53,7 @@ export function worldGroundSprite(
 
 export function paintWorldGroundSprite(
   ctx: CanvasRenderingContext2D,
-  state: SimState,
+  state: AtlasWorld,
   cam: Camera,
   x: number,
   y: number,

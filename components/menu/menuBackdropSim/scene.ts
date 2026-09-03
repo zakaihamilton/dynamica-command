@@ -1,9 +1,6 @@
-import {
-  generateFactions,
-} from "@/lib/gen/factions";
+import { createCampaign } from "@/lib/gen/campaign";
 import { generateMap } from "@/lib/gen/map";
-import { generateWorld } from "@/lib/gen/world";
-import { generateCampaignVisualProfile } from "@/lib/gen/visualProfile";
+import type { AtlasWorld } from "@/lib/render/terrainAtlas";
 import type { BuildingKind, UnitKind } from "@/lib/types";
 
 export const CINEMA_SEED = 1847;
@@ -22,15 +19,20 @@ export type Shot = { ax: number; ay: number; bx: number; by: number; life: numbe
 
 export function createCinemaScene(seed = CINEMA_SEED) {
   const theater = ((seed | 0) % 10000 + 10000) % 10000;
-
-  const map = generateMap(theater, {
-    index: 0,
-    win: { kind: "razeAll" },
-    mapSize: 28,
-    biome: generateWorld(theater).biome,
-  });
-  const [us, them] = generateFactions(theater);
-  const campaignProfile = generateCampaignVisualProfile(theater);
+  const campaign = createCampaign(theater);
+  const mission = campaign.missions[0]!;
+  const map = generateMap(theater, mission);
+  const [us, them] = campaign.factions;
+  const ground: AtlasWorld = {
+    seed: theater,
+    biome: map.biome,
+    width: map.width,
+    height: map.height,
+    tiles: map.tiles,
+    heights: map.heights,
+    surfaces: map.surfaces,
+    resourceAmount: map.resourceAmount,
+  };
 
   const p0 = map.playerStart;
   const e0 = map.enemyStart;
@@ -124,7 +126,7 @@ export function createCinemaScene(seed = CINEMA_SEED) {
     },
   ];
 
-  return { seed: theater, map, us, them, campaignProfile, buildings, actors };
+  return { seed: theater, map, us, them, ground, buildings, actors };
 }
 
 export type CinemaScene = ReturnType<typeof createCinemaScene>;

@@ -74,7 +74,7 @@ function paintBlocker(
 
 export function drawBlockerProp(
   ctx: CanvasRenderingContext2D,
-  state: SimState,
+  state: { seed: number; biome: BiomeName },
   x: number,
   y: number,
   sx: number,

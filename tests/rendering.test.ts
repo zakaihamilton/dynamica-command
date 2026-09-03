@@ -925,8 +925,10 @@ describe("gameplay ground sprites", () => {
     const campaign = generateCampaignVisualProfile(421);
     expect(water).toBeNull();
     expect(land?.imageTextureSrc).toBe(TERRAIN_ART[campaign.terrainTreatment]);
-    expect(ore?.id).toContain(":resource:");
-    expect(blocked?.id).toContain(":clear:");
+    expect(land?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:3:0:15:0:0:none");
+    expect(ore?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:resource:ash plains:2:expeditionary:red:1:1:0:15:0:2:none");
+    expect(blocked?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:3:0:15:0:0:none");
+    expect(pad?.id).toBe("tile:tactical-surface-v13-shared-blocker-art:clear:ash plains:2:expeditionary:red:1:1:0:15:2:0:none");
     expect(pad?.id).not.toBe(land?.id);
     expect(pad?.imageTextureSrc).toBe(land?.imageTextureSrc);
   });
