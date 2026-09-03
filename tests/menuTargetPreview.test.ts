@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  EXCLUDED_SCENARIO_KINDS,
   PREVIEW_CYCLE_MS,
   PREVIEW_IDLE_MS,
+  PREVIEW_INITIAL_DELAY_MS,
   PREVIEW_LOCK_COUNT,
   PREVIEW_PLAY_MS,
+  normalMissionIndices,
   previewAt,
   previewMissionIndex,
   previewSeed,
@@ -12,29 +15,33 @@ import { CINEMA_SHOTS, cinemaShotCamera, PIP_ZOOM, PREVIEW_SHOT_COUNT } from "..
 import { cinemaGroundWorld } from "../components/menu/menuBackdropSim/paint";
 import { stepCinemaScene } from "../components/menu/menuBackdropSim/render";
 import { CINEMA_SEED, createCinemaScene } from "../components/menu/menuBackdropSim/scene";
+import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
 
 describe("welcome target preview cycle", () => {
-  it("expands for 5 seconds then idles for 3", () => {
+  it("waits 5 seconds before showing the first highlight, then plays for 5s and idles for 3s", () => {
+    expect(PREVIEW_INITIAL_DELAY_MS).toBe(5000);
     expect(PREVIEW_PLAY_MS).toBe(5000);
     expect(PREVIEW_IDLE_MS).toBe(3000);
-    expect(previewAt(0)).toEqual({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0, missionIndex: 0 });
-    expect(previewAt(PREVIEW_PLAY_MS - 1)).toMatchObject({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0 });
-    expect(previewAt(PREVIEW_PLAY_MS)).toMatchObject({ expanded: false, lockIndex: 0, shotIndex: 0, cycleIndex: 0 });
-    expect(previewAt(PREVIEW_CYCLE_MS - 1)).toMatchObject({ expanded: false, lockIndex: 0, cycleIndex: 0 });
-    expect(previewAt(PREVIEW_CYCLE_MS)).toEqual({ expanded: true, lockIndex: 1, shotIndex: 1, cycleIndex: 1, missionIndex: 1 });
+    expect(previewAt(0)).toEqual({ expanded: false, lockIndex: 0, shotIndex: 0, cycleIndex: 0, missionIndex: 0 });
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS - 1)).toMatchObject({ expanded: false, lockIndex: 0, cycleIndex: 0 });
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS)).toEqual({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0, missionIndex: 0 });
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_PLAY_MS - 1)).toMatchObject({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0 });
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_PLAY_MS)).toMatchObject({ expanded: false, lockIndex: 0, cycleIndex: 0 });
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS - 1)).toMatchObject({ expanded: false, lockIndex: 0, cycleIndex: 0 });
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS)).toMatchObject({ expanded: true, lockIndex: 1, shotIndex: 1, cycleIndex: 1 });
   });
 
   it("round-robins locks and advances to a different shot each play window", () => {
-    const first = previewAt(0);
-    const second = previewAt(PREVIEW_CYCLE_MS);
-    const third = previewAt(PREVIEW_CYCLE_MS * 2);
+    const first = previewAt(PREVIEW_INITIAL_DELAY_MS);
+    const second = previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS);
+    const third = previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS * 2);
     expect(first.lockIndex).toBe(0);
     expect(second.lockIndex).toBe(1);
     expect(third.lockIndex).toBe(2);
     expect(new Set([first.shotIndex, second.shotIndex, third.shotIndex]).size).toBe(3);
-    expect(previewAt(PREVIEW_CYCLE_MS * PREVIEW_LOCK_COUNT).lockIndex).toBe(0);
-    expect(previewAt(PREVIEW_CYCLE_MS * PREVIEW_SHOT_COUNT).shotIndex).toBe(0);
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS * PREVIEW_LOCK_COUNT).lockIndex).toBe(0);
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS * PREVIEW_SHOT_COUNT).shotIndex).toBe(0);
   });
 
   it("treats negative time as the opening play window", () => {
@@ -111,12 +118,16 @@ describe("welcome target cinema shots", () => {
     expect(world.surfaces).toEqual(mission.surfaces);
   });
 
-  it("cycles mission index across campaign mission tiers", () => {
-    expect(previewMissionIndex(0)).toBe(0);
-    expect(previewMissionIndex(1)).toBe(1);
-    expect(previewMissionIndex(7)).toBe(7);
-    expect(previewMissionIndex(8)).toBe(0);
-    expect(previewMissionIndex(15)).toBe(7);
+  it("cycles mission index across normal combat missions, excluding scenario kinds", () => {
+    const campaign = createCampaign(CINEMA_SEED);
+    const normal = normalMissionIndices(CINEMA_SEED);
+    expect(normal.length).toBeGreaterThan(0);
+    for (const idx of normal) {
+      expect(EXCLUDED_SCENARIO_KINDS).not.toContain(campaign.missions[idx]!.win.kind);
+    }
+    expect(previewMissionIndex(0, CINEMA_SEED)).toBe(normal[0]);
+    expect(previewMissionIndex(1, CINEMA_SEED)).toBe(normal[1 % normal.length]);
+    expect(previewMissionIndex(normal.length, CINEMA_SEED)).toBe(normal[0]);
   });
 
   it("clears fog of war and primes frontline combat units in cinema scenes", () => {

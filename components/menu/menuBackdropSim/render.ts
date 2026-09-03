@@ -115,8 +115,8 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
     }
   }
 
-  // Live battle highlight simulation tick (every 3 frames ≈ 20 ticks/sec standard game rate)
-  if (scene.state && t % 3 === 0) {
+  // Live battle highlight simulation tick (every 5 frames = 12 ticks/sec standard game rate)
+  if (scene.state && t % 5 === 0) {
     const pUnits = scene.state.entities.filter((e) => e.owner === 0 && e.class === "unit" && e.hp > 0);
     const eUnits = scene.state.entities.filter((e) => e.owner === 1 && e.class === "unit" && e.hp > 0);
     for (const u of pUnits) {

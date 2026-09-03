@@ -70,15 +70,17 @@ export function MenuSignalOverlay() {
       t += 1;
       const next = previewAt(now - started);
       if (next.cycleIndex !== cycleIndex) {
-        scene = nextScene ?? createCinemaScene(previewSeed(next.cycleIndex), previewMissionIndex(next.cycleIndex));
+        const seed = previewSeed(next.cycleIndex);
+        scene = nextScene ?? createCinemaScene(seed, previewMissionIndex(next.cycleIndex, seed));
         nextScene = null;
         shots.length = 0;
         cycleIndex = next.cycleIndex;
       } else if (!next.expanded && nextScene === null) {
-        nextScene = createCinemaScene(previewSeed(next.cycleIndex + 1), previewMissionIndex(next.cycleIndex + 1));
+        const nextSeed = previewSeed(next.cycleIndex + 1);
+        nextScene = createCinemaScene(nextSeed, previewMissionIndex(next.cycleIndex + 1, nextSeed));
       }
-      stepCinemaScene(scene, shots, t);
       if (next.expanded) {
+        stepCinemaScene(scene, shots, t);
         const canvas = canvasRefs.current[next.lockIndex];
         const ctx = canvas?.getContext("2d");
         if (canvas && ctx) {

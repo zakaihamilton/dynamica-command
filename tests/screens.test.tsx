@@ -113,8 +113,7 @@ describe("MenuScreen", () => {
     expect(overlay).not.toHaveClass(overlayStyles.static);
     expect(overlay.querySelectorAll("[data-lock]")).toHaveLength(3);
     expect(overlay.querySelectorAll("canvas")).toHaveLength(3);
-    expect(overlay.querySelector('[data-lock="a"]')).toHaveAttribute("data-expanded", "true");
-    expect(overlay.querySelector('[data-lock="a"]')).toHaveAttribute("data-seed", "1847");
+    expect(overlay.querySelector('[data-lock="a"]')).toHaveAttribute("data-expanded", "false");
     expect(overlay.querySelector('[data-lock="b"]')).toHaveAttribute("data-expanded", "false");
     expect(overlay.querySelector('[data-lock="c"]')).toHaveAttribute("data-expanded", "false");
   });

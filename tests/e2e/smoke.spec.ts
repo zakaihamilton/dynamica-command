@@ -143,7 +143,7 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await expect(page.getByTestId("menu-dashboard").getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);
 
   const expandedLock = page.locator("[data-lock][data-expanded='true']");
-  await expect(expandedLock).toHaveCount(1);
+  await expect(expandedLock).toHaveCount(1, { timeout: 10_000 });
   await expect(expandedLock.locator("canvas")).toBeAttached();
   const lockBox = await expandedLock.boundingBox();
   const newGameBox = await page.getByRole("button", { name: "NEW GAME" }).boundingBox();

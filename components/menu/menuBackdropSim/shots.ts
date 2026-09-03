@@ -30,15 +30,24 @@ export function cinemaShotCamera(
   const focus = shot.type === "actor" ? scene.actors[shot.index]! : scene.buildings[shot.index]!;
   let tx = focus.x;
   let ty = focus.y;
-  if (t > 0 && scene.combatEpicenter) {
-    const blend = Math.min(0.85, t * 0.025);
-    tx = tx + (scene.combatEpicenter.x - tx) * blend;
-    ty = ty + (scene.combatEpicenter.y - ty) * blend;
+  if (scene.combatEpicenter) {
+    const angle = (shotIndex / CINEMA_SHOTS.length) * Math.PI * 2;
+    if (t === 0) {
+      tx = scene.combatEpicenter.x + Math.cos(angle) * 1.5;
+      ty = scene.combatEpicenter.y + Math.sin(angle) * 1.0;
+    } else {
+      // Very gentle cinematic pan and smooth tracking of combat epicenter
+      const settle = Math.max(0, 1 - t * 0.004);
+      const panX = Math.sin(t * 0.003) * 0.6;
+      const panY = Math.cos(t * 0.0025) * 0.4;
+      tx = scene.combatEpicenter.x + Math.cos(angle) * 1.5 * settle + panX;
+      ty = scene.combatEpicenter.y + Math.sin(angle) * 1.0 * settle + panY;
+    }
   }
   const elev = scene.map.heights[Math.floor(ty) * scene.map.width + Math.floor(tx)] ?? 1;
   const zoom = PIP_ZOOM;
-  const driftX = Math.sin(t * 0.012) * 10;
-  const driftY = Math.cos(t * 0.01) * 6;
+  const driftX = Math.sin(t * 0.004) * 3;
+  const driftY = Math.cos(t * 0.0035) * 2;
   return {
     zoom,
     x: w / 2 - (tx - ty) * (TILE_W / 2) * zoom + driftX,
