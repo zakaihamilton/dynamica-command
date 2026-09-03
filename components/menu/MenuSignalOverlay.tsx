@@ -129,14 +129,14 @@ export function MenuSignalOverlay() {
       const effectivePreview: PreviewPhase = isExpanded === next.expanded ? next : { ...next, expanded: false };
 
       if (effectivePreview.expanded) {
-        stepCinemaScene(scene, shots, t);
+        stepCinemaScene(scene, shots, t, now);
         const canvas = canvasRefs.current[effectivePreview.lockIndex];
         const ctx = canvas?.getContext("2d");
         if (canvas && ctx) {
           if (canvas.width !== FEED_WIDTH) canvas.width = FEED_WIDTH;
           if (canvas.height !== FEED_HEIGHT) canvas.height = FEED_HEIGHT;
           renderCinemaFrame(ctx, canvas.width, canvas.height, t, scene, shots, {
-            camera: cinemaShotCamera(scene, effectivePreview.shotIndex, canvas.width, canvas.height, t),
+            camera: cinemaShotCamera(scene, effectivePreview.shotIndex, canvas.width, canvas.height),
             paintAmbient: false,
           });
         }
@@ -150,7 +150,7 @@ export function MenuSignalOverlay() {
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [reducedMotion]);
+  }, [reducedMotion, sessionOffset]);
 
   return (
     <div

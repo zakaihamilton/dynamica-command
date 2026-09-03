@@ -5,14 +5,14 @@ export type CinemaShot =
   | { type: "actor"; index: number }
   | { type: "building"; index: number };
 
-/** Distinct PIP framings: tanks, harvest, yards, infantry. */
+/** Distinct PIP framings: mobile engagements and real structures under fire. */
 export const CINEMA_SHOTS: readonly CinemaShot[] = [
   { type: "actor", index: 1 },
   { type: "actor", index: 0 },
-  { type: "building", index: 5 },
+  { type: "building", index: 0 },
   { type: "actor", index: 2 },
   { type: "actor", index: 3 },
-  { type: "building", index: 8 },
+  { type: "building", index: 1 },
 ];
 
 export const PREVIEW_SHOT_COUNT = CINEMA_SHOTS.length;
@@ -50,12 +50,13 @@ export function cinemaShotCamera(
   shotIndex: number,
   w: number,
   h: number,
-  _t = 0,
 ): Camera {
   const shot = CINEMA_SHOTS[((shotIndex % CINEMA_SHOTS.length) + CINEMA_SHOTS.length) % CINEMA_SHOTS.length]!;
   const focus = shot.type === "actor" ? scene.actors[shot.index]! : scene.buildings[shot.index]!;
   const off = SHOT_OFFSETS[((shotIndex % SHOT_OFFSETS.length) + SHOT_OFFSETS.length) % SHOT_OFFSETS.length]!;
 
+  // Keep the map focus fixed for the full play window. Buildings are placed
+  // around this anchor and remain visible without following moving units.
   const tx = scene.combatEpicenter ? scene.combatEpicenter.x : focus.x;
   const ty = scene.combatEpicenter ? scene.combatEpicenter.y : focus.y;
 

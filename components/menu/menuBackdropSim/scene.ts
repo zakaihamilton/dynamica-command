@@ -2,10 +2,10 @@ import { createCampaign } from "@/lib/gen/campaign";
 import { generateMap } from "@/lib/gen/map";
 import { createMission, tick } from "@/lib/sim/api";
 import { expandFog } from "@/lib/sim/fog";
-import { isStaticWalkable, nearest, spawnBuilding, spawnUnit } from "@/lib/sim/world";
+import { canPlaceBuilding, isStaticWalkable, nearest, spawnBuilding, spawnUnit } from "@/lib/sim/world";
 import { assignAttack } from "@/lib/sim/ai/combat";
 import { assignSupportTarget } from "@/lib/sim/support";
-import { BUILDING_STATS, isSupportUnit, UNIT_STATS } from "@/lib/catalog";
+import { BUILDING_STATS, isSupportUnit, TICKS_PER_SECOND, UNIT_STATS } from "@/lib/catalog";
 import type { AtlasWorld } from "@/lib/render/terrainAtlas";
 import type { BuildingKind, UnitKind } from "@/lib/types";
 import { FX_DURATION, type FxBurst } from "@/lib/render/fx";
@@ -28,6 +28,61 @@ export const CINEMA_SCENARIO_KINDS: readonly CinemaScenarioKind[] = [
   "infantryStorm",
   "convoyRaid",
 ];
+
+const CINEMA_REFERENCE_FPS = 60;
+const CINEMA_BUILDING_SEARCH_RADIUS = 8;
+
+const CINEMA_STRUCTURE_KINDS: Record<CinemaScenarioKind, { player: BuildingKind; enemy: BuildingKind }> = {
+  baseAssault: { player: "barracks", enemy: "turret" },
+  turretDefense: { player: "turret", enemy: "factory" },
+  harvesterAmbush: { player: "power", enemy: "refinery" },
+  armorClash: { player: "factory", enemy: "factory" },
+  infantryStorm: { player: "barracks", enemy: "barracks" },
+  convoyRaid: { player: "turret", enemy: "refinery" },
+};
+
+function spawnCinemaBuilding(
+  state: ReturnType<typeof createMission>,
+  owner: 0 | 1,
+  kind: BuildingKind,
+  preferred: { x: number; y: number },
+  anchor: { x: number; y: number },
+) {
+  const candidates: { x: number; y: number }[] = [];
+  for (let dy = -CINEMA_BUILDING_SEARCH_RADIUS; dy <= CINEMA_BUILDING_SEARCH_RADIUS; dy++) {
+    for (let dx = -CINEMA_BUILDING_SEARCH_RADIUS; dx <= CINEMA_BUILDING_SEARCH_RADIUS; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) > CINEMA_BUILDING_SEARCH_RADIUS) continue;
+      const x = preferred.x + dx;
+      const y = preferred.y + dy;
+      if (!canPlaceBuilding(state, kind, x, y, owner, false)) continue;
+      const footprint = BUILDING_STATS[kind].footprint;
+      const overlapsUnit = state.entities.some(
+        (entity) => entity.class === "unit" && entity.hp > 0
+          && Math.round(entity.x) < x + footprint.w
+          && Math.round(entity.x) >= x
+          && Math.round(entity.y) < y + footprint.h
+          && Math.round(entity.y) >= y,
+      );
+      if (!overlapsUnit) candidates.push({ x, y });
+    }
+  }
+  const anchorIso = anchor.x - anchor.y;
+  const anchorSum = anchor.x + anchor.y;
+  candidates.sort((a, b) => {
+    const anchorDistance = Math.hypot(a.x - anchor.x, a.y - anchor.y) - Math.hypot(b.x - anchor.x, b.y - anchor.y);
+    if (anchorDistance !== 0) return anchorDistance;
+    const sumDelta = Math.abs((a.x + a.y) - anchorSum) - Math.abs((b.x + b.y) - anchorSum);
+    if (sumDelta !== 0) return sumDelta;
+    const isoDelta = Math.abs((a.x - a.y) - anchorIso) - Math.abs((b.x - b.y) - anchorIso);
+    if (isoDelta !== 0) return isoDelta;
+    const preferredDelta = Math.hypot(a.x - preferred.x, a.y - preferred.y) - Math.hypot(b.x - preferred.x, b.y - preferred.y);
+    if (preferredDelta !== 0) return preferredDelta;
+    return a.x - b.x || a.y - b.y;
+  });
+  const spot = candidates[0];
+  if (!spot) throw new Error(`No valid cinema building site for ${kind}`);
+  return spawnBuilding(state, owner, kind, spot.x, spot.y);
+}
 
 export type Actor = {
   x: number;
@@ -113,6 +168,11 @@ export function createCinemaScene(
     { x: clashX,     y: clashY - 2 }, // (224, 32)
   ];
 
+  // Keep structures within the same isometric frame as the clash so every shot
+  // can show buildings without panning away from the live engagement.
+  const pBuildingSlot = { x: clashX, y: clashY + 2 };
+  const eBuildingSlot = { x: clashX + 2, y: clashY + 1 };
+
   // Clear distant base entities from createMission:
   // In the cinema highlight, only the localized clash units and buildings should exist.
   // This completely eliminates AI director interference (such as sendHome orders) that causes units
@@ -121,10 +181,10 @@ export function createCinemaScene(
 
   const pUnits: ReturnType<typeof spawnUnit>[] = [];
   const eUnits: ReturnType<typeof spawnUnit>[] = [];
+  const structureKinds = CINEMA_STRUCTURE_KINDS[scenarioKind];
 
   if (scenarioKind === "baseAssault") {
     // Player assault breaching enemy forward fortification
-    const enemyTurret = spawnBuilding(state, 1, "turret", eSlots[2].x, eSlots[2].y);
     pUnits.push(
       spawnUnit(state, 0, "tank", pSlots[0].x, pSlots[0].y),
       spawnUnit(state, 0, "tank", pSlots[1].x, pSlots[1].y),
@@ -136,11 +196,8 @@ export function createCinemaScene(
       spawnUnit(state, 1, "antiArmor", eSlots[1].x, eSlots[1].y),
       spawnUnit(state, 1, "infantry", eSlots[3].x, eSlots[3].y),
     );
-    assignAttack(state, pUnits[0]!, enemyTurret);
-    assignAttack(state, pUnits[1]!, enemyTurret);
   } else if (scenarioKind === "turretDefense") {
     // Player defending forward gun turret outpost against armored assault
-    const playerTurret = spawnBuilding(state, 0, "turret", pSlots[1].x, pSlots[1].y);
     pUnits.push(
       spawnUnit(state, 0, "tank", pSlots[0].x, pSlots[0].y),
       spawnUnit(state, 0, "infantry", pSlots[2].x, pSlots[2].y),
@@ -152,8 +209,6 @@ export function createCinemaScene(
       spawnUnit(state, 1, "antiArmor", eSlots[2].x, eSlots[2].y),
       spawnUnit(state, 1, "infantry", eSlots[3].x, eSlots[3].y),
     );
-    assignAttack(state, eUnits[0]!, playerTurret);
-    assignAttack(state, eUnits[1]!, playerTurret);
   } else if (scenarioKind === "harvesterAmbush") {
     // Ambush on enemy ore harvester and escort
     const harvester = spawnUnit(state, 1, "harvester", eSlots[1].x, eSlots[1].y);
@@ -215,6 +270,25 @@ export function createCinemaScene(
       spawnUnit(state, 0, "infantry", pSlots[3].x, pSlots[3].y),
     );
     assignAttack(state, pUnits[1]!, convoyTruck);
+  }
+
+  // Place real structures after units so valid sites never displace or overlap
+  // the localized combatants used by the fixed preview camera.
+  let playerStructure: ReturnType<typeof spawnBuilding>;
+  let enemyStructure: ReturnType<typeof spawnBuilding>;
+  if (scenarioKind === "baseAssault") {
+    enemyStructure = spawnCinemaBuilding(state, 1, structureKinds.enemy, eBuildingSlot, { x: clashX, y: clashY });
+    playerStructure = spawnCinemaBuilding(state, 0, structureKinds.player, pBuildingSlot, { x: clashX, y: clashY });
+  } else {
+    playerStructure = spawnCinemaBuilding(state, 0, structureKinds.player, pBuildingSlot, { x: clashX, y: clashY });
+    enemyStructure = spawnCinemaBuilding(state, 1, structureKinds.enemy, eBuildingSlot, { x: clashX, y: clashY });
+  }
+  if (scenarioKind === "baseAssault") {
+    assignAttack(state, pUnits[0]!, enemyStructure);
+    assignAttack(state, pUnits[1]!, enemyStructure);
+  } else if (scenarioKind === "turretDefense") {
+    assignAttack(state, eUnits[0]!, playerStructure);
+    assignAttack(state, eUnits[1]!, playerStructure);
   }
 
   const fx: FxBurst[] = [];
@@ -294,11 +368,6 @@ export function createCinemaScene(
     .filter((e) => e.class === "building" && e.hp > 0)
     .map((b) => ({ x: b.x, y: b.y, kind: b.kind as BuildingKind, owner: b.owner as 0 | 1 }));
 
-  // Ensure building list meets PIP framing requirements
-  while (buildings.length < 10) {
-    buildings.push({ x: e0.x, y: e0.y, kind: "constructionYard", owner: 1 });
-  }
-
   // Active combat actors for backward-compatibility and tests
   const combatActors = [...pUnits, ...eUnits];
   const actors: Actor[] = combatActors.map((u, i) => {
@@ -313,7 +382,7 @@ export function createCinemaScene(
         { x: u.x, y: u.y },
       ],
       wi: 0,
-      speed: 0.015,
+      speed: (UNIT_STATS[u.kind as UnitKind].speed * TICKS_PER_SECOND) / CINEMA_REFERENCE_FPS,
     };
   });
 
@@ -332,6 +401,8 @@ export function createCinemaScene(
     state,
     fx,
     combatEpicenter,
+    simulationAccumulatorMs: 0,
+    lastStepMs: undefined as number | undefined,
   };
 }
 

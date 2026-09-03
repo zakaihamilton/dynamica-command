@@ -17,9 +17,12 @@ import { cinemaGroundWorld } from "../components/menu/menuBackdropSim/paint";
 import { stepCinemaScene } from "../components/menu/menuBackdropSim/render";
 import { CINEMA_SCENARIO_KINDS, CINEMA_SEED, createCinemaScene, type Shot } from "../components/menu/menuBackdropSim/scene";
 import { createCampaign } from "../lib/gen/campaign";
+import { footprintOf } from "../lib/catalog";
 import { createMission } from "../lib/sim/api";
 import { tileToScreen } from "../lib/iso";
 import { isTerrainAtlasReady, preloadTerrainAtlas } from "../lib/render/terrainAtlas";
+import { terrainAccess } from "../lib/sim/world";
+import type { BuildingEntity } from "../lib/types";
 
 describe("welcome target preview cycle", () => {
   it("waits 5 seconds before showing the first highlight, then plays for 5s and idles for 3s", () => {
@@ -78,7 +81,7 @@ describe("welcome target cinema shots", () => {
 
   it("frames different shots at a mid zoom between the original close-up and the wide crop", () => {
     const scene = createCinemaScene();
-    const cameras = CINEMA_SHOTS.map((_, index) => cinemaShotCamera(scene, index, 768, 512, 0));
+    const cameras = CINEMA_SHOTS.map((_, index) => cinemaShotCamera(scene, index, 768, 512));
     const origins = new Set(cameras.map((cam) => `${cam.x.toFixed(1)},${cam.y.toFixed(1)}`));
     expect(origins.size).toBe(CINEMA_SHOTS.length);
     expect(cameras.every((cam) => cam.zoom === PIP_ZOOM)).toBe(true);
@@ -150,6 +153,63 @@ describe("welcome target cinema shots", () => {
     expect(scene.combatEpicenter).toBeDefined();
   });
 
+  it("includes real varied structures in every preview scenario", () => {
+    const buildingShots = CINEMA_SHOTS.filter((shot) => shot.type === "building");
+    const structureKinds = new Set<string>();
+    expect(buildingShots.length).toBeGreaterThanOrEqual(2);
+
+    for (const kind of CINEMA_SCENARIO_KINDS) {
+      const scene = createCinemaScene(CINEMA_SEED, 0, kind);
+      const activeBuildings = scene.state.entities.filter((entity) => entity.class === "building" && entity.hp > 0);
+      expect(activeBuildings.length).toBeGreaterThanOrEqual(2);
+      for (const building of activeBuildings) structureKinds.add(building.kind);
+
+      for (const shot of buildingShots) {
+        const building = scene.buildings[shot.index];
+        expect(building).toBeDefined();
+        expect(activeBuildings.some((entity) => entity.kind === building!.kind && entity.owner === building!.owner && entity.x === building!.x && entity.y === building!.y)).toBe(true);
+      }
+    }
+    expect(structureKinds.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it("places preview structures on valid, separated building footprints", () => {
+    for (const kind of CINEMA_SCENARIO_KINDS) {
+      const scene = createCinemaScene(CINEMA_SEED, 0, kind);
+      const buildings = scene.state.entities.filter(
+        (entity): entity is BuildingEntity => entity.class === "building" && entity.hp > 0,
+      );
+
+      for (const building of buildings) {
+        const footprint = footprintOf(building.kind);
+        const baseHeight = scene.state.heights[building.y * scene.state.width + building.x];
+        for (let oy = 0; oy < footprint.h; oy++) {
+          for (let ox = 0; ox < footprint.w; ox++) {
+            const x = building.x + ox;
+            const y = building.y + oy;
+            expect(terrainAccess(scene.state, x, y).buildable).toBe(true);
+            expect(scene.state.heights[y * scene.state.width + x]).toBe(baseHeight);
+          }
+        }
+      }
+
+      for (let i = 0; i < buildings.length; i++) {
+        const first = buildings[i]!;
+        const firstFootprint = footprintOf(first.kind);
+        for (let j = i + 1; j < buildings.length; j++) {
+          const second = buildings[j]!;
+          const secondFootprint = footprintOf(second.kind);
+          const overlaps =
+            first.x < second.x + secondFootprint.w &&
+            first.x + firstFootprint.w > second.x &&
+            first.y < second.y + secondFootprint.h &&
+            first.y + firstFootprint.h > second.y;
+          expect(overlaps).toBe(false);
+        }
+      }
+    }
+  });
+
   it("keeps every preview scenario playing while combat advances after warm-up", () => {
     for (const kind of CINEMA_SCENARIO_KINDS) {
       const scene = createCinemaScene(CINEMA_SEED, 0, kind);
@@ -178,6 +238,52 @@ describe("welcome target cinema shots", () => {
     }
   });
 
+  it("uses the actual fixed tick rate and keeps the map focus stable during a play window", () => {
+    for (const kind of CINEMA_SCENARIO_KINDS) {
+      const sixtyHz = createCinemaScene(CINEMA_SEED, 0, kind);
+      const oneTwentyHz = createCinemaScene(CINEMA_SEED, 0, kind);
+      const sixtyShots: Shot[] = [];
+      const oneTwentyShots: Shot[] = [];
+
+      for (let frame = 0; frame <= 60; frame++) {
+        stepCinemaScene(sixtyHz, sixtyShots, frame, frame * (1000 / 60));
+      }
+      for (let frame = 0; frame <= 120; frame++) {
+        stepCinemaScene(oneTwentyHz, oneTwentyShots, frame, frame * (1000 / 120));
+      }
+
+      expect(sixtyHz.state.tick).toBe(oneTwentyHz.state.tick);
+      const focus = { ...sixtyHz.combatEpicenter };
+      const cameras = CINEMA_SHOTS.map((_, shot) => cinemaShotCamera(sixtyHz, shot, 768, 512));
+      for (let frame = 61; frame <= 300; frame++) {
+        stepCinemaScene(sixtyHz, sixtyShots, frame, frame * (1000 / 60));
+        expect(sixtyHz.combatEpicenter).toEqual(focus);
+        for (let shot = 0; shot < CINEMA_SHOTS.length; shot++) {
+          expect(cinemaShotCamera(sixtyHz, shot, 768, 512)).toEqual(cameras[shot]);
+        }
+      }
+    }
+  });
+
+  it("ages combat shots by elapsed time instead of render-frame count", () => {
+    const sixtyHz = createCinemaScene();
+    const oneTwentyHz = createCinemaScene();
+    const sixtyShot: Shot = { ax: 0, ay: 0, bx: 1, by: 1, life: 1000 };
+    const oneTwentyShot: Shot = { ax: 0, ay: 0, bx: 1, by: 1, life: 1000 };
+    const sixtyShots = [sixtyShot];
+    const oneTwentyShots = [oneTwentyShot];
+
+    for (let frame = 0; frame <= 3; frame++) {
+      stepCinemaScene(sixtyHz, sixtyShots, frame, frame * (1000 / 60));
+    }
+    for (let frame = 0; frame <= 6; frame++) {
+      stepCinemaScene(oneTwentyHz, oneTwentyShots, frame, frame * (1000 / 120));
+    }
+
+    expect(sixtyShot.life).toBeCloseTo(950, 5);
+    expect(oneTwentyShot.life).toBeCloseTo(950, 5);
+  });
+
   it("frames all frontline battle units within the PIP feed bounds across all scenarios and shots", () => {
     for (const kind of CINEMA_SCENARIO_KINDS) {
       const scene = createCinemaScene(CINEMA_SEED, 0, kind);
@@ -187,7 +293,7 @@ describe("welcome target cinema shots", () => {
       expect(clashCombatants.length).toBeGreaterThanOrEqual(6);
 
       for (let shot = 0; shot < CINEMA_SHOTS.length; shot++) {
-        const cam = cinemaShotCamera(scene, shot, 256, 160, 0);
+        const cam = cinemaShotCamera(scene, shot, 256, 160);
         for (const u of clashCombatants) {
           const elev = scene.map.heights[Math.floor(u.y) * scene.map.width + Math.floor(u.x)] ?? 1;
           const s = tileToScreen(u.x, u.y, cam, elev);
@@ -257,13 +363,13 @@ describe("welcome target cinema shots", () => {
   it("keeps camera motion smooth with no sudden pixel jumps or cliff elevation flips during combat", () => {
     for (const kind of CINEMA_SCENARIO_KINDS) {
       const scene = createCinemaScene(CINEMA_SEED, 0, kind);
-      const shots: any[] = [];
+      const shots: Shot[] = [];
       let prevX = 0;
       let prevY = 0;
 
       for (let f = 0; f < 100; f++) {
         stepCinemaScene(scene, shots, f);
-        const cam = cinemaShotCamera(scene, 0, 768, 512, f);
+        const cam = cinemaShotCamera(scene, 0, 768, 512);
         if (f > 0) {
           const delta = Math.hypot(cam.x - prevX, cam.y - prevY);
           expect(delta).toBeLessThanOrEqual(2.0);
@@ -277,7 +383,7 @@ describe("welcome target cinema shots", () => {
   it("keeps unit motion stable with no violent back-and-forth position flapping", () => {
     for (const kind of CINEMA_SCENARIO_KINDS) {
       const scene = createCinemaScene(CINEMA_SEED, 0, kind);
-      const shots: any[] = [];
+      const shots: Shot[] = [];
       const history = new Map<number, { x: number; y: number }[]>();
 
       for (let f = 0; f < 100; f++) {

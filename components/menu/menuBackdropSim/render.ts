@@ -2,6 +2,7 @@ import {
   unitSprite,
 } from "@/lib/gen/assets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
+import { frameTickBudget, TICK_MS } from "@/lib/game/loop";
 import { TILE_H, tileToScreen, type Camera } from "@/lib/iso";
 import { animFrame, toFacing, unitMovementOffset } from "@/lib/render/anim";
 import { rasterize } from "@/lib/render/sprites";
@@ -32,6 +33,8 @@ type CinemaTerrainCache = ScrollLayer & {
 };
 
 const CINEMA_TERRAIN_CACHE_LIMIT = 4;
+const CINEMA_REFERENCE_FRAME_MS = 1000 / 60;
+const CINEMA_SHOT_LIFETIME_MS = 18 * CINEMA_REFERENCE_FRAME_MS;
 const cinemaTerrains = new Map<string, CinemaTerrainCache>();
 
 function cinemaTerrainContentKey(scene: CinemaScene, w: number, h: number, zoom: number): string {
@@ -104,22 +107,8 @@ function ensureCinemaTerrain(
   return cache;
 }
 
-export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): void {
-  const { actors } = scene;
-  for (const a of actors) {
-    const dest = a.waypoints[a.wi]!;
-    const dx = dest.x - a.x;
-    const dy = dest.y - a.y;
-    const d = Math.hypot(dx, dy);
-    if (d < 0.05) a.wi = (a.wi + 1) % a.waypoints.length;
-    else {
-      a.x += (dx / d) * a.speed;
-      a.y += (dy / d) * a.speed;
-    }
-  }
-
-  // Live battle highlight simulation tick (every 5 frames = 12 ticks/sec standard game rate)
-  if (scene.state && t % 5 === 0) {
+function stepCinemaSimulation(scene: CinemaScene, shots: Shot[]): void {
+  if (scene.state) {
     const cx = scene.combatEpicenter.x;
     const cy = scene.combatEpicenter.y;
 
@@ -128,7 +117,7 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
     const now = typeof performance !== "undefined" ? performance.now() : Date.now();
     for (const ev of events) {
       if (ev.type === "combat") {
-        shots.push({ ax: ev.x, ay: ev.y, bx: ev.targetX, by: ev.targetY, life: 18 });
+        shots.push({ ax: ev.x, ay: ev.y, bx: ev.targetX, by: ev.targetY, life: CINEMA_SHOT_LIFETIME_MS });
       } else if (ev.type === "destroyed") {
         scene.fx.push({
           id: ev.id,
@@ -190,26 +179,41 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
       }
     }
 
-    const fighting = scene.state.entities.filter(
-      (e) => (e.class === "unit" || e.kind === "turret") && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8,
-    );
-    if (fighting.length > 0 && scene.combatEpicenter) {
-      const targetX = fighting.reduce((sum, u) => sum + u.x, 0) / fighting.length;
-      const targetY = fighting.reduce((sum, u) => sum + u.y, 0) / fighting.length;
-      // Smooth exponential tracking: eliminates sudden camera jumps when units die or cross boundaries
-      scene.combatEpicenter.x += (targetX - scene.combatEpicenter.x) * 0.02;
-      scene.combatEpicenter.y += (targetY - scene.combatEpicenter.y) * 0.02;
+  }
+}
+
+export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number, nowMs?: number): void {
+  const frameNow = nowMs ?? t * CINEMA_REFERENCE_FRAME_MS;
+  const previousNow = scene.lastStepMs;
+  const frameScale = previousNow === undefined
+    ? 1
+    : Math.min(12, Math.max(0, frameNow - previousNow) / CINEMA_REFERENCE_FRAME_MS);
+  scene.lastStepMs = frameNow;
+
+  for (const a of scene.actors) {
+    const dest = a.waypoints[a.wi]!;
+    const dx = dest.x - a.x;
+    const dy = dest.y - a.y;
+    const d = Math.hypot(dx, dy);
+    if (d < 0.05) a.wi = (a.wi + 1) % a.waypoints.length;
+    else {
+      a.x += (dx / d) * a.speed * frameScale;
+      a.y += (dy / d) * a.speed * frameScale;
     }
-  } else if (t % 48 === 0 && actors.length >= 4) {
-    const attacker = actors[1 + (t % 2)]!;
-    const target = attacker.owner === 0 ? actors[3]! : actors[1]!;
-    shots.push({ ax: attacker.x, ay: attacker.y, bx: target.x, by: target.y, life: 18 });
   }
 
+  if (previousNow !== undefined) {
+    scene.simulationAccumulatorMs += Math.max(0, frameNow - previousNow);
+  }
+  const elapsedMs = previousNow === undefined ? 0 : Math.max(0, frameNow - previousNow);
   for (let i = shots.length - 1; i >= 0; i--) {
-    shots[i]!.life -= 1;
+    shots[i]!.life -= elapsedMs;
     if (shots[i]!.life <= 0) shots.splice(i, 1);
   }
+
+  const budget = frameTickBudget(scene.simulationAccumulatorMs, TICK_MS);
+  scene.simulationAccumulatorMs = budget.acc;
+  for (let i = 0; i < budget.ticks; i++) stepCinemaSimulation(scene, shots);
 }
 
 export type RenderCinemaOptions = {
@@ -239,7 +243,7 @@ export function renderCinemaFrame(
     try {
       renderWorld(ctx, scene.state, cam, new Set(), null, {
         clockMs: typeof performance !== "undefined" ? performance.now() : t * 16,
-        subTickAlpha: (t % 5) / 5,
+        subTickAlpha: Math.max(0, Math.min(1, scene.simulationAccumulatorMs / TICK_MS)),
         fx: scene.fx,
       });
       return;
