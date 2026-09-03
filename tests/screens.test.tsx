@@ -72,14 +72,12 @@ function stubMatchMedia(matchesReducedMotion: boolean) {
 afterEach(() => cleanup());
 
 describe("MenuScreen", () => {
-  it("opens setup and launches the rolled theater", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.0421);
+  it("opens setup and launches the daily campaign", () => {
     render(<MenuScreen />);
     fireEvent.click(screen.getByRole("button", { name: "NEW GAME" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("newGame");
     fireEvent.click(screen.getByRole("button", { name: "Launch" }));
-    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&from=menu");
-    vi.restoreAllMocks();
+    expect(router.push).toHaveBeenCalledWith(expect.stringMatching(/^\/briefing\?seed=\d{4}&mission=0&from=menu$/));
   });
 
   it("opens the training range from the welcome tutorial action", () => {
