@@ -2,13 +2,31 @@ import { createCampaign } from "@/lib/gen/campaign";
 import { generateMap } from "@/lib/gen/map";
 import { createMission, tick } from "@/lib/sim/api";
 import { expandFog } from "@/lib/sim/fog";
-import { isStaticWalkable, nearest, spawnUnit } from "@/lib/sim/world";
+import { isStaticWalkable, nearest, spawnBuilding, spawnUnit } from "@/lib/sim/world";
 import { assignAttack } from "@/lib/sim/ai/combat";
+import { BUILDING_STATS } from "@/lib/catalog";
 import type { AtlasWorld } from "@/lib/render/terrainAtlas";
 import type { BuildingKind, UnitKind } from "@/lib/types";
 import { FX_DURATION, type FxBurst } from "@/lib/render/fx";
 
 export const CINEMA_SEED = 1847;
+
+export type CinemaScenarioKind =
+  | "baseAssault"
+  | "turretDefense"
+  | "harvesterAmbush"
+  | "armorClash"
+  | "infantryStorm"
+  | "convoyRaid";
+
+export const CINEMA_SCENARIO_KINDS: readonly CinemaScenarioKind[] = [
+  "baseAssault",
+  "turretDefense",
+  "harvesterAmbush",
+  "armorClash",
+  "infantryStorm",
+  "convoyRaid",
+];
 
 export type Actor = {
   x: number;
@@ -22,7 +40,11 @@ export type Actor = {
 
 export type Shot = { ax: number; ay: number; bx: number; by: number; life: number };
 
-export function createCinemaScene(seed = CINEMA_SEED, missionIndex = 0) {
+export function createCinemaScene(
+  seed = CINEMA_SEED,
+  missionIndex = 0,
+  scenarioOverride?: CinemaScenarioKind,
+) {
   const theater = ((seed | 0) % 10000 + 10000) % 10000;
   const campaign = createCampaign(theater);
   const mIndex = Math.max(0, Math.min(campaign.missions.length - 1, missionIndex | 0));
@@ -30,6 +52,11 @@ export function createCinemaScene(seed = CINEMA_SEED, missionIndex = 0) {
   const map = generateMap(theater, mission);
   const [us, them] = campaign.factions;
   const state = createMission({ seed: theater, missionIndex: mIndex });
+
+  // Pick deterministic tactical scenario for variety across previews
+  const scenarioIndex =
+    ((mIndex + theater) % CINEMA_SCENARIO_KINDS.length + CINEMA_SCENARIO_KINDS.length) % CINEMA_SCENARIO_KINDS.length;
+  const scenarioKind = scenarioOverride ?? CINEMA_SCENARIO_KINDS[scenarioIndex]!;
 
   // Reveal the full battlefield for the preview reconnaissance feed
   state.fog = expandFog(state.fog, state.width, state.height);
@@ -68,25 +95,117 @@ export function createCinemaScene(seed = CINEMA_SEED, missionIndex = 0) {
     if (found) break;
   }
 
-  // Spawn engaging frontline squads in widescreen horizontal faceoff
-  const pUnits = [
-    spawnUnit(state, 0, "tank", clashX - 0.9, clashY + 0.6),
-    spawnUnit(state, 0, "antiArmor", clashX - 0.8, clashY + 1.1),
-    spawnUnit(state, 0, "infantry", clashX - 1.2, clashY + 0.3),
-    spawnUnit(state, 0, "infantry", clashX - 1.1, clashY + 0.8),
+  // Pre-calculated integer tile positions within widescreen PIP feed
+  const pSlots = [
+    { x: clashX - 1, y: clashY + 1 }, // (32, 80)
+    { x: clashX - 1, y: clashY },     // (80, 56)
+    { x: clashX,     y: clashY + 1 }, // (80, 104)
+    { x: clashX - 2, y: clashY },     // (32, 32)
   ];
-  if (mIndex >= 3) {
-    pUnits.push(spawnUnit(state, 0, "tank", clashX - 1.3, clashY + 0.6));
-  }
 
-  const eUnits = [
-    spawnUnit(state, 1, "tank", clashX + 0.9, clashY - 0.6),
-    spawnUnit(state, 1, "antiArmor", clashX + 0.8, clashY - 1.1),
-    spawnUnit(state, 1, "infantry", clashX + 1.2, clashY - 0.3),
-    spawnUnit(state, 1, "infantry", clashX + 1.1, clashY - 0.8),
+  const eSlots = [
+    { x: clashX + 1, y: clashY - 1 }, // (224, 80)
+    { x: clashX,     y: clashY - 1 }, // (176, 56)
+    { x: clashX + 1, y: clashY },     // (176, 104)
+    { x: clashX,     y: clashY - 2 }, // (224, 32)
   ];
-  if (mIndex >= 3) {
-    eUnits.push(spawnUnit(state, 1, "antiArmor", clashX + 1.3, clashY - 0.6));
+
+  const pUnits: ReturnType<typeof spawnUnit>[] = [];
+  const eUnits: ReturnType<typeof spawnUnit>[] = [];
+
+  if (scenarioKind === "baseAssault") {
+    // Player assault breaching enemy forward fortification
+    const enemyTurret = spawnBuilding(state, 1, "turret", eSlots[2].x, eSlots[2].y);
+    pUnits.push(
+      spawnUnit(state, 0, "tank", pSlots[0].x, pSlots[0].y),
+      spawnUnit(state, 0, "tank", pSlots[1].x, pSlots[1].y),
+      spawnUnit(state, 0, "antiArmor", pSlots[2].x, pSlots[2].y),
+      spawnUnit(state, 0, "repairTruck", pSlots[3].x, pSlots[3].y),
+    );
+    eUnits.push(
+      spawnUnit(state, 1, "tank", eSlots[0].x, eSlots[0].y),
+      spawnUnit(state, 1, "antiArmor", eSlots[1].x, eSlots[1].y),
+      spawnUnit(state, 1, "infantry", eSlots[3].x, eSlots[3].y),
+    );
+    assignAttack(state, pUnits[0]!, enemyTurret);
+    assignAttack(state, pUnits[1]!, enemyTurret);
+  } else if (scenarioKind === "turretDefense") {
+    // Player defending forward gun turret outpost against armored assault
+    const playerTurret = spawnBuilding(state, 0, "turret", pSlots[1].x, pSlots[1].y);
+    pUnits.push(
+      spawnUnit(state, 0, "tank", pSlots[0].x, pSlots[0].y),
+      spawnUnit(state, 0, "infantry", pSlots[2].x, pSlots[2].y),
+      spawnUnit(state, 0, "medic", pSlots[3].x, pSlots[3].y),
+    );
+    eUnits.push(
+      spawnUnit(state, 1, "tank", eSlots[0].x, eSlots[0].y),
+      spawnUnit(state, 1, "tank", eSlots[1].x, eSlots[1].y),
+      spawnUnit(state, 1, "antiArmor", eSlots[2].x, eSlots[2].y),
+      spawnUnit(state, 1, "infantry", eSlots[3].x, eSlots[3].y),
+    );
+    assignAttack(state, eUnits[0]!, playerTurret);
+    assignAttack(state, eUnits[1]!, playerTurret);
+  } else if (scenarioKind === "harvesterAmbush") {
+    // Ambush on enemy ore harvester and escort
+    const harvester = spawnUnit(state, 1, "harvester", eSlots[1].x, eSlots[1].y);
+    eUnits.push(
+      harvester,
+      spawnUnit(state, 1, "tank", eSlots[0].x, eSlots[0].y),
+      spawnUnit(state, 1, "antiArmor", eSlots[2].x, eSlots[2].y),
+      spawnUnit(state, 1, "infantry", eSlots[3].x, eSlots[3].y),
+    );
+    pUnits.push(
+      spawnUnit(state, 0, "antiArmor", pSlots[0].x, pSlots[0].y),
+      spawnUnit(state, 0, "antiArmor", pSlots[1].x, pSlots[1].y),
+      spawnUnit(state, 0, "tank", pSlots[2].x, pSlots[2].y),
+      spawnUnit(state, 0, "infantry", pSlots[3].x, pSlots[3].y),
+    );
+    assignAttack(state, pUnits[0]!, harvester);
+    assignAttack(state, pUnits[1]!, harvester);
+  } else if (scenarioKind === "armorClash") {
+    // Heavy armor brawl with battlefield repair mechanics
+    pUnits.push(
+      spawnUnit(state, 0, "tank", pSlots[0].x, pSlots[0].y),
+      spawnUnit(state, 0, "tank", pSlots[1].x, pSlots[1].y),
+      spawnUnit(state, 0, "antiArmor", pSlots[2].x, pSlots[2].y),
+      spawnUnit(state, 0, "repairTruck", pSlots[3].x, pSlots[3].y),
+    );
+    eUnits.push(
+      spawnUnit(state, 1, "tank", eSlots[0].x, eSlots[0].y),
+      spawnUnit(state, 1, "tank", eSlots[1].x, eSlots[1].y),
+      spawnUnit(state, 1, "antiArmor", eSlots[2].x, eSlots[2].y),
+      spawnUnit(state, 1, "repairTruck", eSlots[3].x, eSlots[3].y),
+    );
+  } else if (scenarioKind === "infantryStorm") {
+    // Multi-squad infantry battle with medics healing the frontline
+    pUnits.push(
+      spawnUnit(state, 0, "infantry", pSlots[0].x, pSlots[0].y),
+      spawnUnit(state, 0, "infantry", pSlots[1].x, pSlots[1].y),
+      spawnUnit(state, 0, "antiArmor", pSlots[2].x, pSlots[2].y),
+      spawnUnit(state, 0, "medic", pSlots[3].x, pSlots[3].y),
+    );
+    eUnits.push(
+      spawnUnit(state, 1, "infantry", eSlots[0].x, eSlots[0].y),
+      spawnUnit(state, 1, "infantry", eSlots[1].x, eSlots[1].y),
+      spawnUnit(state, 1, "antiArmor", eSlots[2].x, eSlots[2].y),
+      spawnUnit(state, 1, "medic", eSlots[3].x, eSlots[3].y),
+    );
+  } else {
+    // convoyRaid: armored logistics interception
+    const convoyTruck = spawnUnit(state, 1, "convoyTruck", eSlots[1].x, eSlots[1].y);
+    eUnits.push(
+      convoyTruck,
+      spawnUnit(state, 1, "tank", eSlots[0].x, eSlots[0].y),
+      spawnUnit(state, 1, "antiArmor", eSlots[2].x, eSlots[2].y),
+      spawnUnit(state, 1, "infantry", eSlots[3].x, eSlots[3].y),
+    );
+    pUnits.push(
+      spawnUnit(state, 0, "tank", pSlots[0].x, pSlots[0].y),
+      spawnUnit(state, 0, "antiArmor", pSlots[1].x, pSlots[1].y),
+      spawnUnit(state, 0, "antiArmor", pSlots[2].x, pSlots[2].y),
+      spawnUnit(state, 0, "infantry", pSlots[3].x, pSlots[3].y),
+    );
+    assignAttack(state, pUnits[1]!, convoyTruck);
   }
 
   const fx: FxBurst[] = [];
@@ -122,7 +241,7 @@ export function createCinemaScene(seed = CINEMA_SEED, missionIndex = 0) {
           durationMs: FX_DURATION.explosion,
           owner: ev.owner,
           entityKind: ev.kind,
-          entityClass: "unit",
+          entityClass: (ev.kind in BUILDING_STATS ? "building" : "unit") as "building" | "unit",
         });
       }
     }
@@ -168,6 +287,7 @@ export function createCinemaScene(seed = CINEMA_SEED, missionIndex = 0) {
   return {
     seed: theater,
     missionIndex: mIndex,
+    scenarioKind,
     map,
     us,
     them,

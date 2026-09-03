@@ -15,6 +15,7 @@ import {
 } from "@/lib/render/scrollLayer";
 import { terrainColors } from "@/lib/render/terrainMaterials";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
+import { BUILDING_STATS } from "@/lib/catalog";
 import { FX_DURATION } from "@/lib/render/fx";
 import { renderWorld } from "@/lib/render/renderer";
 import { isTerrainAtlasReady } from "@/lib/render/terrainAtlas";
@@ -158,12 +159,14 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
           durationMs: FX_DURATION.explosion,
           owner: ev.owner,
           entityKind: ev.kind,
-          entityClass: "unit",
+          entityClass: (ev.kind in BUILDING_STATS ? "building" : "unit") as "building" | "unit",
         });
       }
     }
 
-    const fighting = scene.state.entities.filter((e) => e.class === "unit" && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
+    const fighting = scene.state.entities.filter(
+      (e) => (e.class === "unit" || e.kind === "turret") && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8,
+    );
     if (fighting.length > 0) {
       scene.combatEpicenter = {
         x: fighting.reduce((sum, u) => sum + u.x, 0) / fighting.length,

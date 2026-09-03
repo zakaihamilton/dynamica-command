@@ -14,7 +14,7 @@ import {
 import { CINEMA_SHOTS, cinemaShotCamera, PIP_ZOOM, PREVIEW_SHOT_COUNT } from "../components/menu/menuBackdropSim/shots";
 import { cinemaGroundWorld } from "../components/menu/menuBackdropSim/paint";
 import { stepCinemaScene } from "../components/menu/menuBackdropSim/render";
-import { CINEMA_SEED, createCinemaScene } from "../components/menu/menuBackdropSim/scene";
+import { CINEMA_SCENARIO_KINDS, CINEMA_SEED, createCinemaScene } from "../components/menu/menuBackdropSim/scene";
 import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
 import { tileToScreen } from "../lib/iso";
@@ -142,22 +142,24 @@ describe("welcome target cinema shots", () => {
     expect(scene.combatEpicenter).toBeDefined();
   });
 
-  it("frames all frontline battle units within the PIP feed bounds across all shots", () => {
-    const scene = createCinemaScene(CINEMA_SEED, 0);
-    const clashUnits = scene.state.entities.filter(
-      (e) => e.class === "unit" && e.hp > 0 && Math.hypot(e.x - scene.combatEpicenter.x, e.y - scene.combatEpicenter.y) <= 6,
-    );
-    expect(clashUnits.length).toBeGreaterThanOrEqual(6);
+  it("frames all frontline battle units within the PIP feed bounds across all scenarios and shots", () => {
+    for (const kind of CINEMA_SCENARIO_KINDS) {
+      const scene = createCinemaScene(CINEMA_SEED, 0, kind);
+      const clashCombatants = scene.state.entities.filter(
+        (e) => (e.class === "unit" || e.kind === "turret") && e.hp > 0 && Math.hypot(e.x - scene.combatEpicenter.x, e.y - scene.combatEpicenter.y) <= 6,
+      );
+      expect(clashCombatants.length).toBeGreaterThanOrEqual(6);
 
-    for (let shot = 0; shot < CINEMA_SHOTS.length; shot++) {
-      const cam = cinemaShotCamera(scene, shot, 256, 160, 0);
-      for (const u of clashUnits) {
-        const elev = scene.map.heights[Math.floor(u.y) * scene.map.width + Math.floor(u.x)] ?? 1;
-        const s = tileToScreen(u.x, u.y, cam, elev);
-        expect(s.x).toBeGreaterThanOrEqual(0);
-        expect(s.x).toBeLessThanOrEqual(256);
-        expect(s.y).toBeGreaterThanOrEqual(0);
-        expect(s.y).toBeLessThanOrEqual(160);
+      for (let shot = 0; shot < CINEMA_SHOTS.length; shot++) {
+        const cam = cinemaShotCamera(scene, shot, 256, 160, 0);
+        for (const u of clashCombatants) {
+          const elev = scene.map.heights[Math.floor(u.y) * scene.map.width + Math.floor(u.x)] ?? 1;
+          const s = tileToScreen(u.x, u.y, cam, elev);
+          expect(s.x).toBeGreaterThanOrEqual(0);
+          expect(s.x).toBeLessThanOrEqual(256);
+          expect(s.y).toBeGreaterThanOrEqual(0);
+          expect(s.y).toBeLessThanOrEqual(160);
+        }
       }
     }
   });
@@ -170,5 +172,49 @@ describe("welcome target cinema shots", () => {
       const ready = await preloadTerrainAtlas(scene.state);
       expect(ready).toBe(true);
     }
+  });
+
+  it("rotates across distinct tactical scenarios including building attacks and ambushes", () => {
+    expect(CINEMA_SCENARIO_KINDS).toEqual([
+      "baseAssault",
+      "turretDefense",
+      "harvesterAmbush",
+      "armorClash",
+      "infantryStorm",
+      "convoyRaid",
+    ]);
+
+    const generatedKinds = new Set<string>();
+    for (let i = 0; i < CINEMA_SCENARIO_KINDS.length; i++) {
+      const scene = createCinemaScene(CINEMA_SEED + i, 0);
+      generatedKinds.add(scene.scenarioKind);
+    }
+    expect(generatedKinds.size).toBe(CINEMA_SCENARIO_KINDS.length);
+  });
+
+  it("spawns and engages defensive buildings in base assault and turret defense scenarios", () => {
+    const baseAssaultIdx = CINEMA_SCENARIO_KINDS.indexOf("baseAssault");
+    const baseAssaultScene = createCinemaScene(baseAssaultIdx, 0);
+    expect(baseAssaultScene.scenarioKind).toBe("baseAssault");
+    const enemyTurret = baseAssaultScene.state.entities.find(
+      (e) => e.class === "building" && e.kind === "turret" && e.owner === 1,
+    );
+    expect(enemyTurret).toBeDefined();
+    const attackingTurret = baseAssaultScene.state.entities.some(
+      (e) => e.class === "unit" && e.attackTarget === enemyTurret!.id,
+    );
+    expect(attackingTurret).toBe(true);
+
+    const turretDefenseIdx = CINEMA_SCENARIO_KINDS.indexOf("turretDefense");
+    const turretDefenseScene = createCinemaScene(turretDefenseIdx, 0);
+    expect(turretDefenseScene.scenarioKind).toBe("turretDefense");
+    const playerTurret = turretDefenseScene.state.entities.find(
+      (e) => e.class === "building" && e.kind === "turret" && e.owner === 0,
+    );
+    expect(playerTurret).toBeDefined();
+    const attackingPlayerTurret = turretDefenseScene.state.entities.some(
+      (e) => e.class === "unit" && e.attackTarget === playerTurret!.id,
+    );
+    expect(attackingPlayerTurret).toBe(true);
   });
 });
