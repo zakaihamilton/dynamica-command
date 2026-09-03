@@ -17,6 +17,7 @@ import { stepCinemaScene } from "../components/menu/menuBackdropSim/render";
 import { CINEMA_SEED, createCinemaScene } from "../components/menu/menuBackdropSim/scene";
 import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
+import { tileToScreen } from "../lib/iso";
 
 describe("welcome target preview cycle", () => {
   it("waits 5 seconds before showing the first highlight, then plays for 5s and idles for 3s", () => {
@@ -138,5 +139,25 @@ describe("welcome target cinema shots", () => {
     const combatUnits = scene.state.entities.filter((e) => e.class === "unit" && e.hp > 0);
     expect(combatUnits.length).toBeGreaterThanOrEqual(6);
     expect(scene.combatEpicenter).toBeDefined();
+  });
+
+  it("frames all frontline battle units within the PIP feed bounds across all shots", () => {
+    const scene = createCinemaScene(CINEMA_SEED, 0);
+    const clashUnits = scene.state.entities.filter(
+      (e) => e.class === "unit" && e.hp > 0 && Math.hypot(e.x - scene.combatEpicenter.x, e.y - scene.combatEpicenter.y) <= 6,
+    );
+    expect(clashUnits.length).toBeGreaterThanOrEqual(6);
+
+    for (let shot = 0; shot < CINEMA_SHOTS.length; shot++) {
+      const cam = cinemaShotCamera(scene, shot, 256, 160, 0);
+      for (const u of clashUnits) {
+        const elev = scene.map.heights[Math.floor(u.y) * scene.map.width + Math.floor(u.x)] ?? 1;
+        const s = tileToScreen(u.x, u.y, cam, elev);
+        expect(s.x).toBeGreaterThanOrEqual(0);
+        expect(s.x).toBeLessThanOrEqual(256);
+        expect(s.y).toBeGreaterThanOrEqual(0);
+        expect(s.y).toBeLessThanOrEqual(160);
+      }
+    }
   });
 });

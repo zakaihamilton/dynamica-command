@@ -68,28 +68,25 @@ export function createCinemaScene(seed = CINEMA_SEED, missionIndex = 0) {
     if (found) break;
   }
 
-  const dirX = e0.x >= p0.x ? 1 : -1;
-  const dirY = e0.y >= p0.y ? 1 : -1;
-
-  // Spawn engaging frontline squads
+  // Spawn engaging frontline squads in widescreen horizontal faceoff
   const pUnits = [
-    spawnUnit(state, 0, "tank", clashX - dirX * 1.6, clashY - dirY * 0.8),
-    spawnUnit(state, 0, "antiArmor", clashX - dirX * 1.4, clashY + dirY * 1.2),
-    spawnUnit(state, 0, "infantry", clashX - dirX * 1.8, clashY - dirY * 1.6),
-    spawnUnit(state, 0, "infantry", clashX - dirX * 2.2, clashY + dirY * 0.4),
+    spawnUnit(state, 0, "tank", clashX - 0.9, clashY + 0.6),
+    spawnUnit(state, 0, "antiArmor", clashX - 0.8, clashY + 1.1),
+    spawnUnit(state, 0, "infantry", clashX - 1.2, clashY + 0.3),
+    spawnUnit(state, 0, "infantry", clashX - 1.1, clashY + 0.8),
   ];
   if (mIndex >= 3) {
-    pUnits.push(spawnUnit(state, 0, "tank", clashX - dirX * 2.4, clashY - dirY * 0.2));
+    pUnits.push(spawnUnit(state, 0, "tank", clashX - 1.3, clashY + 0.6));
   }
 
   const eUnits = [
-    spawnUnit(state, 1, "tank", clashX + dirX * 1.6, clashY + dirY * 0.8),
-    spawnUnit(state, 1, "antiArmor", clashX + dirX * 1.4, clashY - dirY * 1.2),
-    spawnUnit(state, 1, "infantry", clashX + dirX * 1.8, clashY + dirY * 1.6),
-    spawnUnit(state, 1, "infantry", clashX + dirX * 2.2, clashY - dirY * 0.4),
+    spawnUnit(state, 1, "tank", clashX + 0.9, clashY - 0.6),
+    spawnUnit(state, 1, "antiArmor", clashX + 0.8, clashY - 1.1),
+    spawnUnit(state, 1, "infantry", clashX + 1.2, clashY - 0.3),
+    spawnUnit(state, 1, "infantry", clashX + 1.1, clashY - 0.8),
   ];
   if (mIndex >= 3) {
-    eUnits.push(spawnUnit(state, 1, "antiArmor", clashX + dirX * 2.4, clashY + dirY * 0.2));
+    eUnits.push(spawnUnit(state, 1, "antiArmor", clashX + 1.3, clashY - 0.6));
   }
 
   const fx: FxBurst[] = [];
@@ -97,13 +94,13 @@ export function createCinemaScene(seed = CINEMA_SEED, missionIndex = 0) {
   const assignClashTargets = () => {
     for (const u of pUnits) {
       if (u.hp > 0 && (u.attackTarget === undefined || u.idle)) {
-        const target = nearest(state, u, (e) => e.owner === 1 && e.hp > 0);
+        const target = nearest(state, u, (e) => e.owner === 1 && e.hp > 0 && Math.hypot(e.x - clashX, e.y - clashY) <= 8);
         if (target) assignAttack(state, u, target);
       }
     }
     for (const u of eUnits) {
       if (u.hp > 0 && (u.attackTarget === undefined || u.idle)) {
-        const target = nearest(state, u, (e) => e.owner === 0 && e.hp > 0);
+        const target = nearest(state, u, (e) => e.owner === 0 && e.hp > 0 && Math.hypot(e.x - clashX, e.y - clashY) <= 8);
         if (target) assignAttack(state, u, target);
       }
     }
@@ -129,6 +126,12 @@ export function createCinemaScene(seed = CINEMA_SEED, missionIndex = 0) {
         });
       }
     }
+  }
+  for (const u of [...pUnits, ...eUnits]) {
+    u.path = [];
+    u.routePending = false;
+    u.orderDestination = undefined;
+    u.orderMode = undefined;
   }
   assignClashTargets();
   state.fog.fill(2);

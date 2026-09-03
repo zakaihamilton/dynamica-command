@@ -19,6 +19,15 @@ export const PREVIEW_SHOT_COUNT = CINEMA_SHOTS.length;
 
 export const PIP_ZOOM = 1.5;
 
+export const SHOT_OFFSETS: readonly { x: number; y: number }[] = [
+  { x: -5, y: -3 },
+  { x: 5, y: 3 },
+  { x: -4, y: 4 },
+  { x: 4, y: -4 },
+  { x: -6, y: 1 },
+  { x: 6, y: -1 },
+];
+
 export function cinemaShotCamera(
   scene: CinemaScene,
   shotIndex: number,
@@ -28,29 +37,21 @@ export function cinemaShotCamera(
 ): Camera {
   const shot = CINEMA_SHOTS[((shotIndex % CINEMA_SHOTS.length) + CINEMA_SHOTS.length) % CINEMA_SHOTS.length]!;
   const focus = shot.type === "actor" ? scene.actors[shot.index]! : scene.buildings[shot.index]!;
-  let tx = focus.x;
-  let ty = focus.y;
-  if (scene.combatEpicenter) {
-    const angle = (shotIndex / CINEMA_SHOTS.length) * Math.PI * 2;
-    if (t === 0) {
-      tx = scene.combatEpicenter.x + Math.cos(angle) * 1.5;
-      ty = scene.combatEpicenter.y + Math.sin(angle) * 1.0;
-    } else {
-      // Very gentle cinematic pan and smooth tracking of combat epicenter
-      const settle = Math.max(0, 1 - t * 0.004);
-      const panX = Math.sin(t * 0.003) * 0.6;
-      const panY = Math.cos(t * 0.0025) * 0.4;
-      tx = scene.combatEpicenter.x + Math.cos(angle) * 1.5 * settle + panX;
-      ty = scene.combatEpicenter.y + Math.sin(angle) * 1.0 * settle + panY;
-    }
-  }
-  const elev = scene.map.heights[Math.floor(ty) * scene.map.width + Math.floor(tx)] ?? 1;
+  const off = SHOT_OFFSETS[((shotIndex % SHOT_OFFSETS.length) + SHOT_OFFSETS.length) % SHOT_OFFSETS.length]!;
+
+  const tx = scene.combatEpicenter ? scene.combatEpicenter.x : focus.x;
+  const ty = scene.combatEpicenter ? scene.combatEpicenter.y : focus.y;
+
+  const hx = Math.min(scene.map.width - 1, Math.max(0, Math.floor(tx)));
+  const hy = Math.min(scene.map.height - 1, Math.max(0, Math.floor(ty)));
+  const elev = scene.map.heights[hy * scene.map.width + hx] ?? 1;
   const zoom = PIP_ZOOM;
-  const driftX = Math.sin(t * 0.004) * 3;
-  const driftY = Math.cos(t * 0.0035) * 2;
+  const panX = Math.sin(t * 0.003) * 1.5;
+  const panY = Math.cos(t * 0.0025) * 1.0;
+
   return {
     zoom,
-    x: w / 2 - (tx - ty) * (TILE_W / 2) * zoom + driftX,
-    y: h / 2 - (tx + ty) * (TILE_H / 2) * zoom + elev * HEIGHT_STEP * zoom + driftY,
+    x: w / 2 - (tx - ty) * (TILE_W / 2) * zoom + off.x + panX,
+    y: h / 2 - (tx + ty) * (TILE_H / 2) * zoom + elev * HEIGHT_STEP * zoom + off.y + panY,
   };
 }

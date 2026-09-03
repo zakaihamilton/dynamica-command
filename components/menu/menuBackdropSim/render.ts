@@ -117,17 +117,25 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
 
   // Live battle highlight simulation tick (every 5 frames = 12 ticks/sec standard game rate)
   if (scene.state && t % 5 === 0) {
-    const pUnits = scene.state.entities.filter((e) => e.owner === 0 && e.class === "unit" && e.hp > 0);
-    const eUnits = scene.state.entities.filter((e) => e.owner === 1 && e.class === "unit" && e.hp > 0);
+    const cx = scene.combatEpicenter.x;
+    const cy = scene.combatEpicenter.y;
+    const pUnits = scene.state.entities.filter((e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
+    const eUnits = scene.state.entities.filter((e) => e.owner === 1 && e.class === "unit" && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
     for (const u of pUnits) {
       if (u.attackTarget === undefined || u.idle) {
-        const target = nearest(scene.state, u, (e) => e.owner === 1 && e.hp > 0);
+        const target = nearest(scene.state, u, (e) => e.owner === 1 && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
         if (target) assignAttack(scene.state, u, target);
       }
     }
     for (const u of eUnits) {
+      if (u.orderDestination && Math.hypot(u.orderDestination.x - cx, u.orderDestination.y - cy) > 8) {
+        u.path = [];
+        u.routePending = false;
+        u.attackTarget = undefined;
+        u.orderDestination = undefined;
+      }
       if (u.attackTarget === undefined || u.idle) {
-        const target = nearest(scene.state, u, (e) => e.owner === 0 && e.hp > 0);
+        const target = nearest(scene.state, u, (e) => e.owner === 0 && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
         if (target) assignAttack(scene.state, u, target);
       }
     }
@@ -154,7 +162,7 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
       }
     }
 
-    const fighting = scene.state.entities.filter((e) => e.class === "unit" && e.hp > 0);
+    const fighting = scene.state.entities.filter((e) => e.class === "unit" && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
     if (fighting.length > 0) {
       scene.combatEpicenter = {
         x: fighting.reduce((sum, u) => sum + u.x, 0) / fighting.length,
