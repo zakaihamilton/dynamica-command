@@ -15,7 +15,7 @@ import { makeFixture } from "../lib/sim/fixtures";
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
-vi.mock("@/lib/audio/music", () => ({ setMusicEnabled: vi.fn() }));
+vi.mock("@/lib/audio/music", () => ({ setMusicEnabled: vi.fn(), clearMusicPosition: vi.fn() }));
 vi.mock("@/lib/audio/synth", () => ({ setSfxEnabled: vi.fn(), beep: vi.fn() }));
 vi.mock("@/lib/audio/mixer", () => ({ setAudioLevels: vi.fn() }));
 vi.mock("@/components/menu/MenuBackdrop", () => ({ MenuBackdrop: () => <div data-testid="menu-backdrop" /> }));

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { createRef } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCampaign } from "../lib/gen/campaign";
@@ -12,6 +12,7 @@ import type { GameActions } from "../components/game/hooks/useGameActions";
 import type { GameCamera } from "../components/game/hooks/useGameCamera";
 import type { GameSession } from "../components/game/hooks/useGameSession";
 import { GameOverlays } from "../components/game/GameOverlays";
+import { MissionResultActions } from "../components/game/MissionResultActions";
 
 vi.mock("../components/game/MobileCommandLauncher", () => ({
   MobileCommandLauncher: ({ open }: { open: boolean }) => <div data-testid="surface-mobile-launcher" data-open={open ? "true" : "false"} />,
@@ -180,6 +181,26 @@ describe("game overlay surfaces", () => {
     expect(screen.queryByTestId("surface-mobile-launcher")).toBeNull();
     expect(screen.queryByTestId("surface-sidebar")).toBeNull();
     expect(screen.queryByTestId("surface-pause")).toBeNull();
+  });
+
+  it("offers to replay a completed mission", () => {
+    const state = { ...makeFixture({ seed: 421, win: { kind: "annihilate" } }), result: "won" as const };
+    const onRetry = vi.fn();
+
+    render(
+      <MissionResultActions
+        state={state}
+        onNextBriefing={vi.fn()}
+        onCampaignVictory={vi.fn()}
+        onCampaignMap={vi.fn()}
+        onRetry={onRetry}
+        onMenu={vi.fn()}
+        onSoundtrack={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Replay mission" }));
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   it("keeps command controls available during tutorial play", () => {

@@ -9,6 +9,7 @@ import { createCampaign } from "../lib/gen/campaign";
 import { generateMap } from "../lib/gen/map";
 import { tooltipLines, tileTooltipLines } from "../lib/render/renderer";
 import { objectiveProgress } from "../lib/sim/objectives";
+import { distToEntity } from "../lib/sim/world";
 import type { MissionKind } from "../lib/types";
 
 function missionOfKind(kind: MissionKind, missionIndex: number) {
@@ -110,6 +111,9 @@ describe("tactical expansion", () => {
       const routeEnd = neutral?.path.at(-1);
       expect(routeEnd).toBeDefined();
       expect(Math.hypot(routeEnd!.x - state.runtime!.zone!.x, routeEnd!.y - state.runtime!.zone!.y)).toBeLessThanOrEqual(6);
+      const enemyBuildings = state.entities.filter((entity) => entity.owner === 1 && entity.class === "building" && entity.hp > 0);
+      expect(enemyBuildings.every((building) => distToEntity(routeEnd!, building) >= 2.5)).toBe(true);
+      expect(Math.hypot(routeEnd!.x - state.runtime!.zone!.x, routeEnd!.y - state.runtime!.zone!.y)).toBeGreaterThanOrEqual(4.5);
     } else {
       expect(neutral?.kind).toBe("infantry");
       expect(neutral?.path).toEqual([]);

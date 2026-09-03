@@ -10,7 +10,7 @@ import { cachedLocalStorage } from "@/lib/persist/save";
 import { saveKey, type SaveSession } from "@/lib/persist/save";
 import { recordTelemetry, telemetryFromMission } from "@/lib/persist/telemetry";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
-import { burstsFromDestroyed, type FxBurst } from "@/lib/render/fx";
+import { burstsFromEvents, type FxBurst } from "@/lib/render/fx";
 import type { Camera } from "@/lib/iso";
 import { missionMedals, missionScore } from "@/lib/sim/debrief";
 import type { Command, SimState } from "@/lib/types";
@@ -165,8 +165,8 @@ export function useGameLoop({
           onAlert(alert.text);
           onTacticalAnnouncement(alert.text);
         }
-        if (events.some((e) => e.type === "destroyed")) {
-          const spawned = burstsFromDestroyed(events, next, now, fxSeq.current);
+        if (events.some((event) => event.type === "combat" || event.type === "destroyed" || event.type === "support" || event.type === "built" || event.type === "produced")) {
+          const spawned = burstsFromEvents(events, next, now, fxSeq.current);
           fxSeq.current = spawned.nextId;
           fxRef.current.push(...spawned.bursts);
         }

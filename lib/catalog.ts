@@ -241,7 +241,7 @@ export const REPAIR_COST_RATIO = 0.5;
 export const SELL_RATIO = 0.5;
 
 export function repairHpPerTick(kind: BuildingKind): number {
-  return Math.max(2, Math.ceil(BUILDING_STATS[kind].hp / 360));
+  return Math.max(1, Math.ceil(BUILDING_STATS[kind].hp / 720));
 }
 
 export function repairValue(kind: BuildingKind): number {

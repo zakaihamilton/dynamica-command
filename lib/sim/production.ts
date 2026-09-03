@@ -54,7 +54,14 @@ export function tickProduction(state: SimState): SimEvent[] {
           const k = String(e.kind);
           state.buildingsCompletedByKind[k] = (state.buildingsCompletedByKind[k] ?? 0) + 1;
         }
-        events.push({ type: "built", owner: e.owner, kind: isBuildingEntity(e) ? e.kind : "objective" });
+        events.push({
+          type: "built",
+          owner: e.owner,
+          kind: isBuildingEntity(e) ? e.kind : "objective",
+          id: e.id,
+          x: e.x,
+          y: e.y,
+        });
       }
       continue;
     }
@@ -75,7 +82,15 @@ export function tickProduction(state: SimState): SimEvent[] {
         }
         state.unitsProduced[e.owner] += 1;
         if (e.owner === 0) state.unitsProducedByRole[kind] += 1;
-        events.push({ type: "produced", owner: e.owner, kind });
+        events.push({
+          type: "produced",
+          owner: e.owner,
+          kind,
+          id: spawned.id,
+          x: spawned.x,
+          y: spawned.y,
+          sourceId: e.id,
+        });
         const next = e.queue.shift();
         e.producing = next
           ? { kind: next, remaining: UNIT_STATS[next].buildTicks }

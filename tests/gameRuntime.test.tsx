@@ -23,10 +23,12 @@ const startLoop = vi.hoisted(() => vi.fn(() => ({ stop: vi.fn() })));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/audio/synth", () => ({ beep: vi.fn(), setSfxEnabled: vi.fn(), playSfx: vi.fn() }));
 vi.mock("@/lib/audio/music", () => ({
+  pauseMusic: vi.fn(),
   setMusicEnabled: vi.fn(),
   setMusicCue: vi.fn(),
   setMusicDucked: vi.fn(),
   setMusicIntensity: vi.fn(),
+  clearMusicPosition: vi.fn(),
   TUTORIAL_MUSIC_MISSION: -1,
 }));
 vi.mock("@/lib/audio/mixer", () => ({ setAudioLevels: vi.fn() }));

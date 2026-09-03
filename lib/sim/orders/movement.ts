@@ -33,6 +33,7 @@ function issueTravelOrder(
     e.gatherX = undefined;
     e.gatherY = undefined;
     e.idle = false;
+    if (e.kind === "harvester") e.moveToHarvest = true;
     if (formation) e.formation = formation;
     e.flowGoal = sharedFlowGoal ? { ...sharedFlowGoal } : undefined;
     e.routePending = false;

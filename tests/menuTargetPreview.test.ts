@@ -121,11 +121,13 @@ describe("welcome target cinema shots", () => {
   });
 
   it("shares the same atlas-compatible ground world used by gameplay", () => {
-    const scene = createCinemaScene(previewSeed(0));
+    const missionIndex = 2;
+    const scene = createCinemaScene(previewSeed(0), missionIndex);
     const world = cinemaGroundWorld(scene);
-    const mission = createMission({ seed: scene.seed, missionIndex: 0 });
+    const mission = createMission({ seed: scene.seed, missionIndex });
     expect(world).toBe(scene.ground);
     expect(world.seed).toBe(mission.seed);
+    expect(world.missionIndex).toBe(mission.missionIndex);
     expect(world.biome).toBe(mission.biome);
     expect(world.tiles).toEqual(mission.tiles);
     expect(world.surfaces).toEqual(mission.surfaces);

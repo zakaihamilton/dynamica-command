@@ -1,4 +1,4 @@
-import type { AnimFrame, UnitKind } from "../types";
+import type { AnimFrame, BiomeName, UnitKind } from "../types";
 
 export const GROUND_DUST_FILL = "rgba(140, 130, 115, 0.25)";
 export const UNIT_SHADOW_FILL = "#000";
@@ -10,7 +10,20 @@ export const UNIT_SHADOW_OFFSET_Y = 4;
 export type UnitMotionOptions = {
   strideRatio?: number;
   stridePhase?: number;
+  directionX?: number;
+  directionY?: number;
+  dustFill?: string;
+  reducedMotion?: boolean;
 };
+
+export function movementDustFill(biome: BiomeName): string {
+  if (biome === "tundra grid") return "rgba(174, 207, 211, 0.2)";
+  if (biome === "volcanic shelf") return "rgba(117, 76, 65, 0.28)";
+  if (biome === "jungle wreckage" || biome === "salt marshes") return "rgba(76, 91, 66, 0.2)";
+  if (biome === "crystal flats") return "rgba(125, 151, 151, 0.22)";
+  if (biome === "rust canyons" || biome === "glass desert") return "rgba(153, 104, 72, 0.26)";
+  return GROUND_DUST_FILL;
+}
 
 export function unitShadowRadii(kind: UnitKind, scale: number): { radX: number; radY: number } {
   if (kind === "infantry" || kind === "medic") return { radX: 10 * scale, radY: 5 * scale };
@@ -67,24 +80,51 @@ export function paintUnitMovementFx(
   alpha: number,
   options: UnitMotionOptions = {},
 ): void {
+  if (options.reducedMotion) return;
   const isWalker = kind === "infantry" || kind === "antiArmor" || kind === "medic";
   const ratio = strideRatioFromOptions(frame, options);
   const cx = dx + dw * 0.5;
+  const headingX = options.directionX ?? 0;
+  const headingY = options.directionY ?? 0;
 
   ctx.save();
-  ctx.fillStyle = GROUND_DUST_FILL;
+  ctx.fillStyle = options.dustFill ?? GROUND_DUST_FILL;
   ctx.globalAlpha = alpha;
 
   if (isWalker) {
     if (Math.abs(ratio) < 0.18) {
-      ctx.beginPath();
-      ctx.ellipse(cx, groundY, 4.2 * scale, 2.1 * scale, 0, 0, Math.PI * 2);
-      ctx.fill();
+      for (let i = 0; i < 2; i++) {
+        const side = i === 0 ? -1 : 1;
+        ctx.globalAlpha = alpha * (0.3 + i * 0.12);
+        ctx.beginPath();
+        ctx.ellipse(
+          cx - headingX * (3 + i * 2) * scale + side * 2.4 * scale,
+          groundY - headingY * (3 + i * 2) * scale,
+          (3.6 + i) * scale,
+          (1.6 + i * 0.3) * scale,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
     }
   } else {
-    ctx.beginPath();
-    ctx.ellipse(cx, groundY + 1 * scale, dw * 0.38, 2.5 * scale, 0, 0, Math.PI * 2);
-    ctx.fill();
+    for (let i = 0; i < 3; i++) {
+      const trail = (5 + i * 6) * scale;
+      ctx.globalAlpha = alpha * (0.28 - i * 0.065);
+      ctx.beginPath();
+      ctx.ellipse(
+        cx - headingX * trail,
+        groundY + 1 * scale - headingY * trail,
+        dw * (0.3 + i * 0.045),
+        (2.4 + i * 0.7) * scale,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
   }
 
   ctx.restore();

@@ -168,7 +168,10 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
       <DocumentTitle title={`Seed ${formatSeed(seed)} · ${operations ? "Operations" : "Campaign Record"} | Dynamica Command`} />
       <div className={styles.vignette} />
       <div className={styles.content}>
-        <MetalPanel className={`${styles.panel} ${operations ? styles.operationsPanel : ""}`} data-testid={operations ? "operations-panel" : undefined}>
+        <MetalPanel
+          className={`${styles.panel} ${operations ? styles.operationsPanel : ""}`}
+          data-testid={operations ? "operations-panel" : "campaign-complete-panel"}
+        >
           <header className={styles.header}>
             <ConsoleLabel>Strategic command record</ConsoleLabel>
             <h1 className={styles.title}>{operations ? "Operations map" : summary.isComplete ? "Campaign complete" : "Campaign record"}</h1>

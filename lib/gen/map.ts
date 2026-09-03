@@ -15,6 +15,12 @@ export {
 } from "./map/scenery";
 export { hashNoise, valueNoise, fbm, warpedFbm, mixSalt } from "./map/noise";
 export {
+  terrainFeatureAt,
+  type TerrainFeatureKind,
+  type TerrainFeatureSample,
+  type TerrainFeatureWorld,
+} from "./map/features";
+export {
   idx,
   inBounds,
   neighbors8,

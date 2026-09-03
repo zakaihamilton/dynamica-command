@@ -27,18 +27,54 @@ import {
   setSeed,
   setMissionIndex,
   setDucked,
+  setStep,
 } from "./musicState";
-import { applyIntensityAt, scheduleStep, ensureMusicPlaying, applyPattern, stopMusic } from "./musicScheduler";
+import {
+  applyIntensityAt,
+  scheduleStep,
+  ensureMusicPlaying,
+  applyPattern,
+  stopMusic,
+  readMusicPosition,
+  saveMusicPosition,
+  clearMusicPosition,
+  getAudibleStep,
+  saveAudibleMusicPosition,
+} from "./musicScheduler";
 
 export { TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION };
 export type { MusicIntensity } from "./compose";
 export { isAudioUnlocked } from "./context";
+export {
+  readMusicPosition,
+  saveMusicPosition,
+  clearMusicPosition,
+  getAudibleStep,
+  saveAudibleMusicPosition,
+};
+
+export function resetMusicPosition(targetCue?: MusicCue, targetSeed?: number, targetMissionIndex?: number): void {
+  clearMusicPosition(targetCue, targetSeed, targetMissionIndex);
+  if (
+    targetCue === undefined ||
+    (targetCue === cue &&
+      (targetSeed === undefined || targetSeed === seed) &&
+      (targetMissionIndex === undefined || targetMissionIndex === missionIndex))
+  ) {
+    setStep(0);
+    if (targetCue === undefined) {
+      setCue("menu");
+      setSeed(TITLE_MUSIC_SEED);
+      setMissionIndex(0);
+      setPattern(null);
+    }
+  }
+}
 
 export function musicCueFromPath(pathname: string): MusicCue | null {
-  // Briefings are intentionally silent; returning null lets AudioRoot stop
-  // any mission music that was playing before the route changed.
-  if (pathname.startsWith("/play") || pathname.startsWith("/tutorial")) return "mission";
-  if (pathname.startsWith("/campaign-complete")) return "victory";
+  // Music is scoped to the active mission battlefield. Returning null on all
+  // other routes lets AudioRoot stop any mission music during navigation.
+  if (pathname.startsWith("/play")) return "mission";
   return null;
 }
 
@@ -49,6 +85,10 @@ export function isMusicEnabled(): boolean {
 export function setMusicCue(nextCue: MusicCue, nextSeed: number, nextMissionIndex = 0): void {
   setPaused(false);
   if (cue === nextCue && seed === nextSeed && missionIndex === nextMissionIndex && pattern) {
+    if (!timer) {
+      const remembered = readMusicPosition(nextCue, nextSeed, nextMissionIndex);
+      if (typeof remembered === "number") setStep(remembered);
+    }
     setMusicIntensity("calm");
     ensureMusicPlaying();
     return;
@@ -60,7 +100,11 @@ export function setMusicCue(nextCue: MusicCue, nextSeed: number, nextMissionInde
   setPendingIntensity(null);
   const next = composeMusic(nextSeed, nextCue, nextMissionIndex);
   if (timer) applyPattern(next);
-  else setPattern(next);
+  else {
+    const remembered = readMusicPosition(nextCue, nextSeed, nextMissionIndex);
+    setStep(remembered ?? 0);
+    setPattern(next);
+  }
   ensureMusicPlaying();
 }
 
@@ -72,6 +116,7 @@ export function setMusicEnabled(value: boolean): void {
 }
 
 export function pauseMusic(): void {
+  saveAudibleMusicPosition();
   setPaused(true);
   stopMusic();
 }

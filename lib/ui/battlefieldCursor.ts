@@ -7,6 +7,22 @@ export type BattlefieldCursor = "crosshair" | "pointer" | "cell" | "not-allowed"
 
 const SUPPORT_KINDS = new Set(["harvester", "medic", "repairTruck", "convoyTruck"]);
 
+function hasResourceNear(state: SimState, cx: number, cy: number, maxRadius = 1): boolean {
+  for (let dy = -maxRadius; dy <= maxRadius; dy++) {
+    for (let dx = -maxRadius; dx <= maxRadius; dx++) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx >= 0 && nx < state.width && ny >= 0 && ny < state.height) {
+        const i = ny * state.width + nx;
+        if (state.tiles[i] === TILE_RESOURCE && (state.resourceAmount[i] ?? 0) > 0) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 export function battlefieldCursor({
   state,
   hoverTile,
@@ -44,7 +60,7 @@ export function battlefieldCursor({
     });
     return selectedCombat ? "crosshair" : "not-allowed";
   }
-  if (hoverTile && state.tiles[hoverTile.y * state.width + hoverTile.x] === TILE_RESOURCE) {
+  if (hoverTile && hasResourceNear(state, hoverTile.x, hoverTile.y, 1)) {
     const harvesting = selectedIds.some((id) => {
       const entity = state.entities.find((item) => item.id === id);
       return entity?.kind === "harvester" && entity.hp > 0 && entity.owner === 0;

@@ -1,6 +1,7 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { beep } from "@/lib/audio/synth";
+import { clearMusicPosition, TUTORIAL_MUSIC_MISSION } from "@/lib/audio/music";
 import {
   cachedLocalStorage,
   defaultSlotName,
@@ -181,6 +182,8 @@ export function useMissionPersistence({
 
   const restartMissionNow = useCallback(() => {
     const world = stateRef.current;
+    const missionIdx = tutorial ? TUTORIAL_MUSIC_MISSION : world.missionIndex;
+    clearMusicPosition("mission", world.seed, missionIdx);
     const fresh = tutorial ? createTutorialMission() : createMission({ seed: world.seed, missionIndex: world.missionIndex });
     stateRef.current = fresh;
     terminalSaveRef.current = false;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { generateMap, sceneryAt, skirtSample, featureEdgeMask, isMountainScenery, MAP_SKIRT, MAP_SKIRT_ALPHA, skirtAlpha } from "../lib/gen/map";
+import { generateMap, sceneryAt, skirtSample, featureEdgeMask, isMountainScenery, MAP_SKIRT, MAP_SKIRT_ALPHA, skirtAlpha, terrainFeatureAt } from "../lib/gen/map";
 import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
-import { buildingAt, groundHeight } from "../lib/sim/world";
+import { buildingAt, groundHeight, INITIAL_BUILDING_EDGE_MARGIN } from "../lib/sim/world";
 import { makeFixture } from "../lib/sim/fixtures";
 import { BUILDING_STATS, footprintOf } from "../lib/catalog";
 import type { BuildingKind } from "../lib/types";
@@ -138,6 +138,22 @@ describe("mission footprints", () => {
       }
     }
   });
+
+  it("keeps initial ally and enemy buildings clear of the map edge", () => {
+    for (let seed = 0; seed < 32; seed++) {
+      const campaign = createCampaign(seed);
+      for (const mission of campaign.missions) {
+        const state = createMission({ seed, missionIndex: mission.index });
+        for (const building of state.entities.filter((entity) => entity.class === "building" && entity.hp > 0)) {
+          const footprint = footprintOf(building.kind as BuildingKind);
+          expect(building.x).toBeGreaterThanOrEqual(INITIAL_BUILDING_EDGE_MARGIN);
+          expect(building.y).toBeGreaterThanOrEqual(INITIAL_BUILDING_EDGE_MARGIN);
+          expect(building.x + footprint.w).toBeLessThanOrEqual(state.width - INITIAL_BUILDING_EDGE_MARGIN);
+          expect(building.y + footprint.h).toBeLessThanOrEqual(state.height - INITIAL_BUILDING_EDGE_MARGIN);
+        }
+      }
+    }
+  });
 });
 
 describe("map skirt scenery", () => {
@@ -253,6 +269,40 @@ describe("organic map generation", () => {
     expect(elevated).toBeGreaterThan(0);
     expect(adjacentElevated / elevated).toBeGreaterThan(0.25);
     expect(roadDiagonals.size).toBeGreaterThan(8);
+  });
+});
+
+describe("biome terrain regions", () => {
+  it("selects deterministic, coherent feature regions for a mission", () => {
+    const world = { seed: 832, missionIndex: 3, biome: "rust canyons" as const, width: 72, height: 72 };
+    const first = terrainFeatureAt(world, 22, 31);
+    expect(terrainFeatureAt(world, 22, 31)).toEqual(first);
+
+    const active = [] as ReturnType<typeof terrainFeatureAt>[];
+    let matchingNeighbors = 0;
+    let comparableNeighbors = 0;
+    for (let y = 2; y < world.height - 2; y += 2) {
+      for (let x = 2; x < world.width - 2; x += 2) {
+        const here = terrainFeatureAt(world, x, y);
+        if (here.intensity < 0.16) continue;
+        active.push(here);
+        const east = terrainFeatureAt(world, x + 2, y);
+        if (east.intensity < 0.16) continue;
+        comparableNeighbors += 1;
+        if (east.kind === here.kind) matchingNeighbors += 1;
+      }
+    }
+    expect(active.length).toBeGreaterThan(24);
+    expect(new Set(active.map((sample) => sample.kind)).size).toBeGreaterThanOrEqual(2);
+    expect(matchingNeighbors / comparableNeighbors).toBeGreaterThan(0.7);
+  });
+
+  it("uses the same mission-scoped feature field beyond the playable edge", () => {
+    const world = { seed: 421, missionIndex: 5, biome: "volcanic shelf" as const, width: 96, height: 96 };
+    const outside = terrainFeatureAt(world, -4, 38);
+    expect(terrainFeatureAt(world, -4, 38)).toEqual(outside);
+    expect(skirtSample(world.seed, world.biome, -4, 38, world.width, world.height, world.missionIndex))
+      .toEqual(skirtSample(world.seed, world.biome, -4, 38, world.width, world.height, world.missionIndex));
   });
 });
 

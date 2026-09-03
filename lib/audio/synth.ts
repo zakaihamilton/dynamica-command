@@ -42,6 +42,7 @@ export type SfxOptions = {
   minInterval?: number;
   force?: boolean;
   heavy?: boolean;
+  delay?: number;
 };
 
 let sfxEnabled = true;
@@ -394,11 +395,12 @@ export function playSfx(kind: SfxKind, options: SfxOptions = {}): void {
   const dest = getAudioBus("sfx");
   if (!audio || !dest) return;
   const now = audio.currentTime;
+  const requested = now + Math.max(0, options.delay ?? 0);
   const minInterval = options.minInterval ?? DEFAULT_INTERVALS[kind] ?? 0;
   const previous = lastPlayed.get(kind) ?? Number.NEGATIVE_INFINITY;
-  let start = now;
+  let start = requested;
   if (!options.force) {
-    const scheduled = scheduleSfxTime(now, previous, minInterval);
+    const scheduled = scheduleSfxTime(requested, previous, minInterval);
     if (scheduled === null) return;
     start = scheduled;
   }

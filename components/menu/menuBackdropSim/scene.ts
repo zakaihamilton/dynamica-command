@@ -122,6 +122,7 @@ export function createCinemaScene(
 
   const ground: AtlasWorld = {
     seed: theater,
+    missionIndex: mIndex,
     biome: map.biome,
     width: map.width,
     height: map.height,

@@ -32,6 +32,11 @@ export function MissionResultActions({
           Campaign victory
         </ConsoleButton>
       ) : null}
+      {state.result === "won" ? (
+        <ConsoleButton muted tooltip="Replay this mission" onClick={onRetry}>
+          Replay mission
+        </ConsoleButton>
+      ) : null}
       {state.result === "lost" ? (
         <ConsoleButton tooltip="Retry this mission" shortcut={SHORTCUT.resultPrimary} onClick={onRetry}>
           Retry

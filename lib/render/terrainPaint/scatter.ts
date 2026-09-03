@@ -1,5 +1,5 @@
 import { TILE_H } from "../../iso";
-import { sceneryAt } from "../../gen/map";
+import { sceneryAt, terrainFeatureAt, type TerrainFeatureKind, type TerrainFeatureSample } from "../../gen/map";
 import type { BiomeName, SurfaceKind } from "../../types";
 import {
   SURFACE_CONCRETE,
@@ -38,6 +38,7 @@ export type ScatterItem = {
 
 export type ScatterWorld = {
   seed: number;
+  missionIndex?: number;
   biome: BiomeName;
   width: number;
   height: number;
@@ -58,6 +59,33 @@ const POOLS: Record<BiomeName, ScatterKind[]> = {
   "rust canyons": ["pebble", "debris", "debris", "pebbleCluster", "pebble"],
   "volcanic shelf": ["pebble", "cinder", "cinder", "debris", "pebbleCluster"],
   "glass desert": ["pebble", "pebble", "pebbleCluster", "debris", "cinder"],
+};
+
+const FEATURE_POOLS: Partial<Record<TerrainFeatureKind, readonly ScatterKind[]>> = {
+  ashDrift: ["tuft", "pebble", "pebbleCluster"],
+  cinderBasin: ["cinder", "pebble", "debris"],
+  scoriaField: ["cinder", "pebbleCluster", "pebble"],
+  crystalVein: ["crystalChip", "crystalChip", "pebble"],
+  reflectivePan: ["crystalChip", "pebble", "iceChip"],
+  facetRise: ["crystalChip", "pebbleCluster", "pebble"],
+  strataGully: ["pebble", "debris", "pebbleCluster"],
+  mesaShelf: ["pebble", "pebbleCluster", "debris"],
+  scrapWash: ["debris", "debris", "pebble"],
+  mudflat: ["reed", "tuft", "pebble"],
+  reedBed: ["reed", "reed", "shrub"],
+  saltPan: ["pebble", "iceChip", "tuft"],
+  duneSea: ["pebble", "pebbleCluster", "cinder"],
+  glassShards: ["crystalChip", "pebble", "debris"],
+  dryWash: ["pebble", "pebbleCluster", "debris"],
+  frostPan: ["iceChip", "iceChip", "pebble"],
+  iceRift: ["iceChip", "pebble", "tuft"],
+  driftMoraine: ["pebbleCluster", "iceChip", "pebble"],
+  canopyGrove: ["tuft", "shrub", "reed"],
+  wreckClearing: ["debris", "tuft", "pebble"],
+  vineRidge: ["shrub", "tuft", "pebble"],
+  basaltShelf: ["cinder", "pebbleCluster", "pebble"],
+  lavaScar: ["cinder", "cinder", "debris"],
+  ashCone: ["cinder", "pebble", "pebbleCluster"],
 };
 
 function mix(v: number, salt: number): number {
@@ -85,25 +113,25 @@ function scatterChance(biome: BiomeName): number {
   }
 }
 
-function makeItem(biome: BiomeName, v: number, slot: number): ScatterItem {
-  const pool = POOLS[biome];
+function makeItem(pool: readonly ScatterKind[], v: number, slot: number, scaleBoost = 0): ScatterItem {
   const hashed = mix(v, 31 + slot * 17);
   return {
     kind: pool[hashed % pool.length]!,
     ox: signed(v, 101 + slot, 10),
     oy: signed(v, 151 + slot, 4),
-    scale: 0.95 + unit(v, 201 + slot) * 0.55,
+    scale: 0.95 + unit(v, 201 + slot) * 0.55 + scaleBoost,
     variant: mix(v, 251 + slot),
   };
 }
 
-function groundItems(biome: BiomeName, v: number): ScatterItem[] {
-  const chance = scatterChance(biome);
+function groundItems(biome: BiomeName, v: number, feature: TerrainFeatureSample): ScatterItem[] {
+  const chance = scatterChance(biome) + Math.round(feature.intensity * 10);
   const roll = v % 100;
   if (roll >= chance) return [];
   const count = roll < chance * 0.16 ? 3 : roll < chance * 0.5 ? 2 : 1;
+  const pool = feature.intensity >= 0.24 ? FEATURE_POOLS[feature.kind] ?? POOLS[biome] : POOLS[biome];
   const items: ScatterItem[] = [];
-  for (let i = 0; i < count; i++) items.push(makeItem(biome, v, i));
+  for (let i = 0; i < count; i++) items.push(makeItem(pool, v, i, feature.intensity * 0.1));
   return items;
 }
 
@@ -134,7 +162,7 @@ export function scatterForTile(
   if (tile === TILE_WATER || tile === TILE_RESOURCE || tile === TILE_BLOCKED) return [];
   if (surf === SURFACE_CONCRETE) return [];
   if (surf === SURFACE_ROAD) return roadItems(v);
-  return groundItems(state.biome, v);
+  return groundItems(state.biome, v, terrainFeatureAt(state, x, y));
 }
 
 function shadow(ctx: CanvasRenderingContext2D, z: number, rx: number, ry: number, dy = 5): void {

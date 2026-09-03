@@ -2,7 +2,7 @@ export type { WeatherKind, WeatherParticle, WaterCaustic } from "./terrainWeathe
 
 export { resetFxTileIndex } from "./terrainWeather/core";
 
-export { paintWaterFx, waterFxNeedsClip, visibleFxTileCoords, waterCaustic, waterRippleCrests } from "./terrainWeather/water";
+export { paintWaterFx, waterFxNeedsClip, visibleFxTileCoords, waterCaustic } from "./terrainWeather/water";
 
 export { paintOreGlints, oreGlint, oreSparkle } from "./terrainWeather/ore";
 

@@ -12,6 +12,7 @@ import {
   type Vec2,
 } from "../../types";
 import { biomeTuning } from "./config";
+import { terrainFeatureAt, type TerrainFeatureSample } from "./features";
 import { fbm, warpedFbm, mixSalt } from "./noise";
 import {
   idx,
@@ -81,6 +82,8 @@ export function generateMap(
   const surfaces = new Array<SurfaceKind>(width * height).fill(SURFACE_NONE);
   const resourceAmount = new Array<number>(width * height).fill(0);
   const salt = mixSalt(rng);
+  const terrainFeatures = new Array<TerrainFeatureSample>(width * height);
+  const terrainWorld = { seed, missionIndex: mission.index, biome, width, height };
 
   const playerStart: Vec2 = {
     x: 6 + rng.int(3),
@@ -99,6 +102,8 @@ export function generateMap(
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = idx(x, y, width);
+      const feature = terrainFeatureAt(terrainWorld, x, y);
+      terrainFeatures[i] = feature;
       if (protectedStart(x, y)) {
         tiles[i] = TILE_CLEAR;
         continue;
@@ -107,8 +112,8 @@ export function generateMap(
       const basinWet = warpedFbm(x * 0.3, y * 0.3, salt + 13);
       const channel = Math.abs(warpedFbm(x * 0.16, y * 0.16, salt + 37) - 0.5);
       const waterScore = localWet * 0.48 + basinWet * 0.52;
-      const basin = waterScore < tuning.water * 0.98;
-      const river = channel < 0.035 + tuning.water * 0.025 && basinWet < tuning.water + 0.16;
+      const basin = waterScore < tuning.water * 0.98 + feature.wetness * 0.045;
+      const river = channel < 0.035 + tuning.water * 0.025 + feature.wetness * 0.007 && basinWet < tuning.water + 0.16;
       if (basin || river) tiles[i] = TILE_WATER;
     }
   }
@@ -118,6 +123,7 @@ export function generateMap(
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = idx(x, y, width);
+      const feature = terrainFeatures[i] ?? terrainFeatureAt(terrainWorld, x, y);
       const shore = warpedFbm(x * 0.72, y * 0.72, salt);
       if (tiles[i] === TILE_WATER) {
         heights[i] = 0;
@@ -125,16 +131,18 @@ export function generateMap(
       }
       const plateau = warpedFbm(x * 0.38, y * 0.38, salt + 91);
       const ridge = warpedFbm(x * 0.16, y * 0.16, salt + 127);
-      if (shore < tuning.water + 0.07) {
+      const shapedPlateau = plateau + feature.elevation * 0.12;
+      const shapedRidge = ridge + feature.elevation * 0.08;
+      if (shore < tuning.water + 0.07 + feature.wetness * 0.03) {
         heights[i] = 0;
       } else {
-        if (plateau > tuning.mountain || ridge > 0.69) heights[i] = 3;
-        else if (plateau > tuning.mountain - 0.18 || ridge > 0.59) heights[i] = 2;
+        if (shapedPlateau > tuning.mountain || shapedRidge > 0.69) heights[i] = 3;
+        else if (shapedPlateau > tuning.mountain - 0.18 || shapedRidge > 0.59) heights[i] = 2;
         else heights[i] = 1;
       }
       const grove = warpedFbm(x * 0.3, y * 0.3, salt + 211);
       const detail = fbm(x * 1.55, y * 1.55, salt + 223);
-      if (grove > tuning.blockers - 0.05 && detail > 0.5 && heights[i]! < 3 && tiles[i] !== TILE_WATER) {
+      if (grove > tuning.blockers - 0.05 - feature.blockers * 0.045 && detail > 0.5 && heights[i]! < 3 && tiles[i] !== TILE_WATER) {
         tiles[i] = TILE_BLOCKED;
       }
     }

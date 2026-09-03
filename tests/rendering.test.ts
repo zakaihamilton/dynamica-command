@@ -13,7 +13,7 @@ import {
   withAlpha,
 } from "../lib/render/terrainPaint";
 import { hash } from "../lib/gen/tilePalette";
-import { generateMap } from "../lib/gen/map";
+import { generateMap, terrainFeatureAt } from "../lib/gen/map";
 import { tileSprite } from "../lib/gen/assets";
 import { TERRAIN_ART } from "../lib/gen/visualAssets";
 import { generateCampaignVisualProfile } from "../lib/gen/visualProfile";
@@ -45,7 +45,6 @@ import {
   oreGlint,
   oreSparkle,
   waterCaustic,
-  waterRippleCrests,
   weatherKindForBiome,
   weatherParticleAt,
   visibleFxTileCoords,
@@ -565,19 +564,6 @@ describe("terrain weather and water motion", () => {
     expect(waterFxNeedsClip(state, 2, 3)).toBe(true);
   });
 
-  it("places ripple crests that continue across neighboring tiles", () => {
-    const wavelength = 2;
-    const phase = 0.5;
-    const a = waterRippleCrests(9, 11, wavelength, phase);
-    const b = waterRippleCrests(10, 12, wavelength, phase);
-    expect(a.some((k) => Math.abs(k - 10.5) < 1e-9)).toBe(true);
-    expect(b.some((k) => Math.abs(k - 10.5) < 1e-9)).toBe(true);
-    const across = waterRippleCrests(1, 3, 2, 0.5);
-    const next = waterRippleCrests(2, 4, 2, 0.5);
-    expect(across.some((k) => Math.abs(k - 2.5) < 1e-9)).toBe(true);
-    expect(next.some((k) => Math.abs(k - 2.5) < 1e-9)).toBe(true);
-    expect(waterRippleCrests(9, 11, wavelength, phase + 0.8)).not.toEqual(a);
-  });
 });
 
 describe("terrain scroll cache key", () => {
@@ -800,6 +786,35 @@ describe("biome ground patches", () => {
     expect(Math.abs(r - 89)).toBeLessThan(22);
     expect(Math.abs(g - 104)).toBeLessThan(22);
     expect(Math.abs(b - 117)).toBeLessThan(22);
+  });
+
+  it("layers coherent terrain-region marks over the biome ground treatment", () => {
+    const world = { seed: 832, missionIndex: 2, biome: "glass desert" as const, width: 72, height: 72 };
+    let feature = terrainFeatureAt(world, 0, 0);
+    let point = { x: 0, y: 0 };
+    for (let y = 0; y < world.height; y += 2) {
+      for (let x = 0; x < world.width; x += 2) {
+        const candidate = terrainFeatureAt(world, x, y);
+        if (candidate.intensity > feature.intensity) {
+          feature = candidate;
+          point = { x, y };
+        }
+      }
+    }
+    expect(feature.intensity).toBeGreaterThan(0.2);
+    const mats = biomeMaterials(world.biome);
+    const plain = applyBiomeGroundPattern(mats.mid, world.biome, point.x + 0.25, point.y + 0.25, 41, mats);
+    const regional = applyBiomeGroundPattern(mats.mid, world.biome, point.x + 0.25, point.y + 0.25, 41, mats, feature);
+    expect(regional).not.toEqual(plain);
+    expect(regional).toEqual(applyBiomeGroundPattern(
+      mats.mid,
+      world.biome,
+      point.x + 0.25,
+      point.y + 0.25,
+      41,
+      mats,
+      feature,
+    ));
   });
 });
 

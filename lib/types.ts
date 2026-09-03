@@ -165,6 +165,9 @@ export type Entity = {
   routePending?: boolean;
   supportTargetId?: number;
   supportMode?: "auto" | "assigned" | "hold";
+  /** When true, the harvester is executing a player-issued move command and should
+   *  travel to orderDestination before the economy loop starts searching for ore. */
+  moveToHarvest?: boolean;
 };
 
 export type UnitEntity = Entity & { class: "unit"; kind: UnitKind };
@@ -403,8 +406,8 @@ export type Command =
   | { type: "formation"; unitIds: number[]; formation: Formation };
 
 export type SimEvent =
-  | { type: "produced"; owner: Owner; kind: UnitKind }
-  | { type: "built"; owner: Owner; kind: BuildingKind }
+  | { type: "produced"; owner: Owner; kind: UnitKind; id?: number; x?: number; y?: number; sourceId?: number }
+  | { type: "built"; owner: Owner; kind: BuildingKind; id?: number; x?: number; y?: number }
   | { type: "destroyed"; id: number; owner: Owner; kind: UnitKind | BuildingKind; x: number; y: number }
   | { type: "sold"; id: number; kind: UnitKind | BuildingKind; x: number; y: number }
   | { type: "repairStarted"; x: number; y: number }

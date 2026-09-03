@@ -5,6 +5,7 @@ import {
   UNIT_SHADOW_OFFSET_X,
   UNIT_SHADOW_OFFSET_Y,
   drawUnitShadow,
+  movementDustFill,
   paintUnitMovementFx,
   unitShadowRadii,
 } from "../lib/render/unitMotion";
@@ -79,7 +80,7 @@ describe("unit movement ground dust", () => {
   it("puffs walker dust on stride plant and never strokes sprite geometry", () => {
     const planted = createMockCtx();
     paintUnitMovementFx(planted, "infantry", 10, 20, 30, 40, 80, 1, 0, 1, { strideRatio: 0 });
-    expect(planted.ellipse).toHaveBeenCalledTimes(1);
+    expect(planted.ellipse).toHaveBeenCalledTimes(2);
     expect(planted.fills).toEqual([GROUND_DUST_FILL]);
     expect(planted.stroke).not.toHaveBeenCalled();
     expect(planted.fillRect).not.toHaveBeenCalled();
@@ -93,10 +94,18 @@ describe("unit movement ground dust", () => {
     const ctx = createMockCtx();
     paintUnitMovementFx(ctx, "tank", 10, 20, 40, 30, 80, 1, 1, 1);
 
-    expect(ctx.ellipse).toHaveBeenCalledTimes(1);
+    expect(ctx.ellipse).toHaveBeenCalledTimes(3);
     expect(ctx.fills).toEqual([GROUND_DUST_FILL]);
     expect(ctx.fills).not.toContain(TREAD_TICK_FILL);
     expect(ctx.fillRect).not.toHaveBeenCalled();
     expect(ctx.stroke).not.toHaveBeenCalled();
+  });
+
+  it("tints dust by biome and removes it for reduced motion", () => {
+    expect(movementDustFill("tundra grid")).not.toBe(GROUND_DUST_FILL);
+    expect(movementDustFill("ash plains")).toBe(GROUND_DUST_FILL);
+    const ctx = createMockCtx();
+    paintUnitMovementFx(ctx, "tank", 10, 20, 40, 30, 80, 1, 1, 1, { reducedMotion: true });
+    expect(ctx.ellipse).not.toHaveBeenCalled();
   });
 });

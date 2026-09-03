@@ -1,4 +1,4 @@
-import { useCallback, useRef, type MutableRefObject, type RefObject } from "react";
+import { useCallback, useRef, useSyncExternalStore, type MutableRefObject, type RefObject } from "react";
 import type { Camera } from "@/lib/iso";
 import type { FxBurst } from "@/lib/render/fx";
 import type { RenderExtras } from "@/lib/render/renderer";
@@ -8,6 +8,20 @@ import { renderGameFrame } from "../renderFrame";
 import type { SelectionBox } from "./selectionBox";
 
 type Point = { x: number; y: number };
+
+const REDUCE_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function subscribeReducedMotion(onChange: () => void) {
+  const media = window.matchMedia?.(REDUCE_MOTION_QUERY);
+  if (!media) return () => {};
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function reducedMotionSnapshot() {
+  return window.matchMedia?.(REDUCE_MOTION_QUERY)?.matches ?? false;
+}
+
 export function useGameRenderer({
   stateRef,
   hostRef,
@@ -39,6 +53,7 @@ export function useGameRenderer({
   repair: MutableRefObject<boolean>;
   sell: MutableRefObject<boolean>;
 }) {
+  const reducedMotion = useSyncExternalStore(subscribeReducedMotion, reducedMotionSnapshot, () => false);
   const extrasRef = useRef<RenderExtras>({
     cursor: null,
     placeKind: null,
@@ -57,6 +72,7 @@ export function useGameRenderer({
     const host = hostRef.current;
     if (!s || !canvas || !host) return;
     extrasRef.current.commandMarker = commandMarkerRef?.current ?? null;
+    extrasRef.current.reducedMotion = reducedMotion;
     const frame = renderGameFrame({
       state: s,
       canvas,
@@ -83,7 +99,7 @@ export function useGameRenderer({
     miniCtxRef.current = frame.miniCtx;
     mobileMiniCtxRef.current = frame.secondaryMiniCtx;
     fxRef.current = frame.fx;
-  }, [boxRef, camRef, canvasRef, commandMarkerRef, cursorRef, hostRef, hoverRef, miniRef, mobileMiniRef, place, repair, selected, sell, stateRef]);
+  }, [boxRef, camRef, canvasRef, commandMarkerRef, cursorRef, hostRef, hoverRef, miniRef, mobileMiniRef, place, reducedMotion, repair, selected, sell, stateRef]);
 
   return { extrasRef, fxRef, fxSeq, redraw };
 }

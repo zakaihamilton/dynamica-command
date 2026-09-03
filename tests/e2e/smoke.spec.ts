@@ -687,5 +687,6 @@ test("shows a mission result overlay from a finished save", async ({ page }) => 
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   await expect(page.getByRole("heading", { name: "Mission complete" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Next briefing" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Replay mission" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Campaign map" })).toBeVisible();
 });

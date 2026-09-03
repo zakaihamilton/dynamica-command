@@ -26,6 +26,7 @@ export function drawCommandMarker(
   cam: Camera,
   marker: CommandMarker | null | undefined,
   nowMs: number,
+  reducedMotion = false,
 ): void {
   if (!marker) return;
   const progress = (nowMs - marker.bornMs) / COMMAND_MARKER_DURATION_MS;
@@ -35,8 +36,9 @@ export function drawCommandMarker(
   const s = tileToScreen(marker.x, marker.y, cam, heightAt(state, marker.x, marker.y));
   const groundY = s.y + (TILE_H / 2) * z;
   const fade = 1 - progress;
-  const radius = (8 + progress * 18) * z;
+  const radius = (reducedMotion ? 15 : 8 + progress * 18) * z;
   const colors = COMMAND_MARKER_COLORS[marker.kind ?? "move"];
+  const kind = marker.kind ?? "move";
 
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
@@ -49,7 +51,18 @@ export function drawCommandMarker(
   ctx.ellipse(s.x, groundY, radius, radius * 0.45, 0, 0, Math.PI * 2);
   ctx.stroke();
 
+  if (!reducedMotion) {
+    ctx.globalAlpha = fade * 0.34;
+    ctx.strokeStyle = colors.shadow;
+    ctx.lineWidth = Math.max(1, z);
+    ctx.beginPath();
+    ctx.ellipse(s.x, groundY, radius * 1.34, radius * 0.6, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   ctx.shadowBlur = 0;
+  ctx.globalAlpha = fade;
+  ctx.strokeStyle = colors.stroke;
   ctx.lineWidth = Math.max(1, z);
   for (let i = 0; i < 4; i++) {
     const angle = (i / 4) * Math.PI * 2;
@@ -69,5 +82,32 @@ export function drawCommandMarker(
   ctx.lineTo(s.x - 5 * z, groundY);
   ctx.closePath();
   ctx.fill();
+
+  ctx.strokeStyle = colors.stroke;
+  ctx.lineWidth = Math.max(1.5, 2 * z);
+  ctx.beginPath();
+  if (kind === "attack") {
+    ctx.moveTo(s.x - 4 * z, groundY - 4 * z);
+    ctx.lineTo(s.x + 4 * z, groundY + 4 * z);
+    ctx.moveTo(s.x + 4 * z, groundY - 4 * z);
+    ctx.lineTo(s.x - 4 * z, groundY + 4 * z);
+  } else if (kind === "harvest") {
+    ctx.moveTo(s.x - 5 * z, groundY + 2 * z);
+    ctx.lineTo(s.x, groundY - 5 * z);
+    ctx.lineTo(s.x + 5 * z, groundY + 2 * z);
+    ctx.lineTo(s.x, groundY + 5 * z);
+    ctx.closePath();
+  } else if (kind === "support") {
+    ctx.moveTo(s.x, groundY - 5 * z);
+    ctx.lineTo(s.x, groundY + 5 * z);
+    ctx.moveTo(s.x - 5 * z, groundY);
+    ctx.lineTo(s.x + 5 * z, groundY);
+  } else {
+    ctx.moveTo(s.x - 5 * z, groundY - 2 * z);
+    ctx.lineTo(s.x, groundY + 3 * z);
+    ctx.lineTo(s.x + 7 * z, groundY - 4 * z);
+  }
+  ctx.stroke();
+  ctx.fillStyle = colors.fill;
   ctx.restore();
 }

@@ -2,7 +2,7 @@ import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../../catalog";
 import { isBuildingEntity, type BuildingKind, type Entity, type Owner, type SimState, type UnitKind, type Vec2 } from "../../types";
 import { living, distToEntity } from "./queries";
 import { invalidateNavigation, isWalkable, canClimb } from "./terrain";
-import { findBuildSite } from "./building";
+import { DEFAULT_BUILDING_CLEARANCE, findBuildSite, INITIAL_BUILDING_EDGE_MARGIN } from "./building";
 
 export function closestApproach(state: SimState, from: Vec2, e: Entity): Vec2 {
   if (!isBuildingEntity(e)) return { x: e.x, y: e.y };
@@ -205,8 +205,20 @@ export function spawnBuildingAt(
   y: number,
   constructing = 0,
   marked = false,
+  siteFilter?: (x: number, y: number) => boolean,
 ): Entity | undefined {
-  const spot = findBuildSite(state, kind, x, y, 14, owner, false);
+  const spot = findBuildSite(
+    state,
+    kind,
+    x,
+    y,
+    14,
+    owner,
+    false,
+    DEFAULT_BUILDING_CLEARANCE,
+    INITIAL_BUILDING_EDGE_MARGIN,
+    siteFilter,
+  );
   if (!spot) return undefined;
   return spawnBuilding(state, owner, kind, spot.x, spot.y, constructing, marked);
 }

@@ -446,8 +446,8 @@ describe("generated audio", () => {
     expect(musicCueFromPath("/")).toBeNull();
     expect(musicCueFromPath("/briefing")).toBeNull();
     expect(musicCueFromPath("/play")).toBe("mission");
-    expect(musicCueFromPath("/tutorial")).toBe("mission");
-    expect(musicCueFromPath("/campaign-complete")).toBe("victory");
+    expect(musicCueFromPath("/tutorial")).toBeNull();
+    expect(musicCueFromPath("/campaign-complete")).toBeNull();
   });
 
   it("skips synthesized cues when sound effects are disabled", () => {

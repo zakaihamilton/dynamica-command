@@ -28,6 +28,7 @@ let music: GainNode | null = null;
 let sfx: GainNode | null = null;
 let sfxLimiter: DynamicsCompressorNode | null = null;
 let sfxMakeup: GainNode | null = null;
+let musicDuck: { until: number; depth: number } | null = null;
 
 export function clampAudioVolume(value: number): number {
   return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
@@ -36,7 +37,17 @@ export function clampAudioVolume(value: number): number {
 function applyLevels(audio: AudioContext): void {
   const now = audio.currentTime;
   master?.gain.setTargetAtTime(levels.masterVolume, now, RAMP_S);
-  music?.gain.setTargetAtTime(enabled.music ? levels.musicVolume : 0, now, RAMP_S);
+  const activeDuck = musicDuck && now < musicDuck.until ? musicDuck : null;
+  if (!activeDuck) musicDuck = null;
+  music?.gain.cancelScheduledValues?.(now);
+  music?.gain.setTargetAtTime(
+    enabled.music ? levels.musicVolume * (activeDuck?.depth ?? 1) : 0,
+    now,
+    activeDuck ? 0.018 : RAMP_S,
+  );
+  if (activeDuck) {
+    music?.gain.setTargetAtTime(enabled.music ? levels.musicVolume : 0, activeDuck.until, 0.08);
+  }
   sfx?.gain.setTargetAtTime(enabled.sfx ? levels.sfxVolume : 0, now, RAMP_S);
 }
 
@@ -141,6 +152,26 @@ export function setAudioBusEnabled(bus: AudioBus, value: boolean): void {
   }
 }
 
+/** Briefly make room for nearby heavy battlefield cues, then recover the saved music level. */
+export function duckMusic(depth = 0.78, duration = 0.16): void {
+  const audio = peekAudioContext();
+  if (!audio || !enabled.music) return;
+  ensureMixer(audio);
+  if (!music) return;
+  const now = audio.currentTime;
+  const nextDepth = clampAudioVolume(depth);
+  const nextUntil = now + Math.max(0.04, duration);
+  const activeDuck = musicDuck && now < musicDuck.until ? musicDuck : null;
+  musicDuck = {
+    until: Math.max(nextUntil, activeDuck?.until ?? 0),
+    depth: Math.min(nextDepth, activeDuck?.depth ?? 1),
+  };
+  const ducked = levels.musicVolume * musicDuck.depth;
+  music.gain.cancelScheduledValues?.(now);
+  music.gain.setTargetAtTime(ducked, now, 0.018);
+  music.gain.setTargetAtTime(levels.musicVolume, musicDuck.until, 0.08);
+}
+
 export function getAudioLevels(): AudioLevels {
   return { ...levels };
 }
@@ -148,5 +179,6 @@ export function getAudioLevels(): AudioLevels {
 export function resetAudioMixerForTests(): void {
   levels = { ...DEFAULT_LEVELS };
   enabled = { music: true, sfx: true };
+  musicDuck = null;
   teardownMixer();
 }

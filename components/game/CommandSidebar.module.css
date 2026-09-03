@@ -86,7 +86,7 @@
   text-transform: uppercase;
 }
 
-.sidebar > .radarSlot::before { content: "Situation"; }
+
 .sidebar > .resourceSlot::before { content: "Economy"; }
 .sidebar > .build::before { content: "Command"; }
 

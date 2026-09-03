@@ -218,6 +218,37 @@ test.describe("operations map responsive layout", () => {
   });
 });
 
+test.describe("campaign complete responsive layout", () => {
+  test("keeps the final controls reachable after scrolling the campaign record", async ({ page }) => {
+    for (const viewport of [
+      { width: 1280, height: 720 },
+      { width: 390, height: 844 },
+      { width: 320, height: 568 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/campaign-complete?seed=0421");
+      await expect(page.getByRole("heading", { name: "Campaign record" })).toBeVisible();
+
+      const panel = page.getByTestId("campaign-complete-panel");
+      const layout = await panel.evaluate((element) => {
+        const panel = element as HTMLElement;
+        panel.scrollTop = panel.scrollHeight;
+        return {
+          clientHeight: panel.clientHeight,
+          scrollHeight: panel.scrollHeight,
+        };
+      });
+      expect(layout.scrollHeight).toBeGreaterThan(layout.clientHeight);
+
+      const returnToMenu = page.getByRole("button", { name: "Return to menu" });
+      const bounds = await returnToMenu.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.y).toBeGreaterThanOrEqual(0);
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+    }
+  });
+});
+
 test.describe("short-height layouts", () => {
   test("keeps the briefing actions reachable at short desktop heights", async ({ page }) => {
     for (const height of [650, 791]) {

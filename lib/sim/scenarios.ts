@@ -1,6 +1,8 @@
 import type { Rng } from "../seed/rng";
 import type { GeneratedMap } from "../gen/map";
+import { footprintOf } from "../catalog";
 import type {
+  BuildingKind,
   MissionDef,
   MissionRuntime,
   SimEvent,
@@ -8,11 +10,11 @@ import type {
   Vec2,
 } from "../types";
 import { secondaryObjectivesForMission } from "../gen/objectives";
-import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../types";
+import { inObjectiveZone, OBJECTIVE_ZONE_RADIUS, RESCUE_CONTACT_RADIUS } from "../types";
 import { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS } from "../gen/pacing";
 import { PATH_DIRS, diagonalCornerBlocked, routePendingFor } from "./pathfinding";
 import { tryFindPathDetailed } from "./pathBudget";
-import { canClimb, inBounds, isStaticWalkable, isWalkable, spawnBuildingAt, spawnUnit } from "./world";
+import { canClimb, distToEntity, inBounds, isStaticWalkable, isWalkable, spawnBuildingAt, spawnUnit } from "./world";
 
 export { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS };
 
@@ -24,6 +26,7 @@ export function configureMissionScenario(
   rng: Rng,
 ): void {
   const enemyStart = map.enemyStart;
+  const scenarioReachability = reachableScenarioCells(state);
 
   if (mission.win.kind === "destroyMarked") {
     const ids: number[] = [];
@@ -37,14 +40,16 @@ export function configureMissionScenario(
     for (let i = 0; i < count; i++) {
       const spot = spots[i] ?? { x: enemyStart.x - 4 - i * 3, y: enemyStart.y - 6 };
       const kind = rng.pick(["refinery", "factory", "objective"] as const);
+      const buildingKind = kind === "refinery" ? "objective" : kind;
       const placed = spawnBuildingAt(
         state,
         1,
-        kind === "refinery" ? "objective" : kind,
+        buildingKind,
         spot.x,
         spot.y,
         0,
         true,
+        reachableBuildingFilter(state, buildingKind, scenarioReachability),
       );
       if (placed) ids.push(placed.id);
     }
@@ -55,14 +60,22 @@ export function configureMissionScenario(
     const kind = mission.win.kind;
     const targetIds: number[] = [];
     const count = mission.win.targetCount ?? 2;
-    const scenarioReachability = kind === "sabotage" ? undefined : reachableScenarioCells(state);
     const rescueRoute = kind === "rescue"
       ? { start: map.playerStart, end: map.enemyStart, min: 0.55, max: 0.8 }
       : undefined;
     if (kind === "sabotage") {
       for (let i = 0; i < count; i++) {
         const spot = map.markedSpots[i] ?? { x: enemyStart.x - 4 - i * 3, y: enemyStart.y - 5 + (i % 2) * 2 };
-        const objective = spawnBuildingAt(state, 1, "objective", spot.x, spot.y, 0, true);
+        const objective = spawnBuildingAt(
+          state,
+          1,
+          "objective",
+          spot.x,
+          spot.y,
+          0,
+          true,
+          reachableBuildingFilter(state, "objective", scenarioReachability),
+        );
         if (objective) targetIds.push(objective.id);
       }
     } else {
@@ -151,6 +164,25 @@ function reachableScenarioCells(state: SimState): Uint8Array | undefined {
   return seen;
 }
 
+function reachableBuildingFilter(
+  state: SimState,
+  kind: BuildingKind,
+  seen: Uint8Array | undefined,
+): ((x: number, y: number) => boolean) | undefined {
+  if (!seen) return undefined;
+  const footprint = footprintOf(kind);
+  return (x, y) => {
+    for (let py = y - 1; py <= y + footprint.h; py++) {
+      for (let px = x - 1; px <= x + footprint.w; px++) {
+        const inside = px >= x && px < x + footprint.w && py >= y && py < y + footprint.h;
+        if (inside || !inBounds(state, px, py) || !isStaticWalkable(state, px, py)) continue;
+        if (seen[py * state.width + px] === 1) return true;
+      }
+    }
+    return false;
+  };
+}
+
 function reachableScenarioPoint(
   state: SimState,
   desired: Vec2,
@@ -208,17 +240,21 @@ function convoyStartPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart" |
 }
 
 function convoyDestination(state: SimState, zone: Vec2, index: number): Vec2 {
-  const candidates: Vec2[] = [];
-  for (let radius = 1; radius <= 5; radius++) {
-    for (let y = zone.y - radius; y <= zone.y + radius; y++) {
-      for (let x = zone.x - radius; x <= zone.x + radius; x++) {
-        if (Math.hypot(x - zone.x, y - zone.y) > 5 || !isStaticWalkable(state, x, y)) continue;
-        candidates.push({ x, y });
-      }
+  const enemyBase = state.entities.filter((entity) => entity.owner === 1 && entity.class === "building" && entity.hp > 0);
+  const candidates: Array<{ point: Vec2; zoneDistance: number; baseDistance: number }> = [];
+  for (let y = zone.y - OBJECTIVE_ZONE_RADIUS; y <= zone.y + OBJECTIVE_ZONE_RADIUS; y++) {
+    for (let x = zone.x - OBJECTIVE_ZONE_RADIUS; x <= zone.x + OBJECTIVE_ZONE_RADIUS; x++) {
+      const zoneDistance = Math.hypot(x - zone.x, y - zone.y);
+      if (zoneDistance < OBJECTIVE_ZONE_RADIUS - 1.5 || zoneDistance > OBJECTIVE_ZONE_RADIUS || !isStaticWalkable(state, x, y)) continue;
+      const baseDistance = enemyBase.length
+        ? Math.min(...enemyBase.map((building) => distToEntity({ x, y }, building)))
+        : Infinity;
+      if (baseDistance < 2.5) continue;
+      candidates.push({ point: { x, y }, zoneDistance, baseDistance });
     }
-    if (candidates.length >= 4) break;
   }
-  return candidates[index % candidates.length] ?? zone;
+  candidates.sort((a, b) => b.baseDistance - a.baseDistance || b.zoneDistance - a.zoneDistance || a.point.y - b.point.y || a.point.x - b.point.x);
+  return candidates[index % candidates.length]?.point ?? zone;
 }
 
 export function tickScenario(state: SimState): SimEvent[] {

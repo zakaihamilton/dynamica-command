@@ -86,10 +86,10 @@ describe("structure repair", () => {
     expect(canRepair(full)).toBe(false);
   });
 
-  it("restores about half as much HP per tick as a 15-second full repair", () => {
-    expect(repairHpPerTick("barracks")).toBe(3);
-    expect(repairHpPerTick("constructionYard")).toBe(9);
-    expect(Math.ceil(BUILDING_STATS.barracks.hp / repairHpPerTick("barracks"))).toBe(300);
+  it("restores HP at half the rate of a 30-second full repair (60-second baseline)", () => {
+    expect(repairHpPerTick("barracks")).toBe(2);
+    expect(repairHpPerTick("constructionYard")).toBe(5);
+    expect(Math.ceil(BUILDING_STATS.barracks.hp / repairHpPerTick("barracks"))).toBe(450);
   });
 
   it("charges a positive cost for a repair tick", () => {
@@ -109,4 +109,19 @@ describe("structure repair", () => {
     tick(s);
     expect(power.hp).toBeGreaterThan(hp);
   });
+
+  it("sets the highlight tone to yellow when repairing and blue when eligible but not repairing", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const power = addBuilding(s, 0, "power", 4, 4);
+    power.hp = 100;
+    power.repairing = false;
+
+    const toneIdle = power.repairing ? "220,190,70" : "90,220,200";
+    expect(toneIdle).toBe("90,220,200");
+
+    power.repairing = true;
+    const toneRepairing = power.repairing ? "220,190,70" : "90,220,200";
+    expect(toneRepairing).toBe("220,190,70");
+  });
 });
+

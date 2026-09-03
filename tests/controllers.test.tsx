@@ -26,7 +26,14 @@ const router = vi.hoisted(() => ({ push: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/audio/synth", () => ({ beep: vi.fn(), setSfxEnabled: vi.fn() }));
-vi.mock("@/lib/audio/music", () => ({ setMusicEnabled: vi.fn(), setMusicCue: vi.fn(), setMusicDucked: vi.fn() }));
+vi.mock("@/lib/audio/music", () => ({
+  pauseMusic: vi.fn(),
+  setMusicEnabled: vi.fn(),
+  setMusicCue: vi.fn(),
+  setMusicDucked: vi.fn(),
+  clearMusicPosition: vi.fn(),
+  TUTORIAL_MUSIC_MISSION: -1,
+}));
 vi.mock("@/lib/audio/mixer", () => ({ setAudioLevels: vi.fn() }));
 vi.mock("@/lib/gen/visualAssets", () => ({ listTacticalRasterSources: () => [] }));
 vi.mock("@/lib/render/sprites", () => ({ preloadRasterSources: vi.fn() }));
@@ -377,7 +384,7 @@ describe("game lifecycle hooks", () => {
     expect(setState).toHaveBeenCalledOnce();
   });
 
-  it("clears combat alerts after their display window and manages audio lifecycle", () => {
+  it("clears combat alerts after their display window and pauses mission music with the game menu", async () => {
     vi.useFakeTimers();
     try {
       const { result } = renderHook(() => useCombatAlert());
@@ -389,10 +396,17 @@ describe("game lifecycle hooks", () => {
       vi.useRealTimers();
     }
 
+    const music = await import("@/lib/audio/music");
+    const { pauseMusic, setMusicCue, setMusicDucked } = music;
     const { rerender } = renderHook((props) => useGameAudioLifecycle(props), {
-      initialProps: { seed: 421, missionIndex: 3, tutorial: false, paused: true },
+      initialProps: { seed: 421, missionIndex: 3, tutorial: false, paused: true, result: "playing" as const },
     });
-    rerender({ seed: 421, missionIndex: 3, tutorial: false, paused: false });
+    expect(pauseMusic).toHaveBeenCalledOnce();
+    expect(setMusicCue).not.toHaveBeenCalled();
+
+    rerender({ seed: 421, missionIndex: 3, tutorial: false, paused: false, result: "playing" });
+    expect(setMusicDucked).toHaveBeenCalledWith(false);
+    expect(setMusicCue).toHaveBeenCalledWith("mission", 421, 3);
   });
 });
 

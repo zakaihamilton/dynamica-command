@@ -20,5 +20,6 @@ export type RenderExtras = {
   fx?: FxBurst[];
   commandMarker?: CommandMarker | null;
   subTickAlpha?: number;
+  reducedMotion?: boolean;
   render3dUnits?: boolean;
 };

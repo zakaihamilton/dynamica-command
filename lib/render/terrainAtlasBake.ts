@@ -1,4 +1,4 @@
-import { MAP_SKIRT, sceneryAt } from "../gen/map";
+import { MAP_SKIRT, sceneryAt, terrainFeatureAt, type TerrainFeatureSample } from "../gen/map";
 import { SURFACE_CONCRETE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../types";
 import {
   ATLAS_CELL,
@@ -337,6 +337,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
   const { cols, rows, width, height } = atlasSize(state);
   const colors = new Float32Array(cols * rows * 3);
   const classes = new Uint8Array(cols * rows);
+  const features = new Array<TerrainFeatureSample>(cols * rows);
   const shoreDist = bakeWaterShoreDist(state, cols, rows);
   const sceneryGrid = bakeAtlasSceneryGrid(state, cols, rows);
   const salt = artSalt(state);
@@ -346,11 +347,13 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
       const gx = col - MAP_SKIRT;
       const gy = row - MAP_SKIRT;
       const kind = atlasKindAt(sceneryGrid, col, row);
+      const feature = terrainFeatureAt(state, gx, gy);
       const color = kind === TILE_WATER ? { r: 0, g: 0, b: 0 } : cellColor(state, gx, gy);
       const i = (row * cols + col) * 3;
       colors[i] = color.r;
       colors[i + 1] = color.g;
       colors[i + 2] = color.b;
+      features[row * cols + col] = feature;
       const surface = surfaceAt(state, gx, gy);
       classes[row * cols + col] = kind === TILE_WATER
         ? WATER_CELL_CLASS
@@ -387,6 +390,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
       const cellDist = clampShore(shoreDist[row * cols + col] ?? WATER_SHORE_MAX);
       const resourceAmount = same === ORE_CELL_CLASS ? resourceAt(state, gx, gy) : 0;
       const waterMask = same === WATER_CELL_CLASS ? sceneryGrid.waterNeighbors[row * cols + col] ?? 0 : 0;
+      const feature = features[row * cols + col];
       const n00 = same === WATER_CELL_CLASS ? readShoreCell(shoreDist, cols, rows, col - 1, row - 1, cellDist) : 0;
       const n10 = same === WATER_CELL_CLASS ? readShoreCell(shoreDist, cols, rows, col, row - 1, cellDist) : 0;
       const n20 = same === WATER_CELL_CLASS ? readShoreCell(shoreDist, cols, rows, col + 1, row - 1, cellDist) : 0;
@@ -434,6 +438,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
               gy + (ly + 0.5) / ATLAS_CELL,
               salt,
               mats,
+              feature,
             );
             r = pat.r;
             g = pat.g;

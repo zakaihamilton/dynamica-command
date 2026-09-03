@@ -1,6 +1,7 @@
 import { UNIT_STATS, isUnitKind } from "../catalog";
 import type { Camera } from "../iso";
 import type { BuildingKind, SimEvent, UnitKind, WeaponType } from "../types";
+import { duckMusic } from "./mixer";
 import { spatialAudioForWorld } from "./spatial";
 import { playSfx, type SfxKind } from "./synth";
 
@@ -30,6 +31,12 @@ export function supportSfxFor(providerKind: UnitKind): SfxKind {
   return providerKind === "medic" ? "heal" : "repair";
 }
 
+export function impactDelayFor(weapon: WeaponType): number {
+  if (weapon === "smallArms") return 0.025;
+  if (weapon === "antiArmor") return 0.11;
+  return 0.085;
+}
+
 export function dispatchBattlefieldAudio(
   events: SimEvent[],
   camera: Camera,
@@ -48,10 +55,17 @@ export function dispatchBattlefieldAudio(
           pan: shot.pan,
           gain: shot.gain,
         });
+        if (event.weapon === "cannon" && shot.gain >= 0.78) duckMusic(0.82, 0.12);
       }
       if (!event.destroyed) {
         const impact = spatialAudioForWorld(event.targetX, event.targetY, camera, screenWidth, screenHeight);
-        if (impact.audible) playSfx(impactSfxFor(event.targetKind), { pan: impact.pan, gain: impact.gain });
+        if (impact.audible) {
+          playSfx(impactSfxFor(event.targetKind), {
+            pan: impact.pan,
+            gain: impact.gain,
+            delay: impactDelayFor(event.weapon),
+          });
+        }
       }
     } else if (event.type === "destroyed") {
       const impact = spatialAudioForWorld(event.x, event.y, camera, screenWidth, screenHeight);
@@ -62,6 +76,7 @@ export function dispatchBattlefieldAudio(
           gain: impact.gain * (cue.heavy ? 1.2 : 1),
           heavy: cue.heavy,
         });
+        if (cue.heavy || event.kind === "tank") duckMusic(cue.heavy ? 0.66 : 0.78, cue.heavy ? 0.28 : 0.18);
       }
     } else if (event.type === "sold") {
       playSfx("sell", { force: true });

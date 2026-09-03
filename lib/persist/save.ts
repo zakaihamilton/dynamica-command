@@ -7,6 +7,8 @@ export {
   memoryStorage,
   localStorageAdapter,
   cachedLocalStorage,
+  sessionStorageAdapter,
+  cachedSessionStorage,
 } from "./save/storage";
 
 export {

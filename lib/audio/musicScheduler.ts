@@ -39,6 +39,9 @@ import {
   fadeGen,
   incrementFadeGen,
 } from "./musicState";
+import { readMusicPosition, saveMusicPosition, clearMusicPosition } from "./musicPosition";
+
+export { readMusicPosition, saveMusicPosition, clearMusicPosition };
 
 export function applyIntensityAt(audio: AudioGraphContext, g: MusicGraph, value: MusicIntensity, time: number, isDucked = ducked): void {
   const t = Math.max(time, audio.currentTime);
@@ -139,6 +142,31 @@ function applyPendingIntensityAtPhraseBoundary(audio: AudioContext, g: MusicGrap
   applyIntensityAt(audio, g, intensity, nextNoteTime);
 }
 
+let lastPositionSaveMs = 0;
+const POSITION_SAVE_INTERVAL_MS = 500;
+
+export function getAudibleStep(): number {
+  const p = pattern;
+  const audio = peekAudioContext();
+  if (!p || !audio || !graph || !timer) return step;
+  const stepDuration = 60 / p.bpm / 4;
+  const aheadSteps = Math.max(0, Math.round((nextNoteTime - audio.currentTime) / stepDuration));
+  return (((step - aheadSteps) % p.steps) + p.steps) % p.steps;
+}
+
+export function saveAudibleMusicPosition(): void {
+  if (!pattern) return;
+  const current = getAudibleStep();
+  saveMusicPosition(cue, seed, missionIndex, current);
+}
+
+function persistAudiblePositionThrottled(): void {
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (now - lastPositionSaveMs < POSITION_SAVE_INTERVAL_MS) return;
+  lastPositionSaveMs = now;
+  saveAudibleMusicPosition();
+}
+
 function startGraph(audio: AudioContext): void {
   if (!pattern) return;
   const musicBus = getAudioBus("music");
@@ -147,8 +175,18 @@ function startGraph(audio: AudioContext): void {
   setGraph(g);
   syncDelay(audio, g, pattern);
   applyIntensityAt(audio, g, intensity, audio.currentTime);
+
+  const remembered = readMusicPosition(cue, seed, missionIndex);
+  const startStep = typeof remembered === "number" && Number.isFinite(remembered)
+    ? ((remembered % pattern.steps) + pattern.steps) % pattern.steps
+    : step > 0
+    ? step % pattern.steps
+    : 0;
+
+  const startBar = Math.floor(startStep / STEPS_PER_BAR);
+  retunePad(audio, g, pattern, startBar, audio.currentTime);
   setNextNoteTime(audio.currentTime + 0.07);
-  setStep(0);
+  setStep(startStep);
   setTimer(window.setInterval(tickScheduler, SCHEDULER_MS));
   tickScheduler();
 }
@@ -169,9 +207,11 @@ function tickScheduler(): void {
   }
   setNextNoteTime(n);
   setStep(s);
+  persistAudiblePositionThrottled();
 }
 
 function stopMusic(): void {
+  saveAudibleMusicPosition();
   incrementFadeGen();
   const t = timer;
   if (t) {
@@ -183,6 +223,14 @@ function stopMusic(): void {
     disconnectGraph(g);
     setGraph(null);
   }
+}
+
+if (typeof window !== "undefined") {
+  const onUnload = () => {
+    saveAudibleMusicPosition();
+  };
+  window.addEventListener("beforeunload", onUnload);
+  window.addEventListener("pagehide", onUnload);
 }
 
 export function ensureMusicPlaying(): void {

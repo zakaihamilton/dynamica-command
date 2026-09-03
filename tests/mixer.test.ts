@@ -10,11 +10,16 @@ afterEach(() => {
 
 class FakeParam {
   value = 0;
+  readonly targets: Array<{ value: number; start: number; constant: number }> = [];
   setValueAtTime(value: number): void {
     this.value = value;
   }
-  setTargetAtTime(value: number): void {
+  setTargetAtTime(value: number, start = 0, constant = 0): void {
     this.value = value;
+    this.targets.push({ value, start, constant });
+  }
+  cancelScheduledValues(start: number): void {
+    this.targets.splice(0, this.targets.length, ...this.targets.filter((target) => target.start < start));
   }
 }
 
@@ -109,5 +114,48 @@ describe("sfx mixer graph", () => {
     const sfx = getAudioBus("sfx");
     expect(sfx).toBeTruthy();
     expect(audio.destination.inputs).toHaveLength(1);
+  });
+
+  it("ducks the music bus for heavy cues and schedules a smooth recovery", async () => {
+    const audio = new FakeAudioContext();
+    const { duckMusic, getAudioBus, setAudioLevels } = await loadMixer(audio);
+    setAudioLevels({ musicVolume: 0.8 });
+    const music = getAudioBus("music") as unknown as FakeNode;
+
+    duckMusic(0.5, 0.2);
+
+    expect(music.gain.value).toBe(0.8);
+    expect(music.gain.targets.slice(-2)).toEqual([
+      { value: 0.4, start: 0, constant: 0.018 },
+      { value: 0.8, start: 0.2, constant: 0.08 },
+    ]);
+  });
+
+  it("keeps ducking active when another sfx syncs the mixer", async () => {
+    const audio = new FakeAudioContext();
+    const { duckMusic, getAudioBus } = await loadMixer(audio);
+    const music = getAudioBus("music") as unknown as FakeNode;
+
+    duckMusic(0.5, 0.2);
+    getAudioBus("sfx");
+
+    expect(music.gain.targets.slice(-2)).toEqual([
+      { value: 0.25, start: 0, constant: 0.018 },
+      { value: 0.5, start: 0.2, constant: 0.08 },
+    ]);
+  });
+
+  it("updates the recovery target when volume changes during a duck", async () => {
+    const audio = new FakeAudioContext();
+    const { duckMusic, getAudioBus, setAudioLevels } = await loadMixer(audio);
+    const music = getAudioBus("music") as unknown as FakeNode;
+
+    duckMusic(0.5, 0.2);
+    setAudioLevels({ musicVolume: 0.3 });
+
+    expect(music.gain.targets.slice(-2)).toEqual([
+      { value: 0.15, start: 0, constant: 0.018 },
+      { value: 0.3, start: 0.2, constant: 0.08 },
+    ]);
   });
 });

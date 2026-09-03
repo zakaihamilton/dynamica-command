@@ -11,7 +11,7 @@ import {
 } from "../../anim";
 import { TILE_H, tileToScreen, type Camera } from "../../../iso";
 import { drawSprite, isRasterReady, rasterize } from "../../sprites";
-import { drawUnitShadow, paintUnitMovementFx } from "../../unitMotion";
+import { drawUnitShadow, movementDustFill, paintUnitMovementFx } from "../../unitMotion";
 import { computeUnitDynamicTransform, updateUnitHistory } from "../../gl/unitTransformTracker";
 import { isPerfHudEnabled, type WorldPhaseTimings } from "../../perfHud";
 import {
@@ -65,6 +65,7 @@ export function renderEntityPhase(
   extras: {
     subTickAlpha?: number;
     fx?: import("../../renderOverlays").RenderExtras["fx"];
+    reducedMotion?: boolean;
   },
 ): WorldPhaseTimings | null {
   const profile = isPerfHudEnabled();
@@ -79,13 +80,28 @@ export function renderEntityPhase(
     entityById.set(e.id, e);
     drawList.push(e);
   }
-  drawList.sort((a, b) => (depthOf(a) - depthOf(b)) || (a.id - b.id));
 
-  drawFxLayer(ctx, state, cam, extras.fx, timeMs, "ground");
+  // Pre-compute interpolated positions for units so the sort uses visual depth,
+  // not coarse integer tile coords. Without this, grouped units on the same
+  // isometric diagonal flip z-order every sub-tick (visible flickering).
+  updateUnitHistory(state, timeMs);
+  const dynCache = new Map<number, ReturnType<typeof computeUnitDynamicTransform>>();
+  for (const e of drawList) {
+    if (e.class === "unit") {
+      dynCache.set(e.id, computeUnitDynamicTransform(e, state, extras.subTickAlpha ?? 0, timeMs, entityById));
+    }
+  }
+
+  drawList.sort((a, b) => {
+    const da = a.class === "unit" ? (dynCache.get(a.id)!.x + dynCache.get(a.id)!.y) : depthOf(a);
+    const db = b.class === "unit" ? (dynCache.get(b.id)!.x + dynCache.get(b.id)!.y) : depthOf(b);
+    return (da - db) || (a.id - b.id);
+  });
+
+  drawFxLayer(ctx, state, cam, extras.fx, timeMs, "ground", extras.reducedMotion);
 
   const z = cam.zoom;
   const cullPad = Math.max(128, 140 * z);
-  updateUnitHistory(state, timeMs);
 
   for (const e of drawList) {
     const entityAlpha = renderEntityOpacity(state, e, timeMs);
@@ -98,7 +114,7 @@ export function renderEntityPhase(
     const damageStage = bAnim?.damageStage ?? (e.hp / e.maxHp < 0.34 ? 2 : e.hp / e.maxHp < 0.67 ? 1 : 0);
 
     if (e.class === "unit") {
-      const dyn = computeUnitDynamicTransform(e, state, extras.subTickAlpha ?? 0, timeMs, entityById);
+      const dyn = dynCache.get(e.id)!;
       cx = dyn.x;
       cy = dyn.y;
       elev = dyn.z;
@@ -178,6 +194,10 @@ export function renderEntityPhase(
         {
           strideRatio: uAnim.strideRatio,
           stridePhase: uAnim.stridePhase,
+          directionX: dir.x,
+          directionY: dir.y,
+          dustFill: movementDustFill(state.biome),
+          reducedMotion: extras.reducedMotion,
         },
       );
     }

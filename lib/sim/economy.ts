@@ -1,13 +1,15 @@
 import { HARVEST_PER_TICK, UNIT_STATS } from "../catalog";
 import { TILE_RESOURCE } from "../types";
-import type { Entity, SimEvent, SimState } from "../types";
+import type { Entity, Facing, SimEvent, SimState } from "../types";
 import { tryFindPathDetailed } from "./pathBudget";
 import { routePendingFor } from "./pathfinding";
-import { at, closestApproach, dist, distToEntity, living, nearest, tileAt } from "./world";
+import { at, closestApproach, dist, distToEntity, inBounds, living, nearest, tileAt } from "./world";
+
+export const HARVEST_RANGE = 1.5;
 
 const resourceIndex = new WeakMap<SimState, number[]>();
 
-function resourceTiles(state: SimState): number[] {
+export function resourceTiles(state: SimState): number[] {
   let list = resourceIndex.get(state);
   if (!list) {
     list = [];
@@ -29,7 +31,36 @@ function dropResourceTile(state: SimState, index: number): void {
   if (atIndex >= 0) list.splice(atIndex, 1);
 }
 
-function nearestResource(state: SimState, from: Entity): { x: number; y: number } | undefined {
+export function resourceTileAt(state: SimState, x: number, y: number): boolean {
+  const rx = Math.round(x);
+  const ry = Math.round(y);
+  if (!inBounds(state, rx, ry)) return false;
+  const i = ry * state.width + rx;
+  return tileAt(state, rx, ry) === TILE_RESOURCE && (state.resourceAmount[i] ?? 0) > 0;
+}
+
+export function nearestResourceNear(
+  state: SimState,
+  center: { x: number; y: number },
+  maxDistance = 3,
+): { x: number; y: number } | undefined {
+  const list = resourceTiles(state);
+  let best: { x: number; y: number } | undefined;
+  let bestD = Infinity;
+  for (const i of list) {
+    if (state.resourceAmount[i]! <= 0) continue;
+    const x = i % state.width;
+    const y = (i - x) / state.width;
+    const d = dist(center, { x, y });
+    if (d <= maxDistance && d < bestD) {
+      bestD = d;
+      best = { x, y };
+    }
+  }
+  return best;
+}
+
+export function nearestResource(state: SimState, from: Entity): { x: number; y: number } | undefined {
   const list = resourceTiles(state);
   let best: { x: number; y: number } | undefined;
   let bestD = Infinity;
@@ -46,8 +77,45 @@ function nearestResource(state: SimState, from: Entity): { x: number; y: number 
   return best;
 }
 
+export function bestResource(
+  state: SimState,
+  from: Entity,
+  claims: Map<number, number>,
+  preferredCenter?: { x: number; y: number },
+): { x: number; y: number } | undefined {
+  const list = resourceTiles(state);
+  let best: { x: number; y: number } | undefined;
+  let bestScore = Infinity;
+  const center = preferredCenter ?? from;
+
+  for (const i of list) {
+    if (state.resourceAmount[i]! <= 0) continue;
+    const x = i % state.width;
+    const y = (i - x) / state.width;
+    const dCenter = dist(center, { x, y });
+    const dFrom = dist(from, { x, y });
+    const claimCount = claims.get(i) ?? 0;
+    const score = claimCount * 8 + dCenter * 0.5 + dFrom * 0.5;
+    if (score < bestScore) {
+      bestScore = score;
+      best = { x, y };
+    }
+  }
+  return best;
+}
+
 export function tickEconomy(state: SimState): SimEvent[] {
   const events: SimEvent[] = [];
+  const claims = new Map<number, number>();
+
+  for (const e of living(state)) {
+    if (e.kind !== "harvester" || e.hp <= 0) continue;
+    if (e.gatherX !== undefined && e.gatherY !== undefined) {
+      const key = at(state, e.gatherX, e.gatherY);
+      claims.set(key, (claims.get(key) ?? 0) + 1);
+    }
+  }
+
   for (const e of living(state)) {
     if (e.kind !== "harvester" || e.hp <= 0) continue;
     // Harvesters use their economy assignment rather than a player group
@@ -89,28 +157,70 @@ export function tickEconomy(state: SimState): SimEvent[] {
       continue;
     }
 
+    // If the harvester is executing a player-issued move command, let it travel
+    // to its destination first before the economy loop starts looking for ore.
+    if (e.moveToHarvest && e.orderDestination) {
+      const arrived =
+        (e.path.length === 0 && !e.routePending) ||
+        dist(e, e.orderDestination) <= HARVEST_RANGE;
+      if (!arrived) {
+        // Still en route — don't touch its path or destination.
+        continue;
+      }
+      // Arrived at destination. Clear the move-first flag and let economy take over.
+      e.moveToHarvest = undefined;
+    }
+
     let gx = e.gatherX;
     let gy = e.gatherY;
-    if (gx === undefined || gy === undefined || state.resourceAmount[at(state, gx, gy)]! <= 0) {
-      const n = nearestResource(state, e);
+
+    const currentTileX = Math.round(e.x);
+    const currentTileY = Math.round(e.y);
+    if (resourceTileAt(state, currentTileX, currentTileY)) {
+      gx = currentTileX;
+      gy = currentTileY;
+      e.gatherX = gx;
+      e.gatherY = gy;
+    } else if (
+      gx === undefined ||
+      gy === undefined ||
+      !resourceTileAt(state, gx, gy) ||
+      ((e.blockedTicks ?? 0) >= 6 && dist(e, { x: gx, y: gy }) > HARVEST_RANGE)
+    ) {
+      const preferred =
+        gx !== undefined && gy !== undefined && inBounds(state, gx, gy)
+          ? { x: gx, y: gy }
+          : e.orderDestination ?? { x: currentTileX, y: currentTileY };
+      const n = bestResource(state, e, claims, preferred);
       if (!n) continue;
       gx = n.x;
       gy = n.y;
       e.gatherX = gx;
       e.gatherY = gy;
       e.routePending = undefined;
+      e.blockedTicks = 0;
+      const key = at(state, gx, gy);
+      claims.set(key, (claims.get(key) ?? 0) + 1);
     }
+
     if (!e.orderDestination || e.orderDestination.x !== gx || e.orderDestination.y !== gy) {
       e.routePending = undefined;
     }
     e.orderDestination = { x: gx, y: gy };
-    if (dist(e, { x: gx, y: gy }) <= 0.6) {
+
+    if (dist(e, { x: gx, y: gy }) <= HARVEST_RANGE) {
       const i = at(state, gx, gy);
       const take = Math.min(HARVEST_PER_TICK, state.resourceAmount[i]!, carryMax - e.carry);
       state.resourceAmount[i]! -= take;
       e.carry += take;
       e.path = [];
       e.routePending = false;
+      const fdx = gx - e.x;
+      const fdy = gy - e.y;
+      if (Math.hypot(fdx, fdy) > 0.001) {
+        const angle = Math.atan2(fdy, fdx);
+        e.facing = (((Math.round((angle / (Math.PI * 2)) * 8) + 8) % 8) as Facing);
+      }
       if (state.resourceAmount[i]! <= 0) {
         state.tiles[i] = 0;
         e.gatherX = undefined;

@@ -42,7 +42,9 @@ export function renderHoverPhase(
           ? hovered.repairing || canRepair(hovered)
           : canSell(hovered)
       );
-      const tone = extras.repairMode ? "90,220,200" : "220,190,70";
+      const tone = extras.repairMode
+        ? (hovered.repairing ? "220,190,70" : "90,220,200")
+        : "220,190,70";
       ctx.strokeStyle = ok ? `rgba(${tone},0.95)` : "rgba(220,70,70,0.95)";
       ctx.fillStyle = ok ? `rgba(${tone},0.16)` : "rgba(220,70,70,0.16)";
       ctx.lineWidth = 2;

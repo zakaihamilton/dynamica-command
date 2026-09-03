@@ -4,8 +4,10 @@ import {
   dispatchBattlefieldAudio,
   fireSfxFor,
   impactSfxFor,
+  impactDelayFor,
   supportSfxFor,
 } from "../lib/audio/battlefield";
+import { duckMusic } from "../lib/audio/mixer";
 import { playSfx } from "../lib/audio/synth";
 import { createCamera } from "../lib/iso";
 import type { BuildingKind, SimEvent, UnitKind, WeaponType } from "../lib/types";
@@ -13,8 +15,12 @@ import type { BuildingKind, SimEvent, UnitKind, WeaponType } from "../lib/types"
 vi.mock("../lib/audio/synth", () => ({
   playSfx: vi.fn(),
 }));
+vi.mock("../lib/audio/mixer", () => ({
+  duckMusic: vi.fn(),
+}));
 
 const play = vi.mocked(playSfx);
+const duck = vi.mocked(duckMusic);
 
 function onScreenCamera() {
   const camera = createCamera();
@@ -78,11 +84,17 @@ describe("battlefield audio mapping", () => {
     const weapons: WeaponType[] = ["smallArms", "antiArmor", "cannon"];
     expect(weapons.map((weapon) => fireSfxFor("objective", weapon))).toEqual(["smallArms", "antiArmor", "cannon"]);
   });
+
+  it("delays impacts to follow their projectile weight", () => {
+    expect(impactDelayFor("smallArms")).toBeLessThan(impactDelayFor("cannon"));
+    expect(impactDelayFor("cannon")).toBeLessThan(impactDelayFor("antiArmor"));
+  });
 });
 
 describe("battlefield audio dispatch", () => {
   beforeEach(() => {
     play.mockClear();
+    duck.mockClear();
   });
 
   it("plays spatial combat and impact cues", () => {
@@ -94,6 +106,8 @@ describe("battlefield audio dispatch", () => {
     );
     expect(play).toHaveBeenCalledWith("cannon", expect.objectContaining({ pan: expect.any(Number), gain: expect.any(Number) }));
     expect(play).toHaveBeenCalledWith("impactFlesh", expect.objectContaining({ pan: expect.any(Number) }));
+    expect(play).toHaveBeenCalledWith("impactFlesh", expect.objectContaining({ delay: impactDelayFor("cannon") }));
+    expect(duck).toHaveBeenCalled();
   });
 
   it("plays distinct fire cues for infantry, tanks, turrets, and anti-armor", () => {

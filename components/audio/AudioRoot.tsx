@@ -11,6 +11,7 @@ import {
   setMusicEnabled,
   isAudioUnlocked,
   unlockAudio,
+  saveAudibleMusicPosition,
 } from "@/lib/audio/music";
 import { setSfxEnabled } from "@/lib/audio/synth";
 import { setAudioLevels } from "@/lib/audio/mixer";
@@ -48,6 +49,7 @@ function AudioRootInner() {
     const unlock = () => unlockAudio();
     const onVisibility = () => {
       if (!document.hidden && isAudioUnlocked()) unlockAudio();
+      else if (document.hidden) saveAudibleMusicPosition();
     };
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });

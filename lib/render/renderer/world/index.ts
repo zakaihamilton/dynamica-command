@@ -44,15 +44,16 @@ export function renderWorld(
   renderEntityPhase(ctx, state, cam, selected, w, h, clock, {
     subTickAlpha: extras.subTickAlpha,
     fx: extras.fx,
+    reducedMotion: extras.reducedMotion,
   });
 
   lap("entities");
 
   const timeMs = animClock(state.tick, clock);
   drawCombatEffects(ctx, state, cam, drawList, entityById, (st: SimState, ent: Entity) => resolveFacing(st, ent, entityById), clock);
-  drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst");
+  drawFxLayer(ctx, state, cam, extras.fx, timeMs, "burst", extras.reducedMotion);
   drawSelectBox(ctx, extras.selectBox);
-  drawCommandMarker(ctx, state, cam, extras.commandMarker, timeMs);
+  drawCommandMarker(ctx, state, cam, extras.commandMarker, timeMs, extras.reducedMotion);
 
   renderHoverPhase(ctx, state, cam, hoverTile, w, h, extras);
   lap("combat");

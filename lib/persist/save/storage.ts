@@ -63,10 +63,38 @@ export function localStorageAdapter(): StorageAdapter {
   };
 }
 
+export function sessionStorageAdapter(): StorageAdapter {
+  return {
+    getItem: (k) => window.sessionStorage.getItem(k),
+    setItem: (k, v) => window.sessionStorage.setItem(k, v),
+    removeItem: (k) => window.sessionStorage.removeItem(k),
+    keys: () => Object.keys(window.sessionStorage),
+  };
+}
+
 let _cachedStorage: StorageAdapter | null = null;
 
 export function cachedLocalStorage(): StorageAdapter {
   if (typeof window === "undefined") return memoryStorage();
   if (!_cachedStorage) _cachedStorage = localStorageAdapter();
   return _cachedStorage;
+}
+
+let _cachedSessionStorage: StorageAdapter | null = null;
+
+export function cachedSessionStorage(): StorageAdapter {
+  if (typeof window === "undefined") return memoryStorage();
+  if (!_cachedSessionStorage) {
+    try {
+      if (typeof window.sessionStorage !== "undefined") {
+        window.sessionStorage.getItem("__storage_test__");
+        _cachedSessionStorage = sessionStorageAdapter();
+      } else {
+        _cachedSessionStorage = cachedLocalStorage();
+      }
+    } catch {
+      _cachedSessionStorage = cachedLocalStorage();
+    }
+  }
+  return _cachedSessionStorage;
 }

@@ -111,6 +111,7 @@ function stopUnits(state: SimState, ids: number[]): SimEvent[] {
     e.gatherY = undefined;
     e.routePending = false;
     e.idle = true;
+    e.moveToHarvest = undefined;
     if (isSupportEntity(e)) holdSupport(e);
   }
   return [];
@@ -122,11 +123,53 @@ function travelOrder(ids: number[], x: number, y: number, attackMove: boolean): 
     : { type: "move", unitIds: ids, x, y };
 }
 
+function findNearbyResourceTile(state: SimState, x: number, y: number, maxRadius = 2): { x: number; y: number } | undefined {
+  if (inBounds(state, x, y) && tileAt(state, x, y) === TILE_RESOURCE && (state.resourceAmount[y * state.width + x] ?? 0) > 0) {
+    return { x, y };
+  }
+  let best: { x: number; y: number } | undefined;
+  let bestDist = Infinity;
+  for (let dy = -maxRadius; dy <= maxRadius; dy++) {
+    for (let dx = -maxRadius; dx <= maxRadius; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (!inBounds(state, nx, ny)) continue;
+      const i = ny * state.width + nx;
+      if (tileAt(state, nx, ny) === TILE_RESOURCE && (state.resourceAmount[i] ?? 0) > 0) {
+        const d = Math.hypot(dx, dy);
+        if (d < bestDist) {
+          bestDist = d;
+          best = { x: nx, y: ny };
+        }
+      }
+    }
+  }
+  return best;
+}
+
+export function patchResourceTiles(state: SimState, cx: number, cy: number, radius = 4): { x: number; y: number }[] {
+  const tiles: { x: number; y: number; d: number }[] = [];
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (!inBounds(state, nx, ny)) continue;
+      const i = ny * state.width + nx;
+      if (tileAt(state, nx, ny) === TILE_RESOURCE && (state.resourceAmount[i] ?? 0) > 0) {
+        tiles.push({ x: nx, y: ny, d: Math.hypot(dx, dy) });
+      }
+    }
+  }
+  tiles.sort((a, b) => a.d - b.d);
+  return tiles.map((t) => ({ x: t.x, y: t.y }));
+}
+
 /** Right-click / tap ground: harvest ore with harvesters, move everyone else onto the tile. */
 export function groundOrders(state: SimState, ids: number[], x: number, y: number, attackMove = false): Command[] {
   const tx = Math.round(x);
   const ty = Math.round(y);
-  if (!inBounds(state, tx, ty) || tileAt(state, tx, ty) !== TILE_RESOURCE) {
+  if (!inBounds(state, tx, ty)) {
     return [travelOrder(ids, tx, ty, attackMove)];
   }
   const harvesters: number[] = [];
@@ -137,24 +180,37 @@ export function groundOrders(state: SimState, ids: number[], x: number, y: numbe
     if (e.kind === "harvester") harvesters.push(id);
     else movers.push(id);
   }
+  const targetResource = harvesters.length > 0 ? findNearbyResourceTile(state, tx, ty, 2) : undefined;
+  if (!targetResource) {
+    return [travelOrder(ids, tx, ty, attackMove)];
+  }
   const commands: Command[] = [];
-  if (harvesters.length) commands.push({ type: "harvest", unitIds: harvesters, x: tx, y: ty });
+  if (harvesters.length) commands.push({ type: "harvest", unitIds: harvesters, x: targetResource.x, y: targetResource.y });
   if (movers.length) commands.push(travelOrder(movers, tx, ty, attackMove));
   return commands;
 }
 
 function harvestUnits(state: SimState, ids: number[], x: number, y: number): SimEvent[] {
+  const hx = Math.round(x);
+  const hy = Math.round(y);
+  const patch = patchResourceTiles(state, hx, hy, 4);
+  const resourceSlots = patch.length > 0 ? patch : [{ x: hx, y: hy }];
+
+  const validUnits = ids
+    .map((id) => byId(state, id))
+    .filter((e): e is Entity => Boolean(e && e.kind === "harvester" && e.owner === 0 && !e.neutral));
+
   let searches = 0;
-  for (const id of ids) {
-    const e = byId(state, id);
-    if (!e || e.kind !== "harvester" || e.owner !== 0 || e.neutral) continue;
+  validUnits.forEach((e, index) => {
+    const slot = resourceSlots[index % resourceSlots.length]!;
     e.attackTarget = undefined;
     e.flowGoal = undefined;
     e.orderMode = "move";
-    e.orderDestination = { x: Math.round(x), y: Math.round(y) };
-    e.gatherX = Math.round(x);
-    e.gatherY = Math.round(y);
+    e.orderDestination = { x: slot.x, y: slot.y };
+    e.gatherX = slot.x;
+    e.gatherY = slot.y;
     e.idle = false;
+    e.moveToHarvest = undefined;
     if (searches < FOREGROUND_PATHS_PER_ORDER) {
       const result = findPathDetailed(state, e, { x: e.gatherX, y: e.gatherY }, { maxNodes: FOREGROUND_PATH_MAX_NODES });
       e.path = result.path;
@@ -164,7 +220,7 @@ function harvestUnits(state: SimState, ids: number[], x: number, y: number): Sim
       e.path = [];
       e.routePending = true;
     }
-  }
+  });
   return [];
 }
 

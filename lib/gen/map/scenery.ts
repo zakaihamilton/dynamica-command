@@ -7,6 +7,7 @@ import {
   type WinCategory,
 } from "../../types";
 import { biomeTuning } from "./config";
+import { terrainFeatureAt } from "./features";
 import { warpedFbm } from "./noise";
 import { idx } from "./terrain";
 import { type GeneratedMap } from "./generator";
@@ -18,6 +19,7 @@ export type ScenerySample = { kind: number; elev: number };
 
 export type SceneryWorld = {
   seed?: number;
+  missionIndex?: number;
   biome: BiomeName;
   width: number;
   height: number;
@@ -42,6 +44,7 @@ export function skirtSample(
   y: number,
   mapW: number,
   mapH: number,
+  missionIndex = 0,
 ): ScenerySample {
   const dist = outsideDist(x, y, mapW, mapH);
   const salt = (Math.imul(seed ^ 0x9e3779b9, 747796405) >>> 0) % 1_000_000;
@@ -49,15 +52,17 @@ export function skirtSample(
   const n2 = warpedFbm(x * 1.65, y * 1.65, salt + 51);
   const riverBand = warpedFbm(x * 0.22, y * 0.22, salt + 113);
   const tuning = biomeTuning(biome);
-  const river = Math.abs(riverBand - 0.5) < 0.08 || n < tuning.water * 0.85;
+  const feature = terrainFeatureAt({ seed, missionIndex, biome, width: mapW, height: mapH }, x, y);
+  const river = Math.abs(riverBand - 0.5) < 0.08 + feature.wetness * 0.01 || n < tuning.water * 0.85 + feature.wetness * 0.04;
   if (river && dist <= 8 && n2 < 0.72) {
     return { kind: TILE_WATER, elev: 0 };
   }
-  if (dist >= 3 || n > tuning.mountain - 0.1) {
-    const elev = dist >= 6 || n > tuning.mountain ? 3 : n > tuning.mountain - 0.2 ? 2 : 1;
+  const mountain = tuning.mountain - feature.elevation * 0.1;
+  if (dist >= 3 || n > mountain - 0.1) {
+    const elev = dist >= 6 || n > mountain ? 3 : n > mountain - 0.2 ? 2 : 1;
     return { kind: TILE_BLOCKED, elev: Math.max(1, elev) };
   }
-  if (n2 > tuning.blockers) return { kind: TILE_BLOCKED, elev: dist >= 2 ? 2 : 1 };
+  if (n2 > tuning.blockers - feature.blockers * 0.04) return { kind: TILE_BLOCKED, elev: dist >= 2 ? 2 : 1 };
   return { kind: TILE_CLEAR, elev: dist >= 2 ? 2 : 1 };
 }
 
@@ -99,7 +104,7 @@ export function sceneryAt(
     const i = idx(x, y, state.width);
     return { kind: state.tiles[i]!, elev: state.heights[i] ?? 1 };
   }
-  const sample = skirtSample(state.seed ?? 0, state.biome, x, y, state.width, state.height);
+  const sample = skirtSample(state.seed ?? 0, state.biome, x, y, state.width, state.height, state.missionIndex ?? 0);
   const cx = Math.max(0, Math.min(state.width - 1, x));
   const cy = Math.max(0, Math.min(state.height - 1, y));
   const edge = state.tiles[idx(cx, cy, state.width)];
@@ -140,5 +145,4 @@ export function describeMap(map: GeneratedMap): {
 export function winNeedsMarked(win: WinCategory): boolean {
   return win.kind === "destroyMarked";
 }
-
 

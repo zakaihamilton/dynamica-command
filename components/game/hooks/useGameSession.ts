@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { clearMusicPosition } from "@/lib/audio/music";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission } from "@/lib/sim/tutorial";
@@ -51,6 +52,9 @@ export function initialMission(
   }
   const freshLaunchIntent = consumeFreshLaunchIntent(seed, mission);
   const startFresh = fresh && (freshLaunchIntent || !isBrowserReload());
+  if (startFresh) {
+    clearMusicPosition("mission", seed, mission);
+  }
   if (!startFresh && typeof window !== "undefined") {
     const saved = readSave(cachedLocalStorage(), seed);
     if (saved && (resume || saved.missionIndex === mission)) return saved;

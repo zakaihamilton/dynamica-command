@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { burstsFromDestroyed, cullFx, fxAlive, fxProgress, FX_DURATION, type FxBurst } from "../lib/render/fx";
+import { describe, expect, it, vi } from "vitest";
+import { createCamera } from "../lib/iso";
+import {
+  burstsFromDestroyed,
+  burstsFromEvents,
+  cullFx,
+  fxAlive,
+  fxProgress,
+  fxTargetDomain,
+  FX_DURATION,
+  MAX_PERSISTENT_FX,
+  MAX_TRANSIENT_FX,
+  type FxBurst,
+} from "../lib/render/fx";
+import { drawFxLayer } from "../lib/render/renderCombat";
 import { addBuilding, addUnit, makeFixture } from "../lib/sim/fixtures";
 
 function burst(partial: Partial<FxBurst> & Pick<FxBurst, "kind">): FxBurst {
@@ -17,6 +30,27 @@ function burst(partial: Partial<FxBurst> & Pick<FxBurst, "kind">): FxBurst {
   };
 }
 
+function mockCtx() {
+  return {
+    canvas: { width: 800, height: 500 },
+    save: vi.fn(),
+    restore: vi.fn(),
+    beginPath: vi.fn(),
+    closePath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    ellipse: vi.fn(),
+    fill: vi.fn(),
+    stroke: vi.fn(),
+    fillRect: vi.fn(),
+    globalAlpha: 1,
+    globalCompositeOperation: "source-over",
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 1,
+  } as unknown as CanvasRenderingContext2D;
+}
+
 describe("combat fx bursts", () => {
   it("reports progress and expiry from birth time", () => {
     const explosion = burst({ kind: "explosion", bornMs: 0, durationMs: 100 });
@@ -32,7 +66,11 @@ describe("combat fx bursts", () => {
     const dead = burst({ id: 1, kind: "explosion", bornMs: 0, durationMs: 10 });
     expect(cullFx([dead, live], 1000).map((item) => item.id)).toEqual([2]);
     const many = Array.from({ length: 70 }, (_, i) => burst({ id: i, kind: "impact", bornMs: 990, durationMs: 200 }));
-    expect(cullFx(many, 1000)).toHaveLength(64);
+    expect(cullFx(many, 1000)).toHaveLength(MAX_TRANSIENT_FX);
+    const aftermath = Array.from({ length: 30 }, (_, i) => burst({ id: 100 + i, kind: "scorch", bornMs: 990 }));
+    const culled = cullFx([...many, ...aftermath], 1000);
+    expect(culled.filter((item) => item.kind === "scorch")).toHaveLength(MAX_PERSISTENT_FX);
+    expect(culled.filter((item) => item.kind === "impact")).toHaveLength(MAX_TRANSIENT_FX);
   });
 
   it("spawns explosions for units and rubble for buildings", () => {
@@ -72,5 +110,92 @@ describe("combat fx bursts", () => {
     );
 
     expect(bursts[0]?.owner).toBe(1);
+  });
+
+  it("maps weapons, support, construction, and deployment onto typed visual bursts", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const { bursts } = burstsFromEvents(
+      [
+        {
+          type: "combat",
+          owner: 0,
+          attackerKind: "tank",
+          weapon: "cannon",
+          x: 2,
+          y: 3,
+          targetX: 4,
+          targetY: 5,
+          targetOwner: 1,
+          targetKind: "tank",
+          destroyed: false,
+        },
+        {
+          type: "support",
+          owner: 0,
+          providerId: 2,
+          providerKind: "medic",
+          targetId: 3,
+          targetKind: "infantry",
+          amount: 12,
+          x: 3,
+          y: 3,
+          targetX: 4,
+          targetY: 4,
+        },
+        { type: "built", owner: 0, kind: "power", id: 4, x: 5, y: 5 },
+        { type: "produced", owner: 0, kind: "tank", id: 5, x: 6, y: 5, sourceId: 4 },
+      ],
+      state,
+      400,
+      20,
+    );
+
+    expect(bursts.map((item) => item.kind)).toEqual(["muzzle", "impact", "heal", "build", "deploy"]);
+    expect(bursts.find((item) => item.kind === "impact")).toMatchObject({
+      weapon: "cannon",
+      targetDomain: "vehicle",
+      sourceX: 2,
+      sourceY: 3,
+    });
+    expect(bursts.every((item) => item.variant !== undefined && item.magnitude !== undefined)).toBe(true);
+  });
+
+  it("keeps deterministic metadata and non-gory target domains", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const event = { type: "built", owner: 0, kind: "power", id: 7, x: 5, y: 6 } as const;
+    const first = burstsFromEvents([event], state, 100, 9).bursts[0];
+    const second = burstsFromEvents([event], state, 100, 9).bursts[0];
+    expect(first?.variant).toBe(second?.variant);
+    expect(fxTargetDomain("infantry")).toBe("human");
+    expect(fxTargetDomain("tank")).toBe("vehicle");
+    expect(fxTargetDomain("power")).toBe("building");
+  });
+
+  it("reduces particle motion and culls bursts outside the visible battlefield", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const impact = burst({
+      kind: "impact",
+      x: 2,
+      y: 2,
+      bornMs: 0,
+      weapon: "cannon",
+      targetDomain: "vehicle",
+      magnitude: 1,
+      variant: 12,
+    });
+    const animated = mockCtx();
+    drawFxLayer(animated, state, cam, [impact], 80, "burst", false);
+    expect(animated.ellipse).toHaveBeenCalled();
+    expect(animated.fillRect).toHaveBeenCalled();
+
+    const reduced = mockCtx();
+    drawFxLayer(reduced, state, cam, [impact], 80, "burst", true);
+    expect(reduced.ellipse).toHaveBeenCalled();
+    expect(reduced.fillRect).not.toHaveBeenCalled();
+
+    const offscreen = mockCtx();
+    drawFxLayer(offscreen, state, cam, [{ ...impact, x: 1000, y: 1000 }], 80, "burst");
+    expect(offscreen.ellipse).not.toHaveBeenCalled();
   });
 });

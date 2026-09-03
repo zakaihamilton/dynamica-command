@@ -279,7 +279,7 @@ export function useGameRuntime({
     persistCampaign: !tutorial,
   });
 
-  useGameAudioLifecycle({ seed, missionIndex: state.missionIndex, tutorial, paused });
+  useGameAudioLifecycle({ seed, missionIndex: state.missionIndex, tutorial, paused, result: state.result });
 
   useEffect(() => () => clearRenderSessionCaches(), []);
 
