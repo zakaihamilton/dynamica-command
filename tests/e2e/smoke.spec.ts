@@ -222,6 +222,7 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await expect(page.getByLabel("Four digit campaign seed")).toHaveValue(/^\d{4}$/);
   await expect(page.getByTestId("campaign-backdrop")).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy link" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Today" })).toBeDisabled();
 
   const deployOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(deployOverflow).toBe(false);
@@ -249,6 +250,9 @@ test("copies a campaign link and opens a shared seed", async ({ page, context })
   await expect(page.getByTestId("deploy-screen")).toBeVisible();
   await expect(page.getByLabel("Four digit campaign seed")).toHaveValue("0777");
   await expect(page.getByTestId("campaign-backdrop")).toBeVisible();
+  await page.getByRole("button", { name: "Today" }).click();
+  await expect(page.getByLabel("Four digit campaign seed")).not.toHaveValue("0777");
+  await expect(page.getByRole("button", { name: "Today" })).toBeDisabled();
 });
 
 test("opens the campaign archive from the main menu", async ({ page }) => {

@@ -15,6 +15,7 @@ import { useGameSelection } from "../components/game/hooks/useGameSelection";
 import { useMissionRoutes } from "../components/game/hooks/useMissionRoutes";
 import { useMissionBackGuard } from "../components/game/hooks/useMissionBackGuard";
 import { useMenuController } from "../components/menu/useMenuController";
+import { dailySeed } from "../components/menu/menuLaunch";
 import { consumeFreshLaunchIntent } from "../lib/persist/navigation";
 import { createSaveSession, listSlots, localStorageAdapter, readSave, writeSave } from "../lib/persist/save";
 import { defaultSettings } from "../lib/persist/settings";
@@ -93,6 +94,13 @@ describe("useMenuController", () => {
       expect(shared.result.current.code).toBe("0421");
       expect(shared.result.current.view).toBe("newGame");
     });
+  });
+
+  it("restores today's daily seed", () => {
+    const { result } = renderHook(() => useMenuController());
+    act(() => result.current.setCode("0421"));
+    act(() => result.current.restoreDaily());
+    expect(result.current.code).toBe(dailySeed());
   });
 });
 

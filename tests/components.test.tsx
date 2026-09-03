@@ -279,6 +279,7 @@ describe("MenuOverlay", () => {
       settings: defaultSettings(),
       onChange: vi.fn(),
       onRandomize: vi.fn(),
+      onToday: vi.fn(),
       onCopyLink: vi.fn(),
       onLaunch: vi.fn(),
       onToggleSound: vi.fn(),
@@ -307,6 +308,7 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
+        onToday={vi.fn()}
         onCopyLink={vi.fn()}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
@@ -332,6 +334,7 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
+        onToday={vi.fn()}
         onCopyLink={onCopyLink}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
@@ -354,12 +357,84 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
+        onToday={vi.fn()}
         onCopyLink={onCopyLink}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
       />,
     );
     expect(screen.getByRole("button", { name: "Link copied!" })).toBeVisible();
+  });
+
+  it("uses a versus layout when faction names are long", () => {
+    const campaign = createCampaign(421);
+    render(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Campaign"
+        preview={campaign}
+        copied={false}
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onToday={vi.fn()}
+        onCopyLink={vi.fn()}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("campaign-details")).toHaveAttribute("data-wide", "true");
+    expect(screen.getByText(campaign.factions[0].name)).toBeVisible();
+    expect(screen.getByText(campaign.factions[1].name)).toBeVisible();
+    expect(screen.queryByText(`${campaign.factions[0].name} vs ${campaign.factions[1].name}`)).toBeNull();
+  });
+
+  it("keeps a compact faction line when names are short", () => {
+    const campaign = createCampaign(201);
+    render(
+      <NewGameSetup
+        code="0201"
+        error=""
+        previewLine="Campaign"
+        preview={campaign}
+        copied={false}
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onToday={vi.fn()}
+        onCopyLink={vi.fn()}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("campaign-details")).not.toHaveAttribute("data-wide");
+    expect(screen.getByText(`${campaign.factions[0].name} vs ${campaign.factions[1].name}`)).toBeVisible();
+  });
+
+  it("restores the daily seed from Today", () => {
+    const onToday = vi.fn();
+    render(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Campaign"
+        preview={createCampaign(421)}
+        copied={false}
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onToday={onToday}
+        onCopyLink={vi.fn()}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    expect(onToday).toHaveBeenCalledOnce();
   });
 });
 

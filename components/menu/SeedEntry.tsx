@@ -10,6 +10,8 @@ export function SeedEntry({
   inputRef,
   onChange,
   onRandomize,
+  onToday,
+  todayDisabled = false,
   onLaunch,
 }: {
   code: string;
@@ -18,6 +20,8 @@ export function SeedEntry({
   inputRef: RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onRandomize: () => void;
+  onToday?: () => void;
+  todayDisabled?: boolean;
   onLaunch: () => void;
 }) {
   return (
@@ -56,14 +60,27 @@ export function SeedEntry({
             className={styles.input}
           />
         </div>
-        <ConsoleButton
-          className={styles.roll}
-          tooltip="Roll a random campaign"
-          shortcut={SHORTCUT.randomize}
-          onClick={onRandomize}
-        >
-          Roll
-        </ConsoleButton>
+        <div className={styles.seedActions}>
+          <ConsoleButton
+            className={styles.roll}
+            tooltip="Roll a random campaign"
+            shortcut={SHORTCUT.randomize}
+            onClick={onRandomize}
+          >
+            Roll
+          </ConsoleButton>
+          {onToday && (
+            <ConsoleButton
+              muted
+              className={styles.today}
+              tooltip={todayDisabled ? "Already on today's campaign" : "Return to today's daily campaign"}
+              onClick={onToday}
+              disabled={todayDisabled}
+            >
+              Today
+            </ConsoleButton>
+          )}
+        </div>
       </div>
       <div className={styles.status}>
         <p className={styles.preview}>{previewLine}</p>

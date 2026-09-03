@@ -19,6 +19,7 @@ export function MenuOverlay({
   settings,
   onChange,
   onRandomize,
+  onToday,
   onCopyLink,
   onLaunch,
   onToggleSound,
@@ -37,6 +38,7 @@ export function MenuOverlay({
   settings: GameSettings;
   onChange: (value: string) => void;
   onRandomize: () => void;
+  onToday: () => void;
   onCopyLink: () => void;
   onLaunch: () => void;
   onToggleSound: () => void;
@@ -60,6 +62,7 @@ export function MenuOverlay({
             inputRef={inputRef}
             onChange={onChange}
             onRandomize={onRandomize}
+            onToday={onToday}
             onCopyLink={onCopyLink}
             onLaunch={onLaunch}
             onBack={onBack}

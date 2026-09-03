@@ -10,6 +10,8 @@ import { SeedEntry } from "./SeedEntry";
 import { dailySeed } from "./menuLaunch";
 import styles from "./NewGameSetup.module.css";
 
+const LONG_FACTION_CHARS = 24;
+
 export function NewGameSetup({
   code,
   error,
@@ -19,6 +21,7 @@ export function NewGameSetup({
   inputRef,
   onChange,
   onRandomize,
+  onToday,
   onCopyLink,
   onLaunch,
   onBack,
@@ -31,11 +34,16 @@ export function NewGameSetup({
   inputRef: RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onRandomize: () => void;
+  onToday: () => void;
   onCopyLink: () => void;
   onLaunch: () => void;
   onBack: () => void;
 }) {
   const isDaily = code === dailySeed();
+  const factionLine = preview
+    ? `${preview.factions[0].name} vs ${preview.factions[1].name}`
+    : "";
+  const wideFactions = factionLine.length > LONG_FACTION_CHARS;
 
   return (
     <MetalPanel as="section" className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title" data-testid="deploy-screen">
@@ -54,7 +62,11 @@ export function NewGameSetup({
               aria-label={`${biomeLabel(preview.world.biome)} campaign backdrop`}
               data-testid="campaign-backdrop"
             />
-            <div className={styles.campaignDetails}>
+            <div
+              className={styles.campaignDetails}
+              data-wide={wideFactions ? "true" : undefined}
+              data-testid="campaign-details"
+            >
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>WORLD</span>
                 <span className={styles.detailValue}>{preview.world.name}</span>
@@ -71,9 +83,17 @@ export function NewGameSetup({
                 <span className={styles.detailLabel}>CONFLICT</span>
                 <span className={styles.detailValue}>{preview.world.conflict}</span>
               </div>
-              <div className={styles.detailRow}>
+              <div className={wideFactions ? `${styles.detailRow} ${styles.factionsRow}` : styles.detailRow}>
                 <span className={styles.detailLabel}>FACTIONS</span>
-                <span className={styles.detailValue}>{preview.factions[0].name} vs {preview.factions[1].name}</span>
+                {wideFactions ? (
+                  <span className={styles.factionPair}>
+                    <span>{preview.factions[0].name}</span>
+                    <span className={styles.factionVs}>vs</span>
+                    <span>{preview.factions[1].name}</span>
+                  </span>
+                ) : (
+                  <span className={styles.detailValue}>{factionLine}</span>
+                )}
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>COMMANDER</span>
@@ -98,6 +118,8 @@ export function NewGameSetup({
           inputRef={inputRef}
           onChange={onChange}
           onRandomize={onRandomize}
+          onToday={onToday}
+          todayDisabled={isDaily}
           onLaunch={onLaunch}
         />
         <div className={styles.actions}>
@@ -129,7 +151,7 @@ export function NewGameSetup({
             Back
           </ConsoleButton>
         </div>
-        <p className={styles.hint}>R rolls a new campaign · Enter launches · Escape returns</p>
+        <p className={styles.hint}>R rolls a new campaign · Today restores the daily seed · Enter launches · Escape returns</p>
       </div>
     </MetalPanel>
   );

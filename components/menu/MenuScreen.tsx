@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { DocumentTitle } from "@/components/ui/DocumentTitle";
-import { biomeArt, RASTER_ART } from "@/lib/gen/visualAssets";
+import { RASTER_ART } from "@/lib/gen/visualAssets";
 import { MenuHero } from "./MenuHero";
 import { MenuMainPanel } from "./MenuMainPanel";
 import { MenuOverlay } from "./MenuOverlay";
@@ -12,14 +12,11 @@ import styles from "./MenuScreen.module.css";
 
 export function MenuScreen() {
   const controller = useMenuController();
-  const sceneArt = controller.view === "newGame" && controller.preview
-    ? biomeArt(controller.preview.world.biome)
-    : RASTER_ART.menu;
 
   return (
     <div
       className={styles.screen}
-      style={{ "--scene-art": `url("${sceneArt}")` } as CSSProperties}
+      style={{ "--scene-art": `url("${RASTER_ART.menu}")` } as CSSProperties}
     >
       <DocumentTitle title="Dynamica Command" />
       <div className={styles.scene} />
@@ -63,6 +60,7 @@ export function MenuScreen() {
         settings={controller.settings}
         onChange={controller.setCode}
         onRandomize={controller.randomize}
+        onToday={controller.restoreDaily}
         onCopyLink={controller.copyLink}
         onLaunch={controller.launch}
         onToggleSound={controller.toggleSound}
