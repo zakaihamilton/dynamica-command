@@ -315,6 +315,51 @@ describe("NewGameSetup", () => {
 
     expect(screen.getByRole("dialog", { name: "New campaign" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Operations map" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Copy link" })).toBeDisabled();
+    expect(screen.queryByTestId("campaign-backdrop")).toBeNull();
+  });
+
+  it("shows campaign backdrop, details, and copied-link state", () => {
+    const campaign = createCampaign(421);
+    const onCopyLink = vi.fn();
+    const { rerender } = render(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Campaign"
+        preview={campaign}
+        copied={false}
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onCopyLink={onCopyLink}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("campaign-backdrop")).toBeVisible();
+    expect(screen.getByText(campaign.world.name)).toBeVisible();
+    expect(screen.getByText(campaign.characters.commander.name)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    expect(onCopyLink).toHaveBeenCalledOnce();
+
+    rerender(
+      <NewGameSetup
+        code="0421"
+        error=""
+        previewLine="Campaign"
+        preview={campaign}
+        copied
+        inputRef={createRef<HTMLInputElement>()}
+        onChange={vi.fn()}
+        onRandomize={vi.fn()}
+        onCopyLink={onCopyLink}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Link copied!" })).toBeVisible();
   });
 });
 

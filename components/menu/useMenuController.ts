@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { createCampaign } from "@/lib/gen/campaign";
 import { cachedLocalStorage } from "@/lib/persist/save";
 import { defaultSettings, readSettings, type GameSettings } from "@/lib/persist/settings";
-import { parseSeed } from "@/lib/seed/rng";
+import { formatSeed, parseSeed } from "@/lib/seed/rng";
 import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import type { MenuView } from "./MenuOverlay";
@@ -18,24 +18,22 @@ export function useMenuController() {
   const [view, setView] = useState<MenuView>("main");
   const [settings, setSettings] = useState<GameSettings>(() => defaultSettings());
   const inputRef = useRef<HTMLInputElement>(null);
+  const copyTimer = useRef(0);
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const storage = cachedLocalStorage();
       setSettings(readSettings(storage));
+      const parsed = parseSeed(new URLSearchParams(window.location.search).get("seed") ?? "");
+      if (parsed === null) return;
+      setCode(formatSeed(parsed));
+      setView("newGame");
     });
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const seedParam = params.get("seed");
-    if (seedParam && parseSeed(seedParam) !== null && seedParam.length === 4) {
-      setCode(seedParam);
-      setView("newGame");
-    }
-  }, []);
+  useEffect(() => () => window.clearTimeout(copyTimer.current), []);
 
   const preview = useMemo(() => {
     const seed = parseSeed(code);
@@ -62,10 +60,17 @@ export function useMenuController() {
   const copyLink = useCallback(() => {
     const seed = parseSeed(code);
     if (seed === null || code.length < 4) return;
-    const url = `${window.location.origin}?seed=${code}`;
-    navigator.clipboard.writeText(url).then(() => {
+    const url = `${window.location.origin}/?seed=${formatSeed(seed)}`;
+    if (!navigator.clipboard?.writeText) {
+      setError("Could not copy the campaign link.");
+      return;
+    }
+    return navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      window.clearTimeout(copyTimer.current);
+      copyTimer.current = window.setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {
+      setError("Could not copy the campaign link.");
     });
   }, [code]);
 

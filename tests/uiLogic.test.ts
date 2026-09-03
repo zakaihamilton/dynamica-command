@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { campaignSummary, missionMedalDisplay } from "../components/campaign/campaignSummary";
 import { mobileCommandLabel } from "../components/game/MobileTouchControls";
 import { contextOrders, isContactTarget, mobileCommandOrders } from "../components/game/hooks/gameInputOrders";
-import { menuLaunchPath } from "../components/menu/menuLaunch";
+import { dailySeed, menuLaunchPath } from "../components/menu/menuLaunch";
 import { createCampaign } from "../lib/gen/campaign";
 import { freshCampaignProgress } from "../lib/persist/campaign";
 import { addUnit, makeFixture, setTile, TILE_RESOURCE } from "../lib/sim/fixtures";
@@ -11,6 +11,15 @@ describe("menu navigation policy", () => {
   it("rejects incomplete seeds and routes valid launches to briefing", () => {
     expect(menuLaunchPath("42")).toBeNull();
     expect(menuLaunchPath("0421")).toBe("/briefing?seed=0421&mission=0&from=menu");
+  });
+
+  it("keeps the daily seed stable for a UTC day and changes the next day", () => {
+    const noon = Date.UTC(2026, 8, 3, 12);
+    const laterSameDay = Date.UTC(2026, 8, 3, 23, 59);
+    const nextDay = Date.UTC(2026, 8, 4, 0, 1);
+    expect(dailySeed(noon)).toMatch(/^\d{4}$/);
+    expect(dailySeed(noon)).toBe(dailySeed(laterSameDay));
+    expect(dailySeed(noon)).not.toBe(dailySeed(nextDay));
   });
 });
 

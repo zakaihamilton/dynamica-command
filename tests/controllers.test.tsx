@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -36,6 +36,7 @@ afterEach(() => {
   router.push.mockReset();
   window.localStorage.clear();
   window.sessionStorage.clear();
+  window.history.replaceState({}, "", "/");
 });
 
 describe("useMenuController", () => {
@@ -72,6 +73,26 @@ describe("useMenuController", () => {
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "l" })));
     expect(router.push).toHaveBeenCalledWith("/load");
+  });
+
+  it("copies a campaign share link and opens a shared seed from the URL", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+
+    const { result } = renderHook(() => useMenuController());
+    act(() => result.current.setCode("0421"));
+    await act(async () => {
+      await result.current.copyLink();
+    });
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?seed=0421`);
+    expect(result.current.copied).toBe(true);
+
+    window.history.replaceState({}, "", "/?seed=421");
+    const shared = renderHook(() => useMenuController());
+    await waitFor(() => {
+      expect(shared.result.current.code).toBe("0421");
+      expect(shared.result.current.view).toBe("newGame");
+    });
   });
 });
 
