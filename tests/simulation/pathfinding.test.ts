@@ -1,0 +1,805 @@
+import { describe, expect, it } from "vitest";
+import { findPath, findPathDetailed, PATH_MAX_NODES } from "../../lib/sim/pathfinding";
+import { flowFieldFor, flowStep } from "../../lib/sim/flowField";
+import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER, addBuilding, addUnit, makeFixture, setHeight, setTile } from "../../lib/sim/fixtures";
+import { issue, tick } from "../../lib/sim/api";
+import { tickAi } from "../../lib/sim/ai";
+import { tickCombat } from "../../lib/sim/combat";
+import { FOREGROUND_PATHS_PER_ORDER, PATH_BUDGET_PER_TICK, backgroundPathSearches, resetPathBudget, tryFindPath } from "../../lib/sim/pathBudget";
+import { groundOrders } from "../../lib/sim/orders";
+import { BUILDING_PLACEMENT_RADIUS, buildingAt, canPlaceBuilding, compactDestroyedEntities, makeUnitOccupancy, occupies, powerBreakdown, powerFor, staticNavigationFor, terrainAccess, unitAt } from "../../lib/sim/world";
+import { tickProduction } from "../../lib/sim/production";
+import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, UNIT_STATS } from "../../lib/catalog";
+
+describe("pathfinding", () => {
+  it("returns a bounded partial result for a long search", () => {
+    const s = makeFixture({ width: 96, height: 96, win: { kind: "annihilate" } });
+    const result = findPathDetailed(s, { x: 1, y: 1 }, { x: 95, y: 95 }, { maxNodes: 8 });
+
+    expect(PATH_MAX_NODES).toBe(4096);
+    expect(result.status).toBe("partial");
+    expect(result.path.length).toBeGreaterThan(0);
+  });
+
+  it("keeps a capped search pending when only the start node was explored", () => {
+    const s = makeFixture({ width: 10, height: 10, win: { kind: "annihilate" } });
+    const result = findPathDetailed(s, { x: 1, y: 1 }, { x: 8, y: 8 }, { maxNodes: 1 });
+
+    expect(result.status).toBe("partial");
+    expect(result.path).toEqual([]);
+  });
+
+  it("routes large foreground groups through one shared terrain field", () => {
+    const s = makeFixture({ width: 48, height: 48, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const units = Array.from({ length: FOREGROUND_PATHS_PER_ORDER + 6 }, (_, i) =>
+      addUnit(s, 0, "infantry", 3 + (i % 10), 4 + Math.floor(i / 10)),
+    );
+    issue(s, {
+      type: "move",
+      unitIds: units.map((unit) => unit.id),
+      x: 38,
+      y: 38,
+      formation: "line",
+    });
+
+    expect(units.every((unit) => unit.path.length === 0 && unit.routePending)).toBe(true);
+    expect(units.every((unit) => !!unit.flowGoal)).toBe(true);
+    tick(s);
+    expect(units.every((unit) => unit.x !== 3 || unit.y !== 4 || unit.path.length > 0)).toBe(true);
+    expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
+  });
+
+  it("marks a sealed destination unreachable without leaving a pending route", () => {
+    const s = makeFixture({ width: 10, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    for (const [x, y] of [
+      [2, 2], [3, 2], [4, 2], [2, 3], [4, 3], [2, 4], [3, 4], [4, 4],
+    ]) setTile(s, x, y, TILE_BLOCKED);
+    const result = findPathDetailed(s, { x: 3, y: 3 }, { x: 8, y: 8 });
+
+    expect(result.status).toBe("unreachable");
+    expect(result.path).toEqual([]);
+  });
+
+  it("shares explicit terrain access rules between movement and construction", () => {
+    const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    setTile(s, 2, 2, TILE_WATER);
+    setTile(s, 3, 2, TILE_BLOCKED);
+    setTile(s, 4, 2, TILE_RESOURCE, 500);
+    expect(terrainAccess(s, 2, 2)).toMatchObject({ traversable: false, buildable: false, label: "Water" });
+    expect(terrainAccess(s, 3, 2)).toMatchObject({ traversable: false, buildable: false, label: "Hard blocker" });
+    expect(terrainAccess(s, 4, 2)).toMatchObject({ traversable: true, buildable: false, label: "Ore field" });
+  });
+
+  it("routes around a blocking building", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "power", 3, 2);
+    const path = findPath(s, { x: 2, y: 2 }, { x: 6, y: 2 });
+    expect(path.length).toBeGreaterThan(0);
+    expect(path.some((p) => p.x === 3 && p.y === 2)).toBe(false);
+    expect(path.some((p) => p.x === 4 && p.y === 2)).toBe(false);
+    const last = path[path.length - 1]!;
+    expect(last.x).toBe(6);
+    expect(last.y).toBe(2);
+  });
+
+  it("moves a unit toward a move order", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const u = addUnit(s, 0, "infantry", 2, 2);
+    issue(s, { type: "move", unitIds: [u.id], x: 6, y: 2 });
+    for (let i = 0; i < 400; i++) tick(s);
+    expect(Math.round(u.x)).toBe(6);
+    expect(Math.round(u.y)).toBe(2);
+  });
+
+  it("moves a combat unit onto an ore field", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setTile(s, 6, 2, TILE_RESOURCE, 500);
+    const u = addUnit(s, 0, "infantry", 2, 2);
+    issue(s, { type: "move", unitIds: [u.id], x: 6, y: 2 });
+    expect(u.path.some((p) => p.x === 6 && p.y === 2)).toBe(true);
+    for (let i = 0; i < 400; i++) tick(s);
+    expect(Math.round(u.x)).toBe(6);
+    expect(Math.round(u.y)).toBe(2);
+  });
+
+  it("orders combat units onto ore while selected harvesters gather", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setTile(s, 6, 2, TILE_RESOURCE, 500);
+    const infantry = addUnit(s, 0, "infantry", 2, 2);
+    const harvester = addUnit(s, 0, "harvester", 2, 3);
+    const commands = groundOrders(s, [infantry.id, harvester.id], 6, 2);
+    expect(commands).toEqual([
+      { type: "harvest", unitIds: [harvester.id], x: 6, y: 2 },
+      { type: "move", unitIds: [infantry.id], x: 6, y: 2 },
+    ]);
+    for (const command of commands) issue(s, command);
+    expect(infantry.path.some((p) => p.x === 6 && p.y === 2)).toBe(true);
+    expect(harvester.gatherX).toBe(6);
+    expect(harvester.gatherY).toBe(2);
+    expect(harvester.path.length).toBeGreaterThan(0);
+  });
+
+  it("turns a ground move into attack-move when requested", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setTile(s, 6, 2, TILE_RESOURCE, 500);
+    const infantry = addUnit(s, 0, "infantry", 2, 2);
+    const harvester = addUnit(s, 0, "harvester", 2, 3);
+    expect(groundOrders(s, [infantry.id, harvester.id], 6, 2, true)).toEqual([
+      { type: "harvest", unitIds: [harvester.id], x: 6, y: 2 },
+      { type: "attackMove", unitIds: [infantry.id], x: 6, y: 2 },
+    ]);
+    expect(groundOrders(s, [infantry.id], 4, 4, true)).toEqual([
+      { type: "attackMove", unitIds: [infantry.id], x: 4, y: 4 },
+    ]);
+  });
+
+  it("keeps two units from entering the same square", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const a = addUnit(s, 0, "infantry", 2, 2);
+    const b = addUnit(s, 0, "infantry", 4, 2);
+    issue(s, { type: "move", unitIds: [a.id], x: 3, y: 2 });
+    issue(s, { type: "move", unitIds: [b.id], x: 3, y: 2 });
+    for (let i = 0; i < 400; i++) tick(s);
+    expect(unitAt(s, 3, 2)?.id).toBe(a.id);
+    expect(Math.round(b.x) === 3 && Math.round(b.y) === 2).toBe(false);
+  });
+
+  it("lets a second unit settle beside a claimed destination", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const a = addUnit(s, 0, "infantry", 2, 2);
+    const b = addUnit(s, 0, "infantry", 4, 2);
+    issue(s, { type: "move", unitIds: [a.id], x: 3, y: 2 });
+    issue(s, { type: "move", unitIds: [b.id], x: 3, y: 2 });
+    for (let i = 0; i < 400; i++) tick(s);
+    expect(unitAt(s, 3, 2)?.id).toBe(a.id);
+    expect(b.idle).toBe(true);
+    expect(b.path.length).toBe(0);
+    const settledX = b.x;
+    const settledY = b.y;
+    for (let i = 0; i < 24; i++) tick(s);
+    expect(b.x).toBe(settledX);
+    expect(b.y).toBe(settledY);
+    expect(b.idle).toBe(true);
+  });
+
+  it("settles a follower when friendly units seal the final pocket", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    for (const [x, y] of [
+      [4, 3], [5, 3], [6, 3], [4, 4], [6, 4], [4, 5], [5, 5], [6, 5],
+    ]) {
+      const blocker = addUnit(s, 0, "infantry", x, y);
+      blocker.orderDestination = { x, y };
+      blocker.idle = true;
+    }
+    const follower = addUnit(s, 0, "infantry", 7, 4);
+    issue(s, { type: "move", unitIds: [follower.id], x: 5, y: 4 });
+
+    for (let i = 0; i < 40; i++) tick(s, undefined, { evaluateObjectives: false });
+
+    expect(follower.idle).toBe(true);
+    expect(follower.path).toEqual([]);
+    expect(follower.orderDestination).toEqual({ x: 7, y: 4 });
+  });
+
+  it("reroutes a combat unit when another unit steps into its existing route", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const infantry = addUnit(s, 0, "infantry", 2, 3);
+    issue(s, { type: "move", unitIds: [infantry.id], x: 6, y: 3 });
+    const blocker = addUnit(s, 0, "infantry", 3, 3);
+
+    tick(s);
+
+    expect(infantry.path[0]).not.toEqual({ x: Math.round(blocker.x), y: Math.round(blocker.y) });
+    for (let i = 0; i < 500; i++) tick(s);
+    expect(Math.round(infantry.x)).toBe(6);
+    expect(Math.round(infantry.y)).toBe(3);
+  });
+
+  it("reroutes an enemy combat unit around another enemy unit", () => {
+    const s = makeFixture({ width: 10, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const enemy = addUnit(s, 1, "infantry", 2, 6);
+    enemy.stance = "hold";
+    enemy.path = [
+      { x: 3, y: 6 },
+      { x: 4, y: 6 },
+      { x: 5, y: 6 },
+      { x: 6, y: 6 },
+    ];
+    const blocker = addUnit(s, 1, "tank", 3, 6);
+    blocker.stance = "hold";
+
+    tick(s);
+
+    expect(enemy.path[0]).not.toEqual({ x: Math.round(blocker.x), y: Math.round(blocker.y) });
+    for (let i = 0; i < 500; i++) tick(s);
+    expect(Math.round(enemy.x)).toBe(6);
+    expect(Math.round(enemy.y)).toBe(6);
+  });
+
+  it("relocates a spawned unit when its requested square is occupied", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
+    const first = addUnit(s, 0, "infantry", 2, 2);
+    const second = addUnit(s, 0, "tank", 2, 2);
+    expect(unitAt(s, 2, 2)?.id).toBe(first.id);
+    expect(Math.round(second.x) === 2 && Math.round(second.y) === 2).toBe(false);
+  });
+
+  it("spawns barracks units from the front edge first", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "power", 0, 0);
+    const barracks = addBuilding(s, 0, "barracks", 4, 4);
+    barracks.producing = { kind: "infantry", remaining: 1 };
+    tickProduction(s);
+    const unit = s.entities.find((e) => e.class === "unit");
+    expect(unit && Math.round(unit.x)).toBe(5);
+    expect(unit && Math.round(unit.y)).toBe(6);
+  });
+
+  it("spawns factory units from the camera-facing edge", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "power", 0, 0);
+    const factory = addBuilding(s, 0, "factory", 4, 4);
+    factory.producing = { kind: "tank", remaining: 1 };
+    tickProduction(s);
+    const unit = s.entities.find((e) => e.class === "unit");
+    expect(unit && Math.round(unit.x)).toBe(5);
+    expect(unit && Math.round(unit.y)).toBe(6);
+  });
+
+  it("falls back behind a barracks when the front is blocked", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "power", 0, 0);
+    const barracks = addBuilding(s, 0, "barracks", 4, 4);
+    for (let x = 3; x <= 7; x++) {
+      setTile(s, x, 6, TILE_BLOCKED);
+      setTile(s, 6, x - 2, TILE_BLOCKED);
+    }
+    barracks.producing = { kind: "infantry", remaining: 1 };
+    tickProduction(s);
+    const unit = s.entities.find((e) => e.class === "unit");
+    expect(unit).toBeTruthy();
+    expect(Math.round(unit!.y)).toBeLessThan(4);
+  });
+
+  it("cannot climb a cliff in one step", () => {
+    const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    for (let y = 0; y < 8; y++) setHeight(s, 3, y, 3);
+    const path = findPath(s, { x: 1, y: 2 }, { x: 5, y: 2 });
+    const last = path[path.length - 1];
+    expect(path.some((p) => p.x === 3)).toBe(false);
+    expect(last && last.x === 5 && last.y === 2).toBe(false);
+  });
+
+  it("uses a hill ramp to reach a mountain", () => {
+    const s = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    setHeight(s, 3, 2, 3);
+    setHeight(s, 3, 1, 2);
+    const path = findPath(s, { x: 2, y: 2 }, { x: 3, y: 2 });
+    expect(path.length).toBeGreaterThan(0);
+    expect(path.some((p) => p.x === 3 && p.y === 1)).toBe(true);
+  });
+
+  it("routes around blocked terrain and rejects construction on it", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
+    for (let y = 1; y < 7; y++) setTile(s, 4, y, TILE_BLOCKED);
+    const path = findPath(s, { x: 2, y: 3 }, { x: 7, y: 3 });
+    expect(path.length).toBeGreaterThan(0);
+    expect(path.some((p) => p.x === 4 && p.y >= 1 && p.y < 7)).toBe(false);
+    expect(canPlaceBuilding(s, "power", 4, 2)).toBe(false);
+  });
+
+  it("plans through idle friendlies so a boxed unit still gets a path", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const mover = addUnit(s, 0, "infantry", 4, 4);
+    for (const [x, y] of [
+      [3, 3],
+      [4, 3],
+      [5, 3],
+      [3, 4],
+      [5, 4],
+      [3, 5],
+      [4, 5],
+      [5, 5],
+    ] as const) {
+      addUnit(s, 0, "infantry", x, y);
+    }
+    issue(s, { type: "move", unitIds: [mover.id], x: 9, y: 4 });
+    expect(mover.path.length).toBeGreaterThan(0);
+    for (let i = 0; i < 900; i++) tick(s);
+    expect(Math.round(mover.x)).toBe(9);
+    expect(Math.round(mover.y)).toBe(4);
+  });
+
+  it("lets a unit squeeze through a packed friendly group that is also moving", () => {
+    const s = makeFixture({ width: 24, height: 16, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const pack: ReturnType<typeof addUnit>[] = [];
+    for (let y = 3; y <= 6; y++) {
+      for (let x = 6; x <= 9; x++) {
+        pack.push(addUnit(s, 0, "infantry", x, y));
+      }
+    }
+    const loner = addUnit(s, 0, "infantry", 3, 4);
+    issue(s, { type: "move", unitIds: pack.map((unit) => unit.id), x: 7, y: 12 });
+    issue(s, { type: "move", unitIds: [loner.id], x: 16, y: 5 });
+    for (let i = 0; i < 900; i++) tick(s);
+    expect(Math.round(loner.x)).toBe(16);
+    expect(Math.round(loner.y)).toBe(5);
+  });
+
+  it("does not cut a diagonal through a building corner", () => {
+    const s = makeFixture({ width: 10, height: 8, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "turret", 3, 2);
+    const path = findPath(s, { x: 2, y: 2 }, { x: 3, y: 3 });
+    expect(path.length).toBeGreaterThan(0);
+    expect(path[0]).not.toEqual({ x: 3, y: 3 });
+    const last = path[path.length - 1]!;
+    expect(last.x).toBe(3);
+    expect(last.y).toBe(3);
+  });
+
+  it("swaps when two units meet in a one-tile corridor", () => {
+    const s = makeFixture({ width: 14, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    for (let x = 4; x <= 9; x++) {
+      setTile(s, x, 2, TILE_BLOCKED);
+      setTile(s, x, 4, TILE_BLOCKED);
+    }
+    const a = addUnit(s, 0, "infantry", 3, 3);
+    const b = addUnit(s, 0, "infantry", 10, 3);
+    issue(s, { type: "move", unitIds: [a.id], x: 10, y: 3 });
+    issue(s, { type: "move", unitIds: [b.id], x: 3, y: 3 });
+    for (let i = 0; i < 900; i++) tick(s);
+    expect(Math.round(a.x)).toBe(10);
+    expect(Math.round(a.y)).toBe(3);
+    expect(Math.round(b.x)).toBe(3);
+    expect(Math.round(b.y)).toBe(3);
+  });
+
+  it("spreads a group move across unique nearby tiles", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const a = addUnit(s, 0, "infantry", 2, 2);
+    const b = addUnit(s, 0, "infantry", 2, 3);
+    issue(s, { type: "move", unitIds: [a.id, b.id], x: 7, y: 3 });
+    expect(a.flowGoal).toEqual({ x: 7, y: 3 });
+    expect(b.flowGoal).toEqual({ x: 7, y: 3 });
+    expect(a.orderDestination).not.toEqual(b.orderDestination);
+  });
+
+  it("moves a flow-field formation into distinct final slots", () => {
+    const s = makeFixture({ width: 24, height: 16, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const units = [
+      addUnit(s, 0, "infantry", 3, 4),
+      addUnit(s, 0, "infantry", 3, 5),
+      addUnit(s, 0, "infantry", 4, 4),
+      addUnit(s, 0, "infantry", 4, 5),
+    ];
+    issue(s, { type: "move", unitIds: units.map((unit) => unit.id), x: 16, y: 9, formation: "line" });
+
+    for (let i = 0; i < 500; i++) tick(s);
+
+    expect(units.every((unit) => {
+      const destination = unit.orderDestination!;
+      return Math.max(Math.abs(Math.round(unit.x) - destination.x), Math.abs(Math.round(unit.y) - destination.y)) <= 1;
+    })).toBe(true);
+    expect(new Set(units.map((unit) => `${Math.round(unit.x)},${Math.round(unit.y)}`)).size).toBe(units.length);
+  });
+
+  it("moves a packed infantry cluster to unique destinations without freezing", () => {
+    const s = makeFixture({ width: 28, height: 16, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const units: ReturnType<typeof addUnit>[] = [];
+    for (let y = 0; y < 3; y++) {
+      for (let x = 0; x < 4; x++) {
+        units.push(addUnit(s, 0, "infantry", 3 + x, 4 + y));
+      }
+    }
+    issue(s, { type: "move", unitIds: units.map((unit) => unit.id), x: 20, y: 8 });
+    for (let i = 0; i < 800; i++) tick(s);
+    expect(new Set(units.map((unit) => `${Math.round(unit.x)},${Math.round(unit.y)}`)).size).toBe(units.length);
+    expect(units.every((unit) => {
+      const destination = unit.orderDestination!;
+      return Math.max(Math.abs(Math.round(unit.x) - destination.x), Math.abs(Math.round(unit.y) - destination.y)) <= 1;
+    })).toBe(true);
+  });
+
+  it("does not shove a progressing mover sideways when someone is waiting behind", () => {
+    const s = makeFixture({ width: 16, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const lead = addUnit(s, 0, "infantry", 5, 3);
+    const waiter = addUnit(s, 0, "infantry", 4, 3);
+    lead.idle = false;
+    lead.orderDestination = { x: 12, y: 3 };
+    lead.path = [{ x: 6, y: 3 }, { x: 7, y: 3 }, { x: 12, y: 3 }];
+    waiter.idle = false;
+    waiter.orderDestination = { x: 5, y: 0 };
+    waiter.path = [{ x: 5, y: 3 }, { x: 5, y: 2 }, { x: 5, y: 1 }, { x: 5, y: 0 }];
+    tick(s);
+    expect(Math.round(lead.y)).toBe(3);
+    expect(lead.path).toEqual([{ x: 6, y: 3 }, { x: 7, y: 3 }, { x: 12, y: 3 }]);
+  });
+
+  it("keeps leftover group followers on the flow field when peel-off A* is budgeted out", () => {
+    const s = makeFixture({ width: 28, height: 16, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const units: ReturnType<typeof addUnit>[] = [];
+    for (let i = 0; i < 12; i++) {
+      units.push(addUnit(s, 0, "infantry", 8 + (i % 4), 6 + Math.floor(i / 4)));
+    }
+    issue(s, { type: "move", unitIds: units.map((unit) => unit.id), x: 16, y: 8 });
+    for (const unit of units) {
+      const dest = unit.orderDestination!;
+      unit.x = dest.x - 2;
+      unit.y = dest.y;
+      unit.path = [];
+      unit.routePending = true;
+    }
+    tick(s);
+    expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
+    const stillFlowing = units.filter((unit) => unit.flowGoal);
+    expect(stillFlowing.length).toBeGreaterThan(0);
+    expect(stillFlowing.every((unit) => unit.path.length > 0 || unit.routePending)).toBe(true);
+  });
+
+  it("keeps a stored formation when the next move omits one", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const a = addUnit(s, 0, "infantry", 2, 2);
+    const b = addUnit(s, 0, "infantry", 2, 3);
+    issue(s, { type: "formation", unitIds: [a.id, b.id], formation: "line" });
+    issue(s, { type: "move", unitIds: [a.id, b.id], x: 7, y: 3 });
+    expect(a.formation).toBe("line");
+    expect(b.formation).toBe("line");
+    const endA = a.orderDestination!;
+    const endB = b.orderDestination!;
+    expect(endA.x).toBe(endB.x);
+    expect(endA.y).not.toBe(endB.y);
+  });
+
+  it("builds deterministic fields around water, cliffs, and blocked goals", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "annihilate" } });
+    for (let y = 0; y < s.height; y++) setTile(s, 5, y, TILE_WATER);
+    const field = flowFieldFor(s, { x: 9, y: 5 });
+    const sameField = flowFieldFor(s, { x: 9, y: 5 });
+    expect(sameField).toBe(field);
+    expect(field.distance[5 * s.width + 2]).toBe(-1);
+    expect(flowStep(field, 8, 5)).toEqual({ x: 9, y: 5 });
+
+    const cliff = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    for (let y = 0; y < cliff.height; y++) setHeight(cliff, 3, y, 3);
+    const cliffField = flowFieldFor(cliff, { x: 6, y: 2 });
+    expect(cliffField.distance[2 * cliff.width + 1]).toBe(-1);
+
+    const blockedGoal = makeFixture({ width: 12, height: 10, win: { kind: "annihilate" } });
+    addBuilding(blockedGoal, 1, "power", 6, 4);
+    const blockedField = flowFieldFor(blockedGoal, { x: 6, y: 4 });
+    expect(blockedField.goal).not.toEqual({ x: 6, y: 4 });
+    expect(flowStep(blockedField, 2, 4)).toBeTruthy();
+  });
+
+  it("skips an occupied greedy flow cell when a free lane exists", () => {
+    const s = makeFixture({ width: 20, height: 12, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addUnit(s, 0, "infantry", 6, 4);
+    const mover = addUnit(s, 0, "infantry", 5, 4);
+    const partner = addUnit(s, 0, "infantry", 5, 5);
+    const occupancy = makeUnitOccupancy(s);
+    const field = flowFieldFor(s, { x: 14, y: 4 });
+    expect(flowStep(field, 5, 4)).toEqual({ x: 6, y: 4 });
+    const avoided = flowStep(field, 5, 4, {
+      occupancy,
+      reserved: new Map(),
+      ignoreId: mover.id,
+      state: s,
+    });
+    expect(avoided).toBeTruthy();
+    expect(avoided).not.toEqual({ x: 6, y: 4 });
+
+    issue(s, { type: "move", unitIds: [mover.id, partner.id], x: 14, y: 4 });
+    tick(s);
+    expect(mover.path.length).toBeGreaterThan(0);
+    expect(mover.path[0]).not.toEqual({ x: 6, y: 4 });
+  });
+
+  it("invalidates cached navigation immediately when a building is cancelled or sold", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const cancelled = addBuilding(s, 0, "power", 5, 4, 10);
+    const beforeCancel = staticNavigationFor(s);
+    issue(s, { type: "cancelBuild", building: "power" });
+    expect(staticNavigationFor(s)).not.toBe(beforeCancel);
+
+    const sold = addBuilding(s, 0, "turret", 8, 4);
+    const beforeSell = staticNavigationFor(s);
+    issue(s, { type: "sell", buildingId: sold.id });
+    expect(staticNavigationFor(s)).not.toBe(beforeSell);
+    expect(cancelled.hp).toBe(0);
+    expect(sold.hp).toBe(0);
+  });
+
+  it("invalidates cached fields when a building footprint changes", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "annihilate" } });
+    const before = flowFieldFor(s, { x: 9, y: 4 });
+    const revision = s.navigationRevision;
+    addBuilding(s, 1, "power", 5, 4);
+    const after = flowFieldFor(s, { x: 9, y: 4 });
+    expect(s.navigationRevision).toBe(revision + 1);
+    expect(after).not.toBe(before);
+
+    const revisionAfterAdd = s.navigationRevision;
+    const building = s.entities.find((entity) => entity.class === "building" && entity.kind === "power");
+    building!.hp = 0;
+    compactDestroyedEntities(s);
+    expect(s.navigationRevision).toBe(revisionAfterAdd + 1);
+  });
+});
+
+describe("building footprints", () => {
+  it("occupies every tile in the footprint", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const b = addBuilding(s, 0, "factory", 4, 4);
+    expect(occupies(b, 4, 4)).toBe(true);
+    expect(occupies(b, 6, 5)).toBe(true);
+    expect(occupies(b, 7, 4)).toBe(false);
+    expect(buildingAt(s, 5, 5)?.id).toBe(b.id);
+  });
+
+  it("rejects placement that straddles a cliff", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setHeight(s, 3, 2, 2);
+    expect(canPlaceBuilding(s, "power", 2, 2)).toBe(false);
+    expect(canPlaceBuilding(s, "power", 5, 5)).toBe(true);
+  });
+
+  it("leaves one walkable tile between buildings from either faction", () => {
+    const s = makeFixture({ width: 16, height: 16, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 1, "power", 4, 4, 50);
+
+    expect(canPlaceBuilding(s, "turret", 6, 4, 0, false)).toBe(false);
+    expect(canPlaceBuilding(s, "turret", 7, 4, 0, false)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 4, 6, 0, false)).toBe(false);
+    expect(canPlaceBuilding(s, "turret", 4, 7, 0, false)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 6, 6, 0, false)).toBe(false);
+    expect(canPlaceBuilding(s, "turret", 7, 7, 0, false)).toBe(true);
+
+    expect(issue(s, { type: "build", building: "turret", x: 6, y: 4 })).toEqual([
+      { type: "commandRejected", reason: "invalid placement" },
+    ]);
+  });
+
+  it("rejects turrets and buildings on ore fields while leaving them walkable", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    setTile(s, 6, 4, TILE_RESOURCE, 500);
+    setTile(s, 7, 4, TILE_RESOURCE, 500);
+    expect(canPlaceBuilding(s, "turret", 6, 4)).toBe(false);
+    expect(canPlaceBuilding(s, "power", 6, 4)).toBe(false);
+    expect(issue(s, { type: "build", building: "turret", x: 6, y: 4 })).toEqual([
+      { type: "commandRejected", reason: "invalid placement" },
+    ]);
+    expect(issue(s, { type: "build", building: "power", x: 6, y: 4 })).toEqual([
+      { type: "commandRejected", reason: "invalid placement" },
+    ]);
+    const path = findPath(s, { x: 5, y: 4 }, { x: 8, y: 4 });
+    expect(path.some((p) => p.x === 6 && p.y === 4)).toBe(true);
+  });
+
+  it("requires every new building, including turrets, to join the owner building network", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 1, "constructionYard", 16, 16);
+
+    expect(canPlaceBuilding(s, "power", 3, 0)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 8, 0)).toBe(true);
+    expect(canPlaceBuilding(s, "turret", 11, 0)).toBe(false);
+    expect(canPlaceBuilding(s, "turret", 16, 16)).toBe(false);
+    expect(issue(s, { type: "build", building: "turret", x: 11, y: 0 })).toEqual([
+      { type: "commandRejected", reason: "invalid placement" },
+    ]);
+    expect(BUILDING_PLACEMENT_RADIUS).toBe(8);
+  });
+});
+
+describe("production queue", () => {
+  it("queues up to 10 units and rejects the 11th", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "power", 2, 0);
+    const barracks = addBuilding(s, 0, "barracks", 6, 4);
+    for (let i = 0; i < MAX_PRODUCTION_QUEUE; i++) {
+      const events = issue(s, { type: "produce", fromId: barracks.id, unit: "infantry" });
+      expect(events).toEqual([]);
+    }
+    expect(barracks.producing?.kind).toBe("infantry");
+    expect(barracks.queue).toHaveLength(MAX_PRODUCTION_QUEUE - 1);
+    const creditsAfterTen = s.credits[0];
+    issue(s, { type: "produce", fromId: barracks.id, unit: "infantry" });
+    expect(barracks.queue).toHaveLength(MAX_PRODUCTION_QUEUE - 1);
+    expect(s.credits[0]).toBe(creditsAfterTen);
+  });
+
+  it("starts the next queued unit after the current one finishes", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "power", 2, 0);
+    const barracks = addBuilding(s, 0, "barracks", 6, 4);
+    issue(s, { type: "produce", fromId: barracks.id, unit: "infantry" });
+    issue(s, { type: "produce", fromId: barracks.id, unit: "antiArmor" });
+    barracks.producing = { kind: "infantry", remaining: 1 };
+    tickProduction(s);
+    expect(s.entities.some((e) => e.class === "unit" && e.kind === "infantry")).toBe(true);
+    expect(barracks.producing?.kind).toBe("antiArmor");
+    expect(barracks.producing?.remaining).toBe(UNIT_STATS.antiArmor.buildTicks);
+    expect(barracks.queue).toHaveLength(0);
+  });
+});
+
+describe("cancel production and construction", () => {
+  it("allows only one barracks and one factory per owner in a mission", () => {
+    const s = makeFixture({ width: 20, height: 16, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+
+    expect(issue(s, { type: "build", building: "barracks", x: 4, y: 4 })).toEqual([]);
+    expect(issue(s, { type: "build", building: "barracks", x: 8, y: 4 })).toEqual([
+      { type: "commandRejected", reason: "building limit reached" },
+    ]);
+    expect(issue(s, { type: "build", building: "factory", x: 4, y: 8 })).toEqual([]);
+    expect(issue(s, { type: "build", building: "factory", x: 8, y: 8 })).toEqual([
+      { type: "commandRejected", reason: "building limit reached" },
+    ]);
+  });
+
+  it("refunds a queued unit before cancelling the unit in progress", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "power", 2, 0);
+    const barracks = addBuilding(s, 0, "barracks", 6, 4);
+    issue(s, { type: "produce", fromId: barracks.id, unit: "infantry" });
+    issue(s, { type: "produce", fromId: barracks.id, unit: "infantry" });
+    issue(s, { type: "produce", fromId: barracks.id, unit: "antiArmor" });
+    const afterQueue = s.credits[0];
+
+    issue(s, { type: "cancelProduce", unit: "infantry" });
+    expect(barracks.producing?.kind).toBe("infantry");
+    expect(barracks.queue).toEqual(["antiArmor"]);
+    expect(s.credits[0]).toBe(afterQueue + UNIT_STATS.infantry.cost);
+
+    issue(s, { type: "cancelProduce", unit: "infantry" });
+    expect(barracks.producing?.kind).toBe("antiArmor");
+    expect(barracks.producing?.remaining).toBe(UNIT_STATS.antiArmor.buildTicks);
+    expect(barracks.queue).toHaveLength(0);
+    expect(s.credits[0]).toBe(afterQueue + UNIT_STATS.infantry.cost * 2);
+  });
+
+  it("cancels an unfinished building, refunds its cost, and frees the tiles", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    issue(s, { type: "build", building: "power", x: 6, y: 4 });
+    const power = s.entities.find((e) => e.kind === "power");
+    expect(power?.constructing).toBeGreaterThan(0);
+    expect(buildingAt(s, 6, 4)?.id).toBe(power?.id);
+    const afterBuild = s.credits[0];
+
+    issue(s, { type: "cancelBuild", building: "power" });
+    expect(power?.hp).toBe(0);
+    expect(power?.constructing).toBe(0);
+    expect(buildingAt(s, 6, 4)).toBeUndefined();
+    expect(s.credits[0]).toBe(afterBuild + BUILDING_STATS.power.cost);
+    expect(canPlaceBuilding(s, "power", 6, 4)).toBe(true);
+  });
+
+  it("cancels the most recently placed building of that kind", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    s.credits[0] = 50_000;
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    issue(s, { type: "build", building: "turret", x: 6, y: 4 });
+    issue(s, { type: "build", building: "turret", x: 8, y: 4 });
+    const first = s.entities.find((e) => e.kind === "turret" && e.x === 6);
+    const second = s.entities.find((e) => e.kind === "turret" && e.x === 8);
+    expect(first?.constructing).toBeGreaterThan(0);
+    expect(second?.constructing).toBeGreaterThan(0);
+
+    issue(s, { type: "cancelBuild", building: "turret" });
+    expect(second?.hp).toBe(0);
+    expect(first?.hp).toBeGreaterThan(0);
+    expect(first?.constructing).toBeGreaterThan(0);
+  });
+});
+
+describe("power grid", () => {
+  it("splits generated power from drain", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    addBuilding(s, 0, "power", 3, 0);
+    addBuilding(s, 0, "barracks", 6, 0);
+    const grid = powerBreakdown(s, 0);
+    expect(grid.produced).toBe(BUILDING_STATS.constructionYard.power + BUILDING_STATS.power.power);
+    expect(grid.used).toBe(-BUILDING_STATS.barracks.power);
+    expect(grid.surplus).toBe(grid.produced - grid.used);
+    expect(powerFor(s, 0)).toBe(grid.surplus);
+  });
+});
+
+describe("pathfinding budget", () => {
+  it("caps background searches and still honors player orders", () => {
+    const s = makeFixture({ width: 16, height: 16, win: { kind: "annihilate" } });
+    const mover = addUnit(s, 0, "infantry", 1, 1);
+    resetPathBudget(0);
+    issue(s, { type: "move", unitIds: [mover.id], x: 8, y: 8 });
+    expect(mover.path.length).toBeGreaterThan(0);
+    expect(backgroundPathSearches()).toBe(0);
+
+    resetPathBudget(PATH_BUDGET_PER_TICK);
+    const hits: Array<ReturnType<typeof tryFindPath>> = [];
+    for (let i = 0; i < 10; i++) {
+      hits.push(tryFindPath(s, { x: 1, y: 1 }, { x: 10, y: 10 }));
+    }
+    expect(hits.filter((path) => path !== undefined)).toHaveLength(PATH_BUDGET_PER_TICK);
+    expect(backgroundPathSearches()).toBe(PATH_BUDGET_PER_TICK);
+  });
+
+  it("does not exceed the per-tick detour cap on a crowded map", () => {
+    const s = makeFixture({ width: 48, height: 24, win: { kind: "annihilate" } });
+    for (let i = 0; i < 12; i++) {
+      const y = i + 2;
+      addUnit(s, 0, "infantry", 4, y);
+      const mover = addUnit(s, 0, "infantry", 3, y);
+      mover.idle = false;
+      mover.path = [{ x: 4, y }, { x: 12, y }];
+    }
+    tick(s);
+    expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
+  });
+
+  it("does not clear AI paths when the budget is exhausted before tickAi", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    addBuilding(s, 1, "constructionYard", 18, 18);
+    addBuilding(s, 0, "constructionYard", 2, 2);
+    const raider = addUnit(s, 1, "infantry", 10, 10);
+    raider.hp = 10;
+    const prior = [{ x: 11, y: 10 }, { x: 12, y: 10 }, { x: 13, y: 10 }];
+    raider.path = prior.map((p) => ({ ...p }));
+    raider.idle = false;
+
+    resetPathBudget(0);
+    expect(() => tickAi(s)).not.toThrow();
+    expect(s.aiState).toBe("retreat");
+    expect(raider.path).toEqual(prior);
+    expect(backgroundPathSearches()).toBe(0);
+  });
+
+  it("does not clear a combat chase path when the budget is exhausted", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    const attacker = addUnit(s, 0, "tank", 4, 4);
+    addUnit(s, 1, "infantry", 14, 4);
+    const prior = [{ x: 5, y: 4 }, { x: 6, y: 4 }];
+    attacker.path = prior.map((p) => ({ ...p }));
+    attacker.idle = true;
+
+    resetPathBudget(0);
+    expect(() => tickCombat(s)).not.toThrow();
+    expect(attacker.path).toEqual(prior);
+    expect(backgroundPathSearches()).toBe(0);
+  });
+});
