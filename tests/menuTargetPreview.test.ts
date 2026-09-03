@@ -18,6 +18,7 @@ import { CINEMA_SEED, createCinemaScene } from "../components/menu/menuBackdropS
 import { createCampaign } from "../lib/gen/campaign";
 import { createMission } from "../lib/sim/api";
 import { tileToScreen } from "../lib/iso";
+import { isTerrainAtlasReady, preloadTerrainAtlas } from "../lib/render/terrainAtlas";
 
 describe("welcome target preview cycle", () => {
   it("waits 5 seconds before showing the first highlight, then plays for 5s and idles for 3s", () => {
@@ -158,6 +159,16 @@ describe("welcome target cinema shots", () => {
         expect(s.y).toBeGreaterThanOrEqual(0);
         expect(s.y).toBeLessThanOrEqual(160);
       }
+    }
+  });
+
+  it("verifies and preloads terrain atlas readiness before displaying gameplay", async () => {
+    const scene = createCinemaScene(CINEMA_SEED, 0);
+    expect(isTerrainAtlasReady(scene.ground)).toBe(true);
+    if (scene.state) {
+      expect(isTerrainAtlasReady(scene.state)).toBe(true);
+      const ready = await preloadTerrainAtlas(scene.state);
+      expect(ready).toBe(true);
     }
   });
 });

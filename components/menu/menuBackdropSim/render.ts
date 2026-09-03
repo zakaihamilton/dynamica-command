@@ -17,6 +17,7 @@ import { terrainColors } from "@/lib/render/terrainMaterials";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
 import { FX_DURATION } from "@/lib/render/fx";
 import { renderWorld } from "@/lib/render/renderer";
+import { isTerrainAtlasReady } from "@/lib/render/terrainAtlas";
 import { tick } from "@/lib/sim/api";
 import { nearest } from "@/lib/sim/world";
 import { assignAttack } from "@/lib/sim/ai/combat";
@@ -203,8 +204,8 @@ export function renderCinemaFrame(
   const followCamera = Boolean(options?.camera);
   const preview = !paintAmbient;
 
-  // Render actual game gameplay directly onto PIP feed when available
-  if (preview && scene.state) {
+  // Render actual game gameplay directly onto PIP feed once terrain is loaded
+  if (preview && scene.state && isTerrainAtlasReady(scene.state)) {
     try {
       renderWorld(ctx, scene.state, cam, new Set(), null, {
         clockMs: typeof performance !== "undefined" ? performance.now() : t * 16,

@@ -15,6 +15,9 @@ import {
   type PreviewPhase,
   type Shot,
 } from "./menuBackdropSim";
+import { isTerrainAtlasReady, preloadTerrainAtlas } from "@/lib/render/terrainAtlas";
+import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
+import { preloadRasterSources } from "@/lib/render/sprites";
 import styles from "./MenuSignalOverlay.module.css";
 
 const REDUCE_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
@@ -59,6 +62,10 @@ export function MenuSignalOverlay() {
     if (reducedMotion) return;
 
     let scene = createCinemaScene(previewSeed(0), previewMissionIndex(0));
+    preloadTerrainAtlas(scene.ground);
+    if (scene.state) preloadTerrainAtlas(scene.state);
+    preloadRasterSources(listTacticalRasterSources());
+
     let nextScene: CinemaScene | null = null;
     let cycleIndex = 0;
     const shots: Shot[] = [];
@@ -72,29 +79,38 @@ export function MenuSignalOverlay() {
       if (next.cycleIndex !== cycleIndex) {
         const seed = previewSeed(next.cycleIndex);
         scene = nextScene ?? createCinemaScene(seed, previewMissionIndex(next.cycleIndex, seed));
+        preloadTerrainAtlas(scene.ground);
+        if (scene.state) preloadTerrainAtlas(scene.state);
         nextScene = null;
         shots.length = 0;
         cycleIndex = next.cycleIndex;
       } else if (!next.expanded && nextScene === null) {
         const nextSeed = previewSeed(next.cycleIndex + 1);
         nextScene = createCinemaScene(nextSeed, previewMissionIndex(next.cycleIndex + 1, nextSeed));
+        preloadTerrainAtlas(nextScene.ground);
+        if (nextScene.state) preloadTerrainAtlas(nextScene.state);
       }
-      if (next.expanded) {
+
+      const terrainReady = scene.state ? isTerrainAtlasReady(scene.state) : isTerrainAtlasReady(scene.ground);
+      const isExpanded = next.expanded && terrainReady;
+      const effectivePreview: PreviewPhase = isExpanded === next.expanded ? next : { ...next, expanded: false };
+
+      if (effectivePreview.expanded) {
         stepCinemaScene(scene, shots, t);
-        const canvas = canvasRefs.current[next.lockIndex];
+        const canvas = canvasRefs.current[effectivePreview.lockIndex];
         const ctx = canvas?.getContext("2d");
         if (canvas && ctx) {
           if (canvas.width !== FEED_WIDTH) canvas.width = FEED_WIDTH;
           if (canvas.height !== FEED_HEIGHT) canvas.height = FEED_HEIGHT;
           renderCinemaFrame(ctx, canvas.width, canvas.height, t, scene, shots, {
-            camera: cinemaShotCamera(scene, next.shotIndex, canvas.width, canvas.height, t),
+            camera: cinemaShotCamera(scene, effectivePreview.shotIndex, canvas.width, canvas.height, t),
             paintAmbient: false,
           });
         }
       }
-      if (previewChanged(previewRef.current, next)) {
-        previewRef.current = next;
-        setPreview(next);
+      if (previewChanged(previewRef.current, effectivePreview)) {
+        previewRef.current = effectivePreview;
+        setPreview(effectivePreview);
       }
       raf = requestAnimationFrame(frame);
     };

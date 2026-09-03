@@ -5,6 +5,7 @@ import {
   type ScrollLayer,
 } from "../scrollLayer";
 import type { Camera } from "../../iso";
+import { terrainGrainGeneration } from "../terrainAtlas";
 
 const TERRAIN_RENDER_REV = "world-atlas-v22-shared-blocker-art";
 
@@ -36,7 +37,7 @@ export function ensureTerrainCanvas(bw: number, bh: number): HTMLCanvasElement |
 }
 
 export function terrainContentKey(state: SimState, cam: Camera, w: number, h: number): string {
-  return `${state.seed}:${state.tick >> 4}:${state.width}x${state.height}:${state.biome}:${TERRAIN_RENDER_REV}:${cam.zoom.toFixed(3)}:${w}x${h}`;
+  return `${state.seed}:${state.tick >> 4}:${state.width}x${state.height}:${state.biome}:${TERRAIN_RENDER_REV}:${terrainGrainGeneration()}:${cam.zoom.toFixed(3)}:${w}x${h}`;
 }
 
 export function invalidateTerrainCache(): void {
