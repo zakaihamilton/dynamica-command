@@ -10,5 +10,12 @@ export {
 } from "./terrainPaint/scatter";
 export type { ScatterKind, ScatterItem, BlockerPropKind } from "./terrainPaint/scatter";
 export { withAlpha } from "./terrainPaint/style";
-export { visibleTileRange, paintTerrainWorld, WATER_COVER } from "./terrainPaint/world";
+export {
+  visibleTileRange,
+  paintTerrainWorld,
+  paintTerrainSurface,
+  paintTerrainBlockers,
+  WATER_COVER,
+} from "./terrainPaint/world";
+export { worldGroundSprite, paintWorldGroundSprite } from "./terrainPaint/worldGround";
 export { paintBuildingPlates } from "./terrainPlates";

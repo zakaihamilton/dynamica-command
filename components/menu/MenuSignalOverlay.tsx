@@ -86,7 +86,6 @@ export function MenuSignalOverlay() {
           renderCinemaFrame(ctx, canvas.width, canvas.height, t, scene, shots, {
             camera: cinemaShotCamera(scene, next.shotIndex, canvas.width, canvas.height, t),
             paintAmbient: false,
-            useTerrainCache: false,
           });
         }
       }
