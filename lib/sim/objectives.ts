@@ -128,7 +128,7 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
     }
     case "annihilate": {
       const left = living(state).filter((e) => e.owner === 1).length;
-      progress = { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "Theater clear" : `Hostiles left ${left}` };
+      progress = { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "Campaign clear" : `Hostiles left ${left}` };
       break;
     }
     case "holdTheLine": {

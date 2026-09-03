@@ -44,6 +44,7 @@ export function useMenuController() {
   const openNewGame = useCallback(() => {
     setCode((current) => current.length === 4 ? current : dailySeed());
     setError("");
+    setCopied(false);
     setView("newGame");
   }, []);
 
@@ -134,6 +135,9 @@ export function useMenuController() {
       setError("");
       setCopied(false);
     },
-    goBack: () => setView("main"),
+    goBack: () => {
+      setCopied(false);
+      setView("main");
+    },
   };
 }

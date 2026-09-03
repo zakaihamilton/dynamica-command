@@ -117,7 +117,7 @@ describe("useBriefingController", () => {
     expect(replay).toHaveBeenCalledOnce();
   });
 
-  it("marks a new-theater launch as fresh across client-side navigation", () => {
+  it("marks a new-campaign launch as fresh across client-side navigation", () => {
     const { result } = renderHook(() => useBriefingController({
       seed: 421,
       mission: 0,

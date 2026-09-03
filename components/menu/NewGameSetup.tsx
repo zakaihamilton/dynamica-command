@@ -7,6 +7,7 @@ import { SHORTCUT } from "@/lib/ui/shortcuts";
 import type { Campaign } from "@/lib/types";
 import type { CSSProperties, RefObject } from "react";
 import { SeedEntry } from "./SeedEntry";
+import { dailySeed } from "./menuLaunch";
 import styles from "./NewGameSetup.module.css";
 
 export function NewGameSetup({
@@ -34,10 +35,12 @@ export function NewGameSetup({
   onLaunch: () => void;
   onBack: () => void;
 }) {
+  const isDaily = code === dailySeed();
+
   return (
     <MetalPanel as="section" className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title" data-testid="deploy-screen">
       <div className={styles.intro}>
-        <ConsoleLabel>Dynamica command // Daily Challenge</ConsoleLabel>
+        <ConsoleLabel>{isDaily ? "Dynamica command // Daily Challenge" : "Dynamica command // Custom Campaign"}</ConsoleLabel>
         <h2 id="new-game-title" className={styles.title}>New campaign</h2>
         <p className={styles.copy}>
           Today&apos;s daily seed is pre-rolled for all commanders. Launch to share the same battlefield, or enter any code to play a different campaign.

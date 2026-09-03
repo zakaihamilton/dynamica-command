@@ -35,7 +35,7 @@ describe("determinism", () => {
     }
   });
 
-  it("applies biome tuning so theaters differ by mission biome", () => {
+  it("applies biome tuning so campaigns differ by mission biome", () => {
     const stub = { index: 0, win: { kind: "annihilate" as const }, mapSize: 48 };
     const marshes = generateMap(42, { ...stub, biome: "salt marshes" });
     const desert = generateMap(42, { ...stub, biome: "glass desert" });

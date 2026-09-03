@@ -217,12 +217,12 @@ describe("SeedEntry", () => {
     render(<ControlledSeedEntry />);
     const input = screen.getByLabelText<HTMLInputElement>("Four digit campaign seed");
 
-    input.focus();
+    await user.click(input);
     expect(input.selectionStart).toBe(0);
     expect(input.selectionEnd).toBe(4);
 
-    await user.keyboard("9876");
-    expect(input).toHaveValue("9876");
+    await user.keyboard("0000");
+    expect(input).toHaveValue("0000");
   });
 
   it("sanitizes input and launches on Enter or Roll", async () => {

@@ -56,7 +56,7 @@ describe("terrain height", () => {
     }
   });
 
-  it.skipIf(IS_COVERAGE)("generates deterministic, funded, traversable theaters across campaigns", () => {
+  it.skipIf(IS_COVERAGE)("generates deterministic, funded, traversable maps across campaigns", () => {
     for (let seed = 0; seed < 32; seed++) {
       const campaign = createCampaign(seed);
       for (const mission of campaign.missions) {

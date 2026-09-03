@@ -111,7 +111,7 @@ export function missionObjectives(
     { id: "win", text: winText },
     { id: "yard", text: `Protect our ${labelFor("constructionYard")}` },
     {
-      id: "theater",
+      id: "campaign",
       text: `Hold ${place} against the ${them.name}`,
     },
   ];

@@ -53,7 +53,8 @@
 .backdrop {
   width: 100%;
   max-width: 28rem;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 7;
+  max-height: 9rem;
   margin-top: 1.4rem;
   border: 1px solid var(--chrome-line);
   border-radius: 4px;
@@ -170,6 +171,11 @@
   .dialog {
     grid-template-columns: 1fr;
     gap: 1.5rem;
+  }
+
+  .backdrop {
+    max-height: 7rem;
+    margin-top: 1rem;
   }
 
   .introReadout {

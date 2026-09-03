@@ -61,7 +61,7 @@ describe("welcome target preview cycle", () => {
     expect(previewAt(-40)).toEqual(previewAt(0));
   });
 
-  it("uses a different theater seed each cycle and wraps the four-digit range", () => {
+  it("uses a different campaign seed each cycle and wraps the four-digit range", () => {
     expect(previewSeed(0)).toBe(CINEMA_SEED);
     expect(previewSeed(1)).not.toBe(previewSeed(0));
     expect(previewSeed(2)).not.toBe(previewSeed(1));
@@ -88,7 +88,7 @@ describe("welcome target cinema shots", () => {
     expect(PIP_ZOOM).toBe(1.5);
   });
 
-  it("builds different theaters from different seeds", () => {
+  it("builds different campaigns from different seeds", () => {
     const first = createCinemaScene(previewSeed(0));
     const second = createCinemaScene(previewSeed(1));
     expect(first.seed).not.toBe(second.seed);
@@ -98,7 +98,7 @@ describe("welcome target cinema shots", () => {
     expect(sameTiles && first.map.biome === second.map.biome && samePalette).toBe(false);
   });
 
-  it("uses mission 0 biome, size, and tiles for the theater seed", () => {
+  it("uses mission 0 biome, size, and tiles for the campaign seed", () => {
     const scene = createCinemaScene(previewSeed(0));
     const mission = createMission({ seed: scene.seed, missionIndex: 0 });
     expect(scene.map.biome).toBe(mission.biome);

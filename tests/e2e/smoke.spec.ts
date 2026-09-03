@@ -219,6 +219,9 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await expect(page.getByTestId("deploy-screen")).toBeVisible();
   await expect(page.getByRole("heading", { name: "New campaign" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Operations map" })).toHaveCount(0);
+  await expect(page.getByLabel("Four digit campaign seed")).toHaveValue(/^\d{4}$/);
+  await expect(page.getByTestId("campaign-backdrop")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy link" })).toBeEnabled();
 
   const deployOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(deployOverflow).toBe(false);
@@ -229,6 +232,23 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   const operationsOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(operationsOverflow).toBe(false);
   await expect(page.getByTestId("mission-detail")).toBeVisible();
+});
+
+test("copies a campaign link and opens a shared seed", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/");
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await expect(page.getByTestId("deploy-screen")).toBeVisible();
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("button", { name: "Link copied!" })).toBeVisible();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toMatch(/\?seed=\d{4}$/);
+
+  await page.goto("/?seed=0777");
+  await expect(page.getByTestId("deploy-screen")).toBeVisible();
+  await expect(page.getByLabel("Four digit campaign seed")).toHaveValue("0777");
+  await expect(page.getByTestId("campaign-backdrop")).toBeVisible();
 });
 
 test("opens the campaign archive from the main menu", async ({ page }) => {
