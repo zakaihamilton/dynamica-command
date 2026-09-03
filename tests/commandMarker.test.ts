@@ -32,11 +32,12 @@ function mockCtx() {
 
 describe("command markers", () => {
   it("maps order types onto attack, harvest, support, and move kinds", () => {
-    expect(commandMarkerKind([{ type: "attack" }])).toBe("attack");
-    expect(commandMarkerKind([{ type: "attackMove" }])).toBe("attack");
-    expect(commandMarkerKind([{ type: "harvest" }])).toBe("harvest");
-    expect(commandMarkerKind([{ type: "support" }])).toBe("support");
-    expect(commandMarkerKind([{ type: "move" }])).toBe("move");
+    expect(commandMarkerKind([{ type: "attack", unitIds: [1] }])).toBe("attack");
+    expect(commandMarkerKind([{ type: "attackMove", unitIds: [1] }])).toBe("attack");
+    expect(commandMarkerKind([{ type: "harvest", unitIds: [1] }])).toBe("harvest");
+    expect(commandMarkerKind([{ type: "support", unitIds: [1] }])).toBe("support");
+    expect(commandMarkerKind([{ type: "move", unitIds: [1] }])).toBe("move");
+    expect(commandMarkerKind([{ type: "move", unitIds: [] }])).toBeNull();
     expect(commandMarkerKind([{ type: "build" }])).toBeNull();
   });
 

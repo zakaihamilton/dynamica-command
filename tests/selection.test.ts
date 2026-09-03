@@ -7,7 +7,7 @@ import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../li
 import { heightAt } from "../lib/sim/world";
 import { setHeight } from "../lib/sim/fixtures";
 import { selectionProjectionPoint } from "../components/game/hooks/selectionBox";
-import { selectionIdsInBox } from "../components/game/hooks/gameInputOrders";
+import { selectVisibleUnitsOfKind, selectionIdsInBox } from "../components/game/hooks/gameInputOrders";
 
 describe("harvester selection", () => {
   it("selects a harvester from a click on its sprite body", () => {
@@ -156,5 +156,66 @@ describe("harvester selection", () => {
     cam.y -= 100;
 
     expect(selectionIdsInBox(s, cam, box, false)).toEqual([first.id, revealed.id]);
+  });
+});
+
+describe("same-type on-screen selection", () => {
+  it("selects visible units of the same kind and skips off-screen, enemy, and other kinds", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const viewport = { width: 500, height: 400 };
+    const tank = addUnit(s, 0, "tank", 5, 5);
+    const nearby = addUnit(s, 0, "tank", 6, 5);
+    const infantry = addUnit(s, 0, "infantry", 5, 6);
+    const harvester = addUnit(s, 0, "harvester", 4, 5);
+    const enemy = addUnit(s, 1, "tank", 6, 6);
+    const offScreen = addUnit(s, 0, "tank", 11, 11);
+    const dead = addUnit(s, 0, "tank", 4, 6);
+    dead.hp = 0;
+
+    expect(selectVisibleUnitsOfKind(s, cam, viewport, tank)).toEqual([tank.id, nearby.id]);
+    expect(selectVisibleUnitsOfKind(s, cam, viewport, tank)).not.toContain(infantry.id);
+    expect(selectVisibleUnitsOfKind(s, cam, viewport, tank)).not.toContain(harvester.id);
+    expect(selectVisibleUnitsOfKind(s, cam, viewport, tank)).not.toContain(enemy.id);
+    expect(selectVisibleUnitsOfKind(s, cam, viewport, tank)).not.toContain(offScreen.id);
+    expect(selectVisibleUnitsOfKind(s, cam, viewport, tank)).not.toContain(dead.id);
+  });
+
+  it("keeps the clicked unit even if it sits on the viewport edge", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const tank = addUnit(s, 0, "tank", 11, 11);
+    expect(selectVisibleUnitsOfKind(s, cam, { width: 80, height: 80 }, tank)).toEqual([tank.id]);
+  });
+
+  it("does not expand a building click", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const yard = addBuilding(s, 0, "constructionYard", 2, 2);
+    addBuilding(s, 0, "power", 6, 2);
+    expect(selectVisibleUnitsOfKind(s, cam, { width: 800, height: 600 }, yard)).toEqual([]);
+  });
+
+  it("selects only matching contact units when the prototype is a scenario contact", () => {
+    const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const stranded = addUnit(s, 0, "infantry", 5, 5);
+    stranded.neutral = true;
+    const otherStranded = addUnit(s, 0, "infantry", 6, 5);
+    otherStranded.neutral = true;
+    const regular = addUnit(s, 0, "infantry", 5, 6);
+    s.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [stranded.id, otherStranded.id],
+      rescued: 0,
+      required: 2,
+      secondary: [],
+    };
+    expect(selectVisibleUnitsOfKind(s, cam, { width: 800, height: 600 }, stranded)).toEqual([
+      stranded.id,
+      otherStranded.id,
+    ]);
+    expect(selectVisibleUnitsOfKind(s, cam, { width: 800, height: 600 }, stranded)).not.toContain(regular.id);
   });
 });
