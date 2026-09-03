@@ -193,11 +193,12 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): v
     const fighting = scene.state.entities.filter(
       (e) => (e.class === "unit" || e.kind === "turret") && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8,
     );
-    if (fighting.length > 0) {
-      scene.combatEpicenter = {
-        x: fighting.reduce((sum, u) => sum + u.x, 0) / fighting.length,
-        y: fighting.reduce((sum, u) => sum + u.y, 0) / fighting.length,
-      };
+    if (fighting.length > 0 && scene.combatEpicenter) {
+      const targetX = fighting.reduce((sum, u) => sum + u.x, 0) / fighting.length;
+      const targetY = fighting.reduce((sum, u) => sum + u.y, 0) / fighting.length;
+      // Smooth exponential tracking: eliminates sudden camera jumps when units die or cross boundaries
+      scene.combatEpicenter.x += (targetX - scene.combatEpicenter.x) * 0.02;
+      scene.combatEpicenter.y += (targetY - scene.combatEpicenter.y) * 0.02;
     }
   } else if (t % 48 === 0 && actors.length >= 4) {
     const attacker = actors[1 + (t % 2)]!;

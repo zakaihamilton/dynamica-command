@@ -28,12 +28,29 @@ export const SHOT_OFFSETS: readonly { x: number; y: number }[] = [
   { x: 6, y: -1 },
 ];
 
+function smoothElevAt(map: { width: number; height: number; heights: number[] }, tx: number, ty: number): number {
+  const x0 = Math.max(0, Math.min(map.width - 1, Math.floor(tx)));
+  const y0 = Math.max(0, Math.min(map.height - 1, Math.floor(ty)));
+  const x1 = Math.min(map.width - 1, x0 + 1);
+  const y1 = Math.min(map.height - 1, y0 + 1);
+  const fx = tx - x0;
+  const fy = ty - y0;
+  const w = map.width;
+  const h00 = map.heights[y0 * w + x0] ?? 1;
+  const h10 = map.heights[y0 * w + x1] ?? 1;
+  const h01 = map.heights[y1 * w + x0] ?? 1;
+  const h11 = map.heights[y1 * w + x1] ?? 1;
+  const top = h00 + (h10 - h00) * fx;
+  const bot = h01 + (h11 - h01) * fx;
+  return top + (bot - top) * fy;
+}
+
 export function cinemaShotCamera(
   scene: CinemaScene,
   shotIndex: number,
   w: number,
   h: number,
-  t: number,
+  _t = 0,
 ): Camera {
   const shot = CINEMA_SHOTS[((shotIndex % CINEMA_SHOTS.length) + CINEMA_SHOTS.length) % CINEMA_SHOTS.length]!;
   const focus = shot.type === "actor" ? scene.actors[shot.index]! : scene.buildings[shot.index]!;
@@ -42,16 +59,12 @@ export function cinemaShotCamera(
   const tx = scene.combatEpicenter ? scene.combatEpicenter.x : focus.x;
   const ty = scene.combatEpicenter ? scene.combatEpicenter.y : focus.y;
 
-  const hx = Math.min(scene.map.width - 1, Math.max(0, Math.floor(tx)));
-  const hy = Math.min(scene.map.height - 1, Math.max(0, Math.floor(ty)));
-  const elev = scene.map.heights[hy * scene.map.width + hx] ?? 1;
+  const elev = smoothElevAt(scene.map, tx, ty);
   const zoom = PIP_ZOOM;
-  const panX = Math.sin(t * 0.003) * 1.5;
-  const panY = Math.cos(t * 0.0025) * 1.0;
 
   return {
     zoom,
-    x: w / 2 - (tx - ty) * (TILE_W / 2) * zoom + off.x + panX,
-    y: h / 2 - (tx + ty) * (TILE_H / 2) * zoom + elev * HEIGHT_STEP * zoom + off.y + panY,
+    x: Math.round(w / 2 - (tx - ty) * (TILE_W / 2) * zoom + off.x),
+    y: Math.round(h / 2 - (tx + ty) * (TILE_H / 2) * zoom + elev * HEIGHT_STEP * zoom + off.y),
   };
 }

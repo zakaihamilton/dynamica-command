@@ -225,4 +225,24 @@ describe("welcome target cinema shots", () => {
     );
     expect(attackingPlayerTurret).toBe(true);
   });
+
+  it("keeps camera motion smooth with no sudden pixel jumps or cliff elevation flips during combat", () => {
+    for (const kind of CINEMA_SCENARIO_KINDS) {
+      const scene = createCinemaScene(CINEMA_SEED, 0, kind);
+      const shots: any[] = [];
+      let prevX = 0;
+      let prevY = 0;
+
+      for (let f = 0; f < 100; f++) {
+        stepCinemaScene(scene, shots, f);
+        const cam = cinemaShotCamera(scene, 0, 768, 512, f);
+        if (f > 0) {
+          const delta = Math.hypot(cam.x - prevX, cam.y - prevY);
+          expect(delta).toBeLessThanOrEqual(2.0);
+        }
+        prevX = cam.x;
+        prevY = cam.y;
+      }
+    }
+  });
 });
