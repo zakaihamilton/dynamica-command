@@ -70,7 +70,7 @@ export function CampaignArchiveScreen() {
       router.push(`/play?seed=${entry.seed}&mission=${entry.missionIndex}&slot=${entry.id}`);
       return;
     }
-    router.push(`/play?seed=${entry.seed}&resume=1`);
+    router.push(`/play?seed=${entry.seed}&resume=1&mission=${entry.missionIndex}`);
   }, [router]);
 
   return (

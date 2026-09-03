@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { createRef, useRef, useState } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +15,9 @@ import { MenuMainPanel } from "../components/menu/MenuMainPanel";
 import { NewGameSetup } from "../components/menu/NewGameSetup";
 import { SeedEntry } from "../components/menu/SeedEntry";
 import { PauseMenu } from "../components/game/PauseMenu";
+import { PauseSaveSlots } from "../components/game/PauseSaveSlots";
+import { PauseLoadSlots } from "../components/game/PauseLoadSlots";
+import type { ArchiveEntry, SlotMeta } from "../lib/persist/save";
 import { MissionConfirmation } from "../components/game/MissionConfirmation";
 import { BriefingActions } from "../components/briefing/BriefingActions";
 import { createCampaign } from "../lib/gen/campaign";
@@ -573,5 +576,186 @@ describe("MissionConfirmation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Restart mission" }));
     expect(onCancel).toHaveBeenCalledOnce();
     expect(onConfirm).toHaveBeenCalledOnce();
+  });
+});
+
+describe("PauseSaveSlots", () => {
+  const sampleSlot: SlotMeta = {
+    id: "slot1234slot1234",
+    seed: "0421",
+    name: "Base Alpha",
+    missionIndex: 0,
+    savedAt: 1000,
+    tick: 10,
+    result: "playing",
+    campaignName: "Eos Prime",
+    missionName: "Operation Alpha",
+  };
+
+  it("submits a save on Enter key inside the name input", () => {
+    const onCommit = vi.fn(() => true);
+    render(
+      <PauseSaveSlots
+        defaultName="New Save"
+        slots={[sampleSlot]}
+        onCommit={onCommit}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByLabelText("Save slot name");
+    fireEvent.change(input, { target: { value: "Custom Name" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onCommit).toHaveBeenCalledWith("Custom Name", null);
+  });
+
+  it("triggers onBack when pressing Escape inside the name input", () => {
+    const onBack = vi.fn();
+    render(
+      <PauseSaveSlots
+        defaultName="New Save"
+        slots={[]}
+        onCommit={vi.fn(() => true)}
+        onBack={onBack}
+      />,
+    );
+
+    const input = screen.getByLabelText("Save slot name");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it("toggles slot selection when clicking the already-selected slot", () => {
+    render(
+      <PauseSaveSlots
+        defaultName="Default Name"
+        slots={[sampleSlot]}
+        onCommit={vi.fn(() => true)}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const slotButton = screen.getByRole("button", { name: /Select Base Alpha/ });
+    fireEvent.click(slotButton);
+    expect(screen.getByLabelText("Save slot name")).toHaveValue("Base Alpha");
+
+    // Click again to toggle off
+    fireEvent.click(slotButton);
+    expect(screen.getByLabelText("Save slot name")).toHaveValue("Default Name");
+  });
+
+  it("deletes a slot and notifies onDelete", () => {
+    const onDelete = vi.fn();
+    render(
+      <PauseSaveSlots
+        defaultName="Default Name"
+        slots={[sampleSlot]}
+        onCommit={vi.fn(() => true)}
+        onDelete={onDelete}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const deleteBtn = screen.getByRole("button", { name: "Delete save slot Base Alpha" });
+    fireEvent.click(deleteBtn);
+
+    // Confirm dialog appears
+    expect(screen.getByRole("dialog", { name: "Delete save slot?" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Delete save slot" }));
+
+    expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: "slot1234slot1234" }));
+    expect(screen.queryByText("Base Alpha")).toBeNull();
+  });
+});
+
+describe("PauseLoadSlots", () => {
+  const sampleSlot: ArchiveEntry = {
+    kind: "slot",
+    id: "slot1234slot1234",
+    seed: "0421",
+    name: "Base Alpha",
+    missionIndex: 0,
+    savedAt: 1000,
+    tick: 10,
+    result: "playing",
+    campaignName: "Eos Prime",
+    missionName: "Operation Alpha",
+  };
+
+  it("prompts to load mission when pressing Enter on selected slot", () => {
+    const onLoad = vi.fn();
+    render(
+      <PauseLoadSlots
+        entries={[sampleSlot]}
+        onLoad={onLoad}
+        onBack={vi.fn()}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: "Enter" });
+    expect(screen.getByRole("dialog", { name: "Load mission?" })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Load mission" }));
+    expect(onLoad).toHaveBeenCalledWith(sampleSlot);
+  });
+
+  it("prompts to load mission when clicking a slot entry directly", () => {
+    const onLoad = vi.fn();
+    render(
+      <PauseLoadSlots
+        entries={[sampleSlot]}
+        onLoad={onLoad}
+        onBack={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Resume Base Alpha/ }));
+    expect(screen.getByRole("dialog", { name: "Load mission?" })).toBeVisible();
+  });
+
+  it("deletes an entry and invokes onDelete", () => {
+    const onDelete = vi.fn();
+    render(
+      <PauseLoadSlots
+        entries={[sampleSlot]}
+        onLoad={vi.fn()}
+        onDelete={onDelete}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const deleteBtn = screen.getByRole("button", { name: "Delete save slot Base Alpha" });
+    fireEvent.click(deleteBtn);
+
+    expect(screen.getByRole("dialog", { name: "Delete save slot?" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Delete save slot" }));
+
+    expect(onDelete).toHaveBeenCalledWith(sampleSlot);
+    expect(screen.queryByText("Base Alpha")).toBeNull();
+  });
+
+  it("keeps Enter in nested delete confirmation from opening load confirmation", async () => {
+    const user = userEvent.setup();
+    const onLoad = vi.fn();
+    const onDelete = vi.fn();
+    render(
+      <PauseLoadSlots
+        entries={[sampleSlot]}
+        onLoad={onLoad}
+        onDelete={onDelete}
+        onBack={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Delete save slot Base Alpha" }));
+    const deleteDialog = screen.getByRole("dialog", { name: "Delete save slot?" });
+    const deleteButton = within(deleteDialog).getByRole("button", { name: "Delete save slot" });
+    deleteButton.focus();
+    await user.keyboard("{Enter}");
+
+    expect(onDelete).toHaveBeenCalledWith(sampleSlot);
+    expect(onLoad).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Load mission?" })).toBeNull();
   });
 });

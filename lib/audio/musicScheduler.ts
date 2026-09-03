@@ -266,6 +266,7 @@ export function applyPattern(next: MusicPattern): void {
     syncDelay(audio, activeGraph, next);
     retunePad(audio, activeGraph, next, 0, audio.currentTime);
     const t = audio.currentTime;
+    setNextNoteTime(t + 0.07);
     activeGraph.master.gain.cancelScheduledValues(t);
     activeGraph.master.gain.setValueAtTime(0.001, t);
     activeGraph.master.gain.linearRampToValueAtTime(masterGain(intensity, ducked), t + half);

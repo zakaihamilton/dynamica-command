@@ -427,8 +427,8 @@ describe("game lifecycle hooks", () => {
 
     const music = await import("@/lib/audio/music");
     const { pauseMusic, setMusicCue, setMusicDucked } = music;
-    const { rerender } = renderHook((props) => useGameAudioLifecycle(props), {
-      initialProps: { seed: 421, missionIndex: 3, tutorial: false, paused: true, result: "playing" as const },
+    const { rerender } = renderHook((props: Parameters<typeof useGameAudioLifecycle>[0]) => useGameAudioLifecycle(props), {
+      initialProps: { seed: 421, missionIndex: 3, tutorial: false, paused: true, result: "playing" },
     });
     expect(pauseMusic).toHaveBeenCalledOnce();
     expect(setMusicCue).not.toHaveBeenCalled();
@@ -436,6 +436,13 @@ describe("game lifecycle hooks", () => {
     rerender({ seed: 421, missionIndex: 3, tutorial: false, paused: false, result: "playing" });
     expect(setMusicDucked).toHaveBeenCalledWith(false);
     expect(setMusicCue).toHaveBeenCalledWith("mission", 421, 3);
+    vi.mocked(setMusicCue).mockClear();
+
+    rerender({ seed: 421, missionIndex: 3, tutorial: false, paused: false, result: "won" as const });
+    expect(setMusicCue).not.toHaveBeenCalled();
+
+    rerender({ seed: 421, missionIndex: 3, tutorial: false, paused: false, result: "lost" as const });
+    expect(setMusicCue).not.toHaveBeenCalled();
   });
 });
 

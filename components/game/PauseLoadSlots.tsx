@@ -13,19 +13,47 @@ import styles from "./PauseMenu.module.css";
 export function PauseLoadSlots({
   entries,
   onLoad,
+  onDelete,
   onBack,
 }: {
   entries: ArchiveEntry[];
   onLoad: (entry: ArchiveEntry) => void;
+  onDelete?: (entry: ArchiveEntry) => void;
   onBack: () => void;
 }) {
-  const [selectedKey, setSelectedKey] = useState<string | null>(entries[0] ? archiveEntryKey(entries[0]) : null);
+  const [deletedKeys, setDeletedKeys] = useState<Set<string>>(() => new Set());
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const [pending, setPending] = useState<ArchiveEntry | null>(null);
   const confirmRef = useModalFocus(Boolean(pending), pending ? archiveEntryKey(pending) : undefined, "dialog");
-  const selected = useMemo(
-    () => entries.find((entry) => archiveEntryKey(entry) === selectedKey) ?? null,
-    [entries, selectedKey],
+
+  const entryList = useMemo(
+    () => entries.filter((entry) => !deletedKeys.has(archiveEntryKey(entry))),
+    [entries, deletedKeys],
   );
+
+  const selectedKey = useMemo(() => {
+    if (activeKey && entryList.some((e) => archiveEntryKey(e) === activeKey)) {
+      return activeKey;
+    }
+    return entryList[0] ? archiveEntryKey(entryList[0]) : null;
+  }, [activeKey, entryList]);
+
+  const selected = useMemo(
+    () => entryList.find((entry) => archiveEntryKey(entry) === selectedKey) ?? null,
+    [entryList, selectedKey],
+  );
+
+  useEffect(() => {
+    if (pending) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || !selected) return;
+      if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return;
+      event.preventDefault();
+      setPending(selected);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pending, selected]);
 
   useEffect(() => {
     if (!pending) return;
@@ -39,15 +67,23 @@ export function PauseLoadSlots({
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [pending]);
 
+  const handleDelete = (entry: ArchiveEntry) => {
+    onDelete?.(entry);
+    setDeletedKeys((prev) => new Set(prev).add(archiveEntryKey(entry)));
+  };
+
   return (
     <>
       <ConsoleLabel>Save slots</ConsoleLabel>
       <h2 id="pause-title" className={styles.title}>Load mission</h2>
       <p className={styles.slotCopy}>Choose a named save or this campaign&apos;s autosave.</p>
       <SaveSlotList
-        entries={entries}
+        entries={entryList}
         selectedKey={selectedKey}
-        onSelect={(entry) => setSelectedKey(archiveEntryKey(entry))}
+        showActions
+        onDelete={onDelete ? handleDelete : undefined}
+        onSelect={(entry) => setActiveKey(archiveEntryKey(entry))}
+        onResume={(entry) => setPending(entry)}
       />
       <div className={styles.actions}>
         <ConsoleButton

@@ -13,6 +13,7 @@ const terrainScroll: ScrollLayer = emptyScrollLayer();
 let terrainCanvas: HTMLCanvasElement | null = null;
 export const entityById = new Map<number, Entity>();
 export const drawList: Entity[] = [];
+export const entityDrawOrder = new Map<number, number>();
 export const lastReadySprite = new Map<string, { spec: SpriteSpec; img: HTMLCanvasElement }>();
 
 export function spriteSessionKey(state: SimState): string {
@@ -49,6 +50,7 @@ export function clearRendererSessionCache(): void {
   terrainCanvas = null;
   entityById.clear();
   drawList.length = 0;
+  entityDrawOrder.clear();
   lastReadySprite.clear();
 }
 

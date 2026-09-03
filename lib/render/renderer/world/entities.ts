@@ -48,6 +48,7 @@ import {
 
 import {
   drawList,
+  entityDrawOrder,
   entityById,
   lastReadySprite,
   spriteCacheKey,
@@ -92,11 +93,29 @@ export function renderEntityPhase(
     }
   }
 
+  const depthCache = new Map<number, number>();
+  for (const e of drawList) {
+    depthCache.set(e.id, e.class === "unit" ? (dynCache.get(e.id)!.x + dynCache.get(e.id)!.y) : depthOf(e));
+  }
+
+  // Keep nearly-overlapping grouped units in their established painter order.
+  // Their interpolated depths can cross by tiny amounts while they move, which
+  // otherwise makes the sprites swap z-order from frame to frame and flicker.
+  const UNIT_DEPTH_STABILITY_EPSILON = 0.75;
   drawList.sort((a, b) => {
-    const da = a.class === "unit" ? (dynCache.get(a.id)!.x + dynCache.get(a.id)!.y) : depthOf(a);
-    const db = b.class === "unit" ? (dynCache.get(b.id)!.x + dynCache.get(b.id)!.y) : depthOf(b);
-    return (da - db) || (a.id - b.id);
+    const da = depthCache.get(a.id)!;
+    const db = depthCache.get(b.id)!;
+    const delta = da - db;
+    if (a.class === "unit" && b.class === "unit" && Math.abs(delta) <= UNIT_DEPTH_STABILITY_EPSILON) {
+      const previousA = entityDrawOrder.get(a.id);
+      const previousB = entityDrawOrder.get(b.id);
+      if (previousA !== undefined && previousB !== undefined && previousA !== previousB) {
+        return previousA - previousB;
+      }
+    }
+    return delta || (a.id - b.id);
   });
+  drawList.forEach((e, index) => entityDrawOrder.set(e.id, index));
 
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "ground", extras.reducedMotion);
 

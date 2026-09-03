@@ -28,7 +28,6 @@ export function MinimapFrame({
           role="img"
           tabIndex={0}
           aria-label="Minimap. Click or drag to look around. Press H to jump to your base."
-          aria-describedby="tactical-radar-help"
           aria-keyshortcuts="H"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -37,9 +36,6 @@ export function MinimapFrame({
         />
         <span className={styles.sweep} aria-hidden />
       </div>
-      <p id="tactical-radar-help" className={styles.help}>
-        Click or drag to look around · H jumps to your base
-      </p>
     </div>
   );
 }

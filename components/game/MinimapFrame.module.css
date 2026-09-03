@@ -36,14 +36,6 @@
   animation: radar-scan 5.5s linear infinite;
 }
 
-.help {
-  margin: 0.25rem 0 0;
-  color: var(--chrome-muted);
-  font-size: 0.55rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .sweep {
     animation: none;
@@ -60,8 +52,5 @@
 @media (max-width: 799px) {
   .canvas {
     height: 118px;
-  }
-  .help {
-    font-size: 0.48rem;
   }
 }

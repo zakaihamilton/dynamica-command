@@ -10,6 +10,7 @@ import {
   memoryStorage,
   normalizeSlotName,
   readSlot,
+  removeSave,
   removeSlot,
   SLOT_NAME_MAX,
   SLOT_PREFIX,
@@ -149,6 +150,27 @@ describe("named save slots", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("excludes deleted autosaves and slots from archive and pause load entries", () => {
+    const storage = memoryStorage();
+    writeSave(storage, makeState(9));
+    const slot = writeSlot(storage, { name: "Strike", state: makeState(9), campaign: freshCampaignProgress(9) });
+    expect(slot.ok).toBe(true);
+    if (!slot.ok) return;
+
+    expect(listArchiveEntries(storage)).toHaveLength(2);
+    expect(listPauseLoadEntries(storage, 9)).toHaveLength(2);
+
+    removeSlot(storage, slot.id);
+    expect(listArchiveEntries(storage)).toHaveLength(1);
+    expect(listPauseLoadEntries(storage, 9)).toHaveLength(1);
+    expect(listArchiveEntries(storage)[0]!.kind).toBe("autosave");
+
+    removeSave(storage, 9);
+    expect(listArchiveEntries(storage)).toHaveLength(0);
+    expect(listPauseLoadEntries(storage, 9)).toHaveLength(0);
+    expect(hasLoadableSaves(storage, 9)).toBe(false);
   });
 
   it("writes a versioned slot envelope", () => {

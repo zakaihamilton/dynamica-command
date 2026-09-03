@@ -197,11 +197,6 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           )}
 
           <div className={styles.actions}>
-            {!operations ? (
-              <ConsoleButton onClick={() => router.push(`/campaign?seed=${formatSeed(seed)}`)} tooltip="Open the campaign operations map">
-                Operations map
-              </ConsoleButton>
-            ) : null}
             <ConsoleButton muted onClick={() => router.push("/")} tooltip="Return to the main menu">Return to menu</ConsoleButton>
           </div>
         </MetalPanel>

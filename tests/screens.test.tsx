@@ -177,6 +177,16 @@ describe("CampaignArchiveScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Resume Bridgehead" }));
     expect(router.push).toHaveBeenCalledWith(`/play?seed=0421&mission=0&slot=${written.id}`);
   });
+
+  it("resumes an autosave with mission index", async () => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    state.missionIndex = 2;
+    writeSave(localStorageAdapter(), state);
+    render(<CampaignArchiveScreen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Resume .* autosave/ })).toBeVisible());
+    fireEvent.click(screen.getByRole("button", { name: /Resume .* autosave/ }));
+    expect(router.push).toHaveBeenCalledWith("/play?seed=0421&resume=1&mission=2");
+  });
 });
 
 describe("BriefingScreen", () => {

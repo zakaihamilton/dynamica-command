@@ -28,6 +28,7 @@ export function PauseMenu({
   onLoad,
   onCommitSave,
   onLoadEntry,
+  onDeleteEntry,
   onBriefing,
   onRestart,
   onControls,
@@ -53,6 +54,7 @@ export function PauseMenu({
   onLoad: () => void;
   onCommitSave: (name: string, overwriteId: string | null) => boolean;
   onLoadEntry: (entry: ArchiveEntry) => void;
+  onDeleteEntry?: (entry: ArchiveEntry) => void;
   onBriefing: () => void;
   onRestart: () => void;
   onControls: () => void;
@@ -98,12 +100,14 @@ export function PauseMenu({
               defaultName={defaultSlotName}
               slots={saveSlots}
               onCommit={onCommitSave}
+              onDelete={onDeleteEntry}
               onBack={onBack}
             />
           ) : view === "load" ? (
             <PauseLoadSlots
               entries={loadEntries}
               onLoad={onLoadEntry}
+              onDelete={onDeleteEntry}
               onBack={onBack}
             />
           ) : (

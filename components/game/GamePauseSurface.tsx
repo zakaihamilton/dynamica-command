@@ -37,6 +37,7 @@ export function GamePauseSurface({
       onLoad={session.loadMission}
       onCommitSave={session.saveNamedSlot}
       onLoadEntry={session.loadArchiveEntry}
+      onDeleteEntry={session.deleteArchiveEntry}
       onBriefing={session.viewMissionBriefing}
       onRestart={session.restartMission}
       onControls={() => {

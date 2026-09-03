@@ -217,6 +217,57 @@ describe("useGameRuntime", () => {
     expect(readCampaignProgress(localStorageAdapter(), 421).completedMissions).toEqual([0]);
   });
 
+  it("resumes the active autosave when reloading a slot-loaded mission instead of resetting to slot snapshot", () => {
+    const slotState = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    slotState.tick = 12;
+    slotState.credits[0] = 500;
+    const written = writeSlot(localStorageAdapter(), {
+      name: "Bridgehead",
+      state: slotState,
+      campaign: completeMission(freshCampaignProgress(421), 0, 1, 100),
+    });
+    expect(written.ok).toBe(true);
+    if (!written.ok) return;
+
+    // Player continues playing and achieves tick 150 with 2500 credits, autosaved
+    const liveAutosave = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    liveAutosave.tick = 150;
+    liveAutosave.credits[0] = 2500;
+    expect(writeSave(localStorageAdapter(), liveAutosave)).toBe(true);
+
+    const getEntriesByType = vi.spyOn(window.performance, "getEntriesByType").mockReturnValue([
+      { type: "reload" } as PerformanceNavigationTiming,
+    ]);
+
+    // On browser reload, initialMission with slotId should resume live autosave, NOT revert to slot snapshot
+    const resumed = initialMission(421, 0, false, false, false, written.id);
+
+    expect(resumed.tick).toBe(150);
+    expect(resumed.credits[0]).toBe(2500);
+    expect(readSave(localStorageAdapter(), 421)?.tick).toBe(150);
+
+    getEntriesByType.mockRestore();
+  });
+
+  it("cleans up the slot query parameter from the URL when loading a slot", () => {
+    const slotState = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const written = writeSlot(localStorageAdapter(), {
+      name: "Bridgehead",
+      state: slotState,
+      campaign: freshCampaignProgress(421),
+    });
+    expect(written.ok).toBe(true);
+    if (!written.ok) return;
+
+    window.history.pushState({}, "", `/play?seed=0421&mission=0&slot=${written.id}`);
+    expect(window.location.search).toContain(`slot=${written.id}`);
+
+    initialMission(421, 0, false, false, false, written.id);
+
+    expect(window.location.search).not.toContain("slot=");
+    expect(window.location.search).toContain("resume=1");
+  });
+
   it("saves the current state when the page is unloaded", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
     const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.playField.state) => void };

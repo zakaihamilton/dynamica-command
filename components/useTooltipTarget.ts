@@ -27,9 +27,12 @@ export function useTooltipTarget() {
         setTip(null);
         return;
       }
-      const el = forcedEl() ?? hoverRef.current;
-      forcedRef.current = forcedEl();
-      if (!el) {
+      const forced = forcedEl();
+      const el = forced ?? hoverRef.current;
+      forcedRef.current = forced;
+      if (!el || !document.body.contains(el)) {
+        hoverRef.current = null;
+        forcedRef.current = null;
         setTip(null);
         return;
       }
@@ -64,6 +67,13 @@ export function useTooltipTarget() {
       paint();
     };
 
+    const onPointerDown = () => {
+      keyboardDismissedRef.current = true;
+      hoverRef.current = null;
+      forcedRef.current = null;
+      setTip(null);
+    };
+
     const onFocus = (e: FocusEvent) => {
       const el = tooltipTarget(e.target);
       if (!el) return;
@@ -91,17 +101,24 @@ export function useTooltipTarget() {
 
     document.addEventListener("pointerover", onOver);
     document.addEventListener("pointerout", onOut);
+    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("focusin", onFocus);
     document.addEventListener("focusout", onBlur);
     document.addEventListener("keydown", onKeyDown);
     window.addEventListener("scroll", onScrollOrResize, true);
     window.addEventListener("resize", onScrollOrResize);
     const mo = new MutationObserver(paint);
-    mo.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["data-tooltip", "data-tooltip-pos", "data-tooltip-open", "data-shortcut"] });
+    mo.observe(document.body, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ["data-tooltip", "data-tooltip-pos", "data-tooltip-open", "data-shortcut"],
+    });
     paint();
     return () => {
       document.removeEventListener("pointerover", onOver);
       document.removeEventListener("pointerout", onOut);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", onBlur);
       document.removeEventListener("keydown", onKeyDown);

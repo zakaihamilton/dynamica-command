@@ -170,6 +170,25 @@ describe("pathfinding", () => {
     expect(b.idle).toBe(true);
   });
 
+  it("settles a follower when friendly units seal the final pocket", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "harvestQuota", target: 99999 } });
+    for (const [x, y] of [
+      [4, 3], [5, 3], [6, 3], [4, 4], [6, 4], [4, 5], [5, 5], [6, 5],
+    ]) {
+      const blocker = addUnit(s, 0, "infantry", x, y);
+      blocker.orderDestination = { x, y };
+      blocker.idle = true;
+    }
+    const follower = addUnit(s, 0, "infantry", 7, 4);
+    issue(s, { type: "move", unitIds: [follower.id], x: 5, y: 4 });
+
+    for (let i = 0; i < 40; i++) tick(s, undefined, { evaluateObjectives: false });
+
+    expect(follower.idle).toBe(true);
+    expect(follower.path).toEqual([]);
+    expect(follower.orderDestination).toEqual({ x: 7, y: 4 });
+  });
+
   it("reroutes a combat unit when another unit steps into its existing route", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
     addBuilding(s, 0, "constructionYard", 0, 0);

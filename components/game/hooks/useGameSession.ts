@@ -43,10 +43,25 @@ export function initialMission(
 ): SimState {
   if (tutorial) return createTutorialMission();
   if (slotId && typeof window !== "undefined") {
+    const isReload = isBrowserReload();
+    const saved = readSave(cachedLocalStorage(), seed);
+    if (isReload && saved && (resume || saved.missionIndex === mission)) {
+      return saved;
+    }
     const slot = readSlot(cachedLocalStorage(), slotId);
     if (slot && slot.state.seed === seed) {
       writeCampaignProgress(cachedLocalStorage(), slot.campaign);
       writeSave(cachedLocalStorage(), slot.state);
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("slot")) {
+          url.searchParams.delete("slot");
+          url.searchParams.set("resume", "1");
+          window.history.replaceState(null, "", url.toString());
+        }
+      } catch {
+        // Ignore URL replace errors in unsupported environments
+      }
       return slot.state;
     }
   }
@@ -173,6 +188,7 @@ export function useGameSession({
     loadMission: persistence.openLoadSlots,
     saveNamedSlot: persistence.saveNamedSlot,
     loadArchiveEntry: persistence.loadArchiveEntry,
+    deleteArchiveEntry: persistence.deleteArchiveEntry,
     defaultSlotName: persistence.defaultSlotName,
     listSaveSlots: persistence.listSaveSlots,
     listLoadEntries: persistence.listLoadEntries,

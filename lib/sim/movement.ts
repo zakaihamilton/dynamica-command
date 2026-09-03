@@ -1,6 +1,6 @@
 import { UNIT_STATS } from "../catalog";
 import { isUnitEntity, type Entity, type Facing, type SimState, type UnitEntity, type Vec2 } from "../types";
-import { tryFindPath, tryFindPathDetailed } from "./pathBudget";
+import { tryFindPathDetailed } from "./pathBudget";
 import { PATH_DIRS, diagonalCornerBlocked, routePendingFor, stepAlongPath } from "./pathfinding";
 import { prepareFlowFieldRoutes } from "./flowFieldRouting";
 import { canClimb, inBounds, isStaticWalkable, makeUnitOccupancy } from "./world";
@@ -275,12 +275,27 @@ export function tickMovement(state: SimState): void {
         if (e.blockedTicks === 1 || e.blockedTicks % 6 === 0) {
           const destination = e.path[e.path.length - 1];
           if (destination) {
-            const detour = tryFindPath(state, e, destination, {
+            const detourResult = tryFindPathDetailed(state, e, destination, {
               avoidUnits: true,
               ignoreId: e.id,
               occupancy,
             });
-            if (!detour) continue;
+            if (!detourResult) continue;
+            if (detourResult.status === "unreachable") {
+              // A group can legitimately seal a unit's final tile after the
+              // unit has arrived nearby. Do not keep walking into the same
+              // occupied pocket forever; settle at the current cell.
+              if (goalDistance(e) <= 2) {
+                e.orderDestination = { x: Math.round(e.x), y: Math.round(e.y) };
+                e.path = [];
+                e.flowGoal = undefined;
+                e.routePending = false;
+                e.idle = true;
+                e.blockedTicks = 0;
+              }
+              continue;
+            }
+            const detour = detourResult.path;
             const detourFirst = detour[0];
             if (detourFirst) {
               const dx = Math.round(detourFirst.x);
@@ -321,6 +336,7 @@ export function tickMovement(state: SimState): void {
       occupancy[after] = 1;
       atTile.delete(before);
       atTile.set(after, e);
+      e.blockedTicks = 0;
     }
     if (!e.path.length && stepTarget && reserved.get(stepCell) === e.id) reserved.delete(stepCell);
   }

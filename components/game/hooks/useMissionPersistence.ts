@@ -10,6 +10,8 @@ import {
   listSlots,
   readSave,
   readSlot,
+  removeSave,
+  removeSlot,
   writeSave,
   writeSlot,
   type ArchiveEntry,
@@ -226,11 +228,21 @@ export function useMissionPersistence({
     setState({ ...stateRef.current, entities: [...stateRef.current.entities] });
   }, [setState, stateRef]);
 
+  const deleteArchiveEntry = useCallback((entry: ArchiveEntry) => {
+    const storage = cachedLocalStorage();
+    if (entry.kind === "slot") {
+      removeSlot(storage, entry.id);
+    } else {
+      removeSave(storage, Number(entry.seed));
+    }
+  }, []);
+
   return {
     openSaveSlots,
     openLoadSlots,
     saveNamedSlot,
     loadArchiveEntry,
+    deleteArchiveEntry,
     defaultSlotName: () => defaultSlotName(stateRef.current),
     listSaveSlots: () => listSlots(cachedLocalStorage()),
     listLoadEntries: () => listPauseLoadEntries(cachedLocalStorage(), seed),

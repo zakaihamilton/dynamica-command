@@ -14,20 +14,29 @@ export function PauseSaveSlots({
   defaultName,
   slots,
   onCommit,
+  onDelete,
   onBack,
 }: {
   defaultName: string;
   slots: SlotMeta[];
   onCommit: (name: string, overwriteId: string | null) => boolean;
+  onDelete?: (entry: ArchiveEntry) => void;
   onBack: () => void;
 }) {
   const [name, setName] = useState(defaultName);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingOverwrite, setPendingOverwrite] = useState<SlotMeta | null>(null);
   const overwriteDialogRef = useModalFocus(Boolean(pendingOverwrite), pendingOverwrite?.id, "dialog");
+
+  const visibleSlots = useMemo(
+    () => slots.filter((slot) => !deletedIds.has(slot.id)),
+    [slots, deletedIds],
+  );
+
   const entries: ArchiveEntry[] = useMemo(
-    () => slots.map((slot) => ({ ...slot, kind: "slot" })),
-    [slots],
+    () => visibleSlots.map((slot) => ({ ...slot, kind: "slot" })),
+    [visibleSlots],
   );
 
   useEffect(() => {
@@ -47,6 +56,23 @@ export function PauseSaveSlots({
     setPendingOverwrite(null);
   };
 
+  const handleDelete = (entry: ArchiveEntry) => {
+    onDelete?.(entry);
+    if (entry.kind === "slot") {
+      setDeletedIds((prev) => new Set(prev).add(entry.id));
+      if (selectedId === entry.id) {
+        setSelectedId(null);
+        setName(defaultName);
+      }
+    }
+  };
+
+  const submitSave = () => {
+    const selected = visibleSlots.find((slot) => slot.id === selectedId) ?? null;
+    if (selected) setPendingOverwrite(selected);
+    else save(null);
+  };
+
   return (
     <>
       <ConsoleLabel>Save slots</ConsoleLabel>
@@ -63,27 +89,39 @@ export function PauseSaveSlots({
             setSelectedId(null);
             setName(event.target.value);
           }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              submitSave();
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              onBack();
+            }
+          }}
         />
       </label>
       <SaveSlotList
         entries={entries}
         emptyLabel="No named save slots yet."
         selectedKey={selectedId ? `slot:${selectedId}` : null}
+        showActions
+        onDelete={onDelete ? handleDelete : undefined}
         onSelect={(entry) => {
           if (entry.kind !== "slot") return;
-          setSelectedId(entry.id);
-          setName(entry.name);
+          if (selectedId === entry.id) {
+            setSelectedId(null);
+            setName(defaultName);
+          } else {
+            setSelectedId(entry.id);
+            setName(entry.name);
+          }
         }}
       />
       <div className={styles.actions}>
         <ConsoleButton
           className={styles.action}
           tooltip={selectedId ? "Overwrite the selected save slot" : "Write a new named save slot"}
-          onClick={() => {
-            const selected = slots.find((slot) => slot.id === selectedId) ?? null;
-            if (selected) setPendingOverwrite(selected);
-            else save(null);
-          }}
+          onClick={submitSave}
         >
           Save
         </ConsoleButton>
