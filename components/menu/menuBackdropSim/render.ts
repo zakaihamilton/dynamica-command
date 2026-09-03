@@ -2,6 +2,7 @@ import {
   unitSprite,
 } from "@/lib/gen/assets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
+import { frameTickBudget, TICK_MS } from "@/lib/game/loop";
 import { TILE_H, tileToScreen, type Camera } from "@/lib/iso";
 import { animFrame, toFacing, unitMovementOffset } from "@/lib/render/anim";
 import { rasterize } from "@/lib/render/sprites";
@@ -15,7 +16,15 @@ import {
 } from "@/lib/render/scrollLayer";
 import { terrainColors } from "@/lib/render/terrainMaterials";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
-import type { Facing } from "@/lib/types";
+import { BUILDING_STATS, isSupportUnit, UNIT_STATS } from "@/lib/catalog";
+import { FX_DURATION } from "@/lib/render/fx";
+import { renderWorld } from "@/lib/render/renderer";
+import { isTerrainAtlasReady } from "@/lib/render/terrainAtlas";
+import { tick } from "@/lib/sim/api";
+import { nearest } from "@/lib/sim/world";
+import { assignAttack } from "@/lib/sim/ai/combat";
+import { assignSupportTarget } from "@/lib/sim/support";
+import type { Facing, UnitKind } from "@/lib/types";
 import { type Actor, type CinemaScene, type Shot } from "./scene";
 import { cinemaCamera, cinemaOrigin, paintCinemaStatic } from "./paint";
 
@@ -24,6 +33,8 @@ type CinemaTerrainCache = ScrollLayer & {
 };
 
 const CINEMA_TERRAIN_CACHE_LIMIT = 4;
+const CINEMA_REFERENCE_FRAME_MS = 1000 / 60;
+const CINEMA_SHOT_LIFETIME_MS = 18 * CINEMA_REFERENCE_FRAME_MS;
 const cinemaTerrains = new Map<string, CinemaTerrainCache>();
 
 function cinemaTerrainContentKey(scene: CinemaScene, w: number, h: number, zoom: number): string {
@@ -96,29 +107,113 @@ function ensureCinemaTerrain(
   return cache;
 }
 
-export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number): void {
-  const { actors } = scene;
-  for (const a of actors) {
+function stepCinemaSimulation(scene: CinemaScene, shots: Shot[]): void {
+  if (scene.state) {
+    const cx = scene.combatEpicenter.x;
+    const cy = scene.combatEpicenter.y;
+
+    const { events } = tick(scene.state, undefined, { evaluateObjectives: false });
+    scene.state.fog.fill(2);
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    for (const ev of events) {
+      if (ev.type === "combat") {
+        shots.push({ ax: ev.x, ay: ev.y, bx: ev.targetX, by: ev.targetY, life: CINEMA_SHOT_LIFETIME_MS });
+      } else if (ev.type === "destroyed") {
+        scene.fx.push({
+          id: ev.id,
+          kind: "explosion",
+          x: ev.x,
+          y: ev.y,
+          elev: 1,
+          bornMs: now,
+          durationMs: FX_DURATION.explosion,
+          owner: ev.owner,
+          entityKind: ev.kind,
+          entityClass: (ev.kind in BUILDING_STATS ? "building" : "unit") as "building" | "unit",
+        });
+      }
+    }
+
+    // Cancel any distant retreat / sendHome paths from AI director so combatants hold the clash zone
+    for (const e of scene.state.entities) {
+      if (e.class !== "unit" || e.hp <= 0) continue;
+      if (e.orderDestination && Math.hypot(e.orderDestination.x - cx, e.orderDestination.y - cy) > 4) {
+        e.path = [];
+        e.routePending = false;
+        e.orderDestination = undefined;
+        e.attackTarget = undefined;
+        e.orderMode = undefined;
+      }
+    }
+
+    // Re-lock combat units onto active tactical opponents within the clash radius
+    const pCombat = scene.state.entities.filter(
+      (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !isSupportUnit(e.kind as UnitKind) && UNIT_STATS[e.kind as UnitKind].damage > 0,
+    );
+    const eCombat = scene.state.entities.filter(
+      (e) => e.owner === 1 && e.class === "unit" && e.hp > 0 && !isSupportUnit(e.kind as UnitKind) && UNIT_STATS[e.kind as UnitKind].damage > 0,
+    );
+
+    for (const u of eCombat) {
+      if (u.attackTarget === undefined || u.idle) {
+        const target = nearest(scene.state, u, (e) => e.owner === 0 && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
+        if (target) assignAttack(scene.state, u, target);
+      }
+    }
+
+    for (const u of pCombat) {
+      if (u.attackTarget === undefined || u.idle) {
+        const target = nearest(scene.state, u, (e) => e.owner === 1 && e.hp > 0 && Math.hypot(e.x - cx, e.y - cy) <= 8);
+        if (target) assignAttack(scene.state, u, target);
+      }
+    }
+
+    // Support units (medic, repairTruck) prioritize healing / repairing wounded friendly units
+    const supportUnits = scene.state.entities.filter(
+      (e) => e.class === "unit" && e.hp > 0 && isSupportUnit(e.kind as UnitKind),
+    );
+    for (const u of supportUnits) {
+      if (u.supportTargetId === undefined || u.idle) {
+        const target = nearest(scene.state, u, (e) => e.owner === u.owner && e.hp > 0 && e.hp < e.maxHp && Math.hypot(e.x - cx, e.y - cy) <= 8);
+        if (target) assignSupportTarget(scene.state, u, target);
+      }
+    }
+
+  }
+}
+
+export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number, nowMs?: number): void {
+  const frameNow = nowMs ?? t * CINEMA_REFERENCE_FRAME_MS;
+  const previousNow = scene.lastStepMs;
+  const frameScale = previousNow === undefined
+    ? 1
+    : Math.min(12, Math.max(0, frameNow - previousNow) / CINEMA_REFERENCE_FRAME_MS);
+  scene.lastStepMs = frameNow;
+
+  for (const a of scene.actors) {
     const dest = a.waypoints[a.wi]!;
     const dx = dest.x - a.x;
     const dy = dest.y - a.y;
     const d = Math.hypot(dx, dy);
     if (d < 0.05) a.wi = (a.wi + 1) % a.waypoints.length;
     else {
-      a.x += (dx / d) * a.speed;
-      a.y += (dy / d) * a.speed;
+      a.x += (dx / d) * a.speed * frameScale;
+      a.y += (dy / d) * a.speed * frameScale;
     }
   }
 
-  if (t % 48 === 0) {
-    const attacker = actors[1 + (t % 2)]!;
-    const target = attacker.owner === 0 ? actors[3]! : actors[1]!;
-    shots.push({ ax: attacker.x, ay: attacker.y, bx: target.x, by: target.y, life: 18 });
+  if (previousNow !== undefined) {
+    scene.simulationAccumulatorMs += Math.max(0, frameNow - previousNow);
   }
+  const elapsedMs = previousNow === undefined ? 0 : Math.max(0, frameNow - previousNow);
   for (let i = shots.length - 1; i >= 0; i--) {
-    shots[i]!.life -= 1;
+    shots[i]!.life -= elapsedMs;
     if (shots[i]!.life <= 0) shots.splice(i, 1);
   }
+
+  const budget = frameTickBudget(scene.simulationAccumulatorMs, TICK_MS);
+  scene.simulationAccumulatorMs = budget.acc;
+  for (let i = 0; i < budget.ticks; i++) stepCinemaSimulation(scene, shots);
 }
 
 export type RenderCinemaOptions = {
@@ -142,6 +237,20 @@ export function renderCinemaFrame(
   const useTerrainCache = options?.useTerrainCache ?? true;
   const followCamera = Boolean(options?.camera);
   const preview = !paintAmbient;
+
+  // Render actual game gameplay directly onto PIP feed once terrain is loaded
+  if (preview && scene.state && isTerrainAtlasReady(scene.state)) {
+    try {
+      renderWorld(ctx, scene.state, cam, new Set(), null, {
+        clockMs: typeof performance !== "undefined" ? performance.now() : t * 16,
+        subTickAlpha: Math.max(0, Math.min(1, scene.simulationAccumulatorMs / TICK_MS)),
+        fx: scene.fx,
+      });
+      return;
+    } catch {
+      // Fall through to standard cinema renderer if renderWorld is unsupported in this context
+    }
+  }
 
   ctx.imageSmoothingEnabled = true;
   if (preview && "imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";

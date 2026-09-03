@@ -27,6 +27,6 @@ Standard commands (defined in `package.json`, don't duplicate — reference ther
 Non-obvious caveats:
 
 - `yarn lint` is clean on a checkout.
-- Welcome **TUTORIAL** opens `/tutorial` on seed `0000` with no time limit. Briefing/play smoke tests in `tests/e2e/smoke.spec.ts` launch a campaign from New Game → briefing; a separate smoke case covers menu → **TUTORIAL** → Skip training → menu.
+- Welcome **TUTORIAL** opens `/tutorial` on seed `0000` with no time limit. Briefing/play smoke tests in `tests/e2e/smoke.spec.ts` launch a campaign from New Game → briefing; a separate smoke case covers menu → **TUTORIAL** → Exit Training → menu.
 - To manually reach the battlefield: New Game → enter a seed (or use ROLL) → Launch → briefing → Launch. The seed field is split into individual digit inputs, so ROLL is the most reliable way to seed it in automated/browser testing.
 - Open the Cloud Agent browser at `http://localhost:3000` (not `http://127.0.0.1:3000`). Next.js HMR origin checks can leave 127.0.0.1 unhydrated.

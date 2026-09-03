@@ -115,7 +115,8 @@
   height: var(--lock-feed-h);
   overflow: hidden;
   opacity: 1;
-  animation: none;
+  animation: none !important;
+  scale: 1 !important;
   filter: none;
   translate: calc((var(--lock-size) - var(--lock-feed-w)) / 2) calc((var(--lock-size) - var(--lock-feed-h)) / 2);
   background: none;

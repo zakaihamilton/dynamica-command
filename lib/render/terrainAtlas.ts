@@ -65,6 +65,63 @@ export function bakeTerrainAtlasData(state: AtlasWorld): TerrainAtlasData {
   return bakeAtlas(state, grainGeneration);
 }
 
+export function isTerrainAtlasReady(state: AtlasWorld): boolean {
+  if (typeof Image === "undefined") return true;
+  if (typeof navigator !== "undefined" && navigator.userAgent.includes("jsdom")) return true;
+  const biomeSrc = biomeArt(state.biome);
+  const treatment = generateCampaignVisualProfile(state.seed).terrainTreatment;
+  const plateSrc = TERRAIN_ART[treatment];
+  const bImg = grainImages.get(biomeSrc);
+  const pImg = grainImages.get(plateSrc);
+  const bReady = Boolean(bImg && bImg.complete && bImg.naturalWidth > 0);
+  const pReady = Boolean(pImg && pImg.complete && pImg.naturalWidth > 0);
+  return bReady && pReady;
+}
+
+export function preloadTerrainAtlas(state: AtlasWorld): Promise<boolean> {
+  if (typeof Image === "undefined") return Promise.resolve(true);
+  if (typeof navigator !== "undefined" && navigator.userAgent.includes("jsdom")) return Promise.resolve(true);
+  const biomeSrc = biomeArt(state.biome);
+  const treatment = generateCampaignVisualProfile(state.seed).terrainTreatment;
+  const plateSrc = TERRAIN_ART[treatment];
+
+  const loadOne = (src: string): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      const cached = grainImages.get(src);
+      if (cached && cached.complete && cached.naturalWidth > 0) {
+        resolve();
+        return;
+      }
+      const img = cached ?? new Image();
+      if (!cached) {
+        img.decoding = "async";
+        grainImages.set(src, img);
+      }
+      if (img.complete && img.naturalWidth > 0) {
+        resolve();
+        return;
+      }
+      const onDone = () => {
+        grainGeneration += 1;
+        atlasCache = null;
+        resolve();
+      };
+      img.addEventListener("load", onDone, { once: true });
+      img.addEventListener("error", onDone, { once: true });
+      if (!img.src) {
+        img.src = src;
+      }
+    });
+  };
+
+  return Promise.all([loadOne(biomeSrc), loadOne(plateSrc)]).then(() => {
+    if (typeof document !== "undefined") {
+      getTerrainAtlas(state);
+    }
+    return true;
+  });
+}
+
 function requestGrain(src: string): HTMLImageElement | null {
   if (typeof Image === "undefined") return null;
   const cached = grainImages.get(src);

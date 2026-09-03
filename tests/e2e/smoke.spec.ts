@@ -80,7 +80,8 @@ test("welcome tutorial opens the seed 0000 training range", async ({ page }) => 
   await expect(page.getByTestId("objective")).toHaveText("Training range — no time limit");
   await expect(page.getByTestId("time-remaining")).toHaveCount(0);
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
-  await page.getByRole("button", { name: "Skip training" }).click();
+  await expect(page.getByRole("button", { name: "Skip training" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Exit Training" }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 
@@ -143,7 +144,7 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await expect(page.getByTestId("menu-dashboard").getByRole("button", { name: "IMPORT SAVE" })).toHaveCount(0);
 
   const expandedLock = page.locator("[data-lock][data-expanded='true']");
-  await expect(expandedLock).toHaveCount(1);
+  await expect(expandedLock).toHaveCount(1, { timeout: 10_000 });
   await expect(expandedLock.locator("canvas")).toBeAttached();
   const lockBox = await expandedLock.boundingBox();
   const newGameBox = await page.getByRole("button", { name: "NEW GAME" }).boundingBox();

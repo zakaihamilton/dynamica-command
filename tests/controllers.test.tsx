@@ -272,7 +272,7 @@ describe("game lifecycle hooks", () => {
     expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&return=game&from=result");
   });
 
-  it("returns tutorial skip and back to the command desk without writing campaign progress", () => {
+  it("returns tutorial exits to the command desk without writing campaign progress", () => {
     const state = makeFixture({ seed: 0, win: { kind: "holdTheLine" } });
     const storage = localStorageAdapter();
     const session = createSaveSession(storage, 0);

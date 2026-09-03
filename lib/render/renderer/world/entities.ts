@@ -79,7 +79,7 @@ export function renderEntityPhase(
     entityById.set(e.id, e);
     drawList.push(e);
   }
-  drawList.sort((a, b) => depthOf(a) - depthOf(b));
+  drawList.sort((a, b) => (depthOf(a) - depthOf(b)) || (a.id - b.id));
 
   drawFxLayer(ctx, state, cam, extras.fx, timeMs, "ground");
 

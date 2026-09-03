@@ -26,9 +26,9 @@ export function MenuBackdrop() {
     resize();
     window.addEventListener("resize", resize);
 
-    const frame = () => {
+    const frame = (now: number) => {
       t += 1;
-      stepCinemaScene(scene, shots, t);
+      stepCinemaScene(scene, shots, t, now);
       renderCinemaFrame(ctx, canvas.width, canvas.height, t, scene, shots);
       if (!reduceMotion) raf = requestAnimationFrame(frame);
     };

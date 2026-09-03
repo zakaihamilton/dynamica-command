@@ -24,6 +24,10 @@ import { tickMovement } from "./movement";
 export { issue, inspect };
 export { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS } from "./scenarios";
 
+export type TickOptions = {
+  evaluateObjectives?: boolean;
+};
+
 export function createMission(opts: { seed: number; missionIndex: number }): SimState {
   const campaign = createCampaign(opts.seed);
   const mission = campaign.missions[opts.missionIndex];
@@ -147,7 +151,11 @@ export function createMissionFromData(opts: {
   return state;
 }
 
-export function tick(state: SimState, commands?: Command[]): { state: SimState; events: SimEvent[] } {
+export function tick(
+  state: SimState,
+  commands?: Command[],
+  options: TickOptions = {},
+): { state: SimState; events: SimEvent[] } {
   resetPathBudget();
   const events: SimEvent[] = [];
   if (commands?.length) events.push(...applyCommands(state, commands));
@@ -163,7 +171,9 @@ export function tick(state: SimState, commands?: Command[]): { state: SimState; 
   tickFog(state);
   state.tick += 1;
   events.push(...tickScenario(state));
-  events.push(...evaluateObjectives(state));
+  if (options.evaluateObjectives !== false) {
+    events.push(...evaluateObjectives(state));
+  }
   compactDestroyedEntities(state);
   return { state, events };
 }

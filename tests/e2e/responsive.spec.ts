@@ -606,7 +606,7 @@ test.describe("mobile-first layouts", () => {
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(568);
     await expect(tutorial.getByRole("button", { name: "Continue" })).toBeVisible();
-    await expect(tutorial.getByRole("button", { name: "Back" })).toBeVisible();
+    await expect(tutorial.getByRole("button", { name: "Exit Training" })).toBeVisible();
   });
 
   test("keeps menu and briefing actions reachable on small phones", async ({ page }) => {
