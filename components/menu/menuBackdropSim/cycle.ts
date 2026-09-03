@@ -1,5 +1,5 @@
 import { createCampaign } from "@/lib/gen/campaign";
-import { CINEMA_SEED } from "./scene";
+import { CINEMA_SCENARIO_KINDS, CINEMA_SEED, type CinemaScenarioKind } from "./scene";
 import { PREVIEW_SHOT_COUNT } from "./shots";
 
 export const PREVIEW_INITIAL_DELAY_MS = 5000;
@@ -15,6 +15,7 @@ export type PreviewPhase = {
   shotIndex: number;
   cycleIndex: number;
   missionIndex: number;
+  scenarioKind: CinemaScenarioKind;
 };
 
 export const EXCLUDED_SCENARIO_KINDS = ["rescue", "extraction", "escort", "sabotage"] as const;
@@ -36,25 +37,33 @@ export function previewMissionIndex(cycleIndex: number, seed = CINEMA_SEED): num
   return normal[Math.max(0, cycleIndex | 0) % normal.length]!;
 }
 
+export function previewScenarioKind(cycleIndex: number): CinemaScenarioKind {
+  const index = ((Math.max(0, cycleIndex | 0) % CINEMA_SCENARIO_KINDS.length) + CINEMA_SCENARIO_KINDS.length) % CINEMA_SCENARIO_KINDS.length;
+  return CINEMA_SCENARIO_KINDS[index]!;
+}
+
 export function previewAt(
   elapsedMs: number,
   lockCount = PREVIEW_LOCK_COUNT,
   shotCount = PREVIEW_SHOT_COUNT,
   initialDelayMs = PREVIEW_INITIAL_DELAY_MS,
+  cycleOffset = 0,
 ): PreviewPhase {
   const elapsed = Math.max(0, elapsedMs);
+  const baseCycle = Math.max(0, cycleOffset | 0);
   if (elapsed < initialDelayMs) {
-    const seed = previewSeed(0);
+    const seed = previewSeed(baseCycle);
     return {
       expanded: false,
-      lockIndex: 0,
-      shotIndex: 0,
-      cycleIndex: 0,
-      missionIndex: previewMissionIndex(0, seed),
+      lockIndex: baseCycle % Math.max(1, lockCount),
+      shotIndex: baseCycle % Math.max(1, shotCount),
+      cycleIndex: baseCycle,
+      missionIndex: previewMissionIndex(baseCycle, seed),
+      scenarioKind: previewScenarioKind(baseCycle),
     };
   }
   const cycleElapsed = elapsed - initialDelayMs;
-  const cycleIndex = Math.floor(cycleElapsed / PREVIEW_CYCLE_MS);
+  const cycleIndex = baseCycle + Math.floor(cycleElapsed / PREVIEW_CYCLE_MS);
   const phase = cycleElapsed % PREVIEW_CYCLE_MS;
   const seed = previewSeed(cycleIndex);
   return {
@@ -63,5 +72,6 @@ export function previewAt(
     shotIndex: cycleIndex % Math.max(1, shotCount),
     cycleIndex,
     missionIndex: previewMissionIndex(cycleIndex, seed),
+    scenarioKind: previewScenarioKind(cycleIndex),
   };
 }

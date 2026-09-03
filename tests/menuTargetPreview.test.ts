@@ -9,6 +9,7 @@ import {
   normalMissionIndices,
   previewAt,
   previewMissionIndex,
+  previewScenarioKind,
   previewSeed,
 } from "../components/menu/menuBackdropSim/cycle";
 import { CINEMA_SHOTS, cinemaShotCamera, PIP_ZOOM, PREVIEW_SHOT_COUNT } from "../components/menu/menuBackdropSim/shots";
@@ -25,13 +26,20 @@ describe("welcome target preview cycle", () => {
     expect(PREVIEW_INITIAL_DELAY_MS).toBe(5000);
     expect(PREVIEW_PLAY_MS).toBe(5000);
     expect(PREVIEW_IDLE_MS).toBe(3000);
-    expect(previewAt(0)).toEqual({ expanded: false, lockIndex: 0, shotIndex: 0, cycleIndex: 0, missionIndex: 0 });
+    expect(previewAt(0)).toEqual({ expanded: false, lockIndex: 0, shotIndex: 0, cycleIndex: 0, missionIndex: 0, scenarioKind: "baseAssault" });
     expect(previewAt(PREVIEW_INITIAL_DELAY_MS - 1)).toMatchObject({ expanded: false, lockIndex: 0, cycleIndex: 0 });
-    expect(previewAt(PREVIEW_INITIAL_DELAY_MS)).toEqual({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0, missionIndex: 0 });
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS)).toEqual({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0, missionIndex: 0, scenarioKind: "baseAssault" });
     expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_PLAY_MS - 1)).toMatchObject({ expanded: true, lockIndex: 0, shotIndex: 0, cycleIndex: 0 });
     expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_PLAY_MS)).toMatchObject({ expanded: false, lockIndex: 0, cycleIndex: 0 });
     expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS - 1)).toMatchObject({ expanded: false, lockIndex: 0, cycleIndex: 0 });
-    expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS)).toMatchObject({ expanded: true, lockIndex: 1, shotIndex: 1, cycleIndex: 1 });
+    expect(previewAt(PREVIEW_INITIAL_DELAY_MS + PREVIEW_CYCLE_MS)).toMatchObject({ expanded: true, lockIndex: 1, shotIndex: 1, cycleIndex: 1, scenarioKind: "turretDefense" });
+  });
+
+  it("rotates distinct scenario kinds across consecutive preview cycles", () => {
+    for (let i = 0; i < CINEMA_SCENARIO_KINDS.length; i++) {
+      expect(previewScenarioKind(i)).toBe(CINEMA_SCENARIO_KINDS[i]);
+      expect(previewAt(PREVIEW_INITIAL_DELAY_MS + i * PREVIEW_CYCLE_MS).scenarioKind).toBe(CINEMA_SCENARIO_KINDS[i]);
+    }
   });
 
   it("round-robins locks and advances to a different shot each play window", () => {

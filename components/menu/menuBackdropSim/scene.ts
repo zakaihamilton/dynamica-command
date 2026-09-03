@@ -56,7 +56,9 @@ export function createCinemaScene(
 
   // Pick deterministic tactical scenario for variety across previews
   const scenarioIndex =
-    ((mIndex + theater) % CINEMA_SCENARIO_KINDS.length + CINEMA_SCENARIO_KINDS.length) % CINEMA_SCENARIO_KINDS.length;
+    theater >= 0 && theater < CINEMA_SCENARIO_KINDS.length
+      ? theater
+      : ((theater - CINEMA_SEED + mIndex) % CINEMA_SCENARIO_KINDS.length + CINEMA_SCENARIO_KINDS.length) % CINEMA_SCENARIO_KINDS.length;
   const scenarioKind = scenarioOverride ?? CINEMA_SCENARIO_KINDS[scenarioIndex]!;
 
   // Reveal the full battlefield for the preview reconnaissance feed
@@ -168,13 +170,13 @@ export function createCinemaScene(
     pUnits.push(
       spawnUnit(state, 0, "tank", pSlots[0].x, pSlots[0].y),
       spawnUnit(state, 0, "tank", pSlots[1].x, pSlots[1].y),
-      spawnUnit(state, 0, "antiArmor", pSlots[2].x, pSlots[2].y),
+      spawnUnit(state, 0, "tank", pSlots[2].x, pSlots[2].y),
       spawnUnit(state, 0, "repairTruck", pSlots[3].x, pSlots[3].y),
     );
     eUnits.push(
       spawnUnit(state, 1, "tank", eSlots[0].x, eSlots[0].y),
       spawnUnit(state, 1, "tank", eSlots[1].x, eSlots[1].y),
-      spawnUnit(state, 1, "antiArmor", eSlots[2].x, eSlots[2].y),
+      spawnUnit(state, 1, "tank", eSlots[2].x, eSlots[2].y),
       spawnUnit(state, 1, "repairTruck", eSlots[3].x, eSlots[3].y),
     );
   } else if (scenarioKind === "infantryStorm") {

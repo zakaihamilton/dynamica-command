@@ -5,9 +5,13 @@ import { cx } from "@/lib/ui/cx";
 import {
   cinemaShotCamera,
   createCinemaScene,
+  PREVIEW_INITIAL_DELAY_MS,
+  PREVIEW_LOCK_COUNT,
   PREVIEW_LOCK_IDS,
+  PREVIEW_SHOT_COUNT,
   previewAt,
   previewMissionIndex,
+  previewScenarioKind,
   previewSeed,
   renderCinemaFrame,
   stepCinemaScene,
@@ -54,20 +58,32 @@ function previewChanged(a: PreviewPhase, b: PreviewPhase): boolean {
 
 export function MenuSignalOverlay() {
   const reducedMotion = usePrefersReducedMotion();
-  const [preview, setPreview] = useState<PreviewPhase>(() => previewAt(0));
+  const [sessionOffset] = useState(() =>
+    typeof window !== "undefined" && !navigator.userAgent.includes("jsdom")
+      ? Math.floor(Math.random() * 60)
+      : 0,
+  );
+  const [preview, setPreview] = useState<PreviewPhase>(() =>
+    previewAt(0, PREVIEW_LOCK_COUNT, PREVIEW_SHOT_COUNT, PREVIEW_INITIAL_DELAY_MS, sessionOffset),
+  );
   const previewRef = useRef<PreviewPhase>(preview);
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([null, null, null]);
 
   useEffect(() => {
     if (reducedMotion) return;
 
-    let scene = createCinemaScene(previewSeed(0), previewMissionIndex(0));
+    const initialSeed = previewSeed(sessionOffset);
+    let scene = createCinemaScene(
+      initialSeed,
+      previewMissionIndex(sessionOffset, initialSeed),
+      previewScenarioKind(sessionOffset),
+    );
     preloadTerrainAtlas(scene.ground);
     if (scene.state) preloadTerrainAtlas(scene.state);
     preloadRasterSources(listTacticalRasterSources());
 
     let nextScene: CinemaScene | null = null;
-    let cycleIndex = 0;
+    let cycleIndex = sessionOffset;
     const shots: Shot[] = [];
     let raf = 0;
     let t = 0;
@@ -75,10 +91,20 @@ export function MenuSignalOverlay() {
 
     const frame = (now: number) => {
       t += 1;
-      const next = previewAt(now - started);
+      const next = previewAt(
+        now - started,
+        PREVIEW_LOCK_COUNT,
+        PREVIEW_SHOT_COUNT,
+        PREVIEW_INITIAL_DELAY_MS,
+        sessionOffset,
+      );
       if (next.cycleIndex !== cycleIndex) {
         const seed = previewSeed(next.cycleIndex);
-        scene = nextScene ?? createCinemaScene(seed, previewMissionIndex(next.cycleIndex, seed));
+        scene = nextScene ?? createCinemaScene(
+          seed,
+          previewMissionIndex(next.cycleIndex, seed),
+          previewScenarioKind(next.cycleIndex),
+        );
         preloadTerrainAtlas(scene.ground);
         if (scene.state) preloadTerrainAtlas(scene.state);
         nextScene = null;
@@ -86,7 +112,11 @@ export function MenuSignalOverlay() {
         cycleIndex = next.cycleIndex;
       } else if (!next.expanded && nextScene === null) {
         const nextSeed = previewSeed(next.cycleIndex + 1);
-        nextScene = createCinemaScene(nextSeed, previewMissionIndex(next.cycleIndex + 1, nextSeed));
+        nextScene = createCinemaScene(
+          nextSeed,
+          previewMissionIndex(next.cycleIndex + 1, nextSeed),
+          previewScenarioKind(next.cycleIndex + 1),
+        );
         preloadTerrainAtlas(nextScene.ground);
         if (nextScene.state) preloadTerrainAtlas(nextScene.state);
       }
