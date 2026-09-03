@@ -98,7 +98,6 @@ export function GamePlayField({
           prompt={tutorialPrompt(state)}
           complete={state.tutorialStage === "complete"}
           onAdvance={state.tutorialStage === "complete" ? onExitTutorial : onAdvanceTutorial}
-          onSkip={onExitTutorial}
           onBack={onBackTutorial}
         />
       ) : null}

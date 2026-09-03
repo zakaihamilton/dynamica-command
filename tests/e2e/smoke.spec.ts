@@ -80,7 +80,8 @@ test("welcome tutorial opens the seed 0000 training range", async ({ page }) => 
   await expect(page.getByTestId("objective")).toHaveText("Training range — no time limit");
   await expect(page.getByTestId("time-remaining")).toHaveCount(0);
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
-  await page.getByRole("button", { name: "Skip training" }).click();
+  await expect(page.getByRole("button", { name: "Skip training" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Exit Training" }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 
