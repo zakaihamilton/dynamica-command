@@ -3,9 +3,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { useRef, type PointerEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { createCamera } from "../lib/iso";
-import { makeFixture } from "../lib/sim/fixtures";
-import type { BuildingKind, Command } from "../lib/types";
+import { createCamera, TILE_H, tileToScreen } from "../lib/iso";
+import { addUnit, makeFixture } from "../lib/sim/fixtures";
+import { heightAt } from "../lib/sim/world";
+import type { BuildingKind, Command, SimState } from "../lib/types";
 import { useGameInput } from "../components/game/hooks/useGameInput";
 import { useTouchGestures } from "../components/game/hooks/useTouchGestures";
 
@@ -42,9 +43,15 @@ function pointerEvent(canvas: HTMLCanvasElement, overrides: Partial<PointerEvent
 
 function renderInput(
   canvas: HTMLCanvasElement,
-  overrides: { repairMode?: boolean; repairRef?: { current: boolean } } = {},
+  overrides: {
+    repairMode?: boolean;
+    repairRef?: { current: boolean };
+    selected?: Set<number>;
+    setup?: (state: SimState) => void;
+  } = {},
 ) {
   const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+  overrides.setup?.(state);
   const commitSelection = vi.fn();
   const applyEdgePan = vi.fn();
   const clearTools = vi.fn();
@@ -53,7 +60,7 @@ function renderInput(
     (props: { repairMode: boolean }) => useGameInput({
       stateRef: useRef(state),
       camRef: useRef(createCamera()),
-      selectedRef: useRef(new Set<number>()),
+      selectedRef: useRef(overrides.selected ?? new Set<number>()),
       commitSelection,
       cmdQRef: useRef<Command[]>([]),
       placeRef: useRef<BuildingKind | null>(null),
@@ -74,7 +81,7 @@ function renderInput(
     }),
     { initialProps: { repairMode: overrides.repairMode ?? false } },
   );
-  return { result, canvas, commitSelection, applyEdgePan, clearTools, repairRef, rerender };
+  return { result, canvas, commitSelection, applyEdgePan, clearTools, repairRef, rerender, state };
 }
 
 describe("desktop marquee pointer lifecycle", () => {
@@ -210,5 +217,62 @@ describe("touch gesture lifecycle", () => {
     });
 
     expect(commitSelection).toHaveBeenCalledOnce();
+  });
+});
+
+describe("command markers", () => {
+  it("pings a move order when selected units receive it, and stays quiet with no selection", () => {
+    const canvas = testCanvas();
+    const { result: empty } = renderInput(canvas);
+    act(() => {
+      empty.current.onUp(pointerEvent(canvas, { button: 2, buttons: 0 }));
+    });
+    expect(empty.current.commandMarkerRef.current).toBeNull();
+
+    const selected = new Set<number>();
+    const { result: armed } = renderInput(canvas, {
+      setup: (state) => {
+        selected.add(addUnit(state, 0, "infantry", 2, 2).id);
+      },
+      selected,
+    });
+    act(() => {
+      armed.current.onUp(pointerEvent(canvas, { button: 2, buttons: 0 }));
+    });
+    expect(armed.current.commandMarkerRef.current?.kind).toBe("move");
+  });
+});
+
+describe("double-click selection", () => {
+  it("selects all on-screen units of the clicked kind", () => {
+    const canvas = testCanvas();
+    const cam = createCamera();
+    let firstId = 0;
+    let secondId = 0;
+    const { result, commitSelection, state } = renderInput(canvas, {
+      setup: (s) => {
+        firstId = addUnit(s, 0, "tank", 5, 5).id;
+        secondId = addUnit(s, 0, "tank", 6, 5).id;
+        addUnit(s, 0, "infantry", 5, 6);
+      },
+    });
+    const tank = state.entities.find((entity) => entity.id === firstId)!;
+    const pos = tileToScreen(tank.x, tank.y, cam, heightAt(state, Math.round(tank.x), Math.round(tank.y)));
+    const click = pointerEvent(canvas, {
+      clientX: pos.x + 10,
+      clientY: pos.y + TILE_H / 2 - 12 + 20,
+      buttons: 0,
+    });
+
+    act(() => {
+      result.current.onDown(click);
+      result.current.onUp(click);
+      result.current.onDown(click);
+      result.current.onUp(click);
+    });
+
+    expect(commitSelection).toHaveBeenCalledTimes(2);
+    expect(commitSelection).toHaveBeenNthCalledWith(1, [firstId]);
+    expect(commitSelection).toHaveBeenNthCalledWith(2, [firstId, secondId]);
   });
 });

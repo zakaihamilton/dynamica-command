@@ -1,10 +1,10 @@
 import { finalizeMultiSelect, pickEntity } from "@/lib/render/pick";
 import { pickTile, visibleBuildingAt } from "@/lib/render/renderer";
-import { screenToTile, tileToScreen, type Camera } from "@/lib/iso";
+import { TILE_H, screenToTile, tileToScreen, type Camera } from "@/lib/iso";
 import { groundOrders } from "@/lib/sim/orders";
 import { canSupportEntity } from "@/lib/sim/support";
-import { heightAt } from "@/lib/sim/world";
-import type { Command, SimState } from "@/lib/types";
+import { groundHeight, heightAt } from "@/lib/sim/world";
+import type { Command, Entity, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import { selectionBoxProjection, type SelectionBox } from "./selectionBox";
 
@@ -71,6 +71,45 @@ export function mobileCommandOrders(
   if (command === "attack" && target?.owner === 1) return [{ type: "attack", unitIds: ids, targetId: target.id }];
   if (command === "harvest" && s.tiles[y * s.width + x] === 2) return [{ type: "harvest", unitIds: ids, x, y }];
   return [];
+}
+
+export function unitOnScreen(
+  s: SimState,
+  cam: Camera,
+  viewport: { width: number; height: number },
+  entity: Entity,
+): boolean {
+  const z = cam.zoom;
+  const elev = groundHeight(s, entity.x, entity.y);
+  const pos = tileToScreen(entity.x, entity.y, cam, elev);
+  const bodyX = pos.x;
+  const bodyY = pos.y + (TILE_H / 2) * z - 12 * z;
+  return bodyX >= 0 && bodyX <= viewport.width && bodyY >= 0 && bodyY <= viewport.height;
+}
+
+/** All on-screen living units matching the clicked unit's kind, owner, and neutrality. */
+export function selectVisibleUnitsOfKind(
+  s: SimState,
+  cam: Camera,
+  viewport: { width: number; height: number },
+  prototype: Entity,
+): number[] {
+  if (prototype.class !== "unit" || prototype.hp <= 0) return [];
+  const ids: number[] = [];
+  for (const en of s.entities) {
+    if (
+      en.hp <= 0 ||
+      en.class !== "unit" ||
+      en.kind !== prototype.kind ||
+      en.owner !== prototype.owner ||
+      Boolean(en.neutral) !== Boolean(prototype.neutral) ||
+      (en.neutral && !isContactTarget(s, en))
+    ) {
+      continue;
+    }
+    if (en.id === prototype.id || unitOnScreen(s, cam, viewport, en)) ids.push(en.id);
+  }
+  return ids;
 }
 
 export function selectionIdsInBox(s: SimState, cam: Camera, box: SelectionBox, finalize: boolean) {

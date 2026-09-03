@@ -84,6 +84,7 @@ Each mission allows at most one Barracks and one Vehicle Plant. Hover a unit or 
 | Input | Action |
 | --- | --- |
 | Left click / drag | Select |
+| Double-click unit | Select all visible units of that type |
 | Right click | Move, attack, or harvest |
 | Right click / touch friendly target | Assign a selected support unit to heal that compatible human or vehicle |
 | Ctrl / Cmd + right click | Attack-move (Harvesters still gather on ore) |

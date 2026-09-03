@@ -11,8 +11,26 @@ import {
   pickSelectableEntity,
   pointerTile,
   selectionIdsInBox,
+  selectVisibleUnitsOfKind,
 } from "./gameInputOrders";
 import { selectionBoxDistance, type SelectionBox } from "./selectionBox";
+
+export const DOUBLE_CLICK_MS = 400;
+export const DOUBLE_CLICK_PX = 24;
+
+export type LastUnitClick = {
+  atMs: number;
+  kind: string;
+  x: number;
+  y: number;
+};
+
+export function isSameKindDoubleClick(last: LastUnitClick | null | undefined, next: LastUnitClick): boolean {
+  if (!last) return false;
+  if (next.kind !== last.kind) return false;
+  if (next.atMs - last.atMs > DOUBLE_CLICK_MS) return false;
+  return Math.hypot(next.x - last.x, next.y - last.y) <= DOUBLE_CLICK_PX;
+}
 
 export type PointerUpInput = {
   pointerType: string;
@@ -29,6 +47,8 @@ export type PointerUpInput = {
   placeKind: BuildingKind | null;
   repairMode: boolean;
   sellMode: boolean;
+  doubleClick?: boolean;
+  viewport?: { width: number; height: number };
 };
 
 export type PointerUpEffect = {
@@ -49,6 +69,19 @@ const DRAG_THRESHOLD = 8;
 
 function selectableIds(state: SimState, hit: SimState["entities"][number] | undefined): number[] {
   return hit && hit.owner === 0 && (!hit.neutral || isContactTarget(state, hit)) ? [hit.id] : [];
+}
+
+function selectionForHit(
+  state: SimState,
+  cam: Camera,
+  hit: SimState["entities"][number] | undefined,
+  doubleClick: boolean | undefined,
+  viewport: { width: number; height: number } | undefined,
+): number[] {
+  const ids = selectableIds(state, hit);
+  if (!doubleClick || !viewport || !hit || hit.class !== "unit" || !ids.length) return ids;
+  const expanded = selectVisibleUnitsOfKind(state, cam, viewport, hit);
+  return expanded.length ? expanded : ids;
 }
 
 function selectEffect(ids: number[], extra: Omit<PointerUpEffect, "select" | "clearBox" | "beep"> = {}): PointerUpEffect {
@@ -76,6 +109,8 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
     placeKind,
     repairMode,
     sellMode,
+    doubleClick,
+    viewport,
   } = input;
   const { x: tx, y: ty } = pointerTile(state, p, cam);
 
@@ -88,7 +123,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
         endSelectionMode: true,
       });
     }
-    return selectEffect(selectableIds(state, pickSelectableEntity(state, p.x, p.y, tx, ty, cam)), {
+    return selectEffect(selectionForHit(state, cam, pickSelectableEntity(state, p.x, p.y, tx, ty, cam), doubleClick, viewport), {
       endSelectionMode: true,
     });
   }
@@ -158,7 +193,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
     if (supportOrders.length) {
       return { clearBox: true, commands: supportOrders, beep: beepForCommands(supportOrders) };
     }
-    return selectEffect([hit.id]);
+    return selectEffect(selectionForHit(state, cam, hit, doubleClick, viewport));
   }
   if (pointerType === "touch" && selectedIds.length > 0 && hit?.owner === 1 && !hit.neutral) {
     const commands: Command[] = [{ type: "attack", unitIds: selectedIds, targetId: hit.id }];
@@ -168,5 +203,5 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
       beep: beepForCommands(commands),
     };
   }
-  return selectEffect(selectableIds(state, hit));
+  return selectEffect(selectionForHit(state, cam, hit, doubleClick, viewport));
 }

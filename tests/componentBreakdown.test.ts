@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { canvasPointerPos } from "../components/game/hooks/canvasPointer";
 import { applyGameCommand } from "../components/game/hooks/gameKeyboard";
 import { leastLoadedProducer } from "../components/game/hooks/gameActions";
-import { resolvePointerUp } from "../components/game/hooks/gamePointerUp";
+import { resolvePointerUp, DOUBLE_CLICK_MS, isSameKindDoubleClick } from "../components/game/hooks/gamePointerUp";
 import { alertSfx, desiredMusicIntensity, rejectionSfx, warningAlert } from "../components/game/hooks/gameLoopEffects";
 import { missionConfirmationFor } from "../components/game/hooks/missionConfirmation";
 import { briefingBackPath, briefingPath, campaignCompletePath, menuPath, resultPrimaryPath, tutorialPath } from "../components/game/hooks/missionRoutes";
@@ -245,6 +245,76 @@ describe("pointer-up policy", () => {
       repairMode: false,
       sellMode: false,
     })).toMatchObject({ select: [unit.id], beep: "select" });
+  });
+});
+
+describe("double-click selection policy", () => {
+  it("treats a second same-kind click within the time and distance window as a double-click", () => {
+    const first = { atMs: 1000, kind: "tank", x: 40, y: 40 };
+    expect(isSameKindDoubleClick(null, first)).toBe(false);
+    expect(isSameKindDoubleClick(first, { atMs: 1300, kind: "tank", x: 48, y: 42 })).toBe(true);
+    expect(isSameKindDoubleClick(first, { atMs: 1000 + DOUBLE_CLICK_MS + 1, kind: "tank", x: 40, y: 40 })).toBe(false);
+    expect(isSameKindDoubleClick(first, { atMs: 1200, kind: "infantry", x: 40, y: 40 })).toBe(false);
+    expect(isSameKindDoubleClick(first, { atMs: 1200, kind: "tank", x: 80, y: 40 })).toBe(false);
+  });
+
+  it("expands a double-click onto visible units of that kind and keeps a single-click as one unit", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const tank = addUnit(state, 0, "tank", 5, 5);
+    const other = addUnit(state, 0, "tank", 6, 5);
+    addUnit(state, 0, "infantry", 5, 6);
+    const screen = tileToScreen(tank.x, tank.y, cam, heightAt(state, tank.x, tank.y));
+    const viewport = { width: 800, height: 600 };
+    const base = {
+      pointerType: "mouse",
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      p: screen,
+      state,
+      cam,
+      selectedIds: [] as number[],
+      box: null,
+      selectionMode: false,
+      mobileCommand: null,
+      placeKind: null,
+      repairMode: false,
+      sellMode: false,
+      viewport,
+    };
+
+    expect(resolvePointerUp(base)).toMatchObject({ select: [tank.id], beep: "select" });
+    expect(resolvePointerUp({ ...base, doubleClick: true })).toMatchObject({
+      select: [tank.id, other.id],
+      beep: "select",
+    });
+  });
+
+  it("does not expand a double-click on a building", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const yard = addBuilding(state, 0, "constructionYard", 3, 3);
+    addBuilding(state, 0, "power", 6, 3);
+    const p = tileToScreen(yard.x, yard.y, cam, heightAt(state, yard.x, yard.y));
+    expect(resolvePointerUp({
+      pointerType: "mouse",
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      p,
+      state,
+      cam,
+      selectedIds: [],
+      box: null,
+      selectionMode: false,
+      mobileCommand: null,
+      placeKind: null,
+      repairMode: false,
+      sellMode: false,
+      doubleClick: true,
+      viewport: { width: 800, height: 600 },
+    })).toMatchObject({ select: [yard.id] });
   });
 });
 

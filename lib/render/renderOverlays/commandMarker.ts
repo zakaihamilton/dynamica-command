@@ -12,11 +12,16 @@ export const COMMAND_MARKER_COLORS: Record<CommandMarkerKind, { stroke: string; 
   support: { stroke: "#7ad4ff", shadow: "#3aa0e0", fill: "#d4f2ff" },
 };
 
-export function commandMarkerKind(commands: { type: string }[]): CommandMarkerKind | null {
-  if (commands.some((command) => command.type === "attack" || command.type === "attackMove")) return "attack";
-  if (commands.some((command) => command.type === "harvest")) return "harvest";
-  if (commands.some((command) => command.type === "support")) return "support";
-  if (commands.some((command) => command.type === "move")) return "move";
+function ordersUnits(command: { type: string; unitIds?: number[] }): boolean {
+  return (command.unitIds?.length ?? 0) > 0;
+}
+
+export function commandMarkerKind(commands: { type: string; unitIds?: number[] }[]): CommandMarkerKind | null {
+  const issued = commands.filter(ordersUnits);
+  if (issued.some((command) => command.type === "attack" || command.type === "attackMove")) return "attack";
+  if (issued.some((command) => command.type === "harvest")) return "harvest";
+  if (issued.some((command) => command.type === "support")) return "support";
+  if (issued.some((command) => command.type === "move")) return "move";
   return null;
 }
 
