@@ -2,7 +2,7 @@ import { isSupportUnit, UNIT_STATS } from "../../catalog";
 import { isUnitEntity, type Entity, type SimState } from "../../types";
 import { tryFindPathDetailed } from "../pathBudget";
 import { routePendingFor } from "../pathfinding";
-import { byId, closestApproach, distToEntity, living, nearest } from "../world";
+import { byId, closestApproach, distToEntity, livingView, nearest } from "../world";
 import { contestedResourcePoint } from "./helpers";
 import { homeGuardCount } from "./director";
 
@@ -11,7 +11,7 @@ function sameTile(a: { x: number; y: number } | undefined, b: { x: number; y: nu
 }
 
 export function enemyCombat(state: SimState): Entity[] {
-  return living(state).filter((e) => e.owner === 1 && isUnitEntity(e) && UNIT_STATS[e.kind].damage > 0 && !isSupportUnit(e.kind));
+  return livingView(state).filter((e) => e.owner === 1 && isUnitEntity(e) && UNIT_STATS[e.kind].damage > 0 && !isSupportUnit(e.kind));
 }
 
 export function sendHome(state: SimState, unit: Entity, yard: Entity): void {
@@ -89,6 +89,24 @@ export function assignAssault(
   retarget: boolean,
 ): void {
   const guards = homeGuardCount(state.missionIndex);
+  if (!retarget) {
+    let allAssigned = true;
+    for (const unit of units) {
+      let guard = 0;
+      const unitDistance = distToEntity(unit, yard);
+      for (const other of units) {
+        if (other === unit) continue;
+        const otherDistance = distToEntity(other, yard);
+        if (otherDistance < unitDistance || (otherDistance === unitDistance && other.id < unit.id)) guard += 1;
+      }
+      if (guard < guards) continue;
+      if (unit.attackTarget === undefined || !byId(state, unit.attackTarget)) {
+        allAssigned = false;
+        break;
+      }
+    }
+    if (allAssigned) return;
+  }
   const sorted = [...units].sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id);
   const raiders = sorted.slice(guards);
   const resourcePoint = contestedResourcePoint(state, yard);

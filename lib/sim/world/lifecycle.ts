@@ -2,10 +2,12 @@ import type { Entity, SimState } from "../../types";
 import { ensureDeadBuildingInvalidation } from "./terrain";
 
 export function compactDestroyedEntities(state: SimState): number {
-  const removedIds = new Set(
-    state.entities.filter((entity) => entity.hp <= 0).map((entity) => entity.id),
-  );
-  if (removedIds.size === 0) return 0;
+  let removedIds: Set<number> | undefined;
+  for (const entity of state.entities) {
+    if (entity.hp > 0) continue;
+    (removedIds ??= new Set<number>()).add(entity.id);
+  }
+  if (!removedIds) return 0;
 
   for (const entity of state.entities) {
     if (entity.hp <= 0 && entity.class === "building") ensureDeadBuildingInvalidation(state, entity.id);

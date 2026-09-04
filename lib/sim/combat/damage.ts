@@ -27,8 +27,9 @@ export function strike(
     target.suppression = Math.min(100, (target.suppression ?? 0) + stats.suppression);
   }
   if (stats.splashRadius > 0) {
-    for (const splash of state.entities.filter((e) => e.hp > 0)) {
-      if (splash.id === target.id || splash.hp <= 0 || splash.owner === e.owner || splash.neutral) continue;
+    for (const splash of state.entities) {
+      if (splash.hp <= 0) continue;
+      if (splash.id === target.id || splash.owner === e.owner || splash.neutral) continue;
       if (Math.hypot(splash.x - target.x, splash.y - target.y) > stats.splashRadius) continue;
       splash.hp -= damage * 0.35;
       if (splash.class === "unit") splash.suppression = Math.min(100, (splash.suppression ?? 0) + Math.round(stats.suppression * 0.35));

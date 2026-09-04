@@ -1,6 +1,6 @@
 import { BUILDING_STATS } from "../../catalog";
 import type { BuildingKind, Entity, SimState } from "../../types";
-import { findBuildSite, living, powerFor, spawnBuilding } from "../world";
+import { findBuildSite, livingView, powerFor, spawnBuilding } from "../world";
 import { contestedResourcePoint, forwardRefinerySite, forwardRelaySite, hasBuildingNear } from "./helpers";
 import { directorPhase } from "./director";
 
@@ -30,7 +30,7 @@ export function tryBuildForwardInfrastructure(state: SimState, yard: Entity): bo
   const point = contestedResourcePoint(state, yard);
   if (!point) return false;
 
-  const refineries = living(state).filter(
+  const refineries = livingView(state).filter(
     (entity) => entity.owner === 1 && entity.class === "building" && entity.kind === "refinery",
   );
   if (refineries.length >= 2 || hasBuildingNear(state, "refinery", point, 8)) return false;
@@ -44,7 +44,7 @@ export function tryBuildForwardInfrastructure(state: SimState, yard: Entity): bo
 
 export function tryBuildTurret(state: SimState, yard: Entity, threat: Entity): boolean {
   const cap = 1 + Math.floor(state.missionIndex / 2);
-  const turrets = living(state).filter((e) => e.owner === 1 && e.kind === "turret");
+  const turrets = livingView(state).filter((e) => e.owner === 1 && e.kind === "turret");
   if (turrets.length >= cap) return false;
   if (turrets.some((e) => e.constructing > 0)) return false;
   const spot = findBuildSite(state, "turret", threat.x, threat.y, 12, 1)

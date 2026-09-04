@@ -2,7 +2,7 @@ import { canSupportTarget, isSupportEntity, isSupportUnit, UNIT_STATS } from "..
 import { isUnitEntity, type Entity, type SimEvent, type SimState } from "../types";
 import { tryFindPathDetailed } from "./pathBudget";
 import { routePendingFor } from "./pathfinding";
-import { byId, distToEntity, living } from "./world";
+import { byId, distToEntity, livingView } from "./world";
 
 export function canSupportEntity(provider: Entity, target: Entity): boolean {
   if (!isUnitEntity(provider) || !isUnitEntity(target)) return false;
@@ -14,7 +14,7 @@ export function canSupportEntity(provider: Entity, target: Entity): boolean {
 export function nearestSupportTarget(state: SimState, provider: Entity): Entity | undefined {
   let best: Entity | undefined;
   let bestDistance = Infinity;
-  for (const target of living(state)) {
+  for (const target of livingView(state)) {
     if (!canSupportEntity(provider, target) || target.hp >= target.maxHp) continue;
     const distance = distToEntity(provider, target);
     if (distance < bestDistance || (distance === bestDistance && target.id < (best?.id ?? Infinity))) {
@@ -60,7 +60,7 @@ const EMPTY_EVENTS: SimEvent[] = [];
 
 export function tickSupport(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
   const events = eventSink ?? (collectEvents ? [] : undefined);
-  for (const provider of living(state)) {
+  for (const provider of livingView(state)) {
     if (!isUnitEntity(provider) || !isSupportUnit(provider.kind) || provider.neutral) continue;
     const stats = UNIT_STATS[provider.kind];
     const supportRange = stats.supportRange ?? 0;

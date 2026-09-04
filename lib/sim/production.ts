@@ -1,6 +1,6 @@
 import { UNIT_STATS, footprintOf } from "../catalog";
 import { isBuildingEntity, type SimEvent, type SimState } from "../types";
-import { frontTileNear, openTileNear, powerFor, trySpawnUnit } from "./world";
+import { frontTileNear, invalidatePowerCache, openTileNear, powerFor, trySpawnUnit } from "./world";
 
 const playerPowerOk = new WeakMap<SimState, boolean>();
 
@@ -13,9 +13,25 @@ function producerKey(owner: number, kind: string): string {
 }
 
 /** Ready barracks/factories share work: one job runs at Nx, two jobs split the extra capacity. */
+type ProductionBuffers = {
+  ready: Map<string, number>;
+  busyIds: Map<string, number[]>;
+  rates: Map<number, number>;
+};
+
+const productionBuffers = new WeakMap<SimState, ProductionBuffers>();
+
 function productionRates(state: SimState): Map<number, number> {
-  const ready = new Map<string, number>();
-  const busyIds = new Map<string, number[]>();
+  const buffers = productionBuffers.get(state) ?? {
+    ready: new Map<string, number>(),
+    busyIds: new Map<string, number[]>(),
+    rates: new Map<number, number>(),
+  };
+  buffers.ready.clear();
+  buffers.busyIds.clear();
+  buffers.rates.clear();
+  productionBuffers.set(state, buffers);
+  const { ready, busyIds, rates } = buffers;
   for (const e of state.entities) {
     if (e.hp <= 0 || e.class !== "building" || e.constructing > 0) continue;
     if (!isUnitProducer(e.kind)) continue;
@@ -27,7 +43,6 @@ function productionRates(state: SimState): Map<number, number> {
       busyIds.set(key, ids);
     }
   }
-  const rates = new Map<number, number>();
   for (const [key, ids] of busyIds) {
     const count = Math.max(ids.length, ready.get(key) ?? ids.length);
     const base = Math.floor(count / ids.length);
@@ -48,6 +63,7 @@ export function tickProduction(state: SimState, eventSink?: SimEvent[], collectE
     if (!e.queue) e.queue = [];
     if (e.constructing > 0) {
       if (lowPower[e.owner] && e.kind !== "power") continue;
+      invalidatePowerCache(state);
       e.constructing -= 1;
       if (e.constructing <= 0) {
         e.constructing = 0;

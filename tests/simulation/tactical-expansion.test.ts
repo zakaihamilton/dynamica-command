@@ -231,6 +231,32 @@ describe("tactical expansion", () => {
     expect(state.runtime.rescued).toBe(1);
   });
 
+  it("does not chain rescue contacts within one tick", () => {
+    const state = makeFixture({ width: 16, height: 16, win: { kind: "rescue", targetCount: 2, ticks: 100 } });
+    const rescuer = addUnit(state, 0, "infantry", 2, 2);
+    const first = addUnit(state, 0, "infantry", 4, 2);
+    const second = addUnit(state, 0, "infantry", 6, 2);
+    first.neutral = true;
+    first.scenarioRole = "stranded";
+    second.neutral = true;
+    second.scenarioRole = "stranded";
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [first.id, second.id],
+      rescued: 0,
+      required: 2,
+      secondary: [],
+    };
+
+    tick(state);
+
+    expect(rescuer.neutral).not.toBe(true);
+    expect(first.neutral).toBe(false);
+    expect(second.neutral).toBe(true);
+    expect(state.runtime.rescued).toBe(1);
+  });
+
   it("keeps extraction assets stationary until a player unit reaches them", () => {
     const state = makeFixture({ win: { kind: "extraction", targetCount: 1, ticks: 100 } });
     addBuilding(state, 0, "constructionYard", 0, 0);

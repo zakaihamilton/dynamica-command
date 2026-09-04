@@ -1,17 +1,29 @@
 import { BUILDING_STATS, UNIT_STATS } from "../../catalog";
-import { isBuildingEntity, isUnitEntity, type Entity, type SimState } from "../../types";
+import { isBuildingEntity, isUnitEntity, type Entity, type SimState, type WeaponType } from "../../types";
 
 export type CombatGrid = {
   state: SimState;
   cols: number;
   rows: number;
   cells: Entity[][];
-  order: Map<number, number>;
-  all: Entity[];
+  order: Int32Array;
+  byId: Array<Entity | undefined>;
+  targetable: Uint8Array;
+  threat: Uint8Array;
 };
 
 const CELL = 8;
 const gridBuffers = new WeakMap<SimState, CombatGrid>();
+type CombatStats = {
+  damage: number;
+  range: number;
+  cooldown: number;
+  weapon: WeaponType;
+  splashRadius: number;
+  suppression: number;
+};
+const TURRET_STATS: CombatStats = { damage: 9, range: 5.5, cooldown: 14, weapon: "cannon", splashRadius: 0.5, suppression: 10 };
+const NON_COMBAT_BUILDING_STATS: CombatStats = { damage: 0, range: 0, cooldown: 0, weapon: "smallArms", splashRadius: 0, suppression: 0 };
 
 export function isCombatTarget(state: SimState, e: Entity): boolean {
   if (e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined) return false;
@@ -24,12 +36,10 @@ export function isCombatThreat(state: SimState, e: Entity): boolean {
   return statsFor(e).damage > 0;
 }
 
-export function statsFor(e: Entity): { damage: number; range: number; cooldown: number; weapon: import("../../types").WeaponType; splashRadius: number; suppression: number } {
+export function statsFor(e: Entity): CombatStats {
   if (isUnitEntity(e)) return UNIT_STATS[e.kind];
-  if (e.kind === "turret") {
-    return { damage: 9, range: 5.5, cooldown: 14, weapon: "cannon", splashRadius: 0.5, suppression: 10 };
-  }
-  return { damage: 0, range: 0, cooldown: 0, weapon: "smallArms", splashRadius: 0, suppression: 0 };
+  if (e.kind === "turret") return TURRET_STATS;
+  return NON_COMBAT_BUILDING_STATS;
 }
 
 export function buildGrid(state: SimState): CombatGrid {
@@ -43,22 +53,32 @@ export function buildGrid(state: SimState): CombatGrid {
   if (cached && cached.cols === cols && cached.rows === rows) {
     for (const cell of cells) cell.length = 0;
   }
-  const order = cached && cached.cols === cols && cached.rows === rows ? cached.order : new Map<number, number>();
-  order.clear();
-  const all = cached && cached.cols === cols && cached.rows === rows ? cached.all : [];
-  all.length = 0;
+  const order = cached && cached.cols === cols && cached.rows === rows && cached.order.length >= state.nextId
+    ? cached.order
+    : new Int32Array(Math.max(state.nextId, 1));
+  const byId = cached && cached.cols === cols && cached.rows === rows && cached.byId.length >= state.nextId
+    ? cached.byId
+    : new Array<Entity | undefined>(Math.max(state.nextId, 1));
+  const targetable = cached && cached.cols === cols && cached.rows === rows && cached.targetable.length >= state.nextId
+    ? cached.targetable
+    : new Uint8Array(Math.max(state.nextId, 1));
+  const threat = cached && cached.cols === cols && cached.rows === rows && cached.threat.length >= state.nextId
+    ? cached.threat
+    : new Uint8Array(Math.max(state.nextId, 1));
+  let orderCount = 0;
   // Rebuild from the current entity array. The buffers are intentionally
   // reused because combat runs once per tick and entity positions change.
   for (const e of state.entities) {
     if (e.hp <= 0) continue;
-    const i = all.length;
-    all.push(e);
-    order.set(e.id, i);
+    order[e.id] = orderCount++;
+    byId[e.id] = e;
+    targetable[e.id] = isCombatTarget(state, e) ? 1 : 0;
+    threat[e.id] = targetable[e.id] === 1 && !(e.class === "building" && e.constructing > 0) && statsFor(e).damage > 0 ? 1 : 0;
     const cx = Math.max(0, Math.min(cols - 1, Math.floor(e.x / CELL)));
     const cy = Math.max(0, Math.min(rows - 1, Math.floor(e.y / CELL)));
     cells[cy * cols + cx]!.push(e);
   }
-  const grid = { state, cols, rows, cells, order, all };
+  const grid = { state, cols, rows, cells, order, byId, targetable, threat };
   gridBuffers.set(state, grid);
   return grid;
 }
@@ -75,22 +95,25 @@ export function closestEnemy(
   const x1 = Math.min(grid.cols - 1, Math.floor((e.x + reach) / CELL));
   const y1 = Math.min(grid.rows - 1, Math.floor((e.y + reach) / CELL));
   let best: Entity | undefined;
-  let bestD = Infinity;
+  let bestD2 = Infinity;
   let bestOrder = Infinity;
+  const maxDist2 = maxDist * maxDist;
   for (let cy = y0; cy <= y1; cy++) {
     for (let cx = x0; cx <= x1; cx++) {
       const bucket = grid.cells[cy * grid.cols + cx];
       if (!bucket) continue;
       for (const o of bucket) {
         if (o.hp <= 0) continue;
-        if (!isCombatTarget(grid.state, o)) continue;
+        if (grid.targetable[o.id] !== 1) continue;
         if (o.owner === e.owner) continue;
-        if (threatsOnly && !isCombatThreat(grid.state, o)) continue;
-        const d = distToEntity(e, o);
-        if (d > maxDist) continue;
-        const rank = grid.order.get(o.id) ?? Infinity;
-        if (d < bestD || (d === bestD && rank < bestOrder)) {
-          bestD = d;
+        if (threatsOnly && grid.threat[o.id] !== 1) continue;
+        const dx = e.x - o.x;
+        const dy = e.y - o.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > maxDist2) continue;
+        const rank = grid.order[o.id] ?? Infinity;
+        if (d2 < bestD2 || (d2 === bestD2 && rank < bestOrder)) {
+          bestD2 = d2;
           bestOrder = rank;
           best = o;
         }
@@ -110,8 +133,4 @@ export function acquire(grid: CombatGrid, e: Entity, threatsOnly = false): Entit
 
 export function acquirePreferred(grid: CombatGrid, e: Entity): Entity | undefined {
   return acquire(grid, e, true) ?? acquire(grid, e, false);
-}
-
-function distToEntity(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
 }

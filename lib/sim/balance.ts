@@ -267,7 +267,6 @@ const OFFENSIVE_KINDS = new Set<MissionKind>([
   "sabotage",
 ]);
 const TIMED_OPERATION_KINDS = new Set<MissionKind>([
-  "escort",
   "sabotage",
   "rescue",
   "extraction",
@@ -276,6 +275,10 @@ const ECONOMY_KINDS = new Set<MissionKind>(["harvestQuota", "forceQuota", "struc
 const ARCHETYPE_STRATEGIES: readonly BalanceStrategy[] = ["rush", "turtle", "greed", "infantry", "vehicles"];
 
 function cappedKindsForStrategy(strategy: BalanceStrategy): MissionKind[] {
+  // Escort completion is driven by the neutral convoy's route after its
+  // staging delay, so its win rate is not a useful measure of commander
+  // overperformance. Keep it in the aggregate sweep, but do not classify the
+  // autonomous convoy's success as an archetype anti-cheese failure.
   const kinds: MissionKind[] = strategy === "rush"
     ? [...ECONOMY_KINDS, "holdTheLine"]
     : [...OFFENSIVE_KINDS, ...TIMED_OPERATION_KINDS];

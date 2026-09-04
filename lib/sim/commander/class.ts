@@ -7,7 +7,7 @@ import {
   OFFENSIVE_KINDS,
   combatUnits,
   objectiveKind,
-  playerBuildings,
+  playerBuildingsView,
 } from "./queries";
 import {
   planBuilding,
@@ -32,7 +32,7 @@ export class CompetentCommander {
 
   plan(state: SimState): Command[] {
     if (state.result !== "playing" || state.tutorialStage !== undefined || state.tick % COMMANDER_CADENCE !== 0) return [];
-    const yard = playerBuildings(state, "constructionYard")[0];
+    const yard = playerBuildingsView(state, "constructionYard")[0];
     if (!yard) return [];
 
     this.metrics.plans += 1;

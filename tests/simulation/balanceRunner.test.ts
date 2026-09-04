@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { performance } from "node:perf_hooks";
 import {
   ARCHETYPE_STRATEGIES,
   balanceScenarios,
@@ -41,6 +42,19 @@ describe("balance runner", () => {
     expect(progress).toHaveLength(2);
     expect(progress.map((entry) => entry.total)).toEqual([2, 2]);
     expect(progress.at(-1)?.completed).toBe(2);
+  });
+
+  it("stops worker execution when the elapsed budget has expired", async () => {
+    await expect(runBalanceSweepScenarios({
+      from: 0,
+      to: 1,
+      missions: [0],
+      maxTicks: 24,
+      strategies: [...ARCHETYPE_STRATEGIES],
+      scenarioList: [{ seed: 0, mission: 0 }, { seed: 1, mission: 0 }],
+      jobs: 2,
+      deadlineAt: performance.now() - 1,
+    })).rejects.toThrow("Balance sweep exceeded its elapsed-time budget");
   });
 
   it("keeps the optimized archetype sweep equivalent and isolated", async () => {

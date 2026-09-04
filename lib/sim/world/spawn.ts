@@ -1,6 +1,6 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../../catalog";
 import { isBuildingEntity, type BuildingKind, type Entity, type Owner, type SimState, type UnitKind, type Vec2 } from "../../types";
-import { living, invalidateLivingCache, distToEntity } from "./queries";
+import { livingView, invalidateLivingCache, distToEntity, powerBreakdownFor } from "./queries";
 import { invalidateNavigation, isWalkable, canClimb } from "./terrain";
 import { DEFAULT_BUILDING_CLEARANCE, findBuildSite, INITIAL_BUILDING_EDGE_MARGIN } from "./building";
 
@@ -111,7 +111,7 @@ export function nearest(
 ): Entity | undefined {
   let best: Entity | undefined;
   let bestD = Infinity;
-  for (const e of living(state)) {
+  for (const e of livingView(state)) {
     if (!pred(e)) continue;
     const d = distToEntity(from, e);
     if (d < bestD) {
@@ -123,19 +123,11 @@ export function nearest(
 }
 
 export function powerBreakdown(state: SimState, owner: Owner): { produced: number; used: number; surplus: number } {
-  let produced = 0;
-  let used = 0;
-  for (const e of living(state)) {
-    if (!isBuildingEntity(e) || e.owner !== owner || e.constructing > 0) continue;
-    const watt = BUILDING_STATS[e.kind].power;
-    if (watt >= 0) produced += watt;
-    else used -= watt;
-  }
-  return { produced, used, surplus: produced - used };
+  return { ...powerBreakdownFor(state, owner) };
 }
 
 export function powerFor(state: SimState, owner: Owner): number {
-  return powerBreakdown(state, owner).surplus;
+  return powerBreakdownFor(state, owner).surplus;
 }
 
 function unitSite(state: SimState, x: number, y: number, maxR = 12): Vec2 | undefined {

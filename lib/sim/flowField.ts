@@ -25,11 +25,14 @@ export type FlowField = {
 };
 
 const fieldsByState = new WeakMap<SimState, Map<string, FlowField>>();
+const sharedFields = new Map<string, FlowField>();
+const SHARED_FLOW_FIELD_LIMIT = 512;
 
 export function flowFieldFor(state: SimState, requestedGoal: Vec2): FlowField {
   const revision = state.navigationRevision ?? 0;
   const goal = { x: Math.round(requestedGoal.x), y: Math.round(requestedGoal.y) };
-  const key = `${revision}:${goal.x}:${goal.y}`;
+  const navigation = staticNavigationFor(state);
+  const key = `${navigation.geometryKey}:${goal.x}:${goal.y}`;
   let fields = fieldsByState.get(state);
   if (!fields) {
     fields = new Map();
@@ -38,8 +41,19 @@ export function flowFieldFor(state: SimState, requestedGoal: Vec2): FlowField {
   const cached = fields.get(key);
   if (cached) return cached;
 
+  const shared = sharedFields.get(key);
+  if (shared) {
+    fields.set(key, shared);
+    return shared;
+  }
   const field = buildFlowField(state, goal, revision);
   fields.set(key, field);
+  sharedFields.set(key, field);
+  while (sharedFields.size > SHARED_FLOW_FIELD_LIMIT) {
+    const first = sharedFields.keys().next().value as string | undefined;
+    if (first === undefined) break;
+    sharedFields.delete(first);
+  }
   return field;
 }
 

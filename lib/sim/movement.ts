@@ -1,9 +1,41 @@
 import { UNIT_STATS } from "../catalog";
 import { isUnitEntity, type Entity, type Facing, type SimState, type UnitEntity, type Vec2 } from "../types";
 import { tryFindPathDetailed } from "./pathBudget";
-import { PATH_DIRS, diagonalCornerBlocked, routePendingFor, stepAlongPath } from "./pathfinding";
+import { PATH_DIRS, diagonalCornerBlocked, routePendingFor } from "./pathfinding";
 import { prepareFlowFieldRoutes } from "./flowFieldRouting";
-import { canClimb, inBounds, isStaticWalkable, makeUnitOccupancy } from "./world";
+import { canClimb, inBounds, invalidateUnitAtCache, isStaticWalkable, unitOccupancyFor } from "./world";
+
+type MovementBuffers = {
+  occupancy: Uint8Array;
+  atTile: Map<number, Entity>;
+  reserved: Map<number, number>;
+  swapped: Set<number>;
+  movers: UnitEntity[];
+};
+
+const movementBuffers = new WeakMap<SimState, MovementBuffers>();
+
+function buffersFor(state: SimState): MovementBuffers {
+  const size = state.width * state.height;
+  let buffers = movementBuffers.get(state);
+  if (!buffers || buffers.occupancy.length !== size) {
+    buffers = {
+      occupancy: new Uint8Array(size),
+      atTile: new Map<number, Entity>(),
+      reserved: new Map<number, number>(),
+      swapped: new Set<number>(),
+      movers: [],
+    };
+    movementBuffers.set(state, buffers);
+  } else {
+    buffers.atTile.clear();
+    buffers.reserved.clear();
+    buffers.swapped.clear();
+    buffers.movers.length = 0;
+  }
+  buffers.occupancy = unitOccupancyFor(state);
+  return buffers;
+}
 
 function cellOf(state: SimState, x: number, y: number): number {
   return Math.round(y) * state.width + Math.round(x);
@@ -41,6 +73,29 @@ function holdingDestination(e: Entity): boolean {
   const dest = e.orderDestination;
   if (!dest) return false;
   return Math.round(e.x) === Math.round(dest.x) && Math.round(e.y) === Math.round(dest.y);
+}
+
+function advanceAlongPath(
+  state: SimState,
+  occupancy: Uint8Array,
+  reserved: Map<number, number>,
+  e: UnitEntity,
+  speed: number,
+): void {
+  if (!e.path.length) return;
+  const target = e.path[0]!;
+  const dx = target.x - e.x;
+  const dy = target.y - e.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance <= speed || distance < 0.05) {
+    if (!tileFree(state, occupancy, reserved, e, target.x, target.y)) return;
+    e.x = target.x;
+    e.y = target.y;
+    e.path.shift();
+    return;
+  }
+  e.x += (dx / distance) * speed;
+  e.y += (dy / distance) * speed;
 }
 
 function trySidestep(
@@ -180,10 +235,7 @@ function tryCooperativeSwap(
 }
 
 export function tickMovement(state: SimState): void {
-  const occupancy = makeUnitOccupancy(state);
-  const atTile = new Map<number, Entity>();
-  const reserved = new Map<number, number>();
-  const swapped = new Set<number>();
+  const { occupancy, atTile, reserved, swapped, movers } = buffersFor(state);
   prepareFlowFieldRoutes(state, occupancy, reserved);
   for (const e of state.entities) {
     // Convoys are neutral so combat targeting ignores them, but they still
@@ -219,7 +271,6 @@ export function tickMovement(state: SimState): void {
     atTile.set(cellOf(state, e.x, e.y), e);
   }
 
-  const movers: UnitEntity[] = [];
   for (const e of state.entities) {
     if (e.hp <= 0 || !isUnitEntity(e)) continue;
     movers.push(e);
@@ -329,7 +380,7 @@ export function tickMovement(state: SimState): void {
       }
     }
     const before = current;
-    stepAlongPath(e, speed, (x, y) => tileFree(state, occupancy, reserved, e, Math.round(x), Math.round(y)));
+    advanceAlongPath(state, occupancy, reserved, e, speed);
     const after = cellOf(state, e.x, e.y);
     if (after !== before) {
       occupancy[before] = 0;
@@ -340,4 +391,7 @@ export function tickMovement(state: SimState): void {
     }
     if (!e.path.length && stepTarget && reserved.get(stepCell) === e.id) reserved.delete(stepCell);
   }
+  // Positions changed during this tick are not reflected in the O(1) unitAt
+  // cache used by placement and closest-approach queries.
+  invalidateUnitAtCache(state);
 }

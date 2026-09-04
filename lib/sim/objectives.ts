@@ -2,7 +2,7 @@ import { labelFor, TICKS_PER_SECOND } from "../catalog";
 import type { InspectReport, MissionKind, MissionRuntime, SimEvent, SimState } from "../types";
 import { formatSeed } from "../seed/rng";
 import { formatMissionClock, formatMissionClockFromTicks } from "../gen/pacing";
-import { living } from "./world";
+import { livingView } from "./world";
 
 export function formatHoldClock(seconds: number): string {
   return formatMissionClock(seconds);
@@ -117,17 +117,17 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
       break;
     }
     case "razeAll": {
-      const left = living(state).filter((e) => e.owner === 1 && e.class === "building").length;
+  const left = livingView(state).filter((e) => e.owner === 1 && e.class === "building").length;
       progress = { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "All structures down" : `Enemy buildings left ${left}` };
       break;
     }
     case "decapitate": {
-      const cy = living(state).some((e) => e.owner === 1 && e.kind === "constructionYard");
+      const cy = livingView(state).some((e) => e.owner === 1 && e.kind === "constructionYard");
       progress = { current: cy ? 0 : 1, target: 1, label: cy ? `Destroy the enemy ${labelFor("constructionYard")}` : `${labelFor("constructionYard")} destroyed` };
       break;
     }
     case "annihilate": {
-      const left = living(state).filter((e) => e.owner === 1).length;
+      const left = livingView(state).filter((e) => e.owner === 1).length;
       progress = { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "Campaign clear" : `Hostiles left ${left}` };
       break;
     }
@@ -180,7 +180,7 @@ function objectiveEvents(eventSink: SimEvent[] | undefined, events: SimEvent[], 
 
 export function evaluateObjectives(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
   if (state.result !== "playing") return EMPTY_EVENTS;
-  const playerCy = living(state).some((e) => e.owner === 0 && e.kind === "constructionYard");
+  const playerCy = livingView(state).some((e) => e.owner === 0 && e.kind === "constructionYard");
   if (!playerCy) {
     state.result = "lost";
     state.lossReason = "yardDestroyed";
@@ -212,13 +212,13 @@ export function evaluateObjectives(state: SimState, eventSink?: SimEvent[], coll
       break;
     }
     case "razeAll":
-      won = !living(state).some((e) => e.owner === 1 && e.class === "building");
+      won = !livingView(state).some((e) => e.owner === 1 && e.class === "building");
       break;
     case "decapitate":
-      won = !living(state).some((e) => e.owner === 1 && e.kind === "constructionYard");
+      won = !livingView(state).some((e) => e.owner === 1 && e.kind === "constructionYard");
       break;
     case "annihilate":
-      won = !living(state).some((e) => e.owner === 1);
+      won = !livingView(state).some((e) => e.owner === 1);
       break;
     case "holdTheLine":
       if (state.tick >= (w.ticks ?? Infinity) && playerCy) won = true;
@@ -264,8 +264,8 @@ export function evaluateObjectives(state: SimState, eventSink?: SimEvent[], coll
 
 export function inspect(state: SimState): InspectReport {
   const obj = objectiveProgress(state);
-  const units = living(state).filter((e) => e.class === "unit");
-  const buildings = living(state).filter((e) => e.class === "building");
+  const units = livingView(state).filter((e) => e.class === "unit");
+  const buildings = livingView(state).filter((e) => e.class === "building");
   return {
     seed: formatSeed(state.seed),
     missionIndex: state.missionIndex,

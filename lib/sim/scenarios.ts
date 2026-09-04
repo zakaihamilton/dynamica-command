@@ -361,6 +361,8 @@ export function tickScenario(state: SimState): SimEvent[] {
     runtime.zone = { x: yard.x, y: yard.y };
   }
   if (runtime.kind === "rescue" || runtime.kind === "extraction") {
+    // Capture this list before contacting targets. A newly rescued target may
+    // not rescue another target until the next simulation tick.
     const rescuers = state.entities.filter(
       (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !e.neutral,
     );
@@ -399,21 +401,23 @@ export function tickScenario(state: SimState): SimEvent[] {
     const zone = runtime.zone;
     if (zone) {
       if (runtime.kind === "extraction") {
-        const extracted = new Set(runtime.extractedIds ?? []);
+        const extracted = runtime.extractedIds ?? [];
         for (const id of runtime.targetIds) {
-          if (extracted.has(id)) continue;
+          if (extracted.includes(id)) continue;
           const e = state.entities.find((item) => item.id === id && item.hp > 0);
           if (!e || e.neutral || !inObjectiveZone(e.x, e.y, zone)) continue;
-          extracted.add(id);
+          extracted.push(id);
           e.marked = false;
         }
-        runtime.extractedIds = [...extracted];
-        runtime.rescued = extracted.size;
+        runtime.extractedIds = extracted;
+        runtime.rescued = extracted.length;
       } else {
-        runtime.rescued = runtime.targetIds.filter((id) => {
+        let rescued = 0;
+        for (const id of runtime.targetIds) {
           const e = state.entities.find((item) => item.id === id && item.hp > 0);
-          return !!e && inObjectiveZone(e.x, e.y, zone);
-        }).length;
+          if (e && inObjectiveZone(e.x, e.y, zone)) rescued += 1;
+        }
+        runtime.rescued = rescued;
       }
     }
   }

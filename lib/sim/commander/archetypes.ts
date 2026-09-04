@@ -10,10 +10,11 @@ import { canRepair } from "../repair";
 import { canPlaceBuilding, distToEntity, findBuildSite, powerBreakdown, powerFor } from "../world";
 import { defensiveThreat, objectiveEntity } from "./combat";
 import {
+  OFFENSIVE_KINDS,
   YARD_THREAT_RADIUS,
   combatUnits,
-  enemyEntities,
-  playerBuildings,
+  enemyEntitiesView,
+  playerBuildingsView,
   queuedUnitCount,
   readyProducers,
   totalUnitCount,
@@ -34,15 +35,15 @@ function buildCommand(state: SimState, kind: BuildingKind, yard: Entity, reserve
 }
 
 function hasBuilding(state: SimState, kind: BuildingKind): boolean {
-  return playerBuildings(state, kind).some((building) => building.constructing === 0);
+  return playerBuildingsView(state, kind).some((building) => building.constructing === 0);
 }
 
 function buildingCount(state: SimState, kind: BuildingKind): number {
-  return playerBuildings(state, kind).length;
+  return playerBuildingsView(state, kind).length;
 }
 
 function pendingBuilding(state: SimState): boolean {
-  return playerBuildings(state).some((building) => building.constructing > 0);
+  return playerBuildingsView(state).some((building) => building.constructing > 0);
 }
 
 function repairPriority(kind: Entity["kind"]): number {
@@ -54,7 +55,7 @@ function repairPriority(kind: Entity["kind"]): number {
 
 function repairCommand(state: SimState, strategy: ArchetypeStrategy): Command | undefined {
   if (strategy !== "turtle") return undefined;
-  const target = playerBuildings(state)
+  const target = playerBuildingsView(state)
     .filter((building) => !building.repairing && canRepair(building))
     .sort((a, b) => repairPriority(a.kind) - repairPriority(b.kind) || a.id - b.id)[0];
   return target ? { type: "repair", buildingId: target.id } : undefined;
@@ -62,12 +63,12 @@ function repairCommand(state: SimState, strategy: ArchetypeStrategy): Command | 
 
 function archetypeBuilding(state: SimState, strategy: ArchetypeStrategy, yard: Entity): Command | undefined {
   const power = powerBreakdown(state, 0);
-  if (power.surplus < 10 && !playerBuildings(state, "power").some((building) => building.constructing > 0)) {
+  if (power.surplus < 10 && !playerBuildingsView(state, "power").some((building) => building.constructing > 0)) {
     return buildCommand(state, "power", yard, 0);
   }
 
   const pending = pendingBuilding(state);
-  const threat = enemyEntities(state).find(
+  const threat = enemyEntitiesView(state).find(
     (entity) => entity.class === "unit" && entity.kind !== "harvester" && distToEntity(yard, entity) <= YARD_THREAT_RADIUS,
   );
   const turrets = buildingCount(state, "turret");
@@ -98,7 +99,7 @@ function archetypeBuilding(state: SimState, strategy: ArchetypeStrategy, yard: E
 
 function desiredUnit(state: SimState, strategy: ArchetypeStrategy, producer: Entity): UnitKind | undefined {
   const harvesters = totalUnitCount(state, "harvester") + queuedUnitCount(state, "harvester");
-  const enemyTanks = enemyEntities(state).filter((entity) => entity.kind === "tank").length;
+  const enemyTanks = enemyEntitiesView(state).filter((entity) => entity.kind === "tank").length;
   const antiArmor = totalUnitCount(state, "antiArmor") + queuedUnitCount(state, "antiArmor");
 
   if (strategy === "greed" && producer.kind === "factory" && harvesters < 4) return "harvester";
@@ -135,7 +136,7 @@ function productionCommands(state: SimState, strategy: ArchetypeStrategy): Comma
 
 function combatTarget(state: SimState): Entity | undefined {
   return objectiveEntity(state)
-    ?? enemyEntities(state).find((entity) => entity.kind === "constructionYard");
+    ?? enemyEntitiesView(state).find((entity) => entity.kind === "constructionYard");
 }
 
 function orderKey(command: Command): string {
@@ -152,6 +153,12 @@ function commitTick(state: SimState, strategy: ArchetypeStrategy): number {
   return Math.floor(horizon * 0.35);
 }
 
+function isDefensiveOnlyMission(state: SimState, strategy: ArchetypeStrategy): boolean {
+  return (strategy === "turtle" || strategy === "greed") && (
+    OFFENSIVE_KINDS.has(state.win.kind) || state.win.kind === "rescue" || state.win.kind === "extraction"
+  );
+}
+
 function commandCombat(state: SimState, strategy: ArchetypeStrategy, yard: Entity): Command | undefined {
   const combat = combatUnits(state);
   if (!combat.length) return undefined;
@@ -159,7 +166,10 @@ function commandCombat(state: SimState, strategy: ArchetypeStrategy, yard: Entit
   if (threat) return { type: "attack", unitIds: combat.map((unit) => unit.id), targetId: threat.id };
 
   const target = combatTarget(state);
-  if (!target || state.tick < commitTick(state, strategy)) {
+  // Turtle and greed are deliberately defensive on combat/scenario missions.
+  // They may respond to a base threat, but do not turn an economic opening
+  // into a guaranteed objective win by eventually attacking everything.
+  if (!target || isDefensiveOnlyMission(state, strategy) || state.tick < commitTick(state, strategy)) {
     return { type: "move", unitIds: combat.map((unit) => unit.id), x: yard.x, y: yard.y, formation: "line" };
   }
 
@@ -178,7 +188,7 @@ export class ArchetypeCommander {
 
   plan(state: SimState): Command[] {
     if (state.result !== "playing" || state.tutorialStage !== undefined || state.tick % ARCHETYPE_CADENCE !== 0) return [];
-    const yard = playerBuildings(state, "constructionYard")[0];
+    const yard = playerBuildingsView(state, "constructionYard")[0];
     if (!yard) return [];
 
     const commands: Command[] = [];

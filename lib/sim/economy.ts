@@ -3,11 +3,12 @@ import { TILE_RESOURCE } from "../types";
 import type { Entity, Facing, SimEvent, SimState } from "../types";
 import { tryFindPathDetailed } from "./pathBudget";
 import { routePendingFor } from "./pathfinding";
-import { at, closestApproach, dist, distToEntity, inBounds, living, nearest, tileAt } from "./world";
+import { at, closestApproach, dist, distToEntity, inBounds, livingView, nearest, tileAt } from "./world";
 
 export const HARVEST_RANGE = 1.5;
 
 const resourceIndex = new WeakMap<SimState, number[]>();
+const economyClaims = new WeakMap<SimState, Map<number, number>>();
 
 export function resourceTiles(state: SimState): number[] {
   let list = resourceIndex.get(state);
@@ -46,14 +47,17 @@ export function nearestResourceNear(
 ): { x: number; y: number } | undefined {
   const list = resourceTiles(state);
   let best: { x: number; y: number } | undefined;
-  let bestD = Infinity;
+  let bestD2 = Infinity;
+  const maxDistance2 = maxDistance * maxDistance;
   for (const i of list) {
     if (state.resourceAmount[i]! <= 0) continue;
     const x = i % state.width;
     const y = (i - x) / state.width;
-    const d = dist(center, { x, y });
-    if (d <= maxDistance && d < bestD) {
-      bestD = d;
+    const dx = center.x - x;
+    const dy = center.y - y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 <= maxDistance2 && d2 < bestD2) {
+      bestD2 = d2;
       best = { x, y };
     }
   }
@@ -63,14 +67,16 @@ export function nearestResourceNear(
 export function nearestResource(state: SimState, from: Entity): { x: number; y: number } | undefined {
   const list = resourceTiles(state);
   let best: { x: number; y: number } | undefined;
-  let bestD = Infinity;
+  let bestD2 = Infinity;
   for (const i of list) {
     if (state.resourceAmount[i]! <= 0) continue;
     const x = i % state.width;
     const y = (i - x) / state.width;
-    const d = dist(from, { x, y });
-    if (d < bestD) {
-      bestD = d;
+    const dx = from.x - x;
+    const dy = from.y - y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
       best = { x, y };
     }
   }
@@ -92,8 +98,8 @@ export function bestResource(
     if (state.resourceAmount[i]! <= 0) continue;
     const x = i % state.width;
     const y = (i - x) / state.width;
-    const dCenter = dist(center, { x, y });
-    const dFrom = dist(from, { x, y });
+    const dCenter = Math.hypot(center.x - x, center.y - y);
+    const dFrom = Math.hypot(from.x - x, from.y - y);
     const claimCount = claims.get(i) ?? 0;
     const score = claimCount * 8 + dCenter * 0.5 + dFrom * 0.5;
     if (score < bestScore) {
@@ -108,9 +114,11 @@ const EMPTY_EVENTS: SimEvent[] = [];
 
 export function tickEconomy(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
   const events = eventSink ?? (collectEvents ? [] : undefined);
-  const claims = new Map<number, number>();
+  const claims = economyClaims.get(state) ?? new Map<number, number>();
+  claims.clear();
+  economyClaims.set(state, claims);
 
-  for (const e of living(state)) {
+  for (const e of livingView(state)) {
     if (e.kind !== "harvester" || e.hp <= 0) continue;
     if (e.gatherX !== undefined && e.gatherY !== undefined) {
       const key = at(state, e.gatherX, e.gatherY);
@@ -118,7 +126,7 @@ export function tickEconomy(state: SimState, eventSink?: SimEvent[], collectEven
     }
   }
 
-  for (const e of living(state)) {
+  for (const e of livingView(state)) {
     if (e.kind !== "harvester" || e.hp <= 0) continue;
     // Harvesters use their economy assignment rather than a player group
     // flow field once the economy loop takes control of their route.
@@ -187,7 +195,7 @@ export function tickEconomy(state: SimState, eventSink?: SimEvent[], collectEven
       gx === undefined ||
       gy === undefined ||
       !resourceTileAt(state, gx, gy) ||
-      ((e.blockedTicks ?? 0) >= 6 && dist(e, { x: gx, y: gy }) > HARVEST_RANGE)
+      ((e.blockedTicks ?? 0) >= 6 && Math.hypot(e.x - gx, e.y - gy) > HARVEST_RANGE)
     ) {
       const preferred =
         gx !== undefined && gy !== undefined && inBounds(state, gx, gy)
@@ -210,7 +218,7 @@ export function tickEconomy(state: SimState, eventSink?: SimEvent[], collectEven
     }
     e.orderDestination = { x: gx, y: gy };
 
-    if (dist(e, { x: gx, y: gy }) <= HARVEST_RANGE) {
+    if (Math.hypot(e.x - gx, e.y - gy) <= HARVEST_RANGE) {
       const i = at(state, gx, gy);
       const take = Math.min(HARVEST_PER_TICK, state.resourceAmount[i]!, carryMax - e.carry);
       state.resourceAmount[i]! -= take;

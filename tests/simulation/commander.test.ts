@@ -7,6 +7,8 @@ import { CompetentCommander } from "../../lib/sim/commander";
 import { planBuilding } from "../../lib/sim/commander/production";
 import { missionDifficulty } from "../../lib/sim/difficulty";
 import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
+import { enemyEntities, playerBuildings, playerUnits } from "../../lib/sim/commander/queries";
+import { powerBreakdown } from "../../lib/sim/world";
 
 const IS_COVERAGE = Boolean(process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE);
 
@@ -21,6 +23,25 @@ function runGeneratedMission(seed: number, missionIndex: number) {
 }
 
 describe("competent commander", () => {
+  it("returns snapshots instead of exposing cached query state", () => {
+    const state = makeFixture({ width: 20, height: 20, win: { kind: "annihilate" } });
+    const building = addBuilding(state, 0, "power", 2, 2);
+    const unit = addUnit(state, 0, "infantry", 4, 4);
+    const enemy = addUnit(state, 1, "infantry", 15, 15);
+
+    playerBuildings(state).length = 0;
+    playerUnits(state).length = 0;
+    enemyEntities(state).length = 0;
+    const totals = powerBreakdown(state, 0);
+    totals.produced = 0;
+    totals.surplus = 0;
+
+    expect(playerBuildings(state)).toContainEqual(building);
+    expect(playerUnits(state)).toContainEqual(unit);
+    expect(enemyEntities(state)).toContainEqual(enemy);
+    expect(powerBreakdown(state, 0)).toMatchObject({ produced: 50, used: 0, surplus: 50 });
+  });
+
   it("queues a force-quota role and wins through the public command API", () => {
     const state = makeFixture({ width: 24, height: 24, win: { kind: "forceQuota", role: "tank", target: 1 } });
     addBuilding(state, 0, "constructionYard", 2, 2);

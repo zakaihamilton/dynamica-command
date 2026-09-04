@@ -32,6 +32,8 @@ const PROFILE_VARIANTS: Record<MissionFamily, readonly [MissionProfileVariant, M
   operation: ["directRoute", "contestedRoute"],
 };
 
+const missionProfileCache = new Map<string, MissionProfile>();
+
 const PROFILE_CONTRACTS: Record<MissionProfileVariant, MissionProfileContract> = {
   resourceRace: {
     label: "Resource Race",
@@ -164,10 +166,15 @@ const PROFILE_CONTRACTS: Record<MissionProfileVariant, MissionProfileContract> =
 };
 
 export function missionProfileFor(seed: number, missionIndex: number, kind: MissionKind): MissionProfile {
+  const key = `${seed}:${missionIndex}:${kind}`;
+  const cached = missionProfileCache.get(key);
+  if (cached) return cached;
   const family = missionFamilyFor(kind);
   const variants = PROFILE_VARIANTS[family];
   const rng = createRng(seed, `mission-profile:${missionIndex}:${kind}`);
-  return { family, variant: variants[rng.int(variants.length)]! };
+  const profile = { family, variant: variants[rng.int(variants.length)]! };
+  missionProfileCache.set(key, profile);
+  return profile;
 }
 
 export function profileContractFor(profile: MissionProfile): MissionProfileContract {

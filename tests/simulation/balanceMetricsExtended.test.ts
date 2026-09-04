@@ -292,4 +292,14 @@ describe("checkArchetypeBalance", () => {
     const failures = archetypeFailureRecords(summarizeBalance(records), records, ["rush"]);
     expect(failures).toHaveLength(8);
   });
+
+  it("does not cap an autonomous escort objective for an archetype", () => {
+    const records = Array.from({ length: 8 }, () => makeRecord({
+      strategy: "greed",
+      kind: "escort",
+      result: "won",
+    }));
+    const result = checkArchetypeBalance(summarizeBalance(records), records, ["greed"]);
+    expect(result).toEqual({ passed: true, failures: [] });
+  });
 });

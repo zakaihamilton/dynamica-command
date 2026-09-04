@@ -9,6 +9,7 @@ import {
   runBalanceSweepScenarios,
   stratifiedBalanceScenarios,
   stableBalanceRecords,
+  BalanceTimeBudgetExceeded,
   type BalanceRunOptions,
 } from "../lib/sim/balanceRunner";
 import { archetypeFailureRecords, checkArchetypeBalance, checkBalance, DEFAULT_BALANCE_THRESHOLDS, summarizeBalance, type BalanceRecord, type BalanceThresholds } from "../lib/sim/balance";
@@ -48,6 +49,7 @@ async function main() {
   const scenarioCount = scenarioList?.length ?? balanceScenarios({ ...baseOptions, strategy: strategies[0] }).length;
   const jobs = requestedJobs > 0 ? requestedJobs : defaultBalanceJobs(scenarioCount);
   const startedAt = performance.now();
+  const deadlineAt = maxElapsedMs > 0 ? startedAt + maxElapsedMs : undefined;
   const records = [] as Awaited<ReturnType<typeof runBalanceScenarios>>;
   if (archetypeSweep) {
     const sweepRecords = await runBalanceSweepScenarios({
@@ -55,6 +57,7 @@ async function main() {
       strategies,
       jobs,
       scenarioList,
+      deadlineAt,
       onProgress: progressEnabled ? ({ completed, total, record }) => {
         if (completed % progressEvery !== 0 && completed !== total) return;
         console.error(`[balance:${record.strategy}] ${completed}/${total} ${record.seed} mission ${record.mission} → ${record.result}`);
@@ -68,6 +71,7 @@ async function main() {
       strategy,
       jobs,
       scenarioList,
+      deadlineAt,
       onProgress: progressEnabled ? ({ completed, total, record }) => {
         if (completed % progressEvery !== 0 && completed !== total) return;
         console.error(`[balance:${strategy}] ${completed}/${total} ${record.seed} mission ${record.mission} → ${record.result}`);
@@ -186,6 +190,10 @@ async function main() {
 }
 
 void main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
+  if (error instanceof BalanceTimeBudgetExceeded) {
+    console.error(`Balance sweep exceeded --max-elapsed-ms ${maxElapsedMs}`);
+  } else {
+    console.error(error instanceof Error ? error.message : error);
+  }
   process.exitCode = 1;
 });

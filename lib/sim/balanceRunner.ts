@@ -38,6 +38,8 @@ export type BalanceRunOptions = {
   missions: number[];
   maxTicks?: number;
   strategy?: BalanceStrategy;
+  /** Monotonic deadline shared by the parent and all simulation workers. */
+  deadlineAt?: number;
 };
 
 export type BalanceProgress = {
@@ -54,6 +56,19 @@ export type BalanceSweepJob = Omit<BalanceRunOptions, "strategy"> & {
   strategies: readonly BalanceStrategy[];
   scenarios: BalanceScenario[];
 };
+
+export class BalanceTimeBudgetExceeded extends Error {
+  constructor() {
+    super("Balance sweep exceeded its elapsed-time budget");
+    this.name = "BalanceTimeBudgetExceeded";
+  }
+}
+
+function assertWithinDeadline(deadlineAt: number | undefined): void {
+  if (deadlineAt !== undefined && performance.now() >= deadlineAt) {
+    throw new BalanceTimeBudgetExceeded();
+  }
+}
 
 export function defaultBalanceJobs(scenarioCount: number): number {
   const available = Math.max(1, cpus().length || 1);
@@ -169,6 +184,7 @@ function runScenario(
   map: GeneratedMap,
   strategy: BalanceStrategy,
   maxTicks: number,
+  deadlineAt?: number,
 ) {
   let powerDeficit = false;
   let commandsIssued = 0;
@@ -188,6 +204,7 @@ function runScenario(
   const tickLimit = Math.min(maxTicks, missionHorizon);
   const openingCutoff = Math.max(1, Math.floor(missionHorizon * 0.25));
   for (let i = 0; i < tickLimit && state.result === "playing"; i++) {
+    assertWithinDeadline(deadlineAt);
     const commands = commander?.plan(state) ?? baselineCommands(state, map);
     for (const command of commands ?? []) {
       if ((command.type === "attack" || command.type === "attackMove") && firstCombatTick === undefined) firstCombatTick = state.tick;
@@ -239,6 +256,7 @@ function runOne(
   campaign: Campaign,
   map: GeneratedMap,
   sharedScenario?: SharedScenarioData,
+  deadlineAt?: number,
 ): BalanceRecordWithScenario {
   const scenarioStartedAt = performance.now();
   const definition: MissionDef | undefined = campaign.missions[missionIndex];
@@ -256,7 +274,7 @@ function runOne(
   // resource arrays. Otherwise a long-running archetype can make a healthy
   // map appear invalid merely by harvesting or constructing on it.
   const mapIsValid = (sharedScenario?.mapValid ?? validMap(map)) && scenario.targetReachable;
-  const run = runScenario(state, map, strategy, maxTicks);
+  const run = runScenario(state, map, strategy, maxTicks, deadlineAt);
   const scenarioMs = performance.now() - scenarioStartedAt;
   return {
     seed: formatSeed(seed),
@@ -319,6 +337,7 @@ export function runBalanceJob(job: BalanceRunJob, onRecord?: (record: BalanceRec
   const maps = new Map<string, GeneratedMap>();
   const records: BalanceRecordWithScenario[] = [];
   for (const { seed, mission } of job.scenarios) {
+    assertWithinDeadline(job.deadlineAt);
     const campaign = campaigns.get(seed) ?? createCampaign(seed);
     campaigns.set(seed, campaign);
     const definition = campaign.missions[mission];
@@ -326,7 +345,7 @@ export function runBalanceJob(job: BalanceRunJob, onRecord?: (record: BalanceRec
     const mapKey = `${seed}:${mission}`;
     const map = maps.get(mapKey) ?? generateMap(seed, definition);
     maps.set(mapKey, map);
-    const record = runOne(seed, mission, strategy, maxTicks, campaign, map);
+    const record = runOne(seed, mission, strategy, maxTicks, campaign, map, undefined, job.deadlineAt);
     records.push(record);
     onRecord?.(record);
   }
@@ -342,6 +361,7 @@ export function runBalanceSweepJob(
   const maps = new Map<string, GeneratedMap>();
   const records: BalanceRecordWithScenario[] = [];
   for (const { seed, mission } of job.scenarios) {
+    assertWithinDeadline(job.deadlineAt);
     const campaign = campaigns.get(seed) ?? createCampaign(seed);
     campaigns.set(seed, campaign);
     const definition = campaign.missions[mission];
@@ -359,6 +379,7 @@ export function runBalanceSweepJob(
         campaign,
         cloneMapForSimulation(map),
         sharedScenario,
+        job.deadlineAt,
       );
       records.push(record);
       onRecord?.(record);
@@ -384,6 +405,7 @@ function runWorker(
         to: job.to,
         missions: job.missions,
         maxTicks: job.maxTicks,
+        deadlineAt: job.deadlineAt,
         strategy: job.strategy,
         scenarios: job.scenarios,
       },
@@ -452,6 +474,7 @@ function runSweepWorkerPool(
             to: options.to,
             missions: options.missions,
             maxTicks: options.maxTicks,
+            deadlineAt: options.deadlineAt,
             strategies: options.strategies,
           },
         }),
@@ -459,6 +482,7 @@ function runSweepWorkerPool(
       };
       workers.push(entry);
       entry.worker.on("message", (message: BalanceSweepWorkerMessage) => {
+        if (settled) return;
         if (message.type === "progress") {
           onRecord(message.record);
           return;
@@ -503,6 +527,7 @@ export async function runBalanceSweepScenarios(
   const jobs = Math.max(1, Math.min(Math.floor(requestedJobs) || 1, seedGroups.length || 1));
   let completed = 0;
   const report = (record: BalanceRecordWithScenario) => {
+    assertWithinDeadline(options.deadlineAt);
     completed += 1;
     options.onProgress?.({ completed, total: scenarios.length * options.strategies.length, record });
   };
@@ -511,6 +536,7 @@ export async function runBalanceSweepScenarios(
     to: options.to,
     missions: options.missions,
     maxTicks: options.maxTicks,
+    deadlineAt: options.deadlineAt,
     strategies: options.strategies,
   };
   if (jobs === 1 || seedGroups.length < 2) {
@@ -540,6 +566,7 @@ export async function runBalanceScenarios(
     to: options.to,
     missions: options.missions,
     maxTicks: options.maxTicks,
+    deadlineAt: options.deadlineAt,
     strategy: options.strategy,
   };
   if (jobs === 1 || scenarios.length < 2) return sortBalanceRecords(runBalanceJob({ ...jobOptions, scenarios }, report));

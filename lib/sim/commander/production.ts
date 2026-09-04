@@ -20,10 +20,10 @@ import {
   STRUCTURE_QUOTA_KINDS,
   YARD_THREAT_RADIUS,
   completedOrBuilding,
-  enemyEntities,
+  enemyEntitiesView,
   objectiveKind,
-  playerBuildings,
-  playerUnits,
+  playerBuildingsView,
+  playerUnitsView,
   queuedUnitCount,
   readyProducers,
   totalUnitCount,
@@ -45,7 +45,7 @@ export function targetForProduction(state: SimState): UnitKind | undefined {
     return "harvester";
   }
 
-  const enemyTanks = enemyEntities(state).filter((entity) => entity.kind === "tank").length;
+  const enemyTanks = enemyEntitiesView(state).filter((entity) => entity.kind === "tank").length;
   const playerAntiArmor = totalUnitCount(state, "antiArmor") + queuedUnitCount(state, "antiArmor");
   if (enemyTanks > playerAntiArmor) return "antiArmor";
 
@@ -58,11 +58,11 @@ export function targetForProduction(state: SimState): UnitKind | undefined {
 
 export function supportNeed(state: SimState): UnitKind | undefined {
   if (state.missionIndex < 2) return undefined;
-  const humansWounded = playerUnits(
+  const humansWounded = playerUnitsView(
     state,
     (entity) => isUnitEntity(entity) && !isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "human" && entity.hp < entity.maxHp,
   ).length > 0;
-  const vehiclesWounded = playerUnits(
+  const vehiclesWounded = playerUnitsView(
     state,
     (entity) => isUnitEntity(entity) && !isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "vehicle" && entity.hp < entity.maxHp,
   ).length > 0;
@@ -74,15 +74,15 @@ export function supportNeed(state: SimState): UnitKind | undefined {
 export function missingStructureQuota(state: SimState): BuildingKind | undefined {
   if (objectiveKind(state) !== "structureQuota" || !state.win.building) return undefined;
   const built = state.buildingsCompletedByKind[state.win.building] ?? 0;
-  const constructing = playerBuildings(state, state.win.building).filter((entity) => entity.constructing > 0).length;
+  const constructing = playerBuildingsView(state, state.win.building).filter((entity) => entity.constructing > 0).length;
   return built + constructing < (state.win.target ?? Infinity) ? state.win.building : undefined;
 }
 
 function structureQuotaProgress(state: SimState, kind?: BuildingKind): number {
   if (kind) {
-    return (state.buildingsCompletedByKind[kind] ?? 0) + playerBuildings(state, kind).filter((entity) => entity.constructing > 0).length;
+    return (state.buildingsCompletedByKind[kind] ?? 0) + playerBuildingsView(state, kind).filter((entity) => entity.constructing > 0).length;
   }
-  return state.buildingsCompleted[0] + playerBuildings(state).filter((entity) => entity.constructing > 0).length;
+  return state.buildingsCompleted[0] + playerBuildingsView(state).filter((entity) => entity.constructing > 0).length;
 }
 
 function structureQuotaBuilding(state: SimState): BuildingKind | undefined {
@@ -107,13 +107,13 @@ function buildCommand(state: SimState, kind: BuildingKind, near: Entity): Comman
 
 export function planBuilding(state: SimState, yard: Entity): Command | undefined {
   const power = powerBreakdown(state, 0);
-  const pending = playerBuildings(state).some((entity) => entity.constructing > 0);
-  if (power.surplus < 15 && !playerBuildings(state, "power").some((entity) => entity.constructing > 0)) {
+  const pending = playerBuildingsView(state).some((entity) => entity.constructing > 0);
+  if (power.surplus < 15 && !playerBuildingsView(state, "power").some((entity) => entity.constructing > 0)) {
     const powerBuild = buildCommand(state, "power", yard);
     if (powerBuild) return powerBuild;
   }
 
-  const threat = enemyEntities(state).find(
+  const threat = enemyEntitiesView(state).find(
     (entity) => entity.class === "unit" && entity.kind !== "harvester" && distToEntity(yard, entity) <= YARD_THREAT_RADIUS,
   );
   const turretCount = completedOrBuilding(state, "turret");
@@ -123,12 +123,12 @@ export function planBuilding(state: SimState, yard: Entity): Command | undefined
   }
 
   const objectiveBuilding = missingStructureQuota(state) ?? structureQuotaBuilding(state);
-  if (objectiveBuilding && !playerBuildings(state, objectiveBuilding).some((entity) => entity.constructing > 0)) {
+  if (objectiveBuilding && !playerBuildingsView(state, objectiveBuilding).some((entity) => entity.constructing > 0)) {
     const objectiveBuild = buildCommand(state, objectiveBuilding, yard);
     if (objectiveBuild) return objectiveBuild;
   }
 
-  if (!playerBuildings(state, "barracks").length && !pending) {
+  if (!playerBuildingsView(state, "barracks").length && !pending) {
     const barracks = buildCommand(state, "barracks", yard);
     if (barracks) return barracks;
   }
@@ -136,7 +136,7 @@ export function planBuilding(state: SimState, yard: Entity): Command | undefined
   const needsFactory = objectiveKind(state) === "forceQuota" && state.win.role === "tank"
     ? true
     : state.missionIndex >= 1 || objectiveKind(state) === "harvestQuota" || OFFENSIVE_KINDS.has(objectiveKind(state));
-  if (needsFactory && !playerBuildings(state, "factory").length && !pending) {
+  if (needsFactory && !playerBuildingsView(state, "factory").length && !pending) {
     const factory = buildCommand(state, "factory", yard);
     if (factory) return factory;
   }
@@ -152,7 +152,7 @@ export function planBuilding(state: SimState, yard: Entity): Command | undefined
     if (turret) return turret;
   }
 
-  if (!playerBuildings(state, "factory").length && state.tick < 1800 && !pending) {
+  if (!playerBuildingsView(state, "factory").length && state.tick < 1800 && !pending) {
     const factory = buildCommand(state, "factory", yard);
     if (factory) return factory;
   }

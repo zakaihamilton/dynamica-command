@@ -1,7 +1,7 @@
 import { footprintOf } from "../../catalog";
 import { isBuildingEntity, type SimState } from "../../types";
 import { TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../../types";
-import { heightAt, inBounds, tileAt, unitAt } from "./queries";
+import { heightAt, inBounds, tileAt, unitOccupied } from "./queries";
 
 export type TerrainAccess = {
   traversable: boolean;
@@ -22,10 +22,21 @@ export type StaticNavigation = {
   entities: SimState["entities"];
   traversable: Uint8Array;
   walkable: Uint8Array;
+  /** Content key for sharing geometry-only path/flow caches across strategies. */
+  geometryKey: string;
 };
 
 const navigationCache = new WeakMap<SimState, StaticNavigation>();
 const invalidatedBuildingIds = new WeakMap<SimState, Set<number>>();
+
+function geometryKey(width: number, height: number, walkable: Uint8Array, heights: number[]): string {
+  let hash = 2166136261;
+  for (let index = 0; index < walkable.length; index++) {
+    hash = Math.imul(hash ^ walkable[index]!, 16777619);
+    hash = Math.imul(hash ^ Math.round(heights[index] ?? 0), 16777619);
+  }
+  return `${width}x${height}:${hash >>> 0}`;
+}
 
 /** Mark a building footprint change before the next navigation query. */
 export function invalidateNavigation(state: SimState, buildingId?: number): void {
@@ -87,6 +98,7 @@ export function staticNavigationFor(state: SimState): StaticNavigation {
     entities: state.entities,
     traversable,
     walkable,
+    geometryKey: geometryKey(state.width, state.height, walkable, state.heights),
   };
   navigationCache.set(state, navigation);
   return navigation;
@@ -107,13 +119,19 @@ export function isStaticWalkable(state: SimState, x: number, y: number): boolean
 }
 
 export function isWalkable(state: SimState, x: number, y: number): boolean {
-  if (!isStaticWalkable(state, x, y)) return false;
-  if (unitAt(state, x, y)) return false;
+  if (!inBounds(state, x, y) || staticNavigationFor(state).walkable[y * state.width + x] !== 1) return false;
+  if (unitOccupied(state, x, y)) return false;
   return true;
 }
 
 export function makeUnitOccupancy(state: SimState, ignoreId?: number): Uint8Array {
   const occupancy = new Uint8Array(state.width * state.height);
+  return fillUnitOccupancy(state, occupancy, ignoreId);
+}
+
+/** Fill a caller-owned occupancy buffer so movement can reuse it every tick. */
+export function fillUnitOccupancy(state: SimState, occupancy: Uint8Array, ignoreId?: number): Uint8Array {
+  occupancy.fill(0);
   for (const e of state.entities) {
     if (e.hp <= 0 || e.class !== "unit" || e.id === ignoreId) continue;
     const x = Math.round(e.x);

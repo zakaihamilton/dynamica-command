@@ -1,7 +1,7 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../catalog";
 import { MAP_SKIRT } from "../gen/map";
 import { isBuildingEntity, isUnitEntity, type SimState } from "../types";
-import { living } from "./world";
+import { livingView } from "./world";
 
 export function fogGridWidth(mapW: number): number {
   return mapW + 2 * MAP_SKIRT;
@@ -57,7 +57,7 @@ export function tickFog(state: SimState): void {
   const y0 = -MAP_SKIRT;
   const x1 = state.width + MAP_SKIRT;
   const y1 = state.height + MAP_SKIRT;
-  for (const e of living(state)) {
+  for (const e of livingView(state)) {
     if (e.owner !== 0) continue;
     const sight = isUnitEntity(e)
       ? UNIT_STATS[e.kind].sight

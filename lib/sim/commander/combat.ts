@@ -5,7 +5,7 @@ import {
   OFFENSIVE_KINDS,
   YARD_THREAT_RADIUS,
   combatValue,
-  enemyEntities,
+  enemyEntitiesView,
   isCombatEntity,
   objectiveKind,
 } from "./queries";
@@ -27,10 +27,11 @@ export function objectiveEntity(state: SimState): Entity | undefined {
       .map((id) => state.entities.find((entity) => entity.id === id && entity.hp > 0))
       .find((entity): entity is Entity => !!entity);
   }
-  if (kind === "decapitate") return enemyEntities(state).find((entity) => entity.kind === "constructionYard");
-  if (kind === "razeAll") return enemyEntities(state).find((entity) => entity.class === "building");
+  if (kind === "decapitate") return enemyEntitiesView(state).find((entity) => entity.kind === "constructionYard");
+  if (kind === "razeAll") return enemyEntitiesView(state).find((entity) => entity.class === "building");
   if (kind === "annihilate") {
-    return enemyEntities(state).find((entity) => entity.class === "unit") ?? enemyEntities(state)[0];
+    const enemies = enemyEntitiesView(state);
+    return enemies.find((entity) => entity.class === "unit") ?? enemies[0];
   }
   return undefined;
 }
@@ -44,7 +45,7 @@ export function parallelOffensiveTargets(state: SimState): Entity[] {
 }
 
 export function defensiveThreat(state: SimState, yard: Entity): Entity | undefined {
-  return enemyEntities(state)
+  return enemyEntitiesView(state)
     .filter((entity) => isCombatEntity(entity))
     .sort((a, b) => distToEntity(yard, a) - distToEntity(yard, b) || a.id - b.id)
     .find((entity) => distToEntity(yard, entity) <= YARD_THREAT_RADIUS);
@@ -57,7 +58,7 @@ export function scenarioThreat(state: SimState): Entity | undefined {
     .map((id) => state.entities.find((entity) => entity.id === id && entity.hp > 0))
     .filter((entity): entity is Entity => !!entity && (kind === "escort" || !entity.neutral));
   if (!scenarioTargets.length) return undefined;
-  return enemyEntities(state)
+  return enemyEntitiesView(state)
     .filter((entity) => isCombatEntity(entity))
     .sort((a, b) => {
       const aDistance = Math.min(...scenarioTargets.map((target) => distToEntity(target, a)));
@@ -75,7 +76,7 @@ export function assaultReady(state: SimState, target: Entity, combat: Entity[]):
   if (combat.length < minimumUnits) return false;
 
   const playerStrength = combat.reduce((sum, entity) => sum + combatValue(entity), 0);
-  const enemyStrength = enemyEntities(state)
+  const enemyStrength = enemyEntitiesView(state)
     .filter((entity) => isCombatEntity(entity) && distToEntity(target, entity) <= 22)
     .reduce((sum, entity) => sum + combatValue(entity), 0);
   if (enemyStrength === 0 || playerStrength >= enemyStrength * 0.5) return true;

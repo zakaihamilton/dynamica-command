@@ -3,12 +3,31 @@ import { isUnitEntity, type Entity, type MissionDirectorPhase, type SimState, ty
 import { rngFromState } from "../../seed/rng";
 import { missionDifficulty } from "../difficulty";
 import { profileContractFor, resolveMissionProfile } from "../../gen/profile";
-import { byId, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "../world";
+import { byId, closestApproach, distToEntity, findBuildSite, livingView, nearest, powerFor, spawnBuilding, trySpawnUnit } from "../world";
 import { tryBuildForwardInfrastructure, tryBuildPower, tryBuildRefinery, tryBuildTurret } from "./building";
 import { assignAttack, assignAssault, assignMove, sendHome } from "./combat";
 import { contestedResourcePoint, distance, queueUnit, shouldAutoRepair, shouldRetreat } from "./helpers";
 
 const YARD_DEFENSE_RANGE = 14;
+
+type DirectorBuffers = {
+  enemyBuildings: Entity[];
+  enemyUnits: Entity[];
+};
+
+const directorBuffers = new WeakMap<SimState, DirectorBuffers>();
+
+function buffersFor(state: SimState): DirectorBuffers {
+  const cached = directorBuffers.get(state);
+  if (cached) {
+    cached.enemyBuildings.length = 0;
+    cached.enemyUnits.length = 0;
+    return cached;
+  }
+  const buffers = { enemyBuildings: [], enemyUnits: [] };
+  directorBuffers.set(state, buffers);
+  return buffers;
+}
 
 export function directorPhase(state: SimState): MissionDirectorPhase {
   if (state.tutorialStage !== undefined) return "opening";
@@ -61,9 +80,8 @@ export function tickAi(state: SimState): void {
   // This is on the hot path for every simulation tick. Build the frequently
   // used views in one pass instead of repeatedly filtering the same entity
   // list during production, repair, and assault decisions.
-  const active = living(state);
-  const enemyBuildings: Entity[] = [];
-  const enemyUnits: Entity[] = [];
+  const active = livingView(state);
+  const { enemyBuildings, enemyUnits } = buffersFor(state);
   let hasHarvester = false;
   let playerTanks = 0;
   let playerInfantry = 0;
@@ -146,9 +164,11 @@ export function tickAi(state: SimState): void {
   if (state.win.kind === "holdTheLine" && state.tick > 0 && state.tick % difficulty.enemyAssaultEvery === 0) {
     const fp = footprintOf("constructionYard");
     const spot = { x: yard.x - 1, y: yard.y + fp.h };
-    trySpawnUnit(state, 1, rng.chance(0.45) ? "tank" : "infantry", spot.x, spot.y);
+    const spawned = trySpawnUnit(state, 1, rng.chance(0.45) ? "tank" : "infantry", spot.x, spot.y);
+    if (spawned) enemyUnits.push(spawned);
     if (state.missionIndex >= 4) {
-      trySpawnUnit(state, 1, "infantry", spot.x, spot.y + 1);
+      const extraSpawned = trySpawnUnit(state, 1, "infantry", spot.x, spot.y + 1);
+      if (extraSpawned) enemyUnits.push(extraSpawned);
     }
   }
 
