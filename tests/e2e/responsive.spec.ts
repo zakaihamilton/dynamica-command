@@ -666,6 +666,23 @@ test.describe("mobile-first layouts", () => {
     await expectNoHorizontalOverflow(page);
     await expect(page.getByTestId("deploy-screen")).toBeVisible();
     await expect(page.getByLabel("Four digit campaign seed")).toBeVisible();
+    const mobileCampaignActions = await page.getByRole("button", { name: "Launch" }).evaluate((button) => {
+      const group = button.parentElement;
+      if (!group) throw new Error("Missing campaign action group");
+      const groupRect = group.getBoundingClientRect();
+      const buttons = [...group.querySelectorAll("button")].map((action) => {
+        const rect = action.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          groupLeft: groupRect.left,
+          groupRight: groupRect.right,
+        };
+      });
+      return buttons;
+    });
+    expect(mobileCampaignActions).toHaveLength(3);
+    expect(mobileCampaignActions.every(({ left, right, groupLeft, groupRight }) => left >= groupLeft && right <= groupRight)).toBe(true);
 
     await page.goto("/briefing?seed=0421&mission=0");
     await expect(page.getByTestId("briefing-actions")).toBeVisible();

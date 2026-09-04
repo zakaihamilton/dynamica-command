@@ -224,6 +224,28 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await expect(page.getByRole("button", { name: "Copy link" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Today" })).toBeDisabled();
 
+  const campaignActions = await page.getByRole("button", { name: "Launch" }).evaluate((button) => {
+    const group = button.parentElement;
+    if (!group) throw new Error("Missing campaign action group");
+    const groupRect = group.getBoundingClientRect();
+    const groupStyle = getComputedStyle(group);
+    const buttons = [...group.querySelectorAll("button")].map((action) => {
+      const rect = action.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    });
+    return {
+      display: groupStyle.display,
+      groupWidth: groupRect.width,
+      height: groupRect.height,
+      buttons,
+    };
+  });
+  expect(campaignActions.display).toBe("flex");
+  expect(campaignActions.buttons).toHaveLength(3);
+  expect(Math.max(...campaignActions.buttons.map(({ y }) => y)) - Math.min(...campaignActions.buttons.map(({ y }) => y))).toBeLessThanOrEqual(1);
+  expect(campaignActions.height).toBeLessThanOrEqual(Math.max(...campaignActions.buttons.map(({ height }) => height)) + 1);
+  expect(campaignActions.buttons.every(({ width }) => width < campaignActions.groupWidth)).toBe(true);
+
   const deployOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(deployOverflow).toBe(false);
 

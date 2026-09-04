@@ -162,15 +162,18 @@
 }
 
 .actions {
-  display: grid;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
 
 .launch,
+.copyLink,
 .back {
-  width: 100%;
-  text-align: left;
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .launch {
@@ -179,11 +182,6 @@
     linear-gradient(105deg, color-mix(in srgb, var(--chrome-cyan) 24%, transparent), transparent 32%),
     linear-gradient(color-mix(in srgb, var(--chrome-steel-hi) 70%, var(--chrome-cyan-dim)), var(--chrome-steel));
   border-color: color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-bevel));
-}
-
-.copyLink {
-  width: 100%;
-  text-align: left;
 }
 
 .back {
