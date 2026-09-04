@@ -31,6 +31,8 @@ Open the app, then choose **New Game** or type a seed such as `0421` and choose 
 | `yarn health:coverage` | Run focused V8 coverage; long generated-map and commander sweeps run in `health:invariants` |
 | `yarn health:performance` | Enforce terrain atlas, simulation, combat, and routing performance budgets |
 | `yarn health:balance` | Run the strict 320-scenario competent-commander acceptance sweep used by CI |
+| `yarn health:balance:archetypes` | Run the stratified rush, turtle, greed, infantry, and vehicles acceptance sweep used by CI |
+| `yarn playtest:manifest` | Print the deterministic two-scenario-per-profile manual playtest manifest from seeds `0000`–`0039` |
 | `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
 
 For local E2E runs, the preflight launches the same headless browser used by Playwright and reports an actionable install/path error before starting the app. Run `yarn playwright install chromium`, or point at an installed browser with `PLAYWRIGHT_CHROME_PATH=/absolute/path/to/chrome yarn test:e2e`. Ubuntu CI installs and runs the bundled Chromium as the authoritative browser environment.
@@ -46,7 +48,7 @@ seed 0421
   ├─ commander, advisor, enemy leader (faces + copy)
   └─ 8 missions
        ├─ win category + parameters
-       ├─ briefing
+       ├─ briefing + tactical profile (opening plan and fallback)
        └─ map (size, heightmap, resources, bases)
 ```
 
@@ -160,7 +162,9 @@ Optional `--orders orders.json`:
 [{ "tick": 12, "command": { "type": "move", "unitIds": [4], "x": 10, "y": 8 } }]
 ```
 
-The balance harness uses the same public command API as a player. It builds missing infrastructure, maintains power, produces counters and support units, and assigns objective-aware orders. It runs through the full generated operation window by default (up to 30 minutes, or 39 with escort staging and its approach buffer); `--ticks` is an intentional shorter cap and `--check true` rejects any truncated scenarios. `--jobs N` assigns deterministic seed/mission scenarios to worker threads; results are sorted by seed and mission so `--jobs 1` remains a serial reference. Omit `--jobs` for a bounded worker count based on available CPU parallelism. Progress is printed to stderr for long runs; use `--progress false` to suppress it or `--progress-every 8` to report every eighth scenario. Use `--strategy baseline` to run the older harvest-and-attack baseline, `--details true` to include per-seed records, or `--check true` to enforce the softened 60–97.5% competent win-rate, ≤20% timeout, ≥40% per-kind/per-mission win-rate, zero reliability failures, and ≤40 average-casualty targets (override them with `--min-win-rate`, `--max-win-rate`, `--max-timeout-rate`, `--min-kind-samples`, `--min-kind-win-rate`, `--max-kind-timeout-rate`, `--max-truncated-rate`, `--max-average-casualties`, and the reliability flags). `yarn health:performance` measures late-game 96×96 commander-plus-simulation p95, terrain atlas cost, and blocked-LOS combat p95.
+The balance harness uses the same public command API as a player. The competent commander builds missing infrastructure, maintains power, produces counters and support units, and assigns objective-aware orders. The `rush`, `turtle`, `greed`, `infantry`, and `vehicles` strategies deliberately bias production and orders toward common player archetypes. The archetype sweep selects a deterministic minimum of eight scenarios for every generated mission kind from seeds `0000`–`0039`, and reports results by strategy, family, and mission kind. Each record also carries gameplay diagnostics such as first combat commitment, first pressure, primary completion, repair usage, opening economy, route affordances, reachable resource value, and target reachability.
+
+All strategies run through the full generated operation window by default (up to 30 minutes, or 39 with escort staging and its approach buffer); `--ticks` is an intentional shorter cap and `--check true` rejects truncated scenarios. `--jobs N` assigns deterministic seed/mission scenarios to worker threads; results are sorted by seed and mission so `--jobs 1` remains a serial reference. Omit `--jobs` for a bounded worker count based on available CPU parallelism. Progress is printed to stderr for long runs; use `--progress false` to suppress it or `--progress-every 8` to report every eighth scenario. Use `--strategy baseline` to run the older harvest-and-attack baseline, `--strategy rush|turtle|greed|infantry|vehicles` for one archetype, or `--strategy archetypes` for the required five-strategy sweep. Competent checks enforce the softened 60–97.5% win-rate and existing reliability/casualty thresholds. Archetype checks require valid, deterministic, rejection-free runs and reject universal wins in deliberately mismatched mission kinds; expected archetype failures are allowed. Every JSON report includes failed scenarios with exact seed, mission, kind, strategy, result, loss reason, simulation ticks, wall-clock timing, and diagnostics; `--details true` additionally includes every per-seed record. `yarn playtest:manifest` prints the first two seed/mission scenarios for each of the eight profile variants so human review covers every tactical contract. `yarn health:performance` measures late-game 96×96 commander-plus-simulation p95, terrain atlas cost, and blocked-LOS combat p95.
 
 HUD `data-testid`s for browser smoke tests: `seed`, `credits`, `objective`, `mission-result`.
 

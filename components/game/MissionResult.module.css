@@ -95,6 +95,40 @@
   font-weight: 700;
 }
 
+.profileAssessment {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--chrome-steel);
+}
+
+.profileLabel,
+.profileText,
+.profileComplete,
+.profileIncomplete {
+  margin: 0.28rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.profileLabel {
+  color: var(--chrome-gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.profileText {
+  color: var(--chrome-muted);
+  line-height: 1.4;
+}
+
+.profileComplete {
+  color: var(--chrome-cyan);
+}
+
+.profileIncomplete {
+  color: var(--chrome-alert);
+}
+
 .secondaryList {
   margin-top: 0.75rem;
   text-align: left;

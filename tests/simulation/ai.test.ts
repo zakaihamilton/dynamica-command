@@ -53,6 +53,17 @@ describe("enemy AI", () => {
     expect(s.entities.some((entity) =>
       entity.owner === 1 &&
       entity.class === "building" &&
+      (entity.kind === "power" || entity.kind === "refinery") &&
+      entity.constructing > 0 &&
+      !initialBuildingIds.has(entity.id) &&
+      Math.hypot(entity.x - yard.x, entity.y - yard.y) >= 10,
+    )).toBe(true);
+
+    s.tick = productionTick + difficulty.enemyProductionEvery;
+    tickAi(s);
+    expect(s.entities.some((entity) =>
+      entity.owner === 1 &&
+      entity.class === "building" &&
       entity.kind === "refinery" &&
       entity.constructing > 0 &&
       !initialBuildingIds.has(entity.id) &&

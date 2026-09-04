@@ -7,6 +7,7 @@ import { genMissionTitle, pickMissionBiomes } from "./names";
 import { generateWinCategory, pickMissionKinds } from "./objectives";
 import { generateBriefing } from "./story";
 import { generateWorld } from "./world";
+import { missionProfileFor } from "./profile";
 
 const campaignCache = new Map<number, Campaign>();
 
@@ -25,16 +26,18 @@ export function createCampaign(seed: number): Campaign {
   const biomes = pickMissionBiomes(seed);
   const missions: MissionDef[] = kinds.map((kind, index) => {
     const win = generateWinCategory(seed, index, kind);
+    const profile = missionProfileFor(seed, index, kind);
     const draft: MissionDef = {
       index,
-      name: genMissionTitle(createRng(seed, `mission-title:${index}`), kind),
+      name: genMissionTitle(createRng(seed, `mission-title:${index}`), kind, profile),
       briefing: [],
       win,
       mapSize: mapSizeForMission(index),
       biome: biomes[index]!,
       kind: win.kind,
+      profile,
     };
-    draft.briefing = generateBriefing({ world, factions, characters }, draft);
+    draft.briefing = generateBriefing({ world, factions, characters, seedNumber: seed }, draft);
     return draft;
   });
 

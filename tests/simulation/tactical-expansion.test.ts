@@ -100,7 +100,7 @@ describe("tactical expansion", () => {
       });
       const spread = Math.max(...convoy.map((entity) => Math.hypot(entity.x - convoy[0]!.x, entity.y - convoy[0]!.y)));
       expect(spread).toBeLessThan(4);
-      expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 20)).toBe(true);
+      expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 8)).toBe(true);
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
       expect(CONVOY_STAGING_TICKS).toBe(7 * 60 * TICKS_PER_SECOND);
@@ -120,6 +120,30 @@ describe("tactical expansion", () => {
     }
     const hostile = state.entities.find((entity) => entity.owner === 1 && entity.class === "unit");
     expect(hostile?.attackTarget).not.toBe(neutral?.id);
+  });
+
+  it("ends escort convoys at a route-side extraction point instead of the enemy base", () => {
+    let sample: { state: ReturnType<typeof createMission>; map: ReturnType<typeof generateMap> } | undefined;
+    for (let seed = 0; seed < 200 && !sample; seed++) {
+      const campaign = createCampaign(seed);
+      const mission = campaign.missions.find((item) => item.win.kind === "escort");
+      if (!mission) continue;
+      sample = { state: createMission({ seed, missionIndex: mission.index }), map: generateMap(seed, mission) };
+    }
+
+    expect(sample).toBeDefined();
+    const { state, map } = sample!;
+    const zone = state.runtime?.zone;
+    expect(zone).toBeDefined();
+    expect(Math.hypot(zone!.x - map.enemyStart.x, zone!.y - map.enemyStart.y)).toBeGreaterThan(8);
+
+    for (let i = 0; i < CONVOY_STAGING_TICKS; i++) tick(state);
+    const destinations = state.entities
+      .filter((entity) => entity.scenarioRole === "convoy")
+      .map((entity) => entity.orderDestination)
+      .filter((destination): destination is { x: number; y: number } => !!destination);
+    expect(destinations.length).toBeGreaterThan(0);
+    expect(destinations.every((destination) => Math.hypot(destination.x - map.enemyStart.x, destination.y - map.enemyStart.y) > 6)).toBe(true);
   });
 
   it("stages rescue targets in the 55%-80% portion of the route", () => {

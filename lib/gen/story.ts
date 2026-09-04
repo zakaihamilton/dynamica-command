@@ -1,8 +1,9 @@
 import { labelFor } from "../catalog";
-import type { BriefingLine, BuildingKind, Campaign, MissionDef, UnitKind, WinCategory } from "../types";
+import type { BriefingLine, BuildingKind, Campaign, MissionDef, MissionProfile, UnitKind, WinCategory } from "../types";
 import { biomeLabel, characterLabel } from "./names";
 import { missionTimeLimitLabel } from "./objectives";
 import { formatMissionMinutesFromTicks } from "./pacing";
+import { profileContractFor, resolveMissionProfile } from "./profile";
 
 function countedLabel(kind: UnitKind | BuildingKind, count: number): string {
   const label = labelFor(kind).toLowerCase();
@@ -19,6 +20,54 @@ function holdDurationLabel(ticks: number): string {
 
 function scenarioTimeLimitLabel(win: WinCategory): string {
   return missionTimeLimitLabel({ kind: win.kind, ticks: win.ticks ?? 3600 })!;
+}
+
+function profileHook(profile: MissionProfile, place: string, biome: string): string {
+  const contract = profileContractFor(profile);
+  switch (profile.variant) {
+    case "resourceRace":
+      return `${contract.emphasis} The richest ore seam lies exposed beyond ${place}, so the first fight will be over the harvest lanes`;
+    case "forwardIndustry":
+      return `${contract.emphasis} Forward industry will decide ${place}: secure the power grid and make every refinery count`;
+    case "surgicalStrike":
+      return `${contract.emphasis} Intelligence found a narrow breach through the ${biome}; precision matters more than a broad advance`;
+    case "siege":
+      return `${contract.emphasis} The ${biome} favors a slow siege, with layered defenses turning every approach into a cost`;
+    case "concentratedWaves":
+      return `${contract.emphasis} Enemy forces are concentrating on one line into ${place}, giving us one position to make unbreakable`;
+    case "crossfire":
+      return `${contract.emphasis} The ${biome} opens two approach lanes into ${place}, and the enemy intends to make us split our guard`;
+    case "directRoute":
+      return `${contract.emphasis} The shortest route through ${place} is open for now, but it will close once the first alarm sounds`;
+    case "contestedRoute":
+      return `${contract.emphasis} The route through the ${biome} is exposed on both flanks, so movement and cover must be planned together`;
+    default:
+      return `${contract.emphasis} The ${themelessPlace(place)} will punish a commander who ignores the ground`;
+  }
+}
+
+function profileOrder(profile: MissionProfile): string {
+  const contract = profileContractFor(profile);
+  return `${contract.openingOrder} Fallback plan: ${contract.fallback}`;
+}
+
+function profileTaunt(profile: MissionProfile): string {
+  const contract = profileContractFor(profile);
+  const taunts: Record<MissionProfile["variant"], string> = {
+    resourceRace: "Your harvesters will be the first things I count.",
+    forwardIndustry: "Build your little machine; I know exactly where to break it.",
+    surgicalStrike: "A narrow breach is still a trap if you enter it in formation.",
+    siege: "Bring your army. The walls are ready for it.",
+    concentratedWaves: "One road, one line, one graveyard.",
+    crossfire: "Choose a flank, and I will take the other.",
+    directRoute: "The easy road is the one I have watched longest.",
+    contestedRoute: "Every shortcut across this ground belongs to my patrols.",
+  };
+  return `${contract.routeHint} ${taunts[profile.variant]}`;
+}
+
+function themelessPlace(place: string): string {
+  return place || "this ground";
 }
 
 function objectivePhrase(win: WinCategory): string {
@@ -150,8 +199,8 @@ const COMMANDER_ACKS = [
 ];
 
 export function generateBriefing(
-  campaign: Pick<Campaign, "world" | "factions" | "characters">,
-  mission: Pick<MissionDef, "name" | "win" | "index" | "biome">,
+  campaign: Pick<Campaign, "world" | "factions" | "characters"> & { seedNumber?: number },
+  mission: Pick<MissionDef, "name" | "win" | "index" | "biome" | "profile">,
 ): BriefingLine[] {
   const { advisor, commander, enemyLeader } = campaign.characters;
   const [us, them] = campaign.factions;
@@ -161,6 +210,7 @@ export function generateBriefing(
   const you = characterLabel(commander);
   const foe = characterLabel(enemyLeader);
   const win = mission.win;
+  const profile = resolveMissionProfile(campaign.seedNumber ?? 0, mission.index, win.kind, mission.profile);
   const pick = (mod: number) => variantIndex(`${mission.index}:${win.kind}:${place}`, mod);
   const lead = ADVISOR_LEADS[pick(ADVISOR_LEADS.length)]!;
   const ack = COMMANDER_ACKS[pick(COMMANDER_ACKS.length)]!(analyst);
@@ -259,9 +309,9 @@ export function generateBriefing(
   })();
 
   return [
-    { speaker: "advisor", text: `${lead} ${report}` },
-    { speaker: "commander", text: `${ack} ${orders}` },
-    { speaker: "enemyLeader", text: taunt },
+    { speaker: "advisor", text: `${lead} ${profileHook(profile, place, biome)}. ${report}` },
+    { speaker: "commander", text: `${ack} ${profileOrder(profile)} ${orders}` },
+    { speaker: "enemyLeader", text: `${profileTaunt(profile)} ${taunt}` },
   ];
 }
 

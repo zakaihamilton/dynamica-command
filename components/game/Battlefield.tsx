@@ -19,6 +19,7 @@ export function Battlefield({
   levelCount,
   missionName,
   objective,
+  profileLabel,
   timeRemaining,
   convoyDeparture,
   briefingObjectives,
@@ -43,6 +44,7 @@ export function Battlefield({
   levelCount: number;
   missionName: string;
   objective: string;
+  profileLabel?: string;
   timeRemaining?: string;
   convoyDeparture?: string;
   briefingObjectives?: MissionObjective[];
@@ -86,6 +88,7 @@ export function Battlefield({
           levelCount={levelCount}
           missionName={missionName}
           objective={objective}
+          profileLabel={profileLabel}
           timeRemaining={timeRemaining}
           convoyDeparture={convoyDeparture}
           briefingObjectives={briefingObjectives}

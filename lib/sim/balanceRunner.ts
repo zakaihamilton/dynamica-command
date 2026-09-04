@@ -7,9 +7,14 @@ import { MAX_MISSION_TICKS, MAX_OPERATION_TICKS } from "../gen/pacing";
 import { formatSeed } from "../seed/rng";
 import { createMissionFromData, tick } from "./api";
 import { CompetentCommander } from "./commander";
+import { ArchetypeCommander, isArchetypeStrategy } from "./commander/archetypes";
 import { powerBreakdown } from "./world";
-import { TILE_BLOCKED, TILE_WATER, type Campaign, type Command, type MissionDef, type SimState } from "../types";
+import { TILE_BLOCKED, TILE_WATER, type BalanceStrategy, type Campaign, type Command, type MissionDef, type SimState, type UnitKind } from "../types";
+import { missionFamilyFor, resolveMissionProfile } from "../gen/profile";
+import { scenarioAffordances } from "./scenarios";
 import type { BalanceRecord } from "./balance";
+
+export { ARCHETYPE_STRATEGIES, isArchetypeStrategy } from "./commander/archetypes";
 
 export type BalanceRecordWithScenario = BalanceRecord & {
   seed: string;
@@ -17,12 +22,22 @@ export type BalanceRecordWithScenario = BalanceRecord & {
   scenarioMs: number;
 };
 
+export type BalanceScenario = { seed: number; mission: number };
+
+export type PlaytestManifestEntry = BalanceScenario & {
+  seedLabel: string;
+  kind: string;
+  family: string;
+  variant: string;
+  name: string;
+};
+
 export type BalanceRunOptions = {
   from: number;
   to: number;
   missions: number[];
   maxTicks?: number;
-  strategy?: "competent" | "baseline";
+  strategy?: BalanceStrategy;
 };
 
 export type BalanceProgress = {
@@ -32,7 +47,7 @@ export type BalanceProgress = {
 };
 
 export type BalanceRunJob = BalanceRunOptions & {
-  scenarios: Array<{ seed: number; mission: number }>;
+  scenarios: BalanceScenario[];
 };
 
 export function defaultBalanceJobs(scenarioCount: number): number {
@@ -54,6 +69,70 @@ export function balanceScenarios(options: BalanceRunOptions): Array<{ seed: numb
   return scenarios;
 }
 
+/** Selects a stable minimum sample for every generated mission kind. */
+export function stratifiedBalanceScenarios(
+  from = 0,
+  to = 39,
+  minSamplesPerKind = 8,
+): BalanceScenario[] {
+  const counts = new Map<string, number>();
+  const scenarios: BalanceScenario[] = [];
+  const start = Math.max(0, Math.min(9999, Math.floor(from)));
+  const end = Math.max(0, Math.min(9999, Math.floor(to)));
+  for (let seed = start; seed <= end; seed++) {
+    const campaign = createCampaign(seed);
+    for (const mission of campaign.missions) {
+      const count = counts.get(mission.win.kind) ?? 0;
+      if (count >= minSamplesPerKind) continue;
+      scenarios.push({ seed, mission: mission.index });
+      counts.set(mission.win.kind, count + 1);
+    }
+  }
+  const missing = [
+    "harvestQuota", "forceQuota", "structureQuota", "destroyMarked", "razeAll", "decapitate",
+    "annihilate", "holdTheLine", "escort", "sabotage", "rescue", "extraction",
+  ].filter((kind) => (counts.get(kind) ?? 0) < minSamplesPerKind);
+  if (missing.length) throw new Error(`Unable to collect stratified balance samples for: ${missing.join(", ")}`);
+  return scenarios.sort((a, b) => a.seed - b.seed || a.mission - b.mission);
+}
+
+/** Selects the first stable pair of missions for each profile variant. */
+export function representativePlaytestManifest(
+  from = 0,
+  to = 39,
+  perVariant = 2,
+): PlaytestManifestEntry[] {
+  const counts = new Map<string, number>();
+  const entries: PlaytestManifestEntry[] = [];
+  const start = Math.max(0, Math.min(9999, Math.floor(from)));
+  const end = Math.max(0, Math.min(9999, Math.floor(to)));
+  for (let seed = start; seed <= end; seed++) {
+    const campaign = createCampaign(seed);
+    for (const mission of campaign.missions) {
+      const profile = resolveMissionProfile(seed, mission.index, mission.win.kind, mission.profile);
+      const count = counts.get(profile.variant) ?? 0;
+      if (count >= perVariant) continue;
+      entries.push({
+        seed,
+        seedLabel: formatSeed(seed),
+        mission: mission.index,
+        kind: mission.win.kind,
+        family: profile.family,
+        variant: profile.variant,
+        name: mission.name,
+      });
+      counts.set(profile.variant, count + 1);
+    }
+  }
+  const variants = [
+    "resourceRace", "forwardIndustry", "surgicalStrike", "siege",
+    "concentratedWaves", "crossfire", "directRoute", "contestedRoute",
+  ];
+  const missing = variants.filter((variant) => (counts.get(variant) ?? 0) < perVariant);
+  if (missing.length) throw new Error(`Unable to collect playtest scenarios for: ${missing.join(", ")}`);
+  return entries.sort((a, b) => a.seed - b.seed || a.mission - b.mission);
+}
+
 function validMap(map: GeneratedMap): boolean {
   const start = (point: { x: number; y: number }) => {
     const tile = map.tiles[point.y * map.width + point.x];
@@ -61,7 +140,12 @@ function validMap(map: GeneratedMap): boolean {
   };
   return start(map.playerStart) && start(map.enemyStart) &&
     map.markedSpots.every((point) => start(point)) &&
-    map.resourceAmount.reduce((sum, amount) => sum + amount, 0) >= 4000;
+    map.resourceAmount.reduce((sum, amount) => sum + amount, 0) >= 4000 &&
+    map.affordances.laneCount >= 2 &&
+    map.affordances.baselineRouteLength > 0 &&
+    map.affordances.alternateRouteLength <= map.affordances.baselineRouteLength * 1.8 &&
+    map.affordances.reachableResourceValue >= 4000 &&
+    Number.isFinite(map.affordances.nearestResourceDistance);
 }
 
 function baselineCommands(state: SimState, map: GeneratedMap): Command[] | undefined {
@@ -78,20 +162,43 @@ function baselineCommands(state: SimState, map: GeneratedMap): Command[] | undef
 function runScenario(
   state: SimState,
   map: GeneratedMap,
-  strategy: "competent" | "baseline",
+  strategy: BalanceStrategy,
   maxTicks: number,
 ) {
   let powerDeficit = false;
   let commandsIssued = 0;
   let commandRejections = 0;
-  const commander = strategy === "competent" ? new CompetentCommander() : undefined;
+  let firstCombatTick: number | undefined;
+  let firstPressureTick: number | undefined;
+  let primaryCompletedTick: number | undefined;
+  let repairCommands = 0;
+  let openingCredits: number | undefined;
+  let openingUnitsProducedByRole: Partial<Record<UnitKind, number>> | undefined;
+  const commander = strategy === "competent"
+    ? new CompetentCommander()
+    : isArchetypeStrategy(strategy)
+      ? new ArchetypeCommander(strategy)
+      : undefined;
   const missionHorizon = state.runtime?.deadline ?? state.win.ticks ?? MAX_MISSION_TICKS;
   const tickLimit = Math.min(maxTicks, missionHorizon);
+  const openingCutoff = Math.max(1, Math.floor(missionHorizon * 0.25));
   for (let i = 0; i < tickLimit && state.result === "playing"; i++) {
     const commands = commander?.plan(state) ?? baselineCommands(state, map);
+    for (const command of commands ?? []) {
+      if ((command.type === "attack" || command.type === "attackMove") && firstCombatTick === undefined) firstCombatTick = state.tick;
+      if (command.type === "repair") repairCommands += 1;
+    }
     commandsIssued += commands?.length ?? 0;
     const result = tick(state, commands);
     commandRejections += result.events.filter((event) => event.type === "commandRejected").length;
+    if (firstPressureTick === undefined && state.runtime?.director?.phase !== undefined && state.runtime.director.phase !== "opening") {
+      firstPressureTick = state.tick;
+    }
+    if (primaryCompletedTick === undefined && result.state.result === "won") primaryCompletedTick = state.tick;
+    if (openingCredits === undefined && state.tick >= openingCutoff) {
+      openingCredits = state.credits[0];
+      openingUnitsProducedByRole = { ...state.unitsProducedByRole };
+    }
     if (state.result === "playing") powerDeficit ||= powerBreakdown(state, 0).surplus < 0;
   }
   return {
@@ -99,13 +206,30 @@ function runScenario(
     commandsIssued,
     commandRejections,
     truncated: state.result === "playing" && tickLimit < missionHorizon,
+    firstCombatTick,
+    firstPressureTick,
+    primaryCompletedTick,
+    repairCommands,
+    openingCredits,
+    openingUnitsProducedByRole,
   };
+}
+
+function hasNonFiniteValue(value: unknown, seen: Set<object>): boolean {
+  if (typeof value === "number") return !Number.isFinite(value);
+  if (!value || typeof value !== "object" || seen.has(value)) return false;
+  seen.add(value);
+  return Object.values(value).some((child) => hasNonFiniteValue(child, seen));
+}
+
+export function hasNonFiniteState(state: SimState): boolean {
+  return hasNonFiniteValue(state, new Set());
 }
 
 function runOne(
   seed: number,
   missionIndex: number,
-  strategy: "competent" | "baseline",
+  strategy: BalanceStrategy,
   maxTicks: number,
   campaign: Campaign,
   map: GeneratedMap,
@@ -120,11 +244,18 @@ function runOne(
     mission: definition,
     map,
   });
+  const scenario = scenarioAffordances(state);
+  // Validate the generated map before simulation mutates shared tile and
+  // resource arrays. Otherwise a long-running archetype can make a healthy
+  // map appear invalid merely by harvesting or constructing on it.
+  const mapIsValid = validMap(map) && scenario.targetReachable;
   const run = runScenario(state, map, strategy, maxTicks);
   const scenarioMs = performance.now() - scenarioStartedAt;
   return {
     seed: formatSeed(seed),
     mission: missionIndex,
+    strategy,
+    family: missionFamilyFor(definition.win.kind),
     kind: definition.win.kind,
     result: state.result,
     truncated: run.truncated,
@@ -135,10 +266,25 @@ function runOne(
     powerDeficit: run.powerDeficit,
     casualties: state.losses.units[0],
     secondaryCompleted: state.result === "won" ? state.runtime?.secondary.filter((objective) => objective.completed).length ?? 0 : 0,
-    mapValid: validMap(map),
+    mapValid: mapIsValid,
     commandsIssued: run.commandsIssued,
     commandRejections: run.commandRejections,
+    nonFiniteState: hasNonFiniteState(state),
     lossReason: state.lossReason,
+    firstCombatTick: run.firstCombatTick,
+    firstPressureTick: run.firstPressureTick,
+    primaryCompletedTick: run.primaryCompletedTick,
+    repairCommands: run.repairCommands,
+    openingCredits: run.openingCredits,
+    openingUnitsProducedByRole: run.openingUnitsProducedByRole,
+    baselineRouteLength: map.affordances.baselineRouteLength,
+    alternateRouteLength: map.affordances.alternateRouteLength,
+    reachableResourceValue: map.affordances.reachableResourceValue,
+    nearestResourceDistance: map.affordances.nearestResourceDistance,
+    laneCount: map.affordances.laneCount,
+    targetDepth: scenario.targetDepth,
+    targetRouteLength: scenario.routeLength,
+    targetReachable: scenario.targetReachable,
     scenarioMs,
   };
 }
@@ -165,7 +311,9 @@ export function runBalanceJob(job: BalanceRunJob, onRecord?: (record: BalanceRec
 }
 
 export function sortBalanceRecords(records: BalanceRecordWithScenario[]): BalanceRecordWithScenario[] {
-  return [...records].sort((a, b) => Number(a.seed) - Number(b.seed) || a.mission - b.mission);
+  return [...records].sort((a, b) => Number(a.seed) - Number(b.seed)
+    || a.mission - b.mission
+    || (a.strategy ?? "competent").localeCompare(b.strategy ?? "competent"));
 }
 
 function runWorker(
@@ -195,9 +343,13 @@ function runWorker(
 }
 
 export async function runBalanceScenarios(
-  options: BalanceRunOptions & { jobs?: number; onProgress?: (progress: BalanceProgress) => void },
+  options: BalanceRunOptions & {
+    jobs?: number;
+    onProgress?: (progress: BalanceProgress) => void;
+    scenarioList?: BalanceScenario[];
+  },
 ): Promise<BalanceRecordWithScenario[]> {
-  const scenarios = balanceScenarios(options);
+  const scenarios = options.scenarioList ?? balanceScenarios(options);
   const requestedJobs = options.jobs ?? defaultBalanceJobs(scenarios.length);
   const jobs = Math.max(1, Math.min(Math.floor(requestedJobs) || 1, scenarios.length || 1));
   let completed = 0;

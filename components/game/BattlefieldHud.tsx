@@ -8,6 +8,7 @@ export function BattlefieldHud({
   levelCount,
   missionName,
   objective,
+  profileLabel,
   timeRemaining,
   convoyDeparture,
   briefingObjectives,
@@ -17,6 +18,7 @@ export function BattlefieldHud({
   levelCount: number;
   missionName: string;
   objective: string;
+  profileLabel?: string;
   timeRemaining?: string;
   convoyDeparture?: string;
   briefingObjectives?: MissionObjective[];
@@ -31,6 +33,7 @@ export function BattlefieldHud({
           </div>
         </div>
         <div className={styles.mission}>{missionName}</div>
+        {profileLabel ? <div className={styles.profile} data-testid="mission-profile">{profileLabel}</div> : null}
       </div>
       <div className={styles.objectiveStack}>
         <div className={styles.objective} data-testid="objective">

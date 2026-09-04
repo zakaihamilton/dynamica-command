@@ -48,6 +48,10 @@ jobs:
         run: |
           mkdir -p artifacts
           yarn ci:timed-balance
+      - name: Run archetype balance health with timing report
+        run: |
+          mkdir -p artifacts
+          yarn ci:timed-balance-archetypes
       - run: yarn health:documentation
       - run: yarn health:dead-code
       - run: yarn health:duplication

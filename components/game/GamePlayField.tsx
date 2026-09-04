@@ -72,6 +72,7 @@ export function GamePlayField({
       levelCount={campaign.missions.length}
       missionName={state.missionName}
       objective={status.objective}
+      profileLabel={tutorial ? undefined : status.profileLabel}
       timeRemaining={tutorial ? undefined : status.timeRemaining}
       convoyDeparture={status.convoyDeparture}
       briefingObjectives={tutorial ? undefined : status.briefingObjectives}

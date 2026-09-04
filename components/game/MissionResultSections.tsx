@@ -10,6 +10,14 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
       <p className={styles.objectiveLabel}>Primary objective</p>
       <p className={styles.objectiveHeadline}>{debrief.objective.headline}</p>
       <p className={styles.objectiveProgress}>{debrief.objective.progress}</p>
+      <div className={styles.profileAssessment} data-testid="profile-assessment">
+        <p className={styles.objectiveLabel}>Tactical profile</p>
+        <p className={styles.profileLabel}>{debrief.tactical.label}</p>
+        <p className={styles.profileText}>{debrief.tactical.emphasis}</p>
+        <p className={debrief.tactical.completed ? styles.profileComplete : styles.profileIncomplete}>
+          {debrief.tactical.completed ? "Profile challenge met." : "Profile challenge not met."}
+        </p>
+      </div>
       {debrief.secondary.length ? (
         <div className={styles.secondaryList} aria-label="Secondary objectives">
           <p className={styles.objectiveLabel}>Secondary objectives</p>

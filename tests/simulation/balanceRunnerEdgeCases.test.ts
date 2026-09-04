@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultBalanceJobs, balanceScenarios, runBalanceJob, sortBalanceRecords, stableBalanceRecords } from "../../lib/sim/balanceRunner";
+import { defaultBalanceJobs, balanceScenarios, runBalanceJob, sortBalanceRecords, stableBalanceRecords, stratifiedBalanceScenarios } from "../../lib/sim/balanceRunner";
 
 describe("defaultBalanceJobs", () => {
   it("returns at least 1", () => {
@@ -90,6 +90,18 @@ describe("runBalanceJob", () => {
     expect(records).toHaveLength(1);
   });
 
+  it("runs with an archetype strategy and records its identity", () => {
+    const records = runBalanceJob({
+      from: 0,
+      to: 0,
+      missions: [0],
+      maxTicks: 12,
+      strategy: "rush",
+      scenarios: [{ seed: 0, mission: 0 }],
+    });
+    expect(records[0]).toMatchObject({ strategy: "rush", family: "operation" });
+  });
+
   it("does not count a post-loss power deficit", () => {
     const records = runBalanceJob({
       from: 8,
@@ -102,6 +114,13 @@ describe("runBalanceJob", () => {
     expect(records[0]?.result).toBe("lost");
     expect(records[0]?.lossReason).toBe("yardDestroyed");
     expect(records[0]?.powerDeficit).toBe(false);
+  });
+});
+
+describe("stratifiedBalanceScenarios", () => {
+  it("collects the requested minimum for every generated mission kind", () => {
+    const scenarios = stratifiedBalanceScenarios(0, 39, 8);
+    expect(scenarios).toHaveLength(96);
   });
 });
 

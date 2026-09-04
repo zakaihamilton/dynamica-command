@@ -2,6 +2,7 @@ import { BUILDING_STATS, UNIT_STATS, footprintOf, isSupportUnit, isUnitAvailable
 import { isUnitEntity, type Entity, type MissionDirectorPhase, type SimState, type UnitKind } from "../../types";
 import { rngFromState } from "../../seed/rng";
 import { missionDifficulty } from "../difficulty";
+import { profileContractFor, resolveMissionProfile } from "../../gen/profile";
 import { byId, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "../world";
 import { tryBuildForwardInfrastructure, tryBuildPower, tryBuildRefinery, tryBuildTurret } from "./building";
 import { assignAttack, assignAssault, assignMove, enemyCombat, sendHome } from "./combat";
@@ -57,6 +58,10 @@ export function tickAi(state: SimState): void {
   }
 
   const difficulty = missionDifficulty(state.missionIndex);
+  const profile = state.runtime?.director
+    ? resolveMissionProfile(state.seed, state.missionIndex, state.win.kind)
+    : undefined;
+  const profileContract = profile ? profileContractFor(profile) : undefined;
   const escortStaging = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined;
   const phase = directorPhase(state);
   const productionWindow =
@@ -146,7 +151,7 @@ export function tickAi(state: SimState): void {
     yard,
     (e) => e.owner === 0 && e.kind === "constructionYard",
   );
-  const waveEvery = difficulty.enemyAssaultEvery;
+  const waveEvery = Math.max(240, difficulty.enemyAssaultEvery + (profileContract?.assaultEveryOffset ?? 0));
   for (const b of enemyBuildings) {
     if (b.constructing > 0 || b.hp <= 0) continue;
     if (b.hp < b.maxHp && shouldAutoRepair(state, b)) b.repairing = true;

@@ -28,9 +28,12 @@
     "health:invariants": "vitest run tests/simulation/allSeeds.test.ts tests/simulation/terrain.test.ts tests/simulation/commander.test.ts",
     "health:performance": "tsx scripts/perf.ts",
     "health:balance": "tsx scripts/balance.ts --from 0 --to 39 --jobs 8 --check true --progress false",
+    "health:balance:archetypes": "tsx scripts/balance.ts --from 0 --to 39 --jobs 8 --strategy archetypes --check true --progress false",
+    "playtest:manifest": "tsx scripts/playtestManifest.ts",
     "ci:timed-tests": "vitest run --exclude tests/simulation/allSeeds.test.ts --reporter=dot --reporter=json --outputFile=artifacts/test-timing.json",
     "ci:timed-performance": "tsx scripts/perf.ts > artifacts/performance-timing.json",
     "ci:timed-balance": "tsx scripts/balance.ts --from 0 --to 39 --jobs 8 --check true --progress false > artifacts/balance-timing.json",
+    "ci:timed-balance-archetypes": "tsx scripts/balance.ts --from 0 --to 39 --jobs 8 --strategy archetypes --check true --progress false > artifacts/balance-archetypes-timing.json",
     "health:licenses": "license-checker --json",
     "health:documentation": "markdownlint-cli2 \"**/*.md\" \"#.repnix\" \"#node_modules\" \"#playwright-report\" \"#test-results\" \"#coverage\" \"#dist\" \"#build\" \"#.next\" \"#.turbo\" \"#.git\" \"#generated\""
   },
