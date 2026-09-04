@@ -1,6 +1,6 @@
 import type { Entity, SimEvent, SimState } from "../../types";
 import { isUnitEntity } from "../../types";
-import { closestApproach } from "../world";
+import { closestApproach, invalidateLivingCache } from "../world";
 import { statsFor } from "./grid";
 import { armorFor, damageMultiplier, heightMultiplier } from "./targeting";
 import type { Rng } from "../../seed/rng";
@@ -14,11 +14,11 @@ export function strike(
   target: Entity,
   stats: ReturnType<typeof statsFor>,
   rng: Rng,
-  events: SimEvent[],
-  pending: PendingAlerts,
+  events?: SimEvent[],
+  pending?: PendingAlerts,
 ): void {
   if (e.cooldown > 0) return;
-  notePlayerAlert(e, target, pending);
+  if (pending) notePlayerAlert(e, target, pending);
   const jitter = 0.85 + rng.next() * 0.3;
   const damage = stats.damage * jitter * damageMultiplier(stats.weapon, armorFor(target)) * heightMultiplier(state, e, target);
   target.hp -= damage;
@@ -32,10 +32,11 @@ export function strike(
       if (Math.hypot(splash.x - target.x, splash.y - target.y) > stats.splashRadius) continue;
       splash.hp -= damage * 0.35;
       if (splash.class === "unit") splash.suppression = Math.min(100, (splash.suppression ?? 0) + Math.round(stats.suppression * 0.35));
+      if (splash.hp <= 0) invalidateLivingCache(state);
     }
   }
   const destroyed = target.hp <= 0;
-  events.push({
+  events?.push({
     type: "combat",
     owner: e.owner,
     attackerKind: e.kind,
@@ -50,9 +51,10 @@ export function strike(
   });
   if (!destroyed) return;
   target.hp = 0;
+  invalidateLivingCache(state);
   if (isUnitEntity(target)) state.losses.units[target.owner] += 1;
   else state.losses.buildings[target.owner] += 1;
-  events.push({ type: "destroyed", id: target.id, owner: target.owner, kind: target.kind, x: target.x, y: target.y });
+  events?.push({ type: "destroyed", id: target.id, owner: target.owner, kind: target.kind, x: target.x, y: target.y });
   if (e.attackTarget === target.id) e.attackTarget = undefined;
 }
 

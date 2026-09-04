@@ -1,6 +1,9 @@
 import { footprintOf } from "../../catalog";
 import { isBuildingEntity, type Entity, type SimState, type TileKind, type Vec2 } from "../../types";
 
+type LivingCache = { tick: number; entities: SimState["entities"]; value: Entity[] };
+const livingCache = new WeakMap<SimState, LivingCache>();
+
 export function at(state: SimState, x: number, y: number): number {
   return y * state.width + x;
 }
@@ -57,7 +60,16 @@ export function buildingAt(state: SimState, x: number, y: number): Entity | unde
 }
 
 export function living(state: SimState): Entity[] {
-  return state.entities.filter((e) => e.hp > 0);
+  const cached = livingCache.get(state);
+  if (cached?.tick === state.tick && cached.entities === state.entities) return cached.value;
+  const value = state.entities.filter((e) => e.hp > 0);
+  livingCache.set(state, { tick: state.tick, entities: state.entities, value });
+  return value;
+}
+
+/** Invalidate the per-tick query result after a spawn or lethal damage. */
+export function invalidateLivingCache(state: SimState): void {
+  livingCache.delete(state);
 }
 
 export function byId(state: SimState, id: number): Entity | undefined {

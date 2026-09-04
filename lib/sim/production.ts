@@ -37,8 +37,10 @@ function productionRates(state: SimState): Map<number, number> {
   return rates;
 }
 
-export function tickProduction(state: SimState): SimEvent[] {
-  const events: SimEvent[] = [];
+const EMPTY_EVENTS: SimEvent[] = [];
+
+export function tickProduction(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
+  const events = eventSink ?? (collectEvents ? [] : undefined);
   const lowPower = [powerFor(state, 0) < 0, powerFor(state, 1) < 0];
   const rates = productionRates(state);
   for (const e of state.entities) {
@@ -54,7 +56,7 @@ export function tickProduction(state: SimState): SimEvent[] {
           const k = String(e.kind);
           state.buildingsCompletedByKind[k] = (state.buildingsCompletedByKind[k] ?? 0) + 1;
         }
-        events.push({
+        events?.push({
           type: "built",
           owner: e.owner,
           kind: isBuildingEntity(e) ? e.kind : "objective",
@@ -82,7 +84,7 @@ export function tickProduction(state: SimState): SimEvent[] {
         }
         state.unitsProduced[e.owner] += 1;
         if (e.owner === 0) state.unitsProducedByRole[kind] += 1;
-        events.push({
+        events?.push({
           type: "produced",
           owner: e.owner,
           kind,
@@ -99,12 +101,12 @@ export function tickProduction(state: SimState): SimEvent[] {
     }
   }
   notePlayerPowerShortage(state, events);
-  return events;
+  return events ?? EMPTY_EVENTS;
 }
 
-function notePlayerPowerShortage(state: SimState, events: SimEvent[]): void {
+function notePlayerPowerShortage(state: SimState, events?: SimEvent[]): void {
   const ok = powerFor(state, 0) >= 0;
   const wasOk = playerPowerOk.get(state) ?? true;
-  if (wasOk && !ok) events.push({ type: "powerShortage", owner: 0 });
+  if (wasOk && !ok) events?.push({ type: "powerShortage", owner: 0 });
   playerPowerOk.set(state, ok);
 }

@@ -167,14 +167,25 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
   return { ...progress, timeRemainingTicks: timeRemainingTicks(state), phase: state.runtime?.phase };
 }
 
-export function evaluateObjectives(state: SimState): SimEvent[] {
-  if (state.result !== "playing") return [];
+const EMPTY_EVENTS: SimEvent[] = [];
+
+function objectiveEvents(eventSink: SimEvent[] | undefined, events: SimEvent[], collectEvents: boolean): SimEvent[] {
+  if (!collectEvents) return EMPTY_EVENTS;
+  if (eventSink) {
+    eventSink.push(...events);
+    return EMPTY_EVENTS;
+  }
+  return events;
+}
+
+export function evaluateObjectives(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
+  if (state.result !== "playing") return EMPTY_EVENTS;
   const playerCy = living(state).some((e) => e.owner === 0 && e.kind === "constructionYard");
   if (!playerCy) {
     state.result = "lost";
     state.lossReason = "yardDestroyed";
     if (state.runtime) state.runtime.phase = "complete";
-    return [{ type: "lost" }];
+    return objectiveEvents(eventSink, [{ type: "lost" }], collectEvents);
   }
 
   const w = state.win;
@@ -229,7 +240,7 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
   if (won) {
     state.result = "won";
     if (state.runtime) state.runtime.phase = "complete";
-    return [{ type: "won" }];
+    return objectiveEvents(eventSink, [{ type: "won" }], collectEvents);
   }
 
   if (state.runtime && LOSS_DEADLINE_KINDS.includes(state.runtime.kind)) {
@@ -237,18 +248,18 @@ export function evaluateObjectives(state: SimState): SimEvent[] {
       state.result = "lost";
       state.lossReason = "objectiveTargetLost";
       state.runtime.phase = "complete";
-      return [{ type: "lost" }];
+      return objectiveEvents(eventSink, [{ type: "lost" }], collectEvents);
     }
     const deadline = state.runtime.deadline ?? w.ticks;
     if (deadline !== undefined && state.tick >= deadline) {
       state.result = "lost";
       state.lossReason = "deadline";
       state.runtime.phase = "complete";
-      return [{ type: "objectiveExpired", kind: state.runtime.kind }, { type: "lost" }];
+      return objectiveEvents(eventSink, [{ type: "objectiveExpired", kind: state.runtime.kind }, { type: "lost" }], collectEvents);
     }
   }
   const warning = deadlineWarningEvent(state);
-  return warning ? [warning] : [];
+  return warning ? objectiveEvents(eventSink, [warning], collectEvents) : EMPTY_EVENTS;
 }
 
 export function inspect(state: SimState): InspectReport {

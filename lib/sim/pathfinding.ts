@@ -27,7 +27,13 @@ type SearchBuffers = {
   generation: number;
 };
 
+type StaticPathCache = {
+  revision: number;
+  paths: Map<string, PathSearchResult>;
+};
+
 const searchBuffers = new WeakMap<SimState, SearchBuffers>();
+const staticPathCache = new WeakMap<SimState, StaticPathCache>();
 
 export const PATH_DIRS: Vec2[] = [
   { x: 1, y: 0 },
@@ -145,15 +151,29 @@ export function findPathDetailed(
   const sy = Math.round(from.y);
   const gx = Math.round(to.x);
   const gy = Math.round(to.y);
+  const w = state.width;
   if (sx === gx && sy === gy) return { path: [], status: "complete" };
   if (!inBounds(state, gx, gy)) return { path: [], status: "unreachable" };
 
   const ignoreId = ignoreIdOf(from, opts);
   const avoidUnits = opts?.avoidUnits === true;
+  const maxNodes = Math.min(opts?.maxNodes ?? PATH_MAX_NODES, PATH_MAX_NODES, w * state.height);
+  const navigationRevision = state.navigationRevision ?? 0;
+  const target = to as Entity;
+  const targetFootprint = isBuildingEntity(target) ? footprintOf(target.kind) : undefined;
+  const cacheKey = !avoidUnits
+    ? `${sx},${sy}:${gx},${gy}:${maxNodes}:${targetFootprint?.w ?? 0},${targetFootprint?.h ?? 0}`
+    : undefined;
+  if (cacheKey) {
+    const cache = staticPathCache.get(state);
+    if (cache?.revision === navigationRevision) {
+      const cached = cache.paths.get(cacheKey);
+      if (cached) return { path: cached.path.slice(), status: cached.status };
+    }
+  }
   const occupancy = avoidUnits
     ? (opts?.occupancy ?? makeUnitOccupancy(state, ignoreId))
     : undefined;
-  const w = state.width;
   const navigation = staticNavigationFor(state);
   const canClimbLocal = (x0: number, y0: number, x1: number, y1: number) =>
     Math.abs(navigation.heights[y1 * w + x1]! - navigation.heights[y0 * w + x0]!) <= 1;
@@ -167,8 +187,6 @@ export function findPathDetailed(
   const passable = (x: number, y: number) => inBounds(state, x, y) && navigation.walkable[y * w + x] === 1 && !unitBlocked(x, y);
 
   const walkableGoal = passable(gx, gy);
-  const target = to as Entity;
-  const targetFootprint = isBuildingEntity(target) ? footprintOf(target.kind) : undefined;
   const goalOk = (x: number, y: number) => {
     if (targetFootprint) {
       const inside = x >= gx && x < gx + targetFootprint.w && y >= gy && y < gy + targetFootprint.h;
@@ -181,7 +199,6 @@ export function findPathDetailed(
     return walkableGoal ? x === gx && y === gy : Math.max(Math.abs(x - gx), Math.abs(y - gy)) === 1;
   };
 
-  const maxNodes = Math.min(opts?.maxNodes ?? PATH_MAX_NODES, PATH_MAX_NODES, w * state.height);
   const key = (x: number, y: number) => y * w + x;
   const open = new MinHeap();
   let seq = 0;
@@ -206,7 +223,7 @@ export function findPathDetailed(
     }
     if (goalOk(current.x, current.y) && !(current.x === sx && current.y === sy && !walkableGoal)) {
       if (current.x === sx && current.y === sy) continue;
-      return { path: reconstruct(buffers.parent, currentKey, startKey, w), status: "complete" };
+      return cacheStaticPath(state, cacheKey, navigationRevision, { path: reconstruct(buffers.parent, currentKey, startKey, w), status: "complete" });
     }
     for (const d of PATH_DIRS) {
       const nx = current.x + d.x;
@@ -234,14 +251,31 @@ export function findPathDetailed(
     }
   }
   const capped = explored >= maxNodes && open.length > 0;
-  if (capped && bestKey < 0) return { path: [], status: "partial" };
+  if (capped && bestKey < 0) return cacheStaticPath(state, cacheKey, navigationRevision, { path: [], status: "partial" });
   if (bestKey >= 0) {
-    return {
+    return cacheStaticPath(state, cacheKey, navigationRevision, {
       path: reconstruct(buffers.parent, bestKey, startKey, w),
       status: capped ? "partial" : "unreachable",
-    };
+    });
   }
-  return { path: [], status: "unreachable" };
+  return cacheStaticPath(state, cacheKey, navigationRevision, { path: [], status: "unreachable" });
+}
+
+function cacheStaticPath(
+  state: SimState,
+  key: string | undefined,
+  revision: number,
+  result: PathSearchResult,
+): PathSearchResult {
+  if (!key) return result;
+  let cache = staticPathCache.get(state);
+  if (!cache || cache.revision !== revision) {
+    cache = { revision, paths: new Map() };
+    staticPathCache.set(state, cache);
+  }
+  // Keep a private copy because callers consume paths with shift/unshift.
+  cache.paths.set(key, { path: result.path.slice(), status: result.status });
+  return result;
 }
 
 function diagonalCornerBlockedLocal(

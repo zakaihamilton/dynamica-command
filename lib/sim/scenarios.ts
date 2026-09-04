@@ -351,10 +351,11 @@ function convoyDestination(state: SimState, zone: Vec2, index: number): Vec2 {
   return candidates[index % candidates.length]?.point ?? zone;
 }
 
+const EMPTY_EVENTS: SimEvent[] = [];
+
 export function tickScenario(state: SimState): SimEvent[] {
-  const events: SimEvent[] = [];
   const runtime = state.runtime;
-  if (!runtime || runtime.phase === "complete") return events;
+  if (!runtime || runtime.phase === "complete") return EMPTY_EVENTS;
   const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
   if (runtime.kind === "extraction" && yard) {
     runtime.zone = { x: yard.x, y: yard.y };
@@ -422,5 +423,5 @@ export function tickScenario(state: SimState): SimEvent[] {
   if (timed && timed.target !== undefined) timed.completed = state.tick < timed.target;
   const keepUnits = runtime.secondary.find((objective) => objective.kind === "keepUnits");
   if (keepUnits) keepUnits.completed = state.entities.some((entity) => entity.owner === 0 && entity.class === "unit" && entity.hp > 0 && !entity.neutral);
-  return events;
+  return EMPTY_EVENTS;
 }

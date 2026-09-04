@@ -5,7 +5,7 @@ import { missionDifficulty } from "../difficulty";
 import { profileContractFor, resolveMissionProfile } from "../../gen/profile";
 import { byId, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "../world";
 import { tryBuildForwardInfrastructure, tryBuildPower, tryBuildRefinery, tryBuildTurret } from "./building";
-import { assignAttack, assignAssault, assignMove, enemyCombat, sendHome } from "./combat";
+import { assignAttack, assignAssault, assignMove, sendHome } from "./combat";
 import { contestedResourcePoint, distance, queueUnit, shouldAutoRepair, shouldRetreat } from "./helpers";
 
 const YARD_DEFENSE_RANGE = 14;
@@ -58,7 +58,32 @@ export function guardResourceLane(state: SimState, units: Entity[], yard: Entity
 export function tickAi(state: SimState): void {
   if (state.result !== "playing") return;
   const rng = rngFromState(state.rngState);
-  const enemyBuildings = living(state).filter((e) => e.owner === 1 && e.class === "building");
+  // This is on the hot path for every simulation tick. Build the frequently
+  // used views in one pass instead of repeatedly filtering the same entity
+  // list during production, repair, and assault decisions.
+  const active = living(state);
+  const enemyBuildings: Entity[] = [];
+  const enemyUnits: Entity[] = [];
+  let hasHarvester = false;
+  let playerTanks = 0;
+  let playerInfantry = 0;
+  let woundedHumans = false;
+  let woundedVehicles = false;
+  let medicCount = 0;
+  let repairTruckCount = 0;
+  for (const entity of active) {
+    if (entity.owner === 1 && entity.class === "building") enemyBuildings.push(entity);
+    if (entity.owner === 1 && isUnitEntity(entity)) {
+      if (UNIT_STATS[entity.kind].damage > 0 && !isSupportUnit(entity.kind)) enemyUnits.push(entity);
+      if (entity.kind === "harvester") hasHarvester = true;
+      if (entity.kind === "medic") medicCount += 1;
+      if (entity.kind === "repairTruck") repairTruckCount += 1;
+      if (!isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "human" && entity.hp < entity.maxHp) woundedHumans = true;
+      if (!isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "vehicle" && entity.hp < entity.maxHp) woundedVehicles = true;
+    }
+    if (entity.owner === 0 && entity.kind === "tank") playerTanks += 1;
+    if (entity.owner === 0 && entity.kind === "infantry") playerInfantry += 1;
+  }
   const yard = enemyBuildings.find((e) => e.kind === "constructionYard");
   if (!yard) {
     state.aiState = "retreat";
@@ -80,21 +105,8 @@ export function tickAi(state: SimState): void {
     const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0 && !e.producing);
     const barracks = enemyBuildings.find((e) => e.kind === "barracks" && e.constructing === 0 && !e.producing);
     const hasRefinery = enemyBuildings.some((e) => e.kind === "refinery");
-    const hasHarvester = living(state).some((e) => e.owner === 1 && e.kind === "harvester");
-    const playerTanks = living(state).filter((entity) => entity.owner === 0 && entity.kind === "tank").length;
-    const playerInfantry = living(state).filter((entity) => entity.owner === 0 && entity.kind === "infantry").length;
     const want: UnitKind = playerTanks > playerInfantry ? "antiArmor" : rng.chance(0.4) ? "tank" : "infantry";
     const producer = want === "infantry" || want === "antiArmor" ? barracks : factory;
-    const woundedHumans = living(state).some(
-      (entity) => entity.owner === 1 && isUnitEntity(entity) && !isSupportUnit(entity.kind) &&
-        UNIT_STATS[entity.kind].domain === "human" && entity.hp < entity.maxHp,
-    );
-    const woundedVehicles = living(state).some(
-      (entity) => entity.owner === 1 && isUnitEntity(entity) && !isSupportUnit(entity.kind) &&
-        UNIT_STATS[entity.kind].domain === "vehicle" && entity.hp < entity.maxHp,
-    );
-    const medicCount = living(state).filter((entity) => entity.owner === 1 && entity.kind === "medic").length;
-    const repairTruckCount = living(state).filter((entity) => entity.owner === 1 && entity.kind === "repairTruck").length;
     const supportWant = state.missionIndex >= 2 && (
       woundedHumans && medicCount === 0 ? "medic" :
       woundedVehicles && repairTruckCount === 0 ? "repairTruck" :
@@ -161,7 +173,7 @@ export function tickAi(state: SimState): void {
       e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined
     ),
   );
-  const units = enemyCombat(state);
+  const units = enemyUnits;
   const averageHealth = units.length ? units.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / units.length : 1;
   if (shouldRetreat(state, averageHealth)) state.aiState = "retreat";
   else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";

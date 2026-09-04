@@ -104,8 +104,10 @@ export function bestResource(
   return best;
 }
 
-export function tickEconomy(state: SimState): SimEvent[] {
-  const events: SimEvent[] = [];
+const EMPTY_EVENTS: SimEvent[] = [];
+
+export function tickEconomy(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
+  const events = eventSink ?? (collectEvents ? [] : undefined);
   const claims = new Map<number, number>();
 
   for (const e of living(state)) {
@@ -144,7 +146,7 @@ export function tickEconomy(state: SimState): SimEvent[] {
         e.carry = 0;
         state.credits[e.owner] += amount;
         state.creditsEarned[e.owner] += amount;
-        events.push({ type: "credits", owner: e.owner, amount });
+        events?.push({ type: "credits", owner: e.owner, amount });
         e.path = [];
         e.routePending = false;
       } else if (!e.path.length && e.routePending !== false) {
@@ -237,5 +239,5 @@ export function tickEconomy(state: SimState): SimEvent[] {
       }
     }
   }
-  return events;
+  return events ?? EMPTY_EVENTS;
 }

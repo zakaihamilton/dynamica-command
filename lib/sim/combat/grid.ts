@@ -11,6 +11,7 @@ export type CombatGrid = {
 };
 
 const CELL = 8;
+const gridBuffers = new WeakMap<SimState, CombatGrid>();
 
 export function isCombatTarget(state: SimState, e: Entity): boolean {
   if (e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined) return false;
@@ -34,17 +35,32 @@ export function statsFor(e: Entity): { damage: number; range: number; cooldown: 
 export function buildGrid(state: SimState): CombatGrid {
   const cols = Math.max(1, Math.ceil(state.width / CELL));
   const rows = Math.max(1, Math.ceil(state.height / CELL));
-  const cells: Entity[][] = Array.from({ length: cols * rows }, () => []);
-  const order = new Map<number, number>();
-  const all = living(state);
-  for (let i = 0; i < all.length; i++) {
-    const e = all[i]!;
+  const size = cols * rows;
+  const cached = gridBuffers.get(state);
+  const cells = cached && cached.cols === cols && cached.rows === rows
+    ? cached.cells
+    : Array.from({ length: size }, () => [] as Entity[]);
+  if (cached && cached.cols === cols && cached.rows === rows) {
+    for (const cell of cells) cell.length = 0;
+  }
+  const order = cached && cached.cols === cols && cached.rows === rows ? cached.order : new Map<number, number>();
+  order.clear();
+  const all = cached && cached.cols === cols && cached.rows === rows ? cached.all : [];
+  all.length = 0;
+  // Rebuild from the current entity array. The buffers are intentionally
+  // reused because combat runs once per tick and entity positions change.
+  for (const e of state.entities) {
+    if (e.hp <= 0) continue;
+    const i = all.length;
+    all.push(e);
     order.set(e.id, i);
     const cx = Math.max(0, Math.min(cols - 1, Math.floor(e.x / CELL)));
     const cy = Math.max(0, Math.min(rows - 1, Math.floor(e.y / CELL)));
     cells[cy * cols + cx]!.push(e);
   }
-  return { state, cols, rows, cells, order, all };
+  const grid = { state, cols, rows, cells, order, all };
+  gridBuffers.set(state, grid);
+  return grid;
 }
 
 export function closestEnemy(
@@ -94,10 +110,6 @@ export function acquire(grid: CombatGrid, e: Entity, threatsOnly = false): Entit
 
 export function acquirePreferred(grid: CombatGrid, e: Entity): Entity | undefined {
   return acquire(grid, e, true) ?? acquire(grid, e, false);
-}
-
-function living(state: SimState): Entity[] {
-  return state.entities.filter((e) => e.hp > 0);
 }
 
 function distToEntity(a: { x: number; y: number }, b: { x: number; y: number }): number {

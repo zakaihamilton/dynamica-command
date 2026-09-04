@@ -1,6 +1,6 @@
 import { BUILDING_STATS, UNIT_STATS, footprintOf } from "../../catalog";
 import { isBuildingEntity, type BuildingKind, type Entity, type Owner, type SimState, type UnitKind, type Vec2 } from "../../types";
-import { living, distToEntity } from "./queries";
+import { living, invalidateLivingCache, distToEntity } from "./queries";
 import { invalidateNavigation, isWalkable, canClimb } from "./terrain";
 import { DEFAULT_BUILDING_CLEARANCE, findBuildSite, INITIAL_BUILDING_EDGE_MARGIN } from "./building";
 
@@ -179,6 +179,7 @@ export function trySpawnUnit(
   e.x = site.x;
   e.y = site.y;
   state.entities.push(e);
+  invalidateLivingCache(state);
   return e;
 }
 
@@ -193,6 +194,7 @@ export function spawnBuilding(
 ): Entity {
   const e = makeBuilding(state, owner, kind, x, y, constructing, marked);
   state.entities.push(e);
+  invalidateLivingCache(state);
   invalidateNavigation(state);
   return e;
 }

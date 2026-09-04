@@ -30,6 +30,7 @@ const stratified = arg("stratified", "false") === "true";
 const progressEnabled = arg("progress", "true") !== "false";
 const progressEvery = Math.max(1, Number(arg("progress-every", "1")) || 1);
 const requestedJobs = Math.max(0, Number(arg("jobs", "0")) || 0);
+const maxElapsedMs = Math.max(0, Number(arg("max-elapsed-ms", "0")) || 0);
 const missions = missionArg === "all" ? [...Array(8).keys()] : [Number(missionArg)];
 
 const supportedStrategies: readonly string[] = ["competent", "baseline", ...ARCHETYPE_STRATEGIES];
@@ -75,6 +76,7 @@ async function main() {
     records.push(...strategyRecords);
   }
   const elapsedMs = performance.now() - startedAt;
+  const elapsedBudgetExceeded = maxElapsedMs > 0 && elapsedMs >= maxElapsedMs;
   const summary = summarizeBalance(records);
   const thresholds: BalanceThresholds = {
   ...DEFAULT_BALANCE_THRESHOLDS,
@@ -150,6 +152,8 @@ async function main() {
   samples: records.length,
   timing: {
     elapsedMs: Number(elapsedMs.toFixed(2)),
+    maxElapsedMs: maxElapsedMs || null,
+    elapsedBudgetExceeded,
     averageScenarioMs: records.length ? Number((scenarioTimes.reduce((sum, ms) => sum + ms, 0) / records.length).toFixed(2)) : 0,
     slowestScenarioMs: slowest ? Number(slowest.scenarioMs.toFixed(2)) : 0,
     slowestScenario: slowest ? { seed: slowest.seed, mission: slowest.mission, kind: slowest.kind } : null,
@@ -178,7 +182,7 @@ async function main() {
   ...(details ? { records: stableBalanceRecords(records) } : {}),
   }, null, 2));
 
-  if (acceptance && !acceptance.passed) process.exitCode = 1;
+  if ((acceptance && !acceptance.passed) || elapsedBudgetExceeded) process.exitCode = 1;
 }
 
 void main().catch((error: unknown) => {

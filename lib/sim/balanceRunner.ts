@@ -194,8 +194,8 @@ function runScenario(
       if (command.type === "repair") repairCommands += 1;
     }
     commandsIssued += commands?.length ?? 0;
-    const result = tick(state, commands);
-    commandRejections += result.events.filter((event) => event.type === "commandRejected").length;
+    const result = tick(state, commands, { collectEvents: false, updateFog: false });
+    commandRejections += result.commandRejections;
     if (firstPressureTick === undefined && state.runtime?.director?.phase !== undefined && state.runtime.director.phase !== "opening") {
       firstPressureTick = state.tick;
     }

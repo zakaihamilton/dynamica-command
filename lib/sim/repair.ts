@@ -5,7 +5,9 @@ export function canRepair(e: { class: string; hp: number; maxHp: number; constru
   return e.class === "building" && e.hp > 0 && e.constructing === 0 && e.hp < e.maxHp;
 }
 
-export function tickRepair(state: SimState): SimEvent[] {
+const EMPTY_EVENTS: SimEvent[] = [];
+
+export function tickRepair(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
   for (const e of state.entities) {
     if (!e.repairing) continue;
     if (!isBuildingEntity(e) || e.hp <= 0 || e.constructing > 0) {
@@ -28,5 +30,5 @@ export function tickRepair(state: SimState): SimEvent[] {
       e.repairing = false;
     }
   }
-  return [];
+  return eventSink ?? (collectEvents ? [] : EMPTY_EVENTS);
 }

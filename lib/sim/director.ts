@@ -139,27 +139,39 @@ function phaseAlert(state: SimState, runtime: MissionRuntime, phase: MissionDire
   return `${profileAlert} Final enemy push detected — finish the operation now.`;
 }
 
-export function tickMissionDirector(state: SimState): SimEvent[] {
-  if (state.result !== "playing" || state.tutorialStage !== undefined) return [];
+const EMPTY_EVENTS: SimEvent[] = [];
+
+function missionAlert(eventSink: SimEvent[] | undefined, text: string, collectEvents: boolean): SimEvent[] {
+  const event = { type: "alert", kind: "objective", text } as const;
+  if (!collectEvents) return EMPTY_EVENTS;
+  if (eventSink) {
+    eventSink.push(event);
+    return EMPTY_EVENTS;
+  }
+  return [event];
+}
+
+export function tickMissionDirector(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
+  if (state.result !== "playing" || state.tutorialStage !== undefined) return EMPTY_EVENTS;
   const runtime = ensureMissionDirector(state);
-  if (!runtime?.director || runtime.phase === "complete") return [];
+  if (!runtime?.director || runtime.phase === "complete") return EMPTY_EVENTS;
   const director = runtime.director;
   const nextPhase = phaseAt(state, director);
   if (nextPhase === "opening" && state.tick === director.pressureStart - PRESSURE_WARNING_TICKS) {
     const profile = resolveMissionProfile(state.seed, state.missionIndex, runtime.kind);
-    return [{ type: "alert", kind: "objective", text: `${profileContractFor(profile).alert} Pressure expected in two minutes.` }];
+    return missionAlert(eventSink, `${profileContractFor(profile).alert} Pressure expected in two minutes.`, collectEvents);
   }
   if (nextPhase === "pressure" && director.phase === "opening" && delayForRecovery(state, "pressureStart")) {
-    return [{ type: "alert", kind: "objective", text: "Pressure is building — use the delay to recover, repair, and reinforce." }];
+    return missionAlert(eventSink, "Pressure is building — use the delay to recover, repair, and reinforce.", collectEvents);
   }
   if (nextPhase === "finale" && delayForRecovery(state, "finaleStart")) {
-    return [{ type: "alert", kind: "objective", text: "Finale delayed — recover your line before the last push." }];
+    return missionAlert(eventSink, "Finale delayed — recover your line before the last push.", collectEvents);
   }
-  if (nextPhase === director.phase) return [];
+  if (nextPhase === director.phase) return EMPTY_EVENTS;
 
   const recovering = playerNeedsRecovery(state);
   director.phase = nextPhase;
   director.eventCount += 1;
   spawnReinforcements(state, nextPhase, recovering);
-  return [{ type: "alert", kind: "objective", text: phaseAlert(state, runtime, nextPhase) }];
+  return missionAlert(eventSink, phaseAlert(state, runtime, nextPhase), collectEvents);
 }

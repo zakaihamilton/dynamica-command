@@ -107,11 +107,17 @@ describe("tactical expansion", () => {
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
       expect(CONVOY_STAGING_TICKS).toBe(7 * 60 * TICKS_PER_SECOND);
       expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS);
-      for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) tick(state, undefined, { evaluateObjectives: false });
       const convoyIds = new Set(convoy.map((entity) => entity.id));
-      expect(state.entities
-        .filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined)
-        .every((entity) => !convoyIds.has(entity.attackTarget!))).toBe(true);
+      let enemyEngaged = false;
+      for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) {
+        tick(state, undefined, { evaluateObjectives: false });
+        const attackers = state.entities.filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined);
+        expect(attackers.every((entity) => !convoyIds.has(entity.attackTarget!))).toBe(true);
+        enemyEngaged ||= attackers.some((attacker) => state.entities.some(
+          (target) => target.id === attacker.attackTarget && target.owner === 0 && target.hp > 0,
+        ));
+      }
+      expect(enemyEngaged).toBe(true);
       tick(state, undefined, { evaluateObjectives: false });
       const routeEnd = neutral?.path.at(-1);
       expect(routeEnd).toBeDefined();

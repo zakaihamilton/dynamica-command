@@ -7,9 +7,11 @@ import { createPendingAlerts, flushPlayerAlerts } from "./alerts";
 import type { SimEvent, SimState } from "../../types";
 import { tryFindPath } from "../pathBudget";
 
-export function tickCombat(state: SimState): SimEvent[] {
-  const events: SimEvent[] = [];
-  const pending = createPendingAlerts();
+const EMPTY_EVENTS: SimEvent[] = [];
+
+export function tickCombat(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
+  const events = eventSink ?? (collectEvents ? [] : undefined);
+  const pending = collectEvents ? createPendingAlerts() : undefined;
   const rng = rngFromState(state.rngState);
   const grid = buildGrid(state);
   for (const e of living(state)) {
@@ -119,7 +121,7 @@ export function tickCombat(state: SimState): SimEvent[] {
       e.attackTarget = undefined;
     }
   }
-  flushPlayerAlerts(state, pending, events);
+  if (events && pending) flushPlayerAlerts(state, pending, events);
   state.rngState = rng.state;
-  return events;
+  return events ?? EMPTY_EVENTS;
 }

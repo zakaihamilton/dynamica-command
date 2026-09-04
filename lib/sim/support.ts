@@ -56,8 +56,10 @@ function clearSupportRoute(provider: Entity): void {
   provider.idle = true;
 }
 
-export function tickSupport(state: SimState): SimEvent[] {
-  const events: SimEvent[] = [];
+const EMPTY_EVENTS: SimEvent[] = [];
+
+export function tickSupport(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
+  const events = eventSink ?? (collectEvents ? [] : undefined);
   for (const provider of living(state)) {
     if (!isUnitEntity(provider) || !isSupportUnit(provider.kind) || provider.neutral) continue;
     const stats = UNIT_STATS[provider.kind];
@@ -119,7 +121,7 @@ export function tickSupport(state: SimState): SimEvent[] {
     if (healed <= 0) continue;
     target.hp += healed;
     provider.cooldown = supportInterval;
-    events.push({
+    events?.push({
       type: "support",
       owner: provider.owner,
       providerId: provider.id,
@@ -133,7 +135,7 @@ export function tickSupport(state: SimState): SimEvent[] {
       targetY: target.y,
     });
   }
-  return events;
+  return events ?? EMPTY_EVENTS;
 }
 
 export function holdSupport(provider: Entity): void {
