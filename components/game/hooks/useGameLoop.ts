@@ -1,7 +1,7 @@
 import { useEffect, type MutableRefObject } from "react";
 import { dispatchBattlefieldAudio } from "@/lib/audio/battlefield";
 import { TICKS_PER_SECOND } from "@/lib/catalog";
-import { setMusicCue, setMusicIntensity, type MusicIntensity } from "@/lib/audio/music";
+import { pauseMusic, setMusicIntensity, type MusicIntensity } from "@/lib/audio/music";
 import { playSfx } from "@/lib/audio/synth";
 import { startLoop } from "@/lib/game/loop";
 import { tick } from "@/lib/sim/api";
@@ -130,6 +130,8 @@ export function useGameLoop({
           setState({ ...next, entities: [...next.entities] });
         }
         if (events.some((event) => event.type === "combat")) lastCombatTick = next.tick;
+        const terminal = events.some((event) => event.type === "won" || event.type === "lost");
+        if (terminal) pauseMusic();
         const alert = firstAlert(events);
         const desiredIntensity = desiredMusicIntensity(
           next.runtime?.director?.phase,
@@ -137,7 +139,7 @@ export function useGameLoop({
           lastCombatTick,
           alert?.kind === "warning",
         );
-        if (desiredIntensity !== appliedIntensity) {
+        if (!terminal && desiredIntensity !== appliedIntensity) {
           appliedIntensity = desiredIntensity;
           setMusicIntensity(desiredIntensity);
         }
@@ -149,11 +151,9 @@ export function useGameLoop({
         );
         if (events.some((e) => e.type === "won")) {
           playSfx("victory", { force: true });
-          setMusicCue("victory", next.seed, next.missionIndex);
         }
         if (events.some((e) => e.type === "lost")) {
           playSfx("defeat", { force: true });
-          setMusicCue("defeat", next.seed, next.missionIndex);
         }
         const rejection = events.find((e) => e.type === "commandRejected");
         if (rejection?.type === "commandRejected") {

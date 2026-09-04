@@ -10,7 +10,6 @@ export function MissionResultActions({
   onCampaignMap,
   onRetry,
   onMenu,
-  onSoundtrack,
 }: {
   state: SimState;
   onNextBriefing: () => void;
@@ -18,7 +17,6 @@ export function MissionResultActions({
   onCampaignMap: () => void;
   onRetry: () => void;
   onMenu: () => void;
-  onSoundtrack: () => void;
 }) {
   return (
     <div className={styles.actions}>
@@ -44,9 +42,6 @@ export function MissionResultActions({
       ) : null}
       <ConsoleButton muted tooltip="Open the campaign operations map" onClick={onCampaignMap}>
         Campaign map
-      </ConsoleButton>
-        <ConsoleButton tooltip="Download this mission's music" onClick={onSoundtrack}>
-        Soundtrack
       </ConsoleButton>
       <ConsoleButton muted tooltip="Return to the main menu" shortcut={SHORTCUT.resultMenu} onClick={onMenu}>
         Menu

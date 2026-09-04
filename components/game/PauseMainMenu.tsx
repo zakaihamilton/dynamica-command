@@ -10,7 +10,6 @@ export function PauseMainMenu({
   onBriefing,
   onRestart,
   onControls,
-  onSoundtrack,
   onOptions,
   onMenu,
 }: {
@@ -20,7 +19,6 @@ export function PauseMainMenu({
   onBriefing: () => void;
   onRestart: () => void;
   onControls: () => void;
-  onSoundtrack: () => void;
   onOptions: () => void;
   onMenu: () => void;
 }) {
@@ -43,7 +41,6 @@ export function PauseMainMenu({
         </div>
         <div className={styles.group}>
           <ConsoleLabel className={styles.groupLabel}>Campaign</ConsoleLabel>
-          <ConsoleButton className={styles.action} tooltip="Download this mission's music" onClick={onSoundtrack}>Soundtrack</ConsoleButton>
           <ConsoleButton className={styles.action} tooltip="Audio and game options" shortcut={SHORTCUT.options} onClick={onOptions}>Options</ConsoleButton>
           <ConsoleButton muted className={styles.action} tooltip="Leave the campaign" shortcut={SHORTCUT.menu} onClick={onMenu}>Main Menu</ConsoleButton>
         </div>

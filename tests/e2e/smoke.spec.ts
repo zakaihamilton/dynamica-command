@@ -1,5 +1,4 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { readFile } from "node:fs/promises";
 import { createMission } from "../../lib/sim/api";
 import { spawnBuilding } from "../../lib/sim/world";
 import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
@@ -52,23 +51,6 @@ async function loadSelectedPauseSlot(page: Page, notice: RegExp) {
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole("button", { name: "Load mission" }).click();
   await expect(page.getByRole("status")).toContainText(notice);
-}
-
-async function browserSupportsNativeAac(page: Page): Promise<boolean> {
-  return page.evaluate(async () => {
-    if (typeof window.AudioEncoder === "undefined" || typeof window.AudioData === "undefined") return false;
-    try {
-      const support = await window.AudioEncoder.isConfigSupported({
-        codec: "mp4a.40.2",
-        sampleRate: 44_100,
-        numberOfChannels: 2,
-        bitrate: 160_000,
-      });
-      return support.supported === true;
-    } catch {
-      return false;
-    }
-  });
 }
 
 test("welcome tutorial opens the seed 0000 training range", async ({ page }) => {
@@ -505,14 +487,13 @@ test("shows briefing portraits before launch", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Replay" })).toBeVisible();
 });
 
-test("exposes the soundtrack panel from pause and mission result screens", async ({ page }) => {
+test("does not expose soundtrack download controls from pause and mission result screens", async ({ page }) => {
   await deployToBattlefield(page);
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("pause-menu")).toBeVisible();
-  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Mission soundtrack" })).toContainText("Mission 1");
-  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("button", { name: "Soundtrack", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Options", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Resume Mission" }).click();
 
   const state = distinctiveSave("won");
@@ -522,49 +503,8 @@ test("exposes the soundtrack panel from pause and mission result screens", async
   });
   await page.goto("/play?seed=0421&resume=1");
   await expect(page.getByTestId("mission-result")).toBeVisible();
-  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
-  const resultDialog = page.getByRole("dialog", { name: "Mission soundtrack" });
-  await expect(resultDialog).toContainText("Mission 1");
-  await page.keyboard.press("Escape");
-  await expect(resultDialog).not.toBeVisible();
-  await expect(page.getByTestId("mission-result")).toBeVisible();
-});
-
-test("downloads a valid deterministic M4A when native AAC is supported", async ({ page }) => {
-  test.setTimeout(180_000);
-  await deployToBattlefield(page);
-  await expect(page.getByTestId("command-sidebar")).toBeVisible();
-  await page.keyboard.press("Escape");
-  test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
-  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
-  const downloadPromise = page.waitForEvent("download", { timeout: 180_000 });
-  await dialog.getByRole("button", { name: "Download music", exact: true }).click();
-  await expect(dialog.getByRole("progressbar", { name: "Download progress" })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("dynamica-command-0421-mission-01.m4a");
-  const path = await download.path();
-  expect(path).not.toBeNull();
-  const file = await readFile(path!);
-  expect(file.subarray(4, 8).toString("ascii")).toBe("ftyp");
-  expect(file.toString("latin1")).toContain("mp4a");
-});
-
-test("cancels a soundtrack export without closing the panel", async ({ page }) => {
-  await deployToBattlefield(page);
-  await expect(page.getByTestId("command-sidebar")).toBeVisible();
-  await page.keyboard.press("Escape");
-  test.skip(!(await browserSupportsNativeAac(page)), "Chromium does not expose native AAC WebCodecs in this environment.");
-  await page.getByRole("button", { name: "Soundtrack", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Mission soundtrack" });
-  await dialog.getByRole("button", { name: "Download music", exact: true }).click();
-  const cancel = dialog.getByRole("button", { name: "Cancel download", exact: true });
-  await expect(cancel).toBeVisible();
-  await cancel.click();
-  await expect(dialog).toContainText("Download cancelled");
-  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Soundtrack", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Mission soundtrack" })).toHaveCount(0);
 });
 
 test("replays the incoming transmission from the start", async ({ page }) => {

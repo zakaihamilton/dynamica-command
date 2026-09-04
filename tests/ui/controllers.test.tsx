@@ -413,7 +413,7 @@ describe("game lifecycle hooks", () => {
     expect(setState).toHaveBeenCalledOnce();
   });
 
-  it("clears combat alerts after their display window and pauses mission music with the game menu", async () => {
+  it("clears combat alerts after their display window and pauses mission music with menus and results", async () => {
     vi.useFakeTimers();
     try {
       const { result } = renderHook(() => useCombatAlert());
@@ -439,9 +439,11 @@ describe("game lifecycle hooks", () => {
     vi.mocked(setMusicCue).mockClear();
 
     rerender({ seed: 421, missionIndex: 3, tutorial: false, paused: false, result: "won" as const });
+    expect(pauseMusic).toHaveBeenCalledTimes(2);
     expect(setMusicCue).not.toHaveBeenCalled();
 
     rerender({ seed: 421, missionIndex: 3, tutorial: false, paused: false, result: "lost" as const });
+    expect(pauseMusic).toHaveBeenCalledTimes(3);
     expect(setMusicCue).not.toHaveBeenCalled();
   });
 });

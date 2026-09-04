@@ -10,14 +10,10 @@ export function useGameAudioLifecycle({ seed, missionIndex, tutorial, paused, re
   }, []);
 
   useEffect(() => {
-    if (paused || tutorial) {
+    if (paused || tutorial || result !== "playing") {
       pauseMusic();
       return;
     }
-    // Only assert "mission" music while the game is still in progress.
-    // When result is "won" or "lost", useGameLoop has already set the
-    // appropriate victory/defeat cue — don't overwrite it here.
-    if (result !== "playing") return;
     setMusicDucked(false);
     setMusicCue("mission", seed, missionIndex);
   }, [missionIndex, paused, result, seed, tutorial]);

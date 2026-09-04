@@ -35,15 +35,12 @@ vi.mock("../../components/game/CommandSidebar", () => ({
 }));
 vi.mock("../../components/game/PauseMenu", () => ({
   PauseMenu: ({
-    onSoundtrack,
     onOptions,
     onBack,
   }: {
-    onSoundtrack: () => void;
     onOptions: () => void;
     onBack: () => void;
   }) => {
-    onSoundtrack();
     onOptions();
     onBack();
     return <div data-testid="surface-pause" />;
@@ -195,7 +192,6 @@ describe("game overlay surfaces", () => {
         onCampaignMap={vi.fn()}
         onRetry={onRetry}
         onMenu={vi.fn()}
-        onSoundtrack={vi.fn()}
       />,
     );
 

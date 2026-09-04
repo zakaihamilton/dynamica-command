@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe("audio context", () => {
-  it("creates the live graph at the export sample rate", async () => {
+  it("creates the live graph at the configured sample rate", async () => {
     const optionsSeen: AudioContextOptions[] = [];
     class AudioContextStub {
       sampleRate = AUDIO_SAMPLE_RATE;

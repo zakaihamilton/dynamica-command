@@ -8,7 +8,6 @@ import {
   BARS_PER_SECTION,
   TUTORIAL_MUSIC_MISSION,
 } from "../../lib/audio/compose";
-import { exportMissionSoundtrack, missionSoundtrackFilename, supportsM4aExport } from "../../lib/audio/export";
 import { isMusicEnabled, musicCueFromPath, setMusicEnabled, setMusicIntensity } from "../../lib/audio/music";
 import { shouldApplyPendingIntensity } from "../../lib/audio/musicScheduler";
 import { beep, isSfxEnabled, MAX_SFX_QUEUE_S, playSfx, scheduleSfxTime, setSfxEnabled } from "../../lib/audio/synth";
@@ -620,47 +619,4 @@ describe("generated audio", () => {
     expect(isMusicEnabled()).toBe(true);
   });
 
-  it("creates deterministic mission filenames and reports unsupported headless export", async () => {
-    expect(missionSoundtrackFilename(421, 3)).toBe("dynamica-command-0421-mission-04.m4a");
-    expect(await supportsM4aExport()).toBe(false);
-  });
-
-  it("does not require optional offline suspend controls for export availability", async () => {
-    const isConfigSupported = vi.fn().mockResolvedValue({ supported: true });
-    class OfflineAudioContextStub {}
-    class AudioDataStub {
-      close() {}
-    }
-    class AudioEncoderStub {
-      static isConfigSupported = isConfigSupported;
-      state: "unconfigured" | "configured" | "closed" = "unconfigured";
-      encodeQueueSize = 0;
-      configure() {
-        this.state = "configured";
-      }
-      encode() {}
-      flush() {
-        return Promise.resolve();
-      }
-      close() {
-        this.state = "closed";
-      }
-    }
-    vi.stubGlobal("window", {
-      AudioEncoder: AudioEncoderStub,
-      AudioData: AudioDataStub,
-      OfflineAudioContext: OfflineAudioContextStub,
-    });
-
-    await expect(supportsM4aExport()).resolves.toBe(true);
-    expect(isConfigSupported).toHaveBeenCalledOnce();
-  });
-
-  it("rejects a cancelled soundtrack export before starting browser work", async () => {
-    const controller = new AbortController();
-    controller.abort();
-
-    await expect(exportMissionSoundtrack(421, 3, undefined, { signal: controller.signal }))
-      .rejects.toMatchObject({ name: "AbortError" });
-  });
 });

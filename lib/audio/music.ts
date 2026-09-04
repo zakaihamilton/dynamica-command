@@ -1,13 +1,7 @@
-import { composeMusic, MUSIC_BARS, STEPS_PER_BAR, BARS_PER_SECTION, TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue, type MusicIntensity } from "./compose";
+import { composeMusic, TITLE_MUSIC_SEED, TUTORIAL_MUSIC_MISSION, type MusicCue, type MusicIntensity } from "./compose";
 import { peekAudioContext, unlockAudioContext } from "./context";
 import { setAudioBusEnabled } from "./mixer";
-import {
-  SAMPLE_RATE,
-  masterGain,
-  createGraph,
-  disconnectGraph,
-} from "./musicGraph";
-import { syncDelay } from "./musicSynth";
+import { masterGain } from "./musicGraph";
 import {
   intensity,
   pendingIntensity,
@@ -30,8 +24,6 @@ import {
   setStep,
 } from "./musicState";
 import {
-  applyIntensityAt,
-  scheduleStep,
   ensureMusicPlaying,
   applyPattern,
   stopMusic,
@@ -140,112 +132,6 @@ export function setMusicIntensity(value: MusicIntensity): void {
   }
   if (intensity === value && pendingIntensity === null) return;
   setPendingIntensity(value);
-}
-
-export class MusicExportCancelledError extends Error {
-  constructor() {
-    super("Mission soundtrack export was cancelled.");
-    this.name = "AbortError";
-  }
-}
-
-function throwIfRenderAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw new MusicExportCancelledError();
-}
-
-async function renderOfflineAudio(
-  offline: OfflineAudioContext,
-  duration: number,
-  signal?: AbortSignal,
-  onProgress?: (progress: number) => void,
-): Promise<AudioBuffer> {
-  throwIfRenderAborted(signal);
-  const rendering = offline.startRendering();
-  void rendering.catch(() => undefined);
-
-  // OfflineAudioContext.suspend() is not consistently implemented. In some
-  // browsers its promise never resolves, leaving an otherwise healthy export
-  // stuck in the rendering phase. Let the context render continuously and use
-  // its clock for best-effort progress updates instead.
-  let lastProgress = 0;
-  let progressTimer: number | null = null;
-  const updateProgress = () => {
-    if (signal?.aborted) return;
-    const current = Number.isFinite(offline.currentTime) ? offline.currentTime : 0;
-    const nextProgress = Math.min(0.99, Math.max(lastProgress, current / duration));
-    if (nextProgress > lastProgress) {
-      lastProgress = nextProgress;
-      onProgress?.(nextProgress);
-    }
-    progressTimer = window.setTimeout(updateProgress, 100);
-  };
-  updateProgress();
-  try {
-    const buffer = await rendering;
-    throwIfRenderAborted(signal);
-    onProgress?.(1);
-    return buffer;
-  } finally {
-    if (progressTimer !== null) window.clearTimeout(progressTimer);
-  }
-}
-
-export async function renderMissionMusic(
-  seedValue: number,
-  mission: number,
-  sampleRate = SAMPLE_RATE,
-  options: {
-    signal?: AbortSignal;
-    onProgress?: (progress: number) => void;
-    /** Internal export window used to keep long offline renders bounded. */
-    barStart?: number;
-    barCount?: number;
-    /** Extra audio rendered after an export window for seam handling. */
-    tailSeconds?: number;
-  } = {},
-): Promise<AudioBuffer> {
-  if (typeof window === "undefined" || typeof window.OfflineAudioContext === "undefined") {
-    throw new Error("Offline audio rendering is not supported in this browser.");
-  }
-  throwIfRenderAborted(options.signal);
-  const renderedPattern = composeMusic(seedValue, "mission", mission);
-  const barStart = Math.max(0, Math.min(MUSIC_BARS - 1, Math.floor(options.barStart ?? 0)));
-  const barCount = Math.max(1, Math.min(MUSIC_BARS - barStart, Math.floor(options.barCount ?? MUSIC_BARS)));
-  const barEnd = barStart + barCount;
-  const stepDuration = 60 / renderedPattern.bpm / 4;
-  const musicalDuration = barCount * STEPS_PER_BAR * stepDuration;
-  const tailSeconds = Math.max(0, options.tailSeconds ?? (barEnd === MUSIC_BARS ? 2.2 : 0));
-  const length = Math.ceil((musicalDuration + tailSeconds) * sampleRate);
-  const renderDuration = length / sampleRate;
-  const offline = new window.OfflineAudioContext(2, length, sampleRate);
-  const offlineGraph = createGraph(offline, offline.destination, renderedPattern);
-  try {
-    const arc: MusicIntensity[] = ["calm", "engaged", "calm", "engaged", "critical", "engaged", "engaged", "engaged"];
-    for (const oscillator of [offlineGraph.padOscA, offlineGraph.padOscB, offlineGraph.padOscC, offlineGraph.padOscD, offlineGraph.padLfo]) {
-      oscillator.stop(Math.max(0, renderDuration - 0.01));
-    }
-    for (let bar = barStart; bar < barEnd; bar++) {
-      throwIfRenderAborted(options.signal);
-      const value = arc[Math.floor(bar / BARS_PER_SECTION)] ?? "engaged";
-      applyIntensityAt(offline, offlineGraph, value, (bar - barStart) * STEPS_PER_BAR * stepDuration, false);
-    }
-    syncDelay(offline, offlineGraph, renderedPattern);
-    const firstStep = barStart * STEPS_PER_BAR;
-    const lastStep = barEnd * STEPS_PER_BAR;
-    for (let index = firstStep; index < lastStep; index++) {
-      if (index % STEPS_PER_BAR === 0) throwIfRenderAborted(options.signal);
-      const value = arc[Math.floor(index / STEPS_PER_BAR / BARS_PER_SECTION)] ?? "engaged";
-      scheduleStep(offline, offlineGraph, renderedPattern, (index - firstStep) * stepDuration, index, value);
-    }
-    if (barEnd === MUSIC_BARS) {
-      const fadeAt = Math.max(0, musicalDuration - 1.35);
-      offlineGraph.master.gain.setValueAtTime(masterGain("engaged", false), fadeAt);
-      offlineGraph.master.gain.linearRampToValueAtTime(0.0001, musicalDuration + tailSeconds);
-    }
-    return await renderOfflineAudio(offline, renderDuration, options.signal, options.onProgress);
-  } finally {
-    disconnectGraph(offlineGraph);
-  }
 }
 
 export function unlockAudio(): void {
