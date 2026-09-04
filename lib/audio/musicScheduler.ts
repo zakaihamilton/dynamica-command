@@ -50,15 +50,15 @@ export function applyIntensityAt(audio: AudioGraphContext, g: MusicGraph, value:
     node.gain.setTargetAtTime(target, t, ramp);
   };
   set(g.master, masterGain(value, isDucked));
-  set(g.bassBus, value === "calm" ? 0.92 : value === "critical" ? 1.12 : 1);
-  set(g.rhythmBus, value === "calm" ? 0.78 : value === "critical" ? 1.14 : 0.96);
-  set(g.harmonyBus, value === "calm" ? 0.72 : value === "critical" ? 0.52 : 0.62);
-  set(g.pulseBus, value === "calm" ? 0.82 : value === "critical" ? 1.08 : 0.94);
-  set(g.leadBus, value === "calm" ? 0.94 : value === "critical" ? 1.2 : 1.04);
-  set(g.counterBus, value === "calm" ? 0.48 : value === "critical" ? 0.9 : 0.64);
-  set(g.fxBus, value === "critical" ? 0.92 : value === "engaged" ? 0.58 : 0.36);
-  g.highpass.frequency.setTargetAtTime(value === "critical" ? 54 : 38, t, ramp);
-  g.padFilter.frequency.setTargetAtTime(value === "critical" ? 1_550 : value === "engaged" ? 1_150 : 880, t, ramp);
+  set(g.bassBus, value === "calm" ? 0.9 : value === "critical" ? 1.06 : 0.96);
+  set(g.rhythmBus, value === "calm" ? 0.72 : value === "critical" ? 1.06 : 0.88);
+  set(g.harmonyBus, value === "calm" ? 0.78 : value === "critical" ? 0.6 : 0.7);
+  set(g.pulseBus, value === "calm" ? 0.78 : value === "critical" ? 1 : 0.88);
+  set(g.leadBus, value === "calm" ? 0.92 : value === "critical" ? 1.1 : 1);
+  set(g.counterBus, value === "calm" ? 0.44 : value === "critical" ? 0.8 : 0.58);
+  set(g.fxBus, value === "critical" ? 0.78 : value === "engaged" ? 0.5 : 0.32);
+  g.highpass.frequency.setTargetAtTime(value === "critical" ? 48 : 38, t, ramp);
+  g.padFilter.frequency.setTargetAtTime(value === "critical" ? 1_300 : value === "engaged" ? 1_000 : 820, t, ramp);
   g.padBase = padGainFor(value);
   set(g.padGain, g.padBase);
 }
@@ -73,16 +73,21 @@ function duckPad(audio: AudioGraphContext, g: MusicGraph, time: number): void {
   const t = Math.max(time, audio.currentTime);
   g.padGain.gain.cancelScheduledValues(t);
   g.padGain.gain.setValueAtTime(Math.max(0.001, g.padGain.gain.value), t);
-  g.padGain.gain.linearRampToValueAtTime(g.padBase * 0.38, t + 0.025);
-  g.padGain.gain.linearRampToValueAtTime(g.padBase, t + 0.12);
+  g.padGain.gain.linearRampToValueAtTime(g.padBase * 0.58, t + 0.025);
+  g.padGain.gain.linearRampToValueAtTime(g.padBase, t + 0.16);
+  const wetLevel = Math.max(0.001, g.padReverbGate.gain.value);
+  g.padReverbGate.gain.cancelScheduledValues(t);
+  g.padReverbGate.gain.setValueAtTime(wetLevel, t);
+  g.padReverbGate.gain.linearRampToValueAtTime(wetLevel * 0.82, t + 0.025);
+  g.padReverbGate.gain.linearRampToValueAtTime(wetLevel, t + 0.16);
 }
 
 function duckBass(audio: AudioGraphContext, g: MusicGraph, time: number): void {
   const t = Math.max(time, audio.currentTime);
   g.bassDuck.gain.cancelScheduledValues(t);
   g.bassDuck.gain.setValueAtTime(Math.max(0.001, g.bassDuck.gain.value), t);
-  g.bassDuck.gain.linearRampToValueAtTime(0.42, t + 0.018);
-  g.bassDuck.gain.linearRampToValueAtTime(1, t + 0.13);
+  g.bassDuck.gain.linearRampToValueAtTime(0.64, t + 0.018);
+  g.bassDuck.gain.linearRampToValueAtTime(1, t + 0.15);
 }
 
 export function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern, when: number, index: number, value: MusicIntensity): void {
@@ -121,8 +126,10 @@ export function scheduleStep(audio: AudioGraphContext, g: MusicGraph, p: MusicPa
     const velocity = event.velocity * layerMultiplier("drums", value);
     if (event.kind === "kick") {
       playKick(audio, g, t, velocity);
-      duckPad(audio, g, t);
-      duckBass(audio, g, t);
+      if (event.accent) {
+        duckPad(audio, g, t);
+        duckBass(audio, g, t);
+      }
     } else if (event.kind === "snare") playSnare(audio, g, t, velocity, !!event.accent);
     else if (event.kind === "clap") playClap(audio, g, t, velocity, !!event.accent);
     else if (event.kind === "hat") playHat(audio, g, t, velocity, false);

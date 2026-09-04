@@ -45,6 +45,14 @@ export type MusicGraph = {
   padLfo: OscillatorNode;
   padLfoGain: GainNode;
   padGate: GainNode;
+  padPanA: StereoPannerNode;
+  padPanB: StereoPannerNode;
+  padPanC: StereoPannerNode;
+  padPanD: StereoPannerNode;
+  padReverbFilter: BiquadFilterNode;
+  padReverbGate: GainNode;
+  padReverbSend: GainNode;
+  padReverbVoices: readonly GainNode[];
   padBase: number;
   index: PatternIndex;
 };

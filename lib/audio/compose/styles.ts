@@ -1132,7 +1132,7 @@ const ARRANGEMENTS: readonly MusicArrangementProfile[] = [
     name: "inverted-hold",
     bassStrides: [8, 2, 2, 8, 4, 2, 8, 2],
     pulseStrides: [4, 2, 2, 4, 4, 2, 1, 2],
-    melodyEnabled: [true, true, true, true, true, true, false, true],
+    melodyEnabled: [true, true, true, true, true, true, true, true],
     pulseEnabled: [false, true, true, true, true, true, true, true],
     counterEnabled: [true, false, true, true, false, true, false, true],
     holdBass: [true, false, false, true, false, false, true, false],
@@ -1315,7 +1315,7 @@ export function createMusicStyle(cue: MusicCue, rng: Rng, seed = 0, missionIndex
     voiceEngine: blueprint.voiceEngine,
     drumKit: blueprint.drumKit,
     pulseRole: blueprint.pulseRole,
-    saturationAmount: rangeValue(textureRng, blueprint.saturation),
+    saturationAmount: Math.min(0.3, rangeValue(textureRng, blueprint.saturation) * 0.76),
     drum: { ...blueprint.drum },
   };
   return applyMissionTints(profile, context);

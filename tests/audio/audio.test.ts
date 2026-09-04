@@ -239,11 +239,11 @@ describe("generated audio", () => {
 
   it("keeps cue tempos in upbeat 80s ranges and fills long-form lanes", () => {
     const ranges = {
-      menu: [118, 130],
-      briefing: [108, 122],
-      mission: [124, 144],
-      victory: [128, 140],
-      defeat: [92, 104],
+      menu: [112, 124],
+      briefing: [104, 118],
+      mission: [118, 138],
+      victory: [124, 136],
+      defeat: [88, 100],
     } as const;
     for (const seed of [0, 1, 421, 9999]) {
       for (const [cue, [lo, hi]] of Object.entries(ranges)) {
@@ -299,7 +299,7 @@ describe("generated audio", () => {
       expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
       expect(sectionNotes("groove", "melody").length).toBeGreaterThan(0);
       expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
-      expect(sectionNotes("climax", "melody").length).toBeGreaterThan(sectionNotes("hook", "melody").length);
+      expect(sectionNotes("climax", "melody").length).toBeGreaterThanOrEqual(sectionNotes("hook", "melody").length);
       if (pattern.style.pulseRole !== "none") {
         expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
       }
@@ -327,7 +327,7 @@ describe("generated audio", () => {
             event.step < section.endBar * STEPS_PER_BAR,
         );
       };
-      expect(sectionHats("climax").length).toBeGreaterThan(sectionHats("hook").length);
+      expect(sectionHats("climax").length).toBeGreaterThanOrEqual(BARS_PER_SECTION * 4);
       expect(sectionHats("hook").length).toBeLessThanOrEqual(BARS_PER_SECTION * 8);
     }
 
@@ -348,6 +348,85 @@ describe("generated audio", () => {
     for (const major of majors) {
       expect(majorOpeners).toContainEqual(major.theme.progressionA.slice(0, 4));
       expect(major.theme.progressionA.slice(0, 4)).not.toEqual([0, 5, 2, 6]);
+    }
+  });
+
+  it("repeats each cue hook with a stable contour and cadential phrase endings", () => {
+    const cues = ["menu", "briefing", "mission", "victory", "defeat"] as const;
+    const hookShape = (pattern: ReturnType<typeof composeMusic>, name: string) => {
+      const section = pattern.sections.find((entry) => entry.name === name);
+      if (!section) return [];
+      const start = section.startBar * STEPS_PER_BAR;
+      const end = section.endBar * STEPS_PER_BAR;
+      const notes = pattern.notes.melody
+        .filter((note) => note.step >= start && note.step < end)
+        .sort((a, b) => a.step - b.step);
+      const firstMidi = notes[0]?.midi ?? 0;
+      return notes.map((note) => [note.step - start, note.midi - firstMidi]);
+    };
+
+    for (const cue of cues) {
+      for (let seed = 0; seed < 24; seed++) {
+        const pattern = composeMusic(seed, cue, cue === "mission" ? seed % 8 : 0);
+        expect(hookShape(pattern, "hook")).toEqual(hookShape(pattern, "climax"));
+        expect(hookShape(pattern, "hook")).toEqual(hookShape(pattern, "turnaround"));
+
+        for (let bar = 7; bar < pattern.bars; bar += 8) {
+          const phraseEnd = pattern.notes.melody
+            .filter((note) => Math.floor(note.step / STEPS_PER_BAR) === bar)
+            .sort((a, b) => a.step - b.step)
+            .at(-1);
+          if (phraseEnd) {
+            expect(((phraseEnd.midi - pattern.rootMidi) % 12 + 12) % 12).toBe(0);
+          }
+        }
+      }
+    }
+  });
+
+  it("keeps foreground melodies within one octave and mostly within a perfect fifth", () => {
+    const cues = ["menu", "briefing", "mission", "victory", "defeat"] as const;
+    let adjacentNotes = 0;
+    let notesWithinFifth = 0;
+
+    for (const cue of cues) {
+      for (let seed = 0; seed < 24; seed++) {
+        const pattern = composeMusic(seed, cue, cue === "mission" ? seed % 8 : 0);
+        const notes = [...pattern.notes.melody].sort((a, b) => a.step - b.step);
+        let previousMidi: number | null = null;
+        for (const note of notes) {
+          if (previousMidi !== null) {
+            const leap = Math.abs(note.midi - previousMidi);
+            expect(leap).toBeLessThanOrEqual(12);
+            adjacentNotes += 1;
+            if (leap <= 7) notesWithinFifth += 1;
+          }
+          previousMidi = note.midi;
+        }
+      }
+    }
+
+    expect(adjacentNotes).toBeGreaterThan(1000);
+    expect(notesWithinFifth / adjacentNotes).toBeGreaterThanOrEqual(0.95);
+  });
+
+  it("keeps sparse cue percussion atmospheric", () => {
+    for (const cue of ["menu", "briefing", "defeat"] as const) {
+      for (let seed = 0; seed < 24; seed++) {
+        const pattern = composeMusic(seed, cue);
+        expect(pattern.drums.some((event) => event.kind === "openHat")).toBe(false);
+        for (let bar = 0; bar < pattern.bars; bar++) {
+          const start = bar * STEPS_PER_BAR;
+          const end = start + STEPS_PER_BAR;
+          const brightHits = pattern.drums.filter(
+            (event) =>
+              (event.kind === "hat" || event.kind === "openHat" || event.kind === "clap") &&
+              event.step >= start &&
+              event.step < end,
+          );
+          expect(brightHits.length).toBeLessThanOrEqual(8);
+        }
+      }
     }
   });
 

@@ -37,10 +37,10 @@ export function playSynthTone(
     duration * (chip ? 0.35 : pulse ? 0.55 : 0.4),
   );
   const end = time + Math.max(duration, attack + release + 0.02);
-  const peak = Math.max(0.006, velocity * (accent ? 0.26 : pulse ? 0.16 : chip ? 0.18 : 0.2));
+  const peak = Math.max(0.006, velocity * (accent ? 0.24 : pulse ? 0.14 : chip ? 0.17 : 0.22));
 
   filter.type = "lowpass";
-  filter.Q.setValueAtTime(acid ? (bass ? 11.5 : 7.2) : bass ? 1.8 : lead || pulse ? 1.35 : 1.05, time);
+  filter.Q.setValueAtTime(acid ? (bass ? 8.5 : 5.5) : bass ? 1.8 : lead || pulse ? 1.2 : 1.05, time);
   const startCut = Math.max(220, cutoff * (acid ? (accent ? 4.6 : 3.4) : bass ? (accent ? 3.1 : 2.5) : accent ? 2.2 : pulse ? 2.4 : 1.7));
   const endCut = Math.max(bass ? 90 : 140, cutoff * (acid ? (bass ? 0.18 : 0.42) : bass ? 0.26 : pulse ? 1.1 : 0.82));
   filter.frequency.setValueAtTime(startCut, time);
@@ -62,7 +62,10 @@ export function playSynthTone(
     envelope.gain.setTargetAtTime(0.0001, Math.max(time + attack, end - release), Math.max(0.014, release * 0.4));
   }
 
-  oscA.connect(filter);
+  const oscAGain = audio.createGain();
+  oscAGain.gain.setValueAtTime(0.64, time);
+  oscA.connect(oscAGain);
+  oscAGain.connect(filter);
 
   if (fm) {
     const mod = audio.createOscillator();
@@ -76,22 +79,29 @@ export function playSynthTone(
     mod.stop(end + 0.04);
   } else if (!chip) {
     const oscB = audio.createOscillator();
+    const oscBGain = audio.createGain();
     oscB.type = pwm ? "square" : type === "sawtooth" ? "square" : type === "square" ? "sawtooth" : "triangle";
     oscB.frequency.setValueAtTime(freq * (bass ? 1.004 : 1.01), time);
     oscB.detune.setValueAtTime(lead ? 10 : pulse ? -8 : -5, time);
+    oscBGain.gain.setValueAtTime(pwm ? 0.2 : 0.28, time);
     if (pwm) {
       const pwmGain = audio.createGain();
       const pwmLfo = audio.createOscillator();
-      pwmGain.gain.setValueAtTime(0.45, time);
+      const pwmDepth = audio.createGain();
+      pwmGain.gain.setValueAtTime(0.28, time);
+      pwmDepth.gain.setValueAtTime(0.12, time);
       pwmLfo.type = "sine";
       pwmLfo.frequency.setValueAtTime(bass ? 0.7 : 4.2, time);
-      pwmLfo.connect(pwmGain.gain);
+      pwmLfo.connect(pwmDepth);
+      pwmDepth.connect(pwmGain.gain);
       oscB.connect(pwmGain);
-      pwmGain.connect(filter);
+      pwmGain.connect(oscBGain);
+      oscBGain.connect(filter);
       pwmLfo.start(time);
       pwmLfo.stop(end + 0.04);
     } else {
-      oscB.connect(filter);
+      oscB.connect(oscBGain);
+      oscBGain.connect(filter);
     }
     if (lead) {
       const vibrato = audio.createOscillator();
@@ -116,7 +126,7 @@ export function playSynthTone(
     const subGain = audio.createGain();
     oscSub.type = bass ? "sine" : lead ? g.style.counterType : "triangle";
     oscSub.frequency.setValueAtTime(freq * (bass || lead ? 0.5 : 0.25), time);
-    subGain.gain.setValueAtTime(bass ? (acid ? 0.42 : 0.55) : 0.22, time);
+    subGain.gain.setValueAtTime(bass ? (acid ? 0.34 : 0.4) : lead ? 0.14 : 0.16, time);
     oscSub.connect(subGain);
     subGain.connect(filter);
     oscSub.start(time);
@@ -209,14 +219,17 @@ export function schedulePadGate(
   const sustain = section === "intro" || section === "breakdown";
   if (sustain) {
     g.padGate.gain.setTargetAtTime(level * 0.92, t, 0.05);
+    g.padReverbGate.gain.setTargetAtTime(level * 0.92, t, 0.05);
     return;
   }
   if (stepIndex % 2 !== 0) return;
   const eighth = stepDuration * 2;
-  g.padGate.gain.setValueAtTime(0.03, t);
-  g.padGate.gain.linearRampToValueAtTime(level, t + Math.max(0.004, stepDuration * 0.08));
-  g.padGate.gain.setValueAtTime(level, t + eighth * 0.42);
-  g.padGate.gain.linearRampToValueAtTime(0.03, t + eighth * 0.9);
+  for (const gate of [g.padGate, g.padReverbGate]) {
+    gate.gain.setValueAtTime(0.03, t);
+    gate.gain.linearRampToValueAtTime(level, t + Math.max(0.004, stepDuration * 0.08));
+    gate.gain.setValueAtTime(level, t + eighth * 0.42);
+    gate.gain.linearRampToValueAtTime(0.03, t + eighth * 0.9);
+  }
 }
 
 export function syncDelay(audio: AudioGraphContext, g: MusicGraph, p: MusicPattern): void {

@@ -15,9 +15,9 @@ import {
   STEPS_PER_BAR,
   BARS_PER_SECTION,
   VERSE_CONTOURS,
-  HOOK_CONTOURS,
   VERSE_RHYTHMS,
-  HOOK_RHYTHMS,
+  SIGNATURE_CONTOURS,
+  SIGNATURE_RHYTHMS,
   ARP_FIGURES,
   OPEN_HAT_FIGURES,
   SECTION_ORDER,
@@ -109,6 +109,74 @@ function motifFrom(
   };
 }
 
+function signatureMotifFrom(rng: Rng): MusicMotif {
+  return motifFrom(rng, SIGNATURE_CONTOURS, SIGNATURE_RHYTHMS);
+}
+
+function nearestMelodyMidi(
+  rootMidi: number,
+  scale: readonly number[],
+  chord: number,
+  degree: number,
+  octave: number,
+  previousMidi: number | null,
+): number {
+  const target = scaleToneMidi(rootMidi, scale, chord, degree, octave);
+  if (previousMidi === null) return target;
+  const candidates = [target - 12, target, target + 12];
+  const comfortable = candidates.filter((candidate) => Math.abs(candidate - previousMidi) <= 7);
+  const bounded = comfortable.length > 0
+    ? comfortable
+    : candidates.filter((candidate) => Math.abs(candidate - previousMidi) <= 12);
+  return [...(bounded.length > 0 ? bounded : candidates)].sort((a, b) => {
+    const previousDelta = Math.abs(a - previousMidi) - Math.abs(b - previousMidi);
+    return previousDelta === 0 ? Math.abs(a - target) - Math.abs(b - target) : previousDelta;
+  })[0] ?? target;
+}
+
+function voiceLeadPad(
+  rootMidi: number,
+  scale: readonly number[],
+  chord: number,
+  previous: readonly number[] | null,
+): [number, number, number, number] {
+  const target = [0, 1, 2, 3].map((tone) => chordToneMidi(rootMidi, scale, chord, tone, 1));
+  if (!previous) return target as [number, number, number, number];
+  return target.map((midi, index) => {
+    const prior = previous[index] ?? midi;
+    return [midi - 12, midi, midi + 12].sort(
+      (a, b) => Math.abs(a - prior) - Math.abs(b - prior),
+    )[0] ?? midi;
+  }) as [number, number, number, number];
+}
+
+function smoothMelodyLine(events: MusicNoteEvent[]): void {
+  const ordered = [...events].sort((a, b) => a.step - b.step);
+  let previous: number | null = null;
+  let previousSection = -1;
+  let sectionOctaveShift = 0;
+  for (const event of ordered) {
+    const section = Math.floor(event.step / (BARS_PER_SECTION * STEPS_PER_BAR));
+    if (section !== previousSection) {
+      sectionOctaveShift = 0;
+      if (previous !== null) {
+        while (event.midi + sectionOctaveShift - previous > 12) sectionOctaveShift -= 12;
+        while (previous - (event.midi + sectionOctaveShift) > 12) sectionOctaveShift += 12;
+      }
+      previousSection = section;
+    }
+    event.midi += sectionOctaveShift;
+    if (previous !== null) {
+      while (event.midi - previous > 12) event.midi -= 12;
+      while (previous - event.midi > 12) event.midi += 12;
+      if (Math.abs(event.midi - previous) > 12) {
+        event.midi = previous + (event.midi > previous ? 12 : -12);
+      }
+    }
+    previous = event.midi;
+  }
+}
+
 function placeMelody(
   notes: MusicNoteEvent[],
   origin: number,
@@ -122,33 +190,42 @@ function placeMelody(
   durationFor: (index: number, sounding: number) => number,
   velocity: number,
   harmony: boolean,
+  harmonyNotes: MusicNoteEvent[] | null,
+  cadence: boolean,
+  previousMidi: number | null,
   stepShift = 0,
-): void {
+): number | null {
   const degrees = response ? motif.response : motif.degrees;
-  let sounding = 0;
-  for (const degree of degrees) {
-    if (degree !== null) sounding += 1;
-  }
+  const placements = degrees
+    .map((degree, index) => {
+      if (degree === null) return null;
+      const motifStep = ((motif.rhythm[index] ?? index * 2) + stepShift) % STEPS_PER_BAR;
+      if (motifStep < 0 || motifStep >= STEPS_PER_BAR) return null;
+      return { degree, index, motifStep };
+    })
+    .filter((placement): placement is { degree: number; index: number; motifStep: number } => placement !== null)
+    .sort((a, b) => a.motifStep - b.motifStep);
   let placed = 0;
-  for (let i = 0; i < degrees.length; i++) {
-    const degree = degrees[i];
-    if (degree === null) continue;
-    const motifStep = ((motif.rhythm[i] ?? i * 2) + stepShift) % STEPS_PER_BAR;
-    if (motifStep < 0 || motifStep >= STEPS_PER_BAR) continue;
-    const midi = scaleToneMidi(rootMidi, scale, chord, degree + variant, octave);
-    const duration = durationFor(placed, sounding);
-    noteEvent(notes, origin + motifStep, midi, duration, velocity, motif.accentSteps.includes(i));
-    if (harmony) {
+  let lastMidi: number | null = previousMidi;
+  for (const placement of placements) {
+    const isLastSounding = placed === placements.length - 1;
+    const melodicDegree = cadence && isLastSounding ? 0 : placement.degree + variant;
+    const midi = nearestMelodyMidi(rootMidi, scale, chord, melodicDegree, octave, lastMidi);
+    const duration = durationFor(placed, placements.length);
+    noteEvent(notes, origin + placement.motifStep, midi, duration, velocity, motif.accentSteps.includes(placement.index));
+    if (harmony && harmonyNotes) {
       noteEvent(
-        notes,
-        origin + motifStep,
-        scaleToneMidi(rootMidi, scale, chord, degree + variant + 2, octave),
+        harmonyNotes,
+        origin + placement.motifStep,
+        scaleToneMidi(rootMidi, scale, chord, melodicDegree + 2, octave),
         duration,
         velocity * 0.7,
       );
     }
+    lastMidi = midi;
     placed += 1;
   }
+  return lastMidi;
 }
 
 function placeCounter(
@@ -200,7 +277,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   const [bassRiffA, bassRiffB, bassRiffC, bassRiffD] = pickCycle(harmonyRng, bassRiffs);
   const motif = motifFrom(melodyRng, VERSE_CONTOURS, VERSE_RHYTHMS);
   const developmentMotif = motifFrom(melodyRng, VERSE_CONTOURS, VERSE_RHYTHMS);
-  const hook = motifFrom(melodyRng, HOOK_CONTOURS, HOOK_RHYTHMS);
+  const hook = signatureMotifFrom(melodyRng);
   const [arpFigureA, arpFigureB, arpFigureC, arpFigureD] = pickCycle(rhythmRng, ARP_FIGURES);
   const [openHatA, openHatB, openHatC, openHatD] = pickCycle(drumRng, OPEN_HAT_FIGURES);
   const sparse = isSparseCue(cue);
@@ -212,6 +289,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   const padFifth: number[] = [];
   const padSeventh: number[] = [];
   const context = musicMissionContext(seed, missionIndex);
+  let previousMelodyMidi: number | null = null;
+  let previousPadVoicing: readonly number[] | null = null;
 
   for (let bar = 0; bar < MUSIC_BARS; bar++) {
     const sectionIndex = Math.floor(bar / BARS_PER_SECTION);
@@ -221,7 +300,10 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const phraseBar = bar % BARS_PER_SECTION;
     const halfPhrase = phraseBar % 8;
     const cycle = Math.floor(bar / (BARS_PER_SECTION * 2)) % 4;
-    const progression = [progressionA, progressionB, progressionC, progressionD][cycle]!;
+    const recurringHookSection = section.name === "hook" || section.name === "climax" || section.name === "turnaround";
+    const progression = recurringHookSection
+      ? progressionC
+      : [progressionA, progressionB, progressionC, progressionD][cycle]!;
     const riff = [bassRiffA, bassRiffB, bassRiffC, bassRiffD][cycle]!;
     const arpFigure = [arpFigureA, arpFigureB, arpFigureC, arpFigureD][cycle]!;
     const openHatSteps = [openHatA, openHatB, openHatC, openHatD][cycle]!;
@@ -230,19 +312,23 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     const breakdown = section.name === "breakdown";
     const climax = section.name === "climax";
     const hookSection = section.name === "hook" || section.name === "turnaround" || climax;
+    if (phraseBar === 0 && recurringHookSection) previousMelodyMidi = null;
     const holdBass = arrangement.holdBass[sectionIndex]!;
     const energy = section.energy;
     const thinBar = halfPhrase === 2 || halfPhrase === 3;
     const liftBar = halfPhrase === 4 || halfPhrase === 5;
     const dropTexture = formRng.next() < (climax || hookSection ? 0.06 : 0.18);
     const miniRoll = formRng.next();
-    const miniFill = thinBar && halfPhrase === 3 && !intro && !holdBass && miniRoll < 0.55;
+    const miniFill = !sparse && thinBar && halfPhrase === 3 && !intro && !holdBass && miniRoll < 0.3;
     const dropHats = thinBar && dropTexture && !hookSection;
     const dropPulse = thinBar && dropTexture && !hookSection;
-    const denseBar = cue === "victory" || bar === MUSIC_BARS - 1 || drumRng.next() < Math.min(1, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
+    const denseBar = cue === "victory" && section.name === "climax"
+      ? true
+      : bar === MUSIC_BARS - 1 || drumRng.next() < Math.min(0.86, style.drumDensity * arrangement.drumDensity[sectionIndex]!);
     const hole = holdBass && phraseBar < 8;
     const fullDrums = !sparse && denseBar && (cue === "victory" || (!hole && (!intro || phraseBar >= 4)));
-    const lightDrums = sparse && !hole && (!intro || phraseBar >= 4);
+    const phraseEnd = phraseBar === 7 || phraseBar === 15;
+    const lightDrums = sparse && !hole && (!intro || phraseBar >= 4) && (phraseBar % 2 === 0 || phraseEnd);
     let usePulse = arrangement.pulseEnabled[sectionIndex]!;
     if (intro && phraseBar < 4) usePulse = false;
     if (hole) usePulse = false;
@@ -267,8 +353,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         (intro && phraseBar >= 8) ||
         (breakdown && phraseBar >= 8));
     const useCounter = !sparse && arrangement.counterEnabled[sectionIndex]! && (useMelody || echoBar);
-    const sequenceOffset = liftBar ? 2 : 0;
-    const sequenceOctave = liftBar && style.melodyOctave === 1 ? 2 : style.melodyOctave;
+    const sequenceOffset = hookSection ? 0 : liftBar ? 2 : 0;
+    const sequenceOctave = climax && style.melodyOctave === 1 ? 2 : style.melodyOctave;
     const variant = (climax
       ? 0
       : section.name === "development"
@@ -276,12 +362,14 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         : section.name === "escalation" && !useHookLead
           ? 1
           : 0) + arrangement.melodyDegreeOffset + sequenceOffset;
-    const chord = progression[Math.floor(phraseBar / 2)] ?? 0;
+    const chord = phraseEnd ? 0 : progression[Math.floor(phraseBar / 2)] ?? 0;
 
-    padRoot.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 0, 1)));
-    padThird.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 1, 1)));
-    padFifth.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 2, 1)));
-    padSeventh.push(midiToHz(chordToneMidi(rootMidi, scalePick.notes, chord, 3, 1)));
+    const padVoicing = voiceLeadPad(rootMidi, scalePick.notes, chord, previousPadVoicing);
+    previousPadVoicing = padVoicing;
+    padRoot.push(midiToHz(padVoicing[0]));
+    padThird.push(midiToHz(padVoicing[1]));
+    padFifth.push(midiToHz(padVoicing[2]));
+    padSeventh.push(midiToHz(padVoicing[3]));
 
     const sectionBassStride = arrangement.bassStrides[sectionIndex]!;
     const bassStride = holdBass ? 8 : intro ? Math.max(4, sectionBassStride) as 4 | 8 : sectionBassStride;
@@ -307,7 +395,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
 
     if (usePulse && style.pulseRole !== "none") {
       const sectionPulseStride = arrangement.pulseStrides[sectionIndex]!;
-      const pulseStride = climax
+      const pulseStride = climax && !sparse
         ? 1
         : hole || (sparse && cue === "defeat")
           ? 4
@@ -344,7 +432,7 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         if (useHookLead) return index === sounding - 1 ? 3 : 4;
         return liftBar ? 3 : 2;
       };
-      placeMelody(
+      previousMelodyMidi = placeMelody(
         notes.melody,
         origin,
         lead,
@@ -357,12 +445,15 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         durationFor,
         velocity,
         climax,
-        stepShift,
+        climax ? notes.counter : null,
+        phraseEnd,
+        previousMelodyMidi,
+        hookSection ? 0 : stepShift,
       );
     }
 
     if (echoBar && phraseBar > 0) {
-      placeMelody(
+      previousMelodyMidi = placeMelody(
         notes.melody,
         origin,
         motif,
@@ -375,6 +466,9 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
         () => 2,
         mixEnergy(0.48, energy),
         false,
+        null,
+        false,
+        previousMelodyMidi,
         stepShift + 2,
       );
     }
@@ -413,17 +507,19 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
       for (const step of hits.snare) {
         const accent = step === 4 || step === 12;
         drumEvent(drums, origin + step, "snare", (accent ? 0.9 : 0.62) * drumGain, accent);
-        if (!hole) drumEvent(drums, origin + step, "clap", (accent ? 0.76 : 0.48) * drumGain, accent);
+        if (!sparse && !hole) drumEvent(drums, origin + step, "clap", (accent ? 0.76 : 0.48) * drumGain, accent);
       }
-      const hatStride = climax ? 1 : dropHats ? 4 : arrangement.hatStride[sectionIndex]!;
+      const hatStride = sparse
+        ? Math.max(2, dropHats ? 4 : arrangement.hatStride[sectionIndex]!)
+        : climax ? 2 : dropHats ? 4 : arrangement.hatStride[sectionIndex]!;
       for (let step = 0; step < STEPS_PER_BAR; step += hatStride) {
         const offbeat = climax ? step % 2 === 1 : step % 4 === 2;
         drumEvent(drums, origin + step, "hat", (offbeat ? 0.36 : 0.26) * drumGain);
       }
-      if (!hole && !dropHats) {
+      if (!sparse && !hole && !dropHats) {
         for (const step of openHatSteps) drumEvent(drums, origin + step, "openHat", 0.44 * drumGain);
       }
-      placeStylePercussion(drums, origin, style.name, drumGain, dropHats);
+      if (!sparse) placeStylePercussion(drums, origin, style.name, drumGain, dropHats);
     }
 
     if ((section.name === "escalation" || climax) && phraseBar === 0) {
@@ -460,6 +556,8 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
     developmentMotif,
     hook,
   };
+
+  smoothMelodyLine(notes.melody);
 
   return {
     cue,

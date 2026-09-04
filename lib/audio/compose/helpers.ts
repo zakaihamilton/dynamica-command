@@ -44,14 +44,14 @@ export function musicLabel(cue: MusicCue, missionIndex: number): string {
 export function bpmFor(cue: MusicCue, roll: number, missionIndex: number, style?: MusicStyleProfile): number {
   const mission = Math.max(0, missionIndex);
   const [min, max, base] = cue === "menu"
-    ? [118, 130, 118 + (roll % 13)]
+    ? [112, 124, 112 + (roll % 13)]
     : cue === "briefing"
-      ? [108, 122, 108 + (roll % 15)]
+      ? [104, 118, 104 + (roll % 15)]
       : cue === "mission"
-        ? [124, 144, 130 + ((roll + mission) % 11)]
+        ? [118, 138, 124 + ((roll + mission) % 11)]
         : cue === "victory"
-          ? [128, 140, 128 + (roll % 13)]
-          : [92, 104, 92 + (roll % 13)];
+          ? [124, 136, 124 + (roll % 13)]
+          : [88, 100, 88 + (roll % 13)];
   return Math.max(min, Math.min(max, base + (style?.tempoBias ?? 0)));
 }
 
@@ -209,14 +209,14 @@ export function grooveHits(groove: MusicGroove, variation: 0 | 1, variant: 0 | 1
 }
 
 export function sectionEnergy(name: MusicSectionName): number {
-  if (name === "intro") return 0.45;
-  if (name === "breakdown") return 0.4;
-  if (name === "groove") return 0.62;
-  if (name === "hook") return 0.78;
-  if (name === "development") return 0.68;
-  if (name === "escalation") return 0.86;
-  if (name === "climax") return 1;
-  return 0.9;
+  if (name === "intro") return 0.34;
+  if (name === "breakdown") return 0.3;
+  if (name === "groove") return 0.58;
+  if (name === "hook") return 0.74;
+  if (name === "development") return 0.64;
+  if (name === "escalation") return 0.82;
+  if (name === "climax") return 0.96;
+  return 0.84;
 }
 
 export function isSparseCue(cue: MusicCue): boolean {
@@ -250,7 +250,6 @@ export function placePhraseFill(
 ): void {
   if (options.sparse) {
     drumEventUnique(drums, origin + 12, "snare", 0.52, true);
-    drumEventUnique(drums, origin + 14, "openHat", 0.38);
     if (options.finalBar) drumEventUnique(drums, origin + 10, "snare", 0.6, true);
     return;
   }

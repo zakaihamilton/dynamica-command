@@ -379,6 +379,27 @@ export const HOOK_RHYTHMS: readonly number[][] = [
   [0, 2, 8, 10, 13],
 ];
 
+// Compact figures for a hook that can be remembered after one pass. The
+// broader contour pools remain available for development and atmosphere.
+export const SIGNATURE_CONTOURS: readonly (number | null)[][] = [
+  [0, 2, 4, 2, 0],
+  [0, 2, 3, 2, 0],
+  [0, 3, 4, 3, 2],
+  [0, 2, 4, 5, 4],
+  [2, 4, 5, 4, 2],
+  [4, 2, 0, 2, 4],
+  [0, 2, 4, 2, 4],
+  [2, 0, 2, 4, 2],
+];
+
+export const SIGNATURE_RHYTHMS: readonly number[][] = [
+  [0, 3, 7, 10, 14],
+  [0, 4, 8, 11, 14],
+  [0, 2, 6, 9, 12],
+  [0, 4, 7, 11, 14],
+  [1, 4, 8, 10, 14],
+];
+
 export const ARP_FIGURES: readonly number[][] = [
   [0, 2, 1, 2, 0, 1, 2, 0],
   [0, 1, 2, 1, 0, 2, 1, 2],

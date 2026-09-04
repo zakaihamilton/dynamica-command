@@ -16,7 +16,7 @@ import { noiseBuf, setNoiseBuf } from "./musicState";
 export type { AudioGraphContext, MusicGraph, PatternIndex };
 
 export const SAMPLE_RATE = AUDIO_SAMPLE_RATE;
-export const MASTER_GAIN = 0.09;
+export const MASTER_GAIN = 0.082;
 export const PAD_GAIN = 0.1;
 export const DUCK_RATIO = 0.34;
 export const CROSSFADE_S = 0.55;
@@ -25,9 +25,9 @@ export const SCHEDULER_MS = 25;
 export const ATTACK_S = 0.012;
 
 export const INTENSITY_MULTIPLIER: Record<MusicIntensity, number> = {
-  calm: 0.88,
+  calm: 0.86,
   engaged: 1,
-  critical: 1.16,
+  critical: 1.08,
 };
 
 export function masterGain(value: MusicIntensity = "calm", isDucked = false): number {
@@ -35,11 +35,11 @@ export function masterGain(value: MusicIntensity = "calm", isDucked = false): nu
 }
 
 export function layerMultiplier(layer: "bass" | "pulse" | "counter" | "melody" | "drums", value: MusicIntensity = "calm"): number {
-  if (value === "critical") return layer === "drums" ? 1.18 : 1.06;
-  if (value === "engaged") return layer === "drums" ? 1.1 : 1;
-  if (layer === "drums") return 0.92;
-  if (layer === "counter") return 0.78;
-  if (layer === "pulse") return 0.94;
+  if (value === "critical") return layer === "drums" ? 1.1 : 1.02;
+  if (value === "engaged") return layer === "drums" ? 1.04 : 1;
+  if (layer === "drums") return 0.88;
+  if (layer === "counter") return 0.7;
+  if (layer === "pulse") return 0.9;
   return 1;
 }
 
@@ -51,7 +51,7 @@ export function padGainFor(value: MusicIntensity = "calm"): number {
 
 function createSaturationCurve(amount: number): Float32Array<ArrayBuffer> {
   const curve = new Float32Array(new ArrayBuffer(1024 * Float32Array.BYTES_PER_ELEMENT));
-  const k = amount * 90;
+  const k = amount * 60;
   for (let i = 0; i < curve.length; i++) {
     const x = (i * 2) / (curve.length - 1) - 1;
     curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
@@ -147,11 +147,11 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   highpass.frequency.setValueAtTime(38, now);
   saturation.curve = createSaturationCurve(p.style.saturationAmount);
   saturation.oversample = "2x";
-  compressor.threshold.setValueAtTime(-17, now);
-  compressor.knee.setValueAtTime(10, now);
-  compressor.ratio.setValueAtTime(3.6, now);
-  compressor.attack.setValueAtTime(0.008, now);
-  compressor.release.setValueAtTime(0.16, now);
+  compressor.threshold.setValueAtTime(-18, now);
+  compressor.knee.setValueAtTime(12, now);
+  compressor.ratio.setValueAtTime(2.8, now);
+  compressor.attack.setValueAtTime(0.012, now);
+  compressor.release.setValueAtTime(0.22, now);
   master.gain.setValueAtTime(masterGain("calm", false), now);
   master.connect(highpass);
   highpass.connect(saturation);
@@ -160,11 +160,11 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
 
   const bassDuck = createBus(audio, master, 1);
   const bassBus = createBus(audio, bassDuck, 0.94);
-  const rhythmBus = createBus(audio, master, 0.9);
-  const harmonyBus = createBus(audio, master, 0.75);
-  const pulseBus = createBus(audio, master, 0.82);
-  const leadBus = createBus(audio, master, 0.86);
-  const counterBus = createBus(audio, master, 0.56);
+  const rhythmBus = createBus(audio, master, 0.82);
+  const harmonyBus = createBus(audio, master, 0.8);
+  const pulseBus = createBus(audio, master, 0.8);
+  const leadBus = createBus(audio, master, 0.84);
+  const counterBus = createBus(audio, master, 0.5);
   const fxBus = createBus(audio, master, 0.42);
 
   const reverb = audio.createConvolver();
@@ -176,6 +176,7 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   reverbSend.connect(reverb);
   reverb.connect(reverbWet);
   reverbWet.connect(master);
+  const padReverbSend = createBus(audio, reverbSend, 0.24);
 
   const delay = audio.createDelay(1.5);
   const delayFeedback = audio.createGain();
@@ -200,11 +201,27 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   const padLfo = audio.createOscillator();
   const padLfoGain = audio.createGain();
   const padGate = audio.createGain();
+  const padPanA = audio.createStereoPanner();
+  const padPanB = audio.createStereoPanner();
+  const padPanC = audio.createStereoPanner();
+  const padPanD = audio.createStereoPanner();
+  const padPans = [padPanA, padPanB, padPanC, padPanD];
+  const padReverbVoices = [0.16, 0.2, 0.11, 0.14].map((depth) => {
+    const send = audio.createGain();
+    send.gain.setValueAtTime(depth, now);
+    return send;
+  });
+  const padReverbFilter = audio.createBiquadFilter();
+  const padReverbGate = audio.createGain();
   padFilter.type = "lowpass";
-  padFilter.frequency.setValueAtTime(Math.min(p.cutoff, 1100), now);
+  padFilter.frequency.setValueAtTime(Math.min(p.cutoff, 960), now);
   padFilter.Q.setValueAtTime(p.style.padQ, now);
+  padReverbFilter.type = "lowpass";
+  padReverbFilter.frequency.setValueAtTime(Math.min(p.cutoff, 960), now);
+  padReverbFilter.Q.setValueAtTime(p.style.padQ, now);
   padGain.gain.setValueAtTime(PAD_GAIN, now);
   padGate.gain.setValueAtTime(1, now);
+  padReverbGate.gain.setValueAtTime(1, now);
   padOscA.type = p.style.padType;
   padOscB.type = p.style.padType;
   padOscC.type = p.style.padType;
@@ -220,13 +237,24 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
   padLfo.type = "sine";
   padLfo.frequency.setValueAtTime(p.style.padLfoRate, now);
   padLfoGain.gain.setValueAtTime(p.style.padLfoDepth, now);
-  padOscA.connect(padFilter);
-  padOscB.connect(padFilter);
-  padOscC.connect(padFilter);
-  padOscD.connect(padFilter);
+  padPanA.pan.setValueAtTime(-0.34, now);
+  padPanB.pan.setValueAtTime(0.34, now);
+  padPanC.pan.setValueAtTime(-0.2, now);
+  padPanD.pan.setValueAtTime(0.2, now);
+  padOscA.connect(padPanA);
+  padOscB.connect(padPanB);
+  padOscC.connect(padPanC);
+  padOscD.connect(padPanD);
+  padPans.forEach((panner, index) => {
+    panner.connect(padFilter);
+    panner.connect(padReverbVoices[index]!);
+    padReverbVoices[index]!.connect(padReverbFilter);
+  });
   padFilter.connect(padGain);
   padGain.connect(padGate);
   padGate.connect(harmonyBus);
+  padReverbFilter.connect(padReverbGate);
+  padReverbGate.connect(padReverbSend);
   padLfo.connect(padLfoGain);
   padLfoGain.connect(padFilter.frequency);
   padOscA.start(now);
@@ -264,6 +292,14 @@ export function createGraph(audio: AudioGraphContext, destination: AudioNode, p:
     padLfo,
     padLfoGain,
     padGate,
+    padPanA,
+    padPanB,
+    padPanC,
+    padPanD,
+    padReverbFilter,
+    padReverbGate,
+    padReverbSend,
+    padReverbVoices,
     padBase: PAD_GAIN,
     index: indexPattern(p),
   };
@@ -278,8 +314,10 @@ export function disconnectGraph(g: MusicGraph): void {
     }
     oscillator.disconnect();
   }
+  for (const panner of [g.padPanA, g.padPanB, g.padPanC, g.padPanD]) panner.disconnect();
   for (const node of [
-    g.padFilter, g.padGain, g.padGate, g.padLfoGain, g.delay, g.delayFeedback, g.delayWet,
+    g.padFilter, g.padGain, g.padGate, g.padLfoGain, g.padReverbFilter, g.padReverbGate, g.padReverbSend,
+    ...g.padReverbVoices, g.delay, g.delayFeedback, g.delayWet,
     g.reverb, g.reverbSend, g.reverbWet, g.bassBus, g.bassDuck, g.rhythmBus, g.harmonyBus,
     g.pulseBus, g.leadBus, g.counterBus, g.fxBus, g.highpass, g.saturation,
     g.compressor, g.master,
