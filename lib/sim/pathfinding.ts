@@ -1,4 +1,5 @@
-import type { Entity, SimState, Vec2 } from "../types";
+import { footprintOf } from "../catalog";
+import { isBuildingEntity, type Entity, type SimState, type Vec2 } from "../types";
 import { inBounds, makeUnitOccupancy, staticNavigationFor } from "./world";
 
 type Node = { x: number; y: number; g: number; f: number; px: number; py: number; seq: number };
@@ -166,8 +167,19 @@ export function findPathDetailed(
   const passable = (x: number, y: number) => inBounds(state, x, y) && navigation.walkable[y * w + x] === 1 && !unitBlocked(x, y);
 
   const walkableGoal = passable(gx, gy);
-  const goalOk = (x: number, y: number) =>
-    walkableGoal ? x === gx && y === gy : Math.max(Math.abs(x - gx), Math.abs(y - gy)) === 1;
+  const target = to as Entity;
+  const targetFootprint = isBuildingEntity(target) ? footprintOf(target.kind) : undefined;
+  const goalOk = (x: number, y: number) => {
+    if (targetFootprint) {
+      const inside = x >= gx && x < gx + targetFootprint.w && y >= gy && y < gy + targetFootprint.h;
+      return !inside
+        && x >= gx - 1
+        && x <= gx + targetFootprint.w
+        && y >= gy - 1
+        && y <= gy + targetFootprint.h;
+    }
+    return walkableGoal ? x === gx && y === gy : Math.max(Math.abs(x - gx), Math.abs(y - gy)) === 1;
+  };
 
   const maxNodes = Math.min(opts?.maxNodes ?? PATH_MAX_NODES, PATH_MAX_NODES, w * state.height);
   const key = (x: number, y: number) => y * w + x;

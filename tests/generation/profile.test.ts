@@ -142,4 +142,11 @@ describe("mission profiles", () => {
       "concentratedWaves", "crossfire", "directRoute", "contestedRoute",
     ]));
   });
+
+  it("measures a reachable multi-tile marked target from its perimeter", () => {
+    const scenario = scenarioAffordances(createMission({ seed: 39, missionIndex: 2 }));
+
+    expect(scenario.targetReachable).toBe(true);
+    expect(scenario.routeLength).toBeGreaterThan(0);
+  });
 });
