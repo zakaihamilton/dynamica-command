@@ -26,6 +26,11 @@ export const ARCHETYPE_STRATEGIES: readonly ArchetypeStrategy[] = ["rush", "turt
 
 const ARCHETYPE_CADENCE = 24;
 const MAX_ARCHETYPE_QUEUE = 3;
+// A turtle is a deliberately conservative diagnostic, not an unbounded
+// unit-factory benchmark. Keeping its standing force small also prevents a
+// defensive run from spending most of its wall time resolving hundreds of
+// low-value late-game entities after the outcome is already decided.
+const MAX_TURTLE_COMBAT_UNITS = 24;
 
 function buildCommand(state: SimState, kind: BuildingKind, yard: Entity, reserve = 120): Command | undefined {
   if (state.credits[0] < BUILDING_STATS[kind].cost + reserve) return undefined;
@@ -119,6 +124,10 @@ function productionCommands(state: SimState, strategy: ArchetypeStrategy): Comma
   const commands: Command[] = [];
   let availableCredits = state.credits[0];
   const harvesters = totalUnitCount(state, "harvester") + queuedUnitCount(state, "harvester");
+  let combatCount = combatUnits(state).length
+    + queuedUnitCount(state, "infantry")
+    + queuedUnitCount(state, "antiArmor")
+    + queuedUnitCount(state, "tank");
   const producers = [...readyProducers(state, "barracks"), ...readyProducers(state, "factory")]
     .sort((a, b) => a.id - b.id);
   for (const producer of producers) {
@@ -126,9 +135,11 @@ function productionCommands(state: SimState, strategy: ArchetypeStrategy): Comma
     if (strategy === "greed" && producer.kind === "barracks" && harvesters < 4) continue;
     const unit = desiredUnit(state, strategy, producer);
     if (!unit || !isUnitAvailable(unit, state.missionIndex) || producerFor(unit) !== producer.kind) continue;
+    if (strategy === "turtle" && unit !== "harvester" && combatCount >= MAX_TURTLE_COMBAT_UNITS) continue;
     if (availableCredits < UNIT_STATS[unit].cost || powerFor(state, 0) < 0) continue;
     commands.push({ type: "produce", fromId: producer.id, unit });
     availableCredits -= UNIT_STATS[unit].cost;
+    if (unit !== "harvester") combatCount += 1;
     if (commands.length >= 2) break;
   }
   return commands;
