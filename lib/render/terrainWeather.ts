@@ -11,3 +11,5 @@ export {
   weatherKindForBiome,
   weatherParticleAt,
 } from "./terrainWeather/weather";
+
+export { clearTerrainAtmosphereCache, paintTerrainAtmosphere } from "./terrainAtmosphere";

@@ -7,7 +7,7 @@ import {
 import type { Camera } from "../../iso";
 import { terrainGrainGeneration } from "../terrainAtlas";
 
-const TERRAIN_RENDER_REV = "world-atlas-v22-shared-blocker-art";
+const TERRAIN_RENDER_REV = "world-atlas-v23-cinematic-terrain";
 
 const terrainScroll: ScrollLayer = emptyScrollLayer();
 let terrainCanvas: HTMLCanvasElement | null = null;

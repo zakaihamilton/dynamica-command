@@ -9,6 +9,8 @@ import { clearSpriteCache } from "./sprites";
 import { invalidateTerrainAtlas } from "./terrainAtlas";
 import { clearTerrainMaterialCache } from "./terrainMaterials";
 import { clearTerrainPaintCache } from "./terrainPaint/world";
+import { clearTerrainAtmosphereCache } from "./terrainAtmosphere";
+import { clearTerrainLightCache } from "./terrainLighting";
 import { clearRendererSessionCache } from "./renderer/cache";
 
 /** Releases per-mission render state when the browser leaves a game session. */
@@ -21,6 +23,8 @@ export function clearRenderSessionCaches(): void {
   resetUnitTransformTracker();
   clearTerrainMaterialCache();
   clearTerrainPaintCache();
+  clearTerrainAtmosphereCache();
+  clearTerrainLightCache();
   clearTooltipRenderCache();
   invalidateTerrainAtlas();
   invalidateMinimap();

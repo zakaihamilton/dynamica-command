@@ -56,7 +56,7 @@ export type PropPrim =
       alpha?: number;
     };
 
-const SHADOW = "rgba(6,10,12,0.38)";
+const SHADOW = "rgba(6,10,12,0.24)";
 const SNOW = "#ecf4f6";
 const CURVE_SAMPLES = 6;
 

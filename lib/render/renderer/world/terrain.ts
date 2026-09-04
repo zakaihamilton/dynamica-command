@@ -4,7 +4,7 @@ import { animClock } from "../../anim";
 import { type Camera } from "../../../iso";
 import { scrollLayerBlitOffset, scrollLayerNeedsRebuild, scrollLayerPaintCamera, terrainScrollPad } from "../../scrollLayer";
 import { paintBuildingPlates, paintTerrainWorld } from "../../terrainPaint";
-import { paintOreGlints, paintTerrainWeather, paintWaterFx } from "../../terrainWeather";
+import { paintOreGlints, paintTerrainAtmosphere, paintTerrainWeather, paintWaterFx } from "../../terrainWeather";
 import { drawObjectiveZone } from "../../renderOverlays";
 import { entityVisible, entityElev } from "../../renderPicking";
 import { canPlaceBuilding, heightAt } from "../../../sim/world";
@@ -55,6 +55,7 @@ export function renderTerrainPhase(
   paintWaterFx(ctx, state, cam, timeMs);
   paintOreGlints(ctx, state, cam, timeMs);
   paintTerrainWeather(ctx, state, cam, timeMs);
+  paintTerrainAtmosphere(ctx, state, cam, timeMs, extras.reducedMotion);
   paintBuildingPlates(ctx, state, cam, footprintOf, entityVisible, entityElev);
   drawObjectiveZone(ctx, state, cam, timeMs, heightAt);
 

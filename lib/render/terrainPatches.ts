@@ -2,6 +2,11 @@ import type { BiomeName } from "../types";
 import type { TerrainFeatureSample } from "../gen/map/features";
 import { fbm, hash2, mixRgb, type BiomeMaterials, type Rgb } from "./terrainMaterials";
 
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 /** Regional soil/moss/sand mix sampled once per atlas cell. */
 export function tintGroundPatches(
   color: Rgb,
@@ -12,8 +17,8 @@ export function tintGroundPatches(
 ): Rgb {
   const macro = fbm(mapX * 0.11, mapY * 0.11, salt + 311);
   const detail = fbm(mapX * 0.48, mapY * 0.48, salt + 347);
-  const out = mixRgb(color, mats.patchA, 0.1 + macro * 0.26);
-  const fleck = Math.max(0, detail - 0.52) * 0.65;
+  const out = mixRgb(color, mats.patchA, 0.08 + macro * 0.22);
+  const fleck = smoothstep(0.42, 0.86, detail) * 0.38;
   return mixRgb(out, mats.patchB, fleck);
 }
 
@@ -37,54 +42,54 @@ export function applyBiomeGroundPattern(
     case "glass desert": {
       const dune = 0.5 + 0.5 * Math.sin(mapX * 3.1 + mapY * 0.85);
       const ripple = 0.5 + 0.5 * Math.sin(mapX * 7.4 - mapY * 2.1);
-      out = mixRgb(color, mats.patchA, dune * 0.24 + ripple * 0.12 + (n - 0.5) * 0.08);
-      if (n2 > 0.88) out = mixRgb(out, mats.patchB, 0.3);
+      out = mixRgb(color, mats.patchA, dune * 0.18 + ripple * 0.08 + (n - 0.5) * 0.06);
+      out = mixRgb(out, mats.patchB, smoothstep(0.8, 0.98, n2) * 0.18);
       break;
     }
     case "rust canyons": {
       const stripe = ((mapX * 0.85 + mapY * 1.6) % 1 + 1) % 1;
-      const strata = stripe < 0.12 || stripe > 0.88 ? 0.4 : stripe < 0.22 || stripe > 0.78 ? 0.18 : 0.05;
-      const scratch = n > 0.82 ? 0.24 : 0;
+      const strata = Math.pow(Math.max(0, Math.cos(stripe * Math.PI * 2)), 10) * 0.28 + 0.04;
+      const scratch = smoothstep(0.72, 0.96, n) * 0.16;
       out = mixRgb(mixRgb(color, mats.patchB, strata), mats.patchA, scratch);
       break;
     }
     case "tundra grid": {
-      const frost = n > 0.7 ? 0.52 : n > 0.52 ? 0.18 : 0.04;
+      const frost = smoothstep(0.44, 0.88, n) * 0.36;
       const vein = Math.abs(Math.sin(mapX * 5.2 + mapY * 0.4));
       out = mixRgb(color, mats.patchA, frost);
-      if (vein > 0.9) out = mixRgb(out, mats.light, 0.32);
-      if (n2 > 0.86) out = mixRgb(out, mats.patchB, 0.2);
+      out = mixRgb(out, mats.light, smoothstep(0.84, 0.99, vein) * 0.2);
+      out = mixRgb(out, mats.patchB, smoothstep(0.8, 0.98, n2) * 0.14);
       break;
     }
     case "volcanic shelf": {
       const crack = Math.abs(Math.sin(mapX * 7.3) * Math.sin(mapY * 5.1));
-      const seam = crack > 0.86 ? 0.5 : crack > 0.72 ? 0.2 : 0.06;
+      const seam = smoothstep(0.68, 0.96, crack) * 0.38 + 0.04;
       out = mixRgb(color, mats.patchB, seam);
-      if (n2 > 0.9) out = mixRgb(out, mats.ore, 0.24);
+      out = mixRgb(out, mats.ore, smoothstep(0.84, 0.99, n2) * 0.16);
       break;
     }
     case "salt marshes": {
       const wet = 0.5 + 0.5 * Math.sin(mapX * 1.7 + mapY * 1.3);
       const puddle = 0.5 + 0.5 * Math.sin(mapX * 4.2 - mapY * 3.1);
       out = mixRgb(
-        mixRgb(color, mats.patchA, 0.1 + wet * 0.28),
+        mixRgb(color, mats.patchA, 0.08 + wet * 0.22),
         mats.patchB,
-        puddle > 0.76 ? 0.2 : 0.05,
+        0.04 + smoothstep(0.66, 0.94, puddle) * 0.12,
       );
       break;
     }
     case "jungle wreckage": {
-      const litter = n > 0.76 ? 0.4 : n > 0.52 ? 0.18 : 0.08;
+      const litter = 0.06 + smoothstep(0.48, 0.94, n) * 0.28;
       const moss = n2 > 0.68 ? mats.patchA : mats.patchB;
       out = mixRgb(color, moss, litter);
-      if (n > 0.92) out = mixRgb(out, mats.high, 0.16);
+      out = mixRgb(out, mats.high, smoothstep(0.86, 0.99, n) * 0.12);
       break;
     }
     case "crystal flats": {
-      const glint = n > 0.86 ? 0.58 : n > 0.7 ? 0.24 : 0.05;
+      const glint = 0.04 + smoothstep(0.68, 0.98, n) * 0.38;
       const facet = Math.abs(Math.sin(mapX * 6.1 - mapY * 4.4));
       out = mixRgb(color, mats.patchB, glint);
-      if (facet > 0.88) out = mixRgb(out, mats.light, 0.3);
+      out = mixRgb(out, mats.light, smoothstep(0.84, 0.99, facet) * 0.2);
       break;
     }
     default: {

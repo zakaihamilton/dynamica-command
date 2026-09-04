@@ -22,6 +22,13 @@ import {
 } from "./terrainMaterials";
 import { oreVeinAt } from "./terrainOre";
 import { applyBiomeGroundPattern, tintGroundPatches } from "./terrainPatches";
+import {
+  gradeTerrainColor,
+  restrainTerrainColor,
+  terrainEdgeDarkening,
+  terrainLightFactor,
+  terrainLightRigFor,
+} from "./terrainLighting";
 
 const WATER_CELL_CLASS = 0;
 const ROAD_CELL_CLASS = 1;
@@ -279,8 +286,11 @@ function atlasKindAt(grid: AtlasSceneryGrid, col: number, row: number): number {
 export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: number): TerrainSample {
   const x = Math.floor(mapX);
   const y = Math.floor(mapY);
+  const fx = mapX - x;
+  const fy = mapY - y;
   const scenery = sceneryAt(state, x, y);
   const mats = materialsFor(state);
+  const rig = terrainLightRigFor(state.seed);
   const salt = artSalt(state);
   const grain = fbm(mapX * 0.45, mapY * 0.45, salt);
   const micro = hash2(x * 13, y * 17, salt);
@@ -311,6 +321,19 @@ export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: num
     const south = sceneryAt(state, x, y + 1).elev;
     const slope = (scenery.elev - east) * 0.08 + (scenery.elev - south) * 0.12;
     color = scaleRgb(color, 0.86 + scenery.elev * 0.06 + slope + (grain - 0.5) * 0.16);
+    color = restrainTerrainColor(color, scenery.kind === TILE_BLOCKED ? 0.04 : 0.09);
+    color = gradeTerrainColor(color, terrainLightFactor(rig, elev, east, south, fx, fy), rig);
+  }
+  if (water) {
+    const east = sceneryAt(state, x + 1, y).elev;
+    const south = sceneryAt(state, x, y + 1).elev;
+    const light = terrainLightFactor(rig, scenery.elev, east, south, fx, fy);
+    color = gradeTerrainColor(color, 0.96 + (light - 0.96) * 0.34, rig, 0.005);
+  } else if (surface === SURFACE_ROAD || surface === SURFACE_CONCRETE) {
+    const east = sceneryAt(state, x + 1, y).elev;
+    const south = sceneryAt(state, x, y + 1).elev;
+    const light = terrainLightFactor(rig, scenery.elev, east, south, fx, fy);
+    color = gradeTerrainColor(color, 0.98 + (light - 0.98) * 0.45, rig);
   }
   return {
     r: clampByte(color.r),
@@ -342,6 +365,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
   const sceneryGrid = bakeAtlasSceneryGrid(state, cols, rows);
   const salt = artSalt(state);
   const mats = materialsFor(state);
+  const rig = terrainLightRigFor(state.seed);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const gx = col - MAP_SKIRT;
@@ -443,6 +467,10 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
             r = pat.r;
             g = pat.g;
             b = pat.b;
+            const edgeFactor = terrainEdgeDarkening(rig, fx, fy);
+            r *= edgeFactor;
+            g *= edgeFactor;
+            b *= edgeFactor;
           }
           if (same === ORE_CELL_CLASS) {
             const vein = oreVeinAt(
@@ -467,9 +495,12 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
             }
           }
           const px = col * ATLAS_CELL + lx;
-          const grainScale = same === CONCRETE_CELL_CLASS ? 5 : same === WATER_CELL_CLASS ? 3 : same === GROUND_CELL_CLASS ? 18 : 16;
+          const grainScale = same === CONCRETE_CELL_CLASS ? 5 : same === WATER_CELL_CLASS ? 3 : same === GROUND_CELL_CLASS ? 11 : 13;
           let grain = (hash2(px, py, salt) - 0.5) * grainScale;
-          if (same === GROUND_CELL_CLASS) grain += (hash2(px, py, salt + 91) - 0.5) * 4;
+          if (same === GROUND_CELL_CLASS) {
+            grain += (hash2(px, py, salt + 91) - 0.5) * 4;
+            grain += (hash2(Math.floor(gx * 2 + lx / 4), Math.floor(gy * 2 + ly / 4), salt + 117) - 0.5) * 5;
+          }
           const o = (py * width + px) * 4;
           if (same === WATER_CELL_CLASS) {
             data[o] = clampByte(r + grain * 0.35);

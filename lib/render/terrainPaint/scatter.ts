@@ -26,7 +26,8 @@ export type ScatterKind =
   | "crystalChip"
   | "reed"
   | "cinder"
-  | "iceChip";
+  | "iceChip"
+  | "landmark";
 
 export type ScatterItem = {
   kind: ScatterKind;
@@ -132,6 +133,13 @@ function groundItems(biome: BiomeName, v: number, feature: TerrainFeatureSample)
   const pool = feature.intensity >= 0.24 ? FEATURE_POOLS[feature.kind] ?? POOLS[biome] : POOLS[biome];
   const items: ScatterItem[] = [];
   for (let i = 0; i < count; i++) items.push(makeItem(pool, v, i, feature.intensity * 0.1));
+  // Regional landmarks are intentionally rare and replace the least
+  // important small item when a tile already has the three-item cap.
+  if (feature.intensity >= 0.3 && v % 13 === 0) {
+    const landmark = makeItem(["landmark"], v, 8, Math.min(0.3, feature.intensity * 0.18));
+    if (items.length >= 3) items[items.length - 1] = landmark;
+    else items.push(landmark);
+  }
   return items;
 }
 
@@ -166,7 +174,7 @@ export function scatterForTile(
 }
 
 function shadow(ctx: CanvasRenderingContext2D, z: number, rx: number, ry: number, dy = 5): void {
-  ctx.fillStyle = "rgba(6,10,12,0.3)";
+  ctx.fillStyle = "rgba(6,10,12,0.22)";
   ctx.beginPath();
   ctx.ellipse(0, dy * z, rx * z, ry * z, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -489,9 +497,91 @@ function drawIceChip(
   }
 }
 
+function drawLandmark(
+  ctx: CanvasRenderingContext2D,
+  mats: BiomeMaterials,
+  biome: BiomeName,
+  z: number,
+  scale: number,
+  variant: number,
+): void {
+  const s = z * scale;
+  shadow(ctx, s, 12.5, 3.4, 4.5);
+  const lean = ((variant % 5) - 2) * 0.7 * s;
+  if (biome === "jungle wreckage" || biome === "salt marshes") {
+    const stem = rgbOf(mixRgb(mats.dark, mats.blocked, 0.24));
+    const leaf = rgbOf(mixRgb(mats.high, mats.light, biome === "jungle wreckage" ? 0.28 : 0.42));
+    ctx.strokeStyle = stem;
+    ctx.lineWidth = Math.max(1, 1.7 * s);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-3 * s, 3 * s);
+    ctx.quadraticCurveTo(lean * 0.35, -6 * s, lean, -13 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(3 * s, 3 * s);
+    ctx.quadraticCurveTo(-lean * 0.25, -5 * s, -lean * 0.75, -10 * s);
+    ctx.stroke();
+    ctx.fillStyle = leaf;
+    for (const [x, y, rx, ry] of [[-8, -8, 6.5, 3.5], [5, -11, 7, 3.8], [0, -16, 5.5, 3.2]] as const) {
+      ctx.beginPath();
+      ctx.ellipse((x + lean * 0.18) * s, y * s, rx * s, ry * s, -0.16, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    withAlpha(ctx, 0.48, () => {
+      ctx.fillStyle = rgbOf(mats.light);
+      ctx.beginPath();
+      ctx.ellipse((-2 + lean * 0.2) * s, -15 * s, 2.8 * s, 1.4 * s, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    return;
+  }
+  if (biome === "crystal flats" || biome === "tundra grid") {
+    const gem = rgbOf(mixRgb(mats.ore, mats.light, biome === "tundra grid" ? 0.54 : 0.42));
+    const edge = rgbOf(mixRgb(mats.dark, mats.high, 0.3));
+    ctx.fillStyle = edge;
+    fillPoly(ctx, [-12 * s, 3 * s, -5 * s, -15 * s, 0, 1 * s, 7 * s, -19 * s, 12 * s, 3 * s]);
+    ctx.fillStyle = gem;
+    fillPoly(ctx, [-7 * s, 2 * s, -4 * s, -12 * s, 0, 1 * s, 6 * s, -16 * s, 8 * s, 2 * s]);
+    withAlpha(ctx, 0.58, () => {
+      ctx.fillStyle = rgbOf(mats.light);
+      fillPoly(ctx, [-3 * s, 0, -2 * s, -9 * s, 0, -1 * s]);
+    });
+    return;
+  }
+  if (biome === "glass desert") {
+    ctx.fillStyle = rgbOf(mixRgb(mats.dark, mats.blocked, 0.24));
+    fillPoly(ctx, [-13 * s, 3 * s, -6 * s, -13 * s, -1 * s, 2 * s, 5 * s, -17 * s, 13 * s, 3 * s]);
+    ctx.fillStyle = rgbOf(mixRgb(mats.light, mats.high, 0.28));
+    fillPoly(ctx, [-7 * s, 2 * s, -5 * s, -11 * s, -1 * s, 2 * s, 5 * s, -14 * s, 8 * s, 2 * s]);
+    ctx.strokeStyle = "rgba(255,244,210,0.62)";
+    ctx.lineWidth = Math.max(0.65, 0.85 * s);
+    ctx.beginPath();
+    ctx.moveTo(-4 * s, -9 * s);
+    ctx.lineTo(-1 * s, 1 * s);
+    ctx.moveTo(6 * s, -12 * s);
+    ctx.lineTo(7 * s, 0);
+    ctx.stroke();
+    return;
+  }
+  const body = rgbOf(mixRgb(mats.blocked, mats.dark, 0.12));
+  const facet = rgbOf(mixRgb(mats.high, mats.light, 0.32));
+  ctx.fillStyle = body;
+  fillPoly(ctx, [-14 * s, 3 * s, -7 * s, -9 * s, 1 * s, -14 * s, 13 * s, -3 * s, 10 * s, 4 * s]);
+  ctx.fillStyle = facet;
+  fillPoly(ctx, [-7 * s, -8 * s, 1 * s, -14 * s, 6 * s, -4 * s, -1 * s, -2 * s]);
+  ctx.strokeStyle = rgbOf(mixRgb(mats.ore, mats.light, 0.42));
+  ctx.lineWidth = Math.max(0.65, 0.9 * s);
+  ctx.beginPath();
+  ctx.moveTo(-5 * s, -6 * s);
+  ctx.lineTo(4 * s, -9 * s);
+  ctx.stroke();
+}
+
 function paintItem(
   ctx: CanvasRenderingContext2D,
   mats: BiomeMaterials,
+  biome: BiomeName,
   item: ScatterItem,
   z: number,
 ): void {
@@ -525,6 +615,9 @@ function paintItem(
     case "iceChip":
       drawIceChip(ctx, mats, z, item.scale, item.variant);
       break;
+    case "landmark":
+      drawLandmark(ctx, mats, biome, z, item.scale, item.variant);
+      break;
   }
   ctx.restore();
 }
@@ -545,6 +638,6 @@ export function drawTerrainScatter(
   const mats = biomeMaterials(state.biome);
   ctx.save();
   ctx.translate(sx, sy + TILE_H * z * 0.42);
-  for (const item of items) paintItem(ctx, mats, item, z);
+  for (const item of items) paintItem(ctx, mats, state.biome, item, z);
   ctx.restore();
 }

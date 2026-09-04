@@ -1,5 +1,13 @@
 import { tileCliffGeometry } from "../../gen/cliffGeometry";
 import { cliffFaces, mixHex } from "../../gen/tilePalette";
+import type { TerrainLightRig } from "../terrainLighting";
+
+function shadeHex(value: string, factor: number): string {
+  const r = Number.parseInt(value.slice(1, 3), 16);
+  const g = Number.parseInt(value.slice(3, 5), 16);
+  const b = Number.parseInt(value.slice(5, 7), 16);
+  return `#${[r, g, b].map((channel) => Math.max(0, Math.min(255, Math.round(channel * factor))).toString(16).padStart(2, "0")).join("")}`;
+}
 
 export function drawElevationFaces(
   ctx: CanvasRenderingContext2D,
@@ -14,26 +22,31 @@ export function drawElevationFaces(
   colors: ReturnType<typeof cliffFaces>,
   tileX = 0,
   tileY = 0,
+  light?: TerrainLightRig,
 ): void {
   const geo = tileCliffGeometry(tw, th, heightStep, dropE, dropS, seed, tileX, tileY);
   const shadowY = originY + Math.max(1, heightStep * 0.08);
+  const southColor = light ? shadeHex(colors.south, 0.91 + light.directionY * 0.07) : colors.south;
+  const eastColor = light ? shadeHex(colors.east, 0.96 + light.directionX * 0.07) : colors.east;
   if (geo.south) {
-    fillElevationPoly(ctx, originX, shadowY, geo.south.points, mixHex(colors.south, "#0d1519", 0.48));
-    fillElevationPoly(ctx, originX, originY, geo.south.points, colors.south);
-    fillFaceStrata(ctx, originX, originY, geo.south.points, colors.south);
-    strokeRim(ctx, originX, originY, geo.south.points, colors.south);
+    fillElevationPoly(ctx, originX, shadowY, geo.south.points, mixHex(southColor, "#0d1519", 0.34));
+    fillElevationPoly(ctx, originX, originY, geo.south.points, southColor);
+    fillFaceStrata(ctx, originX, originY, geo.south.points, southColor, 0.26, 0.47, 0.24);
+    fillFaceStrata(ctx, originX, originY, geo.south.points, southColor, 0.58, 0.71, 0.12);
+    strokeRim(ctx, originX, originY, geo.south.points, southColor);
     strokeCracks(ctx, originX, originY, geo.south.cracks, colors.southInk);
   }
   if (geo.east) {
-    fillElevationPoly(ctx, originX, shadowY, geo.east.points, mixHex(colors.east, "#0d1519", 0.48));
-    fillElevationPoly(ctx, originX, originY, geo.east.points, colors.east);
-    fillFaceStrata(ctx, originX, originY, geo.east.points, colors.east);
-    strokeRim(ctx, originX, originY, geo.east.points, colors.east);
+    fillElevationPoly(ctx, originX, shadowY, geo.east.points, mixHex(eastColor, "#0d1519", 0.34));
+    fillElevationPoly(ctx, originX, originY, geo.east.points, eastColor);
+    fillFaceStrata(ctx, originX, originY, geo.east.points, eastColor, 0.26, 0.47, 0.24);
+    fillFaceStrata(ctx, originX, originY, geo.east.points, eastColor, 0.58, 0.71, 0.12);
+    strokeRim(ctx, originX, originY, geo.east.points, eastColor);
     strokeCracks(ctx, originX, originY, geo.east.cracks, colors.eastInk);
   }
   if (geo.wedge) {
-    const fill = mixHex(colors.south, colors.east, 0.42);
-    fillElevationPoly(ctx, originX, shadowY, geo.wedge, mixHex(fill, "#0d1519", 0.48));
+    const fill = mixHex(southColor, eastColor, 0.42);
+    fillElevationPoly(ctx, originX, shadowY, geo.wedge, mixHex(fill, "#0d1519", 0.34));
     fillElevationPoly(ctx, originX, originY, geo.wedge, mixHex(fill, "#f2efe4", 0.08));
   }
 }
@@ -64,12 +77,13 @@ function fillFaceStrata(
   oy: number,
   points: number[],
   color: string,
+  t0: number,
+  t1: number,
+  shade: number,
 ): void {
   if (points.length < 12 || points.length % 4 !== 0) return;
   const samples = points.length / 4;
   const band: number[] = [];
-  const t0 = 0.32;
-  const t1 = 0.54;
   for (let i = 0; i < samples; i++) {
     const tx = points[i * 2]!;
     const ty = points[i * 2 + 1]!;
@@ -86,7 +100,7 @@ function fillFaceStrata(
     const by = points[botIndex * 2 + 1]!;
     band.push(tx + (bx - tx) * t1, ty + (by - ty) * t1);
   }
-  fillElevationPoly(ctx, ox, oy, band, mixHex(color, "#0d1519", 0.28));
+  fillElevationPoly(ctx, ox, oy, band, mixHex(color, "#0d1519", shade));
 }
 
 function strokeRim(
@@ -98,8 +112,10 @@ function strokeRim(
 ): void {
   if (points.length < 8 || points.length % 4 !== 0) return;
   const samples = points.length / 4;
-  ctx.strokeStyle = mixHex(color, "#f2efe4", 0.38);
-  ctx.lineWidth = 1.15;
+  const previousAlpha = typeof ctx.globalAlpha === "number" ? ctx.globalAlpha : 1;
+  ctx.globalAlpha = previousAlpha * 0.62;
+  ctx.strokeStyle = mixHex(color, "#e2ebe4", 0.24);
+  ctx.lineWidth = 0.9;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.beginPath();
@@ -108,6 +124,7 @@ function strokeRim(
     ctx.lineTo(ox + points[i * 2]!, oy + points[i * 2 + 1]!);
   }
   ctx.stroke();
+  ctx.globalAlpha = previousAlpha;
 }
 
 function strokeCracks(
@@ -118,12 +135,15 @@ function strokeCracks(
   stroke: string,
 ): void {
   if (!cracks.length) return;
+  const previousAlpha = typeof ctx.globalAlpha === "number" ? ctx.globalAlpha : 1;
+  ctx.globalAlpha = previousAlpha * 0.66;
   ctx.strokeStyle = stroke;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 0.85;
   for (const crack of cracks) {
     ctx.beginPath();
     ctx.moveTo(ox + crack[0]!, oy + crack[1]!);
     ctx.lineTo(ox + crack[2]!, oy + crack[3]!);
     ctx.stroke();
   }
+  ctx.globalAlpha = previousAlpha;
 }

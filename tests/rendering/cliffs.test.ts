@@ -43,7 +43,7 @@ describe("cliff canvas painting", () => {
     const ctx = createMockCtx();
     drawElevationFaces(ctx, 100, 50, 64, 32, 16, 2, 2, 421, cliffFaces("ash plains", 3), 4, 7);
 
-    expect(ctx.fill).toHaveBeenCalledTimes(8);
+    expect(ctx.fill).toHaveBeenCalledTimes(10);
     expect(ctx.stroke).toHaveBeenCalled();
     expect(ctx.beginPath).toHaveBeenCalled();
   });

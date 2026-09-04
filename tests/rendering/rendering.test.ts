@@ -691,6 +691,31 @@ describe("terrain scatter artifacts", () => {
     expect(aridCount).toBeGreaterThan(0);
   });
 
+  it("adds rare deterministic landmarks to feature tiles across every biome", () => {
+    const base = makeFixture({ width: 48, height: 48, win: { kind: "annihilate" }, seed: 832 });
+    const biomes: BiomeName[] = [
+      "ash plains", "crystal flats", "rust canyons", "salt marshes",
+      "glass desert", "tundra grid", "jungle wreckage", "volcanic shelf",
+    ];
+    for (const biome of biomes) {
+      const state = { ...base, biome };
+      let landmarkTile: { x: number; y: number } | undefined;
+      for (let y = 0; y < state.height && !landmarkTile; y++) {
+        for (let x = 0; x < state.width; x++) {
+          if (scatterForTile(state, x, y).some((item) => item.kind === "landmark")) {
+            landmarkTile = { x, y };
+            break;
+          }
+        }
+      }
+      expect(landmarkTile, `landmark for ${biome}`).toBeDefined();
+      const items = scatterForTile(state, landmarkTile!.x, landmarkTile!.y);
+      expect(items).toEqual(scatterForTile(state, landmarkTile!.x, landmarkTile!.y));
+      expect(items.filter((item) => item.kind === "landmark")).toHaveLength(1);
+      expect(terrainFeatureAt(state, landmarkTile!.x, landmarkTile!.y).intensity).toBeGreaterThanOrEqual(0.3);
+    }
+  });
+
   it("keeps blocker props deterministic and biome-keyed", () => {
     expect(blockerPropKind("ash plains", 9)).toBe(blockerPropKind("ash plains", 9));
     const jungle = new Set(Array.from({ length: 40 }, (_, v) => blockerPropKind("jungle wreckage", v)));

@@ -14,6 +14,7 @@ import { smoothFogGain, drawBlockerProp, drawOreCrystals } from "./details";
 import { drawTerrainScatter } from "./scatter";
 import { SHROUD_FILL, SHROUD_RGB, TERRAIN_COVER } from "./constants";
 import { drawElevationFaces } from "./cliffs";
+import { terrainLightRigFor } from "../terrainLighting";
 
 const sceneryMemo = new SceneryMemo();
 
@@ -69,10 +70,10 @@ function paintCell(
 
   if (!water && (elev >= 2 || dropE > 0 || dropS > 0)) {
     ctx.save();
-    ctx.globalAlpha = Math.min(0.28, 0.1 + elev * 0.03 + (dropE + dropS) * 0.04) * gain;
+    ctx.globalAlpha = Math.min(0.2, 0.055 + elev * 0.025 + (dropE + dropS) * 0.03) * gain;
     ctx.fillStyle = "#071014";
     ctx.beginPath();
-    ctx.ellipse(s.x, s.y + th * 0.58 + HEIGHT_STEP * z * 0.1, tw * 0.42, th * 0.18, 0, 0, Math.PI * 2);
+    ctx.ellipse(s.x, s.y + th * 0.58 + HEIGHT_STEP * z * 0.1, tw * 0.44, th * 0.16, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -96,6 +97,7 @@ function paintCell(
       ),
       x,
       y,
+      terrainLightRigFor(state.seed),
     );
     ctx.restore();
   }
