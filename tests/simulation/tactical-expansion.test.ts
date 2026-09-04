@@ -100,14 +100,19 @@ describe("tactical expansion", () => {
       });
       const spread = Math.max(...convoy.map((entity) => Math.hypot(entity.x - convoy[0]!.x, entity.y - convoy[0]!.y)));
       expect(spread).toBeLessThan(4);
+      const map = generateMap(state.seed, createCampaign(state.seed).missions[state.missionIndex]!);
+      expect(convoy.every((entity) => Math.hypot(entity.x - map.playerStart.x, entity.y - map.playerStart.y) < 8)).toBe(true);
       expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 8)).toBe(true);
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
       expect(CONVOY_STAGING_TICKS).toBe(7 * 60 * TICKS_PER_SECOND);
       expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS);
-      for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) tick(state);
-      expect(state.entities.filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined)).toEqual([]);
-      tick(state);
+      for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) tick(state, undefined, { evaluateObjectives: false });
+      const convoyIds = new Set(convoy.map((entity) => entity.id));
+      expect(state.entities
+        .filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined)
+        .every((entity) => !convoyIds.has(entity.attackTarget!))).toBe(true);
+      tick(state, undefined, { evaluateObjectives: false });
       const routeEnd = neutral?.path.at(-1);
       expect(routeEnd).toBeDefined();
       expect(Math.hypot(routeEnd!.x - state.runtime!.zone!.x, routeEnd!.y - state.runtime!.zone!.y)).toBeLessThanOrEqual(6);
@@ -137,7 +142,9 @@ describe("tactical expansion", () => {
     expect(zone).toBeDefined();
     expect(Math.hypot(zone!.x - map.enemyStart.x, zone!.y - map.enemyStart.y)).toBeGreaterThan(8);
 
-    for (let i = 0; i < CONVOY_STAGING_TICKS; i++) tick(state);
+    const convoy = state.entities.filter((entity) => entity.scenarioRole === "convoy");
+    expect(convoy.every((entity) => Math.hypot(entity.x - map.playerStart.x, entity.y - map.playerStart.y) < 8)).toBe(true);
+    for (let i = 0; i < CONVOY_STAGING_TICKS; i++) tick(state, undefined, { evaluateObjectives: false });
     const destinations = state.entities
       .filter((entity) => entity.scenarioRole === "convoy")
       .map((entity) => entity.orderDestination)

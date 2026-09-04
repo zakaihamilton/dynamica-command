@@ -6,15 +6,24 @@ import { byId, closestApproach, distToEntity, living, nearest } from "../world";
 import { contestedResourcePoint } from "./helpers";
 import { homeGuardCount } from "./director";
 
+function sameTile(a: { x: number; y: number } | undefined, b: { x: number; y: number }): boolean {
+  return !!a && Math.round(a.x) === Math.round(b.x) && Math.round(a.y) === Math.round(b.y);
+}
+
 export function enemyCombat(state: SimState): Entity[] {
   return living(state).filter((e) => e.owner === 1 && isUnitEntity(e) && UNIT_STATS[e.kind].damage > 0 && !isSupportUnit(e.kind));
 }
 
 export function sendHome(state: SimState, unit: Entity, yard: Entity): void {
+  const destination = { x: yard.x, y: yard.y };
+  // The director runs every simulation tick. Preserve an existing route to
+  // this yard; repeatedly selecting the nearest perimeter tile can otherwise
+  // alternate between two equally good tiles while the unit moves.
+  if (unit.orderMode === "move" && sameTile(unit.orderDestination, destination) && unit.attackTarget === undefined) return;
   unit.attackTarget = undefined;
   unit.flowGoal = undefined;
   unit.orderMode = "move";
-  unit.orderDestination = { x: yard.x, y: yard.y };
+  unit.orderDestination = destination;
   unit.idle = false;
   const result = tryFindPathDetailed(state, unit, closestApproach(state, unit, yard));
   if (result) {
@@ -41,6 +50,7 @@ export function assignAttack(state: SimState, unit: Entity, target: Entity): voi
 }
 
 export function assignMove(state: SimState, unit: Entity, destination: { x: number; y: number }): void {
+  if (unit.orderMode === "move" && sameTile(unit.orderDestination, destination) && unit.attackTarget === undefined) return;
   unit.attackTarget = undefined;
   unit.flowGoal = undefined;
   unit.orderMode = "move";

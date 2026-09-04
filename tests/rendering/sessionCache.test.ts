@@ -6,6 +6,7 @@ import { clearRenderSessionCaches } from "../../lib/render/sessionCache";
 import { entityVisibilityCacheSize, renderEntityOpacity } from "../../lib/render/renderPicking";
 import { turretAimMap } from "../../lib/render/renderStructures/turret";
 import { addUnit, makeFixture } from "../../lib/sim/fixtures";
+import { fogIndex } from "../../lib/sim/fog";
 import { cachedSprite, rasterize, spriteCacheSize } from "../../lib/render/sprites";
 import type { SpriteSpec } from "../../lib/types";
 
@@ -90,5 +91,16 @@ describe("render session caches", () => {
 
     expect(entityVisibilityCacheSize()).toBe(0);
     expect(turretAimMap.size).toBe(0);
+  });
+
+  it("renders a hostile unit fully opaque as soon as its tile is discovered", () => {
+    const state = makeFixture({ width: 10, height: 10, win: { kind: "annihilate" } });
+    state.fog.fill(0);
+    const enemy = addUnit(state, 1, "infantry", 4, 4);
+
+    expect(renderEntityOpacity(state, enemy, 0)).toBe(0);
+
+    state.fog[fogIndex(state, 4, 4)!] = 2;
+    expect(renderEntityOpacity(state, enemy, 1)).toBe(1);
   });
 });

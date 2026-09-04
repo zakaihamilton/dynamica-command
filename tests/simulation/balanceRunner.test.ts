@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { representativePlaytestManifest, runBalanceScenarios, stableBalanceRecords } from "../../lib/sim/balanceRunner";
+import {
+  ARCHETYPE_STRATEGIES,
+  balanceScenarios,
+  representativePlaytestManifest,
+  runBalanceScenarios,
+  runBalanceSweepScenarios,
+  stableBalanceRecords,
+} from "../../lib/sim/balanceRunner";
 
 describe("balance runner", () => {
   it("keeps serial and worker-thread results deterministic and identically ordered", async () => {
@@ -34,6 +41,44 @@ describe("balance runner", () => {
     expect(progress).toHaveLength(2);
     expect(progress.map((entry) => entry.total)).toEqual([2, 2]);
     expect(progress.at(-1)?.completed).toBe(2);
+  });
+
+  it("keeps the optimized archetype sweep equivalent and isolated", async () => {
+    const scenarioList = balanceScenarios({ from: 0, to: 1, missions: [0, 1] });
+    const options = {
+      from: 0,
+      to: 1,
+      missions: [0, 1],
+      maxTicks: 24,
+      strategies: [...ARCHETYPE_STRATEGIES],
+      scenarioList,
+    };
+    const expected = (await Promise.all(ARCHETYPE_STRATEGIES.map((strategy) =>
+      runBalanceScenarios({
+        from: options.from,
+        to: options.to,
+        missions: options.missions,
+        maxTicks: options.maxTicks,
+        strategy,
+        scenarioList,
+        jobs: 1,
+      }),
+    ))).flat();
+    const progress: Array<{ completed: number; total: number }> = [];
+    const serial = await runBalanceSweepScenarios({
+      ...options,
+      jobs: 1,
+      onProgress: ({ completed, total }) => progress.push({ completed, total }),
+    });
+    const parallel = await runBalanceSweepScenarios({ ...options, jobs: 2 });
+    const expectedStable = stableBalanceRecords(expected);
+    expect(stableBalanceRecords(serial)).toEqual(expectedStable);
+    expect(stableBalanceRecords(parallel)).toEqual(expectedStable);
+    expect(progress).toHaveLength(scenarioList.length * ARCHETYPE_STRATEGIES.length);
+    expect(progress.at(-1)).toEqual({
+      completed: scenarioList.length * ARCHETYPE_STRATEGIES.length,
+      total: scenarioList.length * ARCHETYPE_STRATEGIES.length,
+    });
   });
 
   it("reports gameplay diagnostics and a complete deterministic playtest manifest", async () => {

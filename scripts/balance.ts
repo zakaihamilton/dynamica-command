@@ -6,6 +6,7 @@ import {
   defaultBalanceJobs,
   isArchetypeStrategy,
   runBalanceScenarios,
+  runBalanceSweepScenarios,
   stratifiedBalanceScenarios,
   stableBalanceRecords,
   type BalanceRunOptions,
@@ -25,6 +26,7 @@ const maxTicks = Number(arg("ticks", String(MAX_OPERATION_TICKS)));
 const strategyArg = arg("strategy", "competent");
 const details = arg("details", "false") === "true";
 const shouldCheck = arg("check", "false") === "true";
+const stratified = arg("stratified", "false") === "true";
 const progressEnabled = arg("progress", "true") !== "false";
 const progressEvery = Math.max(1, Number(arg("progress-every", "1")) || 1);
 const requestedJobs = Math.max(0, Number(arg("jobs", "0")) || 0);
@@ -41,12 +43,25 @@ async function main() {
     ? [...ARCHETYPE_STRATEGIES]
     : [strategyArg as BalanceStrategy];
   const baseOptions: Omit<BalanceRunOptions, "strategy"> = { from, to, missions, maxTicks };
-  const scenarioList = archetypeSweep ? stratifiedBalanceScenarios(from, to, 8) : undefined;
+  const scenarioList = archetypeSweep || stratified ? stratifiedBalanceScenarios(from, to, 8) : undefined;
   const scenarioCount = scenarioList?.length ?? balanceScenarios({ ...baseOptions, strategy: strategies[0] }).length;
   const jobs = requestedJobs > 0 ? requestedJobs : defaultBalanceJobs(scenarioCount);
   const startedAt = performance.now();
   const records = [] as Awaited<ReturnType<typeof runBalanceScenarios>>;
-  for (const strategy of strategies) {
+  if (archetypeSweep) {
+    const sweepRecords = await runBalanceSweepScenarios({
+      ...baseOptions,
+      strategies,
+      jobs,
+      scenarioList,
+      onProgress: progressEnabled ? ({ completed, total, record }) => {
+        if (completed % progressEvery !== 0 && completed !== total) return;
+        console.error(`[balance:${record.strategy}] ${completed}/${total} ${record.seed} mission ${record.mission} → ${record.result}`);
+      } : undefined,
+    });
+    records.push(...sweepRecords);
+  } else {
+    const strategy = strategies[0]!;
     const strategyRecords = await runBalanceScenarios({
       ...baseOptions,
       strategy,

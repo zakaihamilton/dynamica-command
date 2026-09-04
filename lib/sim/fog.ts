@@ -53,9 +53,6 @@ export function fogAt(state: { width: number; height: number; fog: number[] }, x
 
 export function tickFog(state: SimState): void {
   state.fog = expandFog(state.fog, state.width, state.height);
-  for (let i = 0; i < state.fog.length; i++) {
-    if (state.fog[i] === 2) state.fog[i] = 1;
-  }
   const x0 = -MAP_SKIRT;
   const y0 = -MAP_SKIRT;
   const x1 = state.width + MAP_SKIRT;

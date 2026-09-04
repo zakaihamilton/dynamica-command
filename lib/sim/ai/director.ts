@@ -27,9 +27,18 @@ export function guardScenarioObjectives(state: SimState, units: Entity[]): void 
     .map((id) => byId(state, id))
     .filter((entity): entity is Entity => !!entity && entity.hp > 0 && entity.owner === 1);
   if (!targets.length || !units.length) return;
-  targets.forEach((target, index) => {
+  // Assign each guard at most one objective. If there are more targets than
+  // guards, repeatedly assigning the same unit would make it flip between
+  // perimeter tiles every tick.
+  targets.slice(0, units.length).forEach((target, index) => {
     const guard = units[index % units.length]!;
-    if (guard.attackTarget === undefined) assignMove(state, guard, closestApproach(state, guard, target));
+    if (guard.attackTarget !== undefined) return;
+    // Keep the selected perimeter tile stable while the guard approaches the
+    // same building. Recomputing the nearest tile from a sub-tile position
+    // can alternate between two equally close tiles at the midpoint.
+    if (guard.scenarioGuardTargetId === target.id && guard.orderMode === "move") return;
+    guard.scenarioGuardTargetId = target.id;
+    assignMove(state, guard, closestApproach(state, guard, target));
   });
 }
 
@@ -62,7 +71,6 @@ export function tickAi(state: SimState): void {
     ? resolveMissionProfile(state.seed, state.missionIndex, state.win.kind)
     : undefined;
   const profileContract = profile ? profileContractFor(profile) : undefined;
-  const escortStaging = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined;
   const phase = directorPhase(state);
   const productionWindow =
     state.tick >= difficulty.enemyProductionStart &&
@@ -123,20 +131,6 @@ export function tickAi(state: SimState): void {
     }
   }
 
-  if (escortStaging) {
-    for (const unit of enemyCombat(state)) {
-      unit.attackTarget = undefined;
-      unit.path = [];
-      unit.routePending = false;
-      unit.orderMode = undefined;
-      unit.orderDestination = undefined;
-      unit.idle = true;
-    }
-    state.aiState = "economy";
-    state.rngState = rng.state;
-    return;
-  }
-
   if (state.win.kind === "holdTheLine" && state.tick > 0 && state.tick % difficulty.enemyAssaultEvery === 0) {
     const fp = footprintOf("constructionYard");
     const spot = { x: yard.x - 1, y: yard.y + fp.h };
@@ -162,7 +156,7 @@ export function tickAi(state: SimState): void {
     state,
     yard,
     (e) => e.owner === 0 && isUnitEntity(e) && e.kind !== "harvester" && !isSupportUnit(e.kind) && (
-      UNIT_STATS[e.kind].damage > 0 && (!e.neutral || e.scenarioRole === "convoy")
+      (!e.neutral || e.scenarioRole === "convoy")
     ) && !(
       e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined
     ),
@@ -171,9 +165,7 @@ export function tickAi(state: SimState): void {
   const averageHealth = units.length ? units.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / units.length : 1;
   if (shouldRetreat(state, averageHealth)) state.aiState = "retreat";
   else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";
-  else if (playerYard && state.tick >= waveEvery && !(
-    state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined
-  )) state.aiState = "assault";
+  else if (playerYard && state.tick >= waveEvery) state.aiState = "assault";
   else if (units.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
   else state.aiState = "economy";
 
@@ -189,6 +181,9 @@ export function tickAi(state: SimState): void {
     for (const u of units) sendHome(state, u, yard);
   } else if (state.aiState === "economy" || state.aiState === "regroup") {
     for (const u of units) {
+      // Combat acquires targets before the director runs. Do not replace an
+      // active attack with a return-to-base route on the same tick.
+      if (u.attackTarget !== undefined) continue;
       if (distToEntity(u, yard) <= YARD_DEFENSE_RANGE) continue;
       sendHome(state, u, yard);
     }

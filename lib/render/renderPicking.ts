@@ -68,7 +68,14 @@ export function entityVisibilityCacheSize(): number {
 export function renderEntityOpacity(state: SimState, e: Entity, timeMs: number): number {
   if (e.owner === 0 || e.class !== "unit") return entityVisible(state, e) ? 1 : 0;
   const fog = fogAt(state, Math.round(e.x), Math.round(e.y));
-  const target = fog === 2 ? 1 : fog === 1 ? 0.22 : 0;
+  // A hostile contact is fully readable on the first frame it enters
+  // revealed space. Revealed fog is persistent, so an old hidden alpha must
+  // not fade the unit back in after discovery.
+  if (fog === 2) {
+    entityVisibility.set(e.id, { alpha: 1, target: 1, timeMs });
+    return 1;
+  }
+  const target = fog === 1 ? 0.22 : 0;
   const previous = entityVisibility.get(e.id);
   if (!previous) {
     entityVisibility.set(e.id, { alpha: target, target, timeMs });

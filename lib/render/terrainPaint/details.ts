@@ -13,6 +13,12 @@ import { blockerPropKind, type BlockerPropKind } from "./scatter";
 import { fillPoly, mixRgb, rgbOf, withAlpha } from "./style";
 
 export function smoothFogGain(state: SimState, x: number, y: number): number {
+  // Keep the unexplored center of the shroud opaque. Blending is useful for
+  // already discovered cells at the edge, but a discovered tile itself must
+  // not retain a shroud just because one of its neighbors is unexplored.
+  const center = fogAt(state, x, y);
+  if (center === 0) return 0;
+  if (center >= 2) return 1;
   let sum = 0;
   let count = 0;
   for (let dy = -1; dy <= 1; dy++) {

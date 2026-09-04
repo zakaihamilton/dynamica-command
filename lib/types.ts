@@ -178,6 +178,8 @@ export type Entity = {
   formation?: Formation;
   blockedTicks?: number;
   routePending?: boolean;
+  /** Objective building currently assigned to an AI guard. */
+  scenarioGuardTargetId?: number;
   supportTargetId?: number;
   supportMode?: "auto" | "assigned" | "hold";
   /** When true, the harvester is executing a player-issued move command and should

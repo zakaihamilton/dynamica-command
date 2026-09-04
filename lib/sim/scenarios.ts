@@ -96,7 +96,7 @@ export function configureMissionScenario(
     } else {
       for (let i = 0; i < count; i++) {
         const desired = kind === "escort"
-          ? convoyStartPoint(map, i, contestedRoute)
+          ? convoyStartPoint(map, i)
           : kind === "rescue"
             ? rescuePoint(map, i, count)
           : centerPoint(map, i, count, contestedRoute);
@@ -296,9 +296,8 @@ function reachableScenarioPoint(
 }
 
 function convoyStartPoint(
-  map: Pick<GeneratedMap, "playerStart" | "enemyStart" | "width" | "height">,
+  map: Pick<GeneratedMap, "playerStart" | "width" | "height">,
   index: number,
-  contested: boolean,
 ): Vec2 {
   const offsets = [
     { x: 0, y: 0 },
@@ -307,9 +306,8 @@ function convoyStartPoint(
     { x: 1, y: -1 },
   ];
   const offset = offsets[index % offsets.length]!;
-  const routeT = contested ? 0.3 : 0.4;
-  const anchorX = Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * routeT);
-  const anchorY = Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * routeT);
+  const anchorX = Math.round(map.playerStart.x);
+  const anchorY = Math.round(map.playerStart.y);
   return {
     x: Math.max(2, Math.min(map.width - 3, anchorX + offset.x)),
     y: Math.max(2, Math.min(map.height - 3, anchorY + offset.y)),

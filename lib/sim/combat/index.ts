@@ -12,18 +12,7 @@ export function tickCombat(state: SimState): SimEvent[] {
   const pending = createPendingAlerts();
   const rng = rngFromState(state.rngState);
   const grid = buildGrid(state);
-  const escortStaging = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined;
   for (const e of living(state)) {
-    if (escortStaging && e.owner === 1) {
-      e.attackTarget = undefined;
-      e.path = [];
-      e.routePending = false;
-      e.flowGoal = undefined;
-      e.orderMode = undefined;
-      e.orderDestination = undefined;
-      e.idle = true;
-      continue;
-    }
     if (e.class === "unit") e.suppression = Math.max(0, (e.suppression ?? 0) - 1);
     const st = statsFor(e);
     if (st.damage <= 0 || e.neutral) continue;

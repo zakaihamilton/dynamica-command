@@ -11,7 +11,7 @@ import { ArchetypeCommander, isArchetypeStrategy } from "./commander/archetypes"
 import { powerBreakdown } from "./world";
 import { TILE_BLOCKED, TILE_WATER, type BalanceStrategy, type Campaign, type Command, type MissionDef, type SimState, type UnitKind } from "../types";
 import { missionFamilyFor, resolveMissionProfile } from "../gen/profile";
-import { scenarioAffordances } from "./scenarios";
+import { scenarioAffordances, type ScenarioAffordances } from "./scenarios";
 import type { BalanceRecord } from "./balance";
 
 export { ARCHETYPE_STRATEGIES, isArchetypeStrategy } from "./commander/archetypes";
@@ -47,6 +47,11 @@ export type BalanceProgress = {
 };
 
 export type BalanceRunJob = BalanceRunOptions & {
+  scenarios: BalanceScenario[];
+};
+
+export type BalanceSweepJob = Omit<BalanceRunOptions, "strategy"> & {
+  strategies: readonly BalanceStrategy[];
   scenarios: BalanceScenario[];
 };
 
@@ -233,6 +238,7 @@ function runOne(
   maxTicks: number,
   campaign: Campaign,
   map: GeneratedMap,
+  sharedScenario?: SharedScenarioData,
 ): BalanceRecordWithScenario {
   const scenarioStartedAt = performance.now();
   const definition: MissionDef | undefined = campaign.missions[missionIndex];
@@ -244,11 +250,12 @@ function runOne(
     mission: definition,
     map,
   });
-  const scenario = scenarioAffordances(state);
+  const scenario = sharedScenario?.affordances ?? scenarioAffordances(state);
+  if (sharedScenario && !sharedScenario.affordances) sharedScenario.affordances = scenario;
   // Validate the generated map before simulation mutates shared tile and
   // resource arrays. Otherwise a long-running archetype can make a healthy
   // map appear invalid merely by harvesting or constructing on it.
-  const mapIsValid = validMap(map) && scenario.targetReachable;
+  const mapIsValid = (sharedScenario?.mapValid ?? validMap(map)) && scenario.targetReachable;
   const run = runScenario(state, map, strategy, maxTicks);
   const scenarioMs = performance.now() - scenarioStartedAt;
   return {
@@ -289,6 +296,22 @@ function runOne(
   };
 }
 
+type SharedScenarioData = {
+  mapValid: boolean;
+  affordances?: ScenarioAffordances;
+};
+
+function cloneMapForSimulation(map: GeneratedMap): GeneratedMap {
+  // Simulation mutates resource depletion tiles and amounts. Keep the
+  // generated map's immutable geometry and affordances shared while giving
+  // each strategy an isolated mutable view.
+  return {
+    ...map,
+    tiles: [...map.tiles],
+    resourceAmount: [...map.resourceAmount],
+  };
+}
+
 export function runBalanceJob(job: BalanceRunJob, onRecord?: (record: BalanceRecordWithScenario) => void): BalanceRecordWithScenario[] {
   const strategy = job.strategy ?? "competent";
   const maxTicks = job.maxTicks ?? MAX_OPERATION_TICKS;
@@ -306,6 +329,40 @@ export function runBalanceJob(job: BalanceRunJob, onRecord?: (record: BalanceRec
     const record = runOne(seed, mission, strategy, maxTicks, campaign, map);
     records.push(record);
     onRecord?.(record);
+  }
+  return records;
+}
+
+export function runBalanceSweepJob(
+  job: BalanceSweepJob,
+  onRecord?: (record: BalanceRecordWithScenario) => void,
+): BalanceRecordWithScenario[] {
+  const maxTicks = job.maxTicks ?? MAX_OPERATION_TICKS;
+  const campaigns = new Map<number, Campaign>();
+  const maps = new Map<string, GeneratedMap>();
+  const records: BalanceRecordWithScenario[] = [];
+  for (const { seed, mission } of job.scenarios) {
+    const campaign = campaigns.get(seed) ?? createCampaign(seed);
+    campaigns.set(seed, campaign);
+    const definition = campaign.missions[mission];
+    if (!definition) throw new Error(`No mission ${mission}`);
+    const mapKey = `${seed}:${mission}`;
+    const map = maps.get(mapKey) ?? generateMap(seed, definition);
+    maps.set(mapKey, map);
+    const sharedScenario: SharedScenarioData = { mapValid: validMap(map) };
+    for (const strategy of job.strategies) {
+      const record = runOne(
+        seed,
+        mission,
+        strategy,
+        maxTicks,
+        campaign,
+        cloneMapForSimulation(map),
+        sharedScenario,
+      );
+      records.push(record);
+      onRecord?.(record);
+    }
   }
   return records;
 }
@@ -342,6 +399,127 @@ function runWorker(
   });
 }
 
+type BalanceSweepWorkerMessage =
+  | { type: "progress"; record: BalanceRecordWithScenario }
+  | { type: "complete"; records: BalanceRecordWithScenario[] }
+  | { type: "error"; message: string };
+
+function groupScenariosBySeed(scenarios: BalanceScenario[]): BalanceScenario[][] {
+  const groupedBySeed = new Map<number, BalanceScenario[]>();
+  for (const scenario of scenarios) {
+    const group = groupedBySeed.get(scenario.seed) ?? [];
+    group.push(scenario);
+    groupedBySeed.set(scenario.seed, group);
+  }
+  return [...groupedBySeed.values()];
+}
+
+function runSweepWorkerPool(
+  options: Omit<BalanceSweepJob, "scenarios">,
+  seedGroups: BalanceScenario[][],
+  workerCount: number,
+  onRecord: (record: BalanceRecordWithScenario) => void,
+): Promise<BalanceRecordWithScenario[]> {
+  return new Promise((resolve, reject) => {
+    const workers: Array<{ worker: Worker; closing: boolean }> = [];
+    const records: BalanceRecordWithScenario[] = [];
+    let nextGroup = 0;
+    let closedWorkers = 0;
+    let settled = false;
+
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      for (const entry of workers) void entry.worker.terminate();
+      reject(error instanceof Error ? error : new Error(String(error)));
+    };
+
+    const dispatch = (entry: { worker: Worker; closing: boolean }) => {
+      const scenarios = seedGroups[nextGroup++];
+      if (!scenarios) {
+        entry.closing = true;
+        entry.worker.postMessage({ type: "close" });
+        return;
+      }
+      entry.worker.postMessage({ type: "run", scenarios });
+    };
+
+    for (let index = 0; index < workerCount; index++) {
+      const entry = {
+        worker: new Worker(new URL("../../scripts/balanceSweepWorker.cjs", import.meta.url), {
+          workerData: {
+            from: options.from,
+            to: options.to,
+            missions: options.missions,
+            maxTicks: options.maxTicks,
+            strategies: options.strategies,
+          },
+        }),
+        closing: false,
+      };
+      workers.push(entry);
+      entry.worker.on("message", (message: BalanceSweepWorkerMessage) => {
+        if (message.type === "progress") {
+          onRecord(message.record);
+          return;
+        }
+        if (message.type === "error") {
+          fail(new Error(message.message));
+          return;
+        }
+        records.push(...message.records);
+        dispatch(entry);
+      });
+      entry.worker.once("error", fail);
+      entry.worker.once("exit", (code) => {
+        if (settled) return;
+        if (code !== 0) {
+          fail(new Error(`Balance sweep worker exited with code ${code}`));
+          return;
+        }
+        if (entry.closing) {
+          closedWorkers += 1;
+          if (closedWorkers === workers.length) {
+            settled = true;
+            resolve(records);
+          }
+        }
+      });
+      dispatch(entry);
+    }
+  });
+}
+
+export async function runBalanceSweepScenarios(
+  options: Omit<BalanceSweepJob, "scenarios"> & {
+    jobs?: number;
+    onProgress?: (progress: BalanceProgress) => void;
+    scenarioList?: BalanceScenario[];
+  },
+): Promise<BalanceRecordWithScenario[]> {
+  const scenarios = options.scenarioList ?? balanceScenarios(options);
+  const seedGroups = groupScenariosBySeed(scenarios);
+  const requestedJobs = options.jobs ?? defaultBalanceJobs(scenarios.length);
+  const jobs = Math.max(1, Math.min(Math.floor(requestedJobs) || 1, seedGroups.length || 1));
+  let completed = 0;
+  const report = (record: BalanceRecordWithScenario) => {
+    completed += 1;
+    options.onProgress?.({ completed, total: scenarios.length * options.strategies.length, record });
+  };
+  const jobOptions = {
+    from: options.from,
+    to: options.to,
+    missions: options.missions,
+    maxTicks: options.maxTicks,
+    strategies: options.strategies,
+  };
+  if (jobs === 1 || seedGroups.length < 2) {
+    return sortBalanceRecords(runBalanceSweepJob({ ...jobOptions, scenarios }, report));
+  }
+  const records = await runSweepWorkerPool(jobOptions, seedGroups, jobs, report);
+  return sortBalanceRecords(records);
+}
+
 export async function runBalanceScenarios(
   options: BalanceRunOptions & {
     jobs?: number;
@@ -367,13 +545,7 @@ export async function runBalanceScenarios(
   if (jobs === 1 || scenarios.length < 2) return sortBalanceRecords(runBalanceJob({ ...jobOptions, scenarios }, report));
 
   const assignments = Array.from({ length: jobs }, () => [] as Array<{ seed: number; mission: number }>);
-  const groupedBySeed = new Map<number, Array<{ seed: number; mission: number }>>();
-  for (const scenario of scenarios) {
-    const group = groupedBySeed.get(scenario.seed) ?? [];
-    group.push(scenario);
-    groupedBySeed.set(scenario.seed, group);
-  }
-  const seedGroups = [...groupedBySeed.values()];
+  const seedGroups = groupScenariosBySeed(scenarios);
   seedGroups.forEach((group, index) => assignments[index % jobs]!.push(...group));
   const results = await Promise.all(assignments.filter((assignment) => assignment.length).map((assignment) =>
     runWorker({ ...jobOptions, scenarios: assignment }, report),
