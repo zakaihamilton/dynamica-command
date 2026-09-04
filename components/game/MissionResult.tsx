@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
-import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
+import { type CSSProperties } from "react";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { useModalFocus } from "@/components/ui/useModalFocus";
@@ -27,8 +26,7 @@ export function MissionResult({
   onRetry: () => void;
   onMenu: () => void;
 }) {
-  const [soundtrackOpen, setSoundtrackOpen] = useState(false);
-  const dialogRef = useModalFocus(state.result !== "playing" && !soundtrackOpen, state.result, "dialog");
+  const dialogRef = useModalFocus(state.result !== "playing", state.result, "dialog");
   if (state.result === "playing") return null;
   const debrief = missionDebrief(state);
   return (
@@ -61,10 +59,8 @@ export function MissionResult({
           onCampaignMap={onCampaignMap}
           onRetry={onRetry}
           onMenu={onMenu}
-          onSoundtrack={() => setSoundtrackOpen(true)}
         />
       </MetalPanel>
-      {soundtrackOpen ? <SoundtrackPanel seed={state.seed} missionIndex={state.missionIndex} onClose={() => setSoundtrackOpen(false)} /> : null}
     </div>
   );
 }

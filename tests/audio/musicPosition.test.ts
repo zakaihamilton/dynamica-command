@@ -19,7 +19,7 @@ import {
   saveAudibleMusicPosition,
   resetMusicPosition,
 } from "../../lib/audio/music";
-import { step, cue, seed, missionIndex } from "../../lib/audio/musicState";
+import { step, cue, seed, missionIndex, paused, timer } from "../../lib/audio/musicState";
 
 describe("music position persistence", () => {
   beforeEach(() => {
@@ -117,7 +117,14 @@ describe("music position persistence", () => {
     expect(step).toBe(320);
   });
 
-  it("starts a different mission soundtrack from step 0 when no position was saved for it", () => {
+  it("does not start music before a gameplay cue is selected", () => {
+    setMusicEnabled(true);
+
+    expect(paused).toBe(true);
+    expect(timer).toBeNull();
+  });
+
+  it("starts a different mission music track from step 0 when no position was saved for it", () => {
     saveMusicPosition("mission", 421, 0, 320);
 
     // Navigating to mission 1 instead of mission 0

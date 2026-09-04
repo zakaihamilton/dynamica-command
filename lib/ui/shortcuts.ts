@@ -8,7 +8,7 @@ export type KeyEventLike = {
   shiftKey?: boolean;
 };
 
-export type PauseView = "main" | "options" | "soundtrack" | "controls" | "save" | "load";
+export type PauseView = "main" | "options" | "controls" | "save" | "load";
 export type CommandTab = "construction" | "production" | "selected";
 
 export type GameCommand =
@@ -149,11 +149,6 @@ export function gameCommandFromKey(
   }
 
   if (ctx.paused) {
-    if (ctx.pauseView === "soundtrack") {
-      if (isEscape(e)) return { type: "pauseBack" };
-      if (isF1(e) && !ctrl) return { type: "controls" };
-      return null;
-    }
     if (ctrl) return null;
     if (ctx.pauseView === "controls" || ctx.pauseView === "save" || ctx.pauseView === "load") {
       if (isEscape(e) || (ctx.pauseView === "controls" && isF1(e))) return { type: "pauseBack" };

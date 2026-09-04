@@ -7,8 +7,6 @@ export function GamePauseSurface({
   view,
   notice,
   settings,
-  seed,
-  missionIndex,
   setView,
   setNotice,
   session,
@@ -16,8 +14,6 @@ export function GamePauseSurface({
   view: PauseView;
   notice: string;
   settings: GameSettings;
-  seed: number;
-  missionIndex: number;
   setView: (view: PauseView) => void;
   setNotice: (notice: string) => void;
   session: GameSession;
@@ -27,8 +23,6 @@ export function GamePauseSurface({
       view={view}
       notice={notice}
       settings={settings}
-      seed={seed}
-      missionIndex={missionIndex}
       saveSlots={session.listSaveSlots()}
       loadEntries={session.listLoadEntries()}
       defaultSlotName={session.defaultSlotName()}
@@ -42,10 +36,6 @@ export function GamePauseSurface({
       onRestart={session.restartMission}
       onControls={() => {
         setView("controls");
-        setNotice("");
-      }}
-      onSoundtrack={() => {
-        setView("soundtrack");
         setNotice("");
       }}
       onOptions={() => {

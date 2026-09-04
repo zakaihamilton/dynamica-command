@@ -2,7 +2,7 @@
 
 Vitest test files are grouped by the subsystem they exercise:
 
-- `audio/` — Web Audio, music, SFX, and soundtrack behavior.
+- `audio/` — Web Audio, music, and SFX behavior.
 - `generation/` — seeded campaign, names, portraits, procedural art, and asset generation.
 - `persistence/` — saves, settings, campaign progress, serialization, and telemetry.
 - `platform/` — app routes, manifests, and other platform-facing contracts.

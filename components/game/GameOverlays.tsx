@@ -128,8 +128,6 @@ export function GameOverlays({
           view={pauseView}
           notice={pauseNotice}
           settings={audioSettings}
-          seed={state.seed}
-          missionIndex={state.missionIndex}
           setView={setPauseView}
           setNotice={setPauseNotice}
           session={session}

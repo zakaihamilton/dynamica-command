@@ -35,9 +35,6 @@ const palette: Palette = {
   dark: "#131",
 };
 
-vi.mock("@/components/audio/SoundtrackPanel", () => ({
-  SoundtrackPanel: ({ onClose }: { onClose: () => void }) => <button onClick={onClose}>Close soundtrack</button>,
-}));
 vi.mock("@/components/game/ConstructionCameos", () => ({ ConstructionCameos: () => <div data-testid="construction-catalog" /> }));
 vi.mock("@/components/game/ProductionCameos", () => ({ ProductionCameos: () => <div data-testid="production-catalog" /> }));
 vi.mock("@/components/game/SelectionPanel", () => ({ SelectionPanel: () => <div data-testid="selection-catalog" /> }));
@@ -490,7 +487,6 @@ describe("MenuMainPanel dashboard", () => {
 describe("PauseMenu", () => {
   it("routes main actions and alternate views through callbacks", () => {
     const onResume = vi.fn();
-    const onSoundtrack = vi.fn();
     const onOptions = vi.fn();
     const onControls = vi.fn();
     const onBack = vi.fn();
@@ -500,8 +496,6 @@ describe("PauseMenu", () => {
       view: "main" as const,
       notice: "Mission saved.",
       settings: defaultSettings(),
-      seed: 421,
-      missionIndex: 0,
       saveSlots: [],
       loadEntries: [],
       defaultSlotName: "Test · M1",
@@ -513,7 +507,6 @@ describe("PauseMenu", () => {
       onBriefing: vi.fn(),
       onRestart: vi.fn(),
       onControls,
-      onSoundtrack,
       onOptions,
       onMenu: vi.fn(),
       onToggleSound: vi.fn(),
@@ -532,8 +525,7 @@ describe("PauseMenu", () => {
     expect(screen.queryByRole("button", { name: "Assets" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Controls" }));
     expect(onControls).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole("button", { name: "Soundtrack" }));
-    expect(onSoundtrack).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Soundtrack" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Options" }));
     expect(onOptions).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Main Menu" })).toBeVisible();
@@ -547,9 +539,7 @@ describe("PauseMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onCommitSave).toHaveBeenCalledWith("Test · M1", null);
 
-    rerender(<PauseMenu {...props} view="soundtrack" notice="" />);
-    fireEvent.click(screen.getByRole("button", { name: "Close soundtrack" }));
-    expect(onBack).toHaveBeenCalledOnce();
+    expect(onBack).not.toHaveBeenCalled();
   });
 });
 

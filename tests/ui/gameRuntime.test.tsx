@@ -9,7 +9,7 @@ import { markFreshLaunchIntent } from "../../lib/persist/navigation";
 import { localStorageAdapter, readSave, saveKey, writeSave, writeSlot } from "../../lib/persist/save";
 import { freshCampaignProgress, readCampaignProgress, writeCampaignProgress, completeMission } from "../../lib/persist/campaign";
 import { TELEMETRY_KEY } from "../../lib/persist/telemetry";
-import type { BuildingKind } from "../../lib/types";
+import type { BuildingKind, SimEvent } from "../../lib/types";
 
 const renderGameFrame = vi.hoisted(() => vi.fn(() => ({
   worldCtx: null,
@@ -379,5 +379,18 @@ describe("useGameRuntime", () => {
     act(() => firstCall?.[0].onFrame(1_000, terminalState, false, 0));
 
     expect(window.localStorage.getItem(TELEMETRY_KEY)).toBeNull();
+  });
+
+  it.each(["won", "lost"] as const)("pauses mission music immediately when the simulation reaches a %s result", async (outcome) => {
+    const { pauseMusic } = await import("@/lib/audio/music");
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const options = (startLoop.mock.calls[0] as unknown as [{ onTick: (state: typeof result.current.playField.state, events: SimEvent[], now: number) => void }] | undefined)?.[0];
+    expect(options).toBeDefined();
+
+    vi.mocked(pauseMusic).mockClear();
+    const terminalState = { ...result.current.playField.state, tick: 1, result: outcome };
+    act(() => options?.onTick(terminalState, [{ type: outcome }], 1_000));
+
+    expect(pauseMusic).toHaveBeenCalledOnce();
   });
 });

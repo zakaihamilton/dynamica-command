@@ -1,6 +1,5 @@
 "use client";
 
-import { SoundtrackPanel } from "@/components/audio/SoundtrackPanel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { useModalFocus } from "@/components/ui/useModalFocus";
 import type { AudioVolumeKey } from "@/lib/audio/mixer";
@@ -18,8 +17,6 @@ export function PauseMenu({
   view,
   notice,
   settings,
-  seed,
-  missionIndex,
   saveSlots,
   loadEntries,
   defaultSlotName,
@@ -32,7 +29,6 @@ export function PauseMenu({
   onBriefing,
   onRestart,
   onControls,
-  onSoundtrack,
   onOptions,
   onMenu,
   onToggleSound,
@@ -44,8 +40,6 @@ export function PauseMenu({
   view: PauseView;
   notice: string;
   settings: GameSettings;
-  seed: number;
-  missionIndex: number;
   saveSlots: SlotMeta[];
   loadEntries: ArchiveEntry[];
   defaultSlotName: string;
@@ -58,7 +52,6 @@ export function PauseMenu({
   onBriefing: () => void;
   onRestart: () => void;
   onControls: () => void;
-  onSoundtrack: () => void;
   onOptions: () => void;
   onMenu: () => void;
   onToggleSound: () => void;
@@ -67,63 +60,58 @@ export function PauseMenu({
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
 }) {
-  const dialogRef = useModalFocus(view !== "soundtrack", view, "dialog");
+  const dialogRef = useModalFocus(true, view, "dialog");
   return (
     <div className={styles.overlay} data-testid="pause-menu">
-      {view === "soundtrack" ? (
-        <SoundtrackPanel seed={seed} missionIndex={missionIndex} onClose={onBack} />
-      ) : (
-        <MetalPanel
-          ref={dialogRef}
-          tabIndex={-1}
-          className={styles.dialog}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pause-title"
-        >
-          {view === "main" ? (
-            <PauseMainMenu
-              onResume={onResume}
-              onSave={onSave}
-              onLoad={onLoad}
-              onBriefing={onBriefing}
-              onRestart={onRestart}
-              onControls={onControls}
-              onSoundtrack={onSoundtrack}
-              onOptions={onOptions}
-              onMenu={onMenu}
-            />
-          ) : view === "controls" ? (
-            <PauseControls onBack={onBack} />
-          ) : view === "save" ? (
-            <PauseSaveSlots
-              defaultName={defaultSlotName}
-              slots={saveSlots}
-              onCommit={onCommitSave}
-              onDelete={onDeleteEntry}
-              onBack={onBack}
-            />
-          ) : view === "load" ? (
-            <PauseLoadSlots
-              entries={loadEntries}
-              onLoad={onLoadEntry}
-              onDelete={onDeleteEntry}
-              onBack={onBack}
-            />
-          ) : (
-            <PauseOptions
-              settings={settings}
-              onToggleSound={onToggleSound}
-              onToggleMusic={onToggleMusic}
-              onToggleTacticalRoster={onToggleTacticalRoster}
-              onVolumeChange={onVolumeChange}
-              onBack={onBack}
-            />
-          )}
-          {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
-          <p className={styles.hint}>{view === "main" ? "Escape resumes the mission" : "Escape returns to the pause menu"}</p>
-        </MetalPanel>
-      )}
+      <MetalPanel
+        ref={dialogRef}
+        tabIndex={-1}
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pause-title"
+      >
+        {view === "main" ? (
+          <PauseMainMenu
+            onResume={onResume}
+            onSave={onSave}
+            onLoad={onLoad}
+            onBriefing={onBriefing}
+            onRestart={onRestart}
+            onControls={onControls}
+            onOptions={onOptions}
+            onMenu={onMenu}
+          />
+        ) : view === "controls" ? (
+          <PauseControls onBack={onBack} />
+        ) : view === "save" ? (
+          <PauseSaveSlots
+            defaultName={defaultSlotName}
+            slots={saveSlots}
+            onCommit={onCommitSave}
+            onDelete={onDeleteEntry}
+            onBack={onBack}
+          />
+        ) : view === "load" ? (
+          <PauseLoadSlots
+            entries={loadEntries}
+            onLoad={onLoadEntry}
+            onDelete={onDeleteEntry}
+            onBack={onBack}
+          />
+        ) : (
+          <PauseOptions
+            settings={settings}
+            onToggleSound={onToggleSound}
+            onToggleMusic={onToggleMusic}
+            onToggleTacticalRoster={onToggleTacticalRoster}
+            onVolumeChange={onVolumeChange}
+            onBack={onBack}
+          />
+        )}
+        {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
+        <p className={styles.hint}>{view === "main" ? "Escape resumes the mission" : "Escape returns to the pause menu"}</p>
+      </MetalPanel>
     </div>
   );
 }

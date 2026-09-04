@@ -59,7 +59,9 @@ export type MusicGraph = {
 
 export let enabled = true;
 export let ducked = false;
-export let paused = false;
+// Music is opt-in to the active battlefield; menu initialization must not
+// create a playable graph before a mission route selects a cue.
+export let paused = true;
 export let intensity: MusicIntensity = "calm";
 export let pendingIntensity: MusicIntensity | null = null;
 export let cue: MusicCue = "menu";
