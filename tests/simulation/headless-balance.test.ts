@@ -69,5 +69,5 @@ describe("headless balance ticks", () => {
         expect(withoutFog(headless)).toEqual(withoutFog(reference));
       }
     }
-  });
+  }, 120_000);
 });

@@ -165,9 +165,13 @@ function commitTick(state: SimState, strategy: ArchetypeStrategy): number {
 }
 
 function isDefensiveOnlyMission(state: SimState, strategy: ArchetypeStrategy): boolean {
-  return strategy === "greed" && (
-    OFFENSIVE_KINDS.has(state.win.kind) || state.win.kind === "rescue" || state.win.kind === "extraction"
-  );
+  if (strategy === "greed") {
+    return OFFENSIVE_KINDS.has(state.win.kind) || state.win.kind === "rescue" || state.win.kind === "extraction";
+  }
+  // Turtle may late-counterattack combat objectives so those runs finish.
+  // Walking to a friendly rescue/extraction contact would complete those
+  // missions as cheese rather than a defensive diagnostic.
+  return strategy === "turtle" && (state.win.kind === "rescue" || state.win.kind === "extraction");
 }
 
 function commandCombat(state: SimState, strategy: ArchetypeStrategy, yard: Entity): Command | undefined {
@@ -180,7 +184,8 @@ function commandCombat(state: SimState, strategy: ArchetypeStrategy, yard: Entit
   // Greed is deliberately defensive on combat/scenario missions. It may
   // respond to a base threat, but does not turn an economic opening into a
   // guaranteed objective win by eventually attacking everything. Turtle uses
-  // its normal late counterattack so it remains a bounded simulation.
+  // its normal late counterattack on combat objectives so those runs stay
+  // bounded, and stays home on rescue/extraction so contact is not cheese.
   if (!target || isDefensiveOnlyMission(state, strategy) || state.tick < commitTick(state, strategy)) {
     return { type: "move", unitIds: combat.map((unit) => unit.id), x: yard.x, y: yard.y, formation: "line" };
   }

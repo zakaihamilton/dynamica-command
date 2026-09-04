@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createMission, inspect, tick } from "../../lib/sim/api";
 import { ARCHETYPE_STRATEGIES, ArchetypeCommander } from "../../lib/sim/commander/archetypes";
 import { hasNonFiniteState } from "../../lib/sim/balanceRunner";
+import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
+import type { Command, Entity, MissionKind, SimState } from "../../lib/types";
 
 describe("player archetype commanders", () => {
   it.each(ARCHETYPE_STRATEGIES)("uses the public command API for %s", (strategy) => {
@@ -36,6 +38,63 @@ describe("player archetype commanders", () => {
     const commander = new ArchetypeCommander("greed");
     for (let i = 0; i < 1_200 && state.result === "playing"; i++) tick(state, commander.plan(state));
     expect(state.unitsProducedByRole.harvester).toBeGreaterThan(0);
+  });
+
+  function turtleCommitPlan(kind: MissionKind, placeTarget: (state: SimState) => Entity) {
+    const state = makeFixture({ width: 28, height: 28, win: { kind, ticks: 3600 } });
+    const yard = addBuilding(state, 0, "constructionYard", 2, 2);
+    const infantry = addUnit(state, 0, "infantry", 4, 4);
+    const target = placeTarget(state);
+    state.win.targetIds = [target.id];
+    state.runtime = {
+      kind,
+      phase: "active",
+      targetIds: [target.id],
+      rescued: 0,
+      required: 1,
+      deadline: 3600,
+      secondary: [],
+    };
+    state.tick = 3240;
+    return { yard, infantry, target, commands: new ArchetypeCommander("turtle").plan(state) };
+  }
+
+  function combatOrder(commands: Command[]) {
+    return commands.find((command) => command.type === "move" || command.type === "attackMove" || command.type === "attack");
+  }
+
+  it("holds turtle combat at the yard on rescue after the late-commit tick", () => {
+    const { yard, infantry, target, commands } = turtleCommitPlan("rescue", (state) => {
+      const stranded = addUnit(state, 0, "infantry", 24, 24);
+      stranded.neutral = true;
+      stranded.scenarioRole = "stranded";
+      return stranded;
+    });
+    expect(combatOrder(commands)).toEqual({
+      type: "move",
+      unitIds: [infantry.id],
+      x: yard.x,
+      y: yard.y,
+      formation: "line",
+    });
+    expect(commands.some((command) =>
+      (command.type === "move" || command.type === "attackMove") &&
+      command.x === target.x &&
+      command.y === target.y,
+    )).toBe(false);
+  });
+
+  it("late-counterattacks turtle combat on offensive missions after commit", () => {
+    const { infantry, target, commands } = turtleCommitPlan("destroyMarked", (state) => (
+      addBuilding(state, 1, "power", 24, 24, 0, true)
+    ));
+    expect(combatOrder(commands)).toEqual({
+      type: "attackMove",
+      unitIds: [infantry.id],
+      x: target.x,
+      y: target.y,
+      formation: "line",
+    });
   });
 
   it("makes turtle repair its highest-priority damaged building", () => {
