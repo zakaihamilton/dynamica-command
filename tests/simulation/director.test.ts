@@ -3,6 +3,7 @@ import { createMission } from "../../lib/sim/api";
 import { directorTimeline, tickMissionDirector } from "../../lib/sim/director";
 import { createTutorialMission } from "../../lib/sim/tutorial";
 import { createCampaign } from "../../lib/gen/campaign";
+import { profileContractFor, resolveMissionProfile } from "../../lib/gen/profile";
 
 describe("mission director", () => {
   it("uses the full escort operation deadline for its finale", () => {
@@ -13,8 +14,9 @@ describe("mission director", () => {
     const runtime = state.runtime!;
     const timeline = directorTimeline(state);
     const expectedDuration = Math.max(state.tick + 360, runtime.deadline!);
+    const contract = profileContractFor(resolveMissionProfile(state.seed, state.missionIndex, state.win.kind));
 
-    expect(timeline.finaleStart).toBe(Math.max(timeline.pressureStart + 360, Math.round(expectedDuration * 0.75)));
+    expect(timeline.finaleStart).toBe(Math.max(timeline.pressureStart + 360, Math.round(expectedDuration * Math.max(0.75, contract.finaleRatio))));
   });
 
   it("escalates a mission with deterministic reserve waves", () => {
@@ -30,10 +32,11 @@ describe("mission director", () => {
     expect(state.runtime?.director?.phase).toBe("pressure");
     expect(state.runtime?.director?.eventCount).toBe(1);
     expect(state.entities.filter((entity) => entity.owner === 1 && entity.class === "unit").length).toBeGreaterThan(beforePressure);
-    expect(pressureEvents).toContainEqual({
+    expect(pressureEvents).toHaveLength(1);
+    expect(pressureEvents[0]).toMatchObject({
       type: "alert",
       kind: "objective",
-      text: "Enemy activity is rising — secure the resource lanes.",
+      text: expect.stringContaining("Enemy activity is rising — secure the resource lanes."),
     });
 
     const beforeFinale = state.entities.filter((entity) => entity.owner === 1 && entity.class === "unit").length;
@@ -56,6 +59,82 @@ describe("mission director", () => {
     expect(tickMissionDirector(state)).toHaveLength(1);
     expect(tickMissionDirector(state)).toEqual([]);
     expect(state.runtime!.director!.eventCount).toBe(1);
+  });
+
+  it("telegraphs pressure before the profile wave arrives", () => {
+    const state = createMission({ seed: 421, missionIndex: 0 });
+    const director = state.runtime!.director!;
+    const contract = profileContractFor(resolveMissionProfile(state.seed, state.missionIndex, state.win.kind));
+    state.tick = Math.max(0, director.pressureStart - 120);
+
+    const events = tickMissionDirector(state);
+
+    expect(state.runtime!.director!.phase).toBe("opening");
+    expect(events).toMatchObject([{
+      type: "alert",
+      kind: "objective",
+      text: expect.stringContaining(contract.alert),
+    }]);
+    expect(events[0]).toMatchObject({ text: expect.stringContaining("two minutes") });
+  });
+
+  it("keeps profile finales behind the legacy late-mission floor", () => {
+    for (const seed of [0, 421, 9999]) {
+      for (const missionIndex of [0, 3, 7]) {
+        const state = createMission({ seed, missionIndex });
+        const timeline = directorTimeline(state);
+        const horizon = state.runtime?.deadline ?? state.win.ticks ?? 3600;
+        expect(timeline.finaleStart).toBeGreaterThanOrEqual(Math.round(horizon * 0.75));
+      }
+    }
+  });
+
+  it("keeps the initial pressure reinforcement at one unit", () => {
+    const state = createMission({ seed: 421, missionIndex: 4 });
+    const director = state.runtime!.director!;
+    const before = state.entities.filter((entity) => entity.owner === 1 && entity.class === "unit").length;
+    state.tick = director.pressureStart;
+    tickMissionDirector(state);
+    const after = state.entities.filter((entity) => entity.owner === 1 && entity.class === "unit").length;
+    expect(after - before).toBeLessThanOrEqual(1);
+  });
+
+  it("delays one pressure wave when the player needs recovery and caps the delay", () => {
+    const state = createMission({ seed: 421, missionIndex: 0 });
+    const director = state.runtime!.director!;
+    const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard")!;
+    const originalPressureStart = director.pressureStart;
+    yard.hp = yard.maxHp * 0.5;
+    state.tick = originalPressureStart;
+
+    const recoveryEvents = tickMissionDirector(state);
+
+    expect(state.runtime!.director!.phase).toBe("opening");
+    expect(state.runtime!.director!.pressureStart).toBe(originalPressureStart + 180);
+    expect(recoveryEvents[0]).toMatchObject({ text: expect.stringContaining("recover") });
+
+    state.tick = director.pressureStart;
+    const delayedEvents = tickMissionDirector(state);
+    expect(state.runtime!.director!.phase).toBe("pressure");
+    expect(state.runtime!.director!.pressureStart).toBe(originalPressureStart + 180);
+    expect(delayedEvents).toMatchObject([{ type: "alert", kind: "objective" }]);
+  });
+
+  it("delays a vulnerable finale only within the mission horizon", () => {
+    const state = createMission({ seed: 421, missionIndex: 0 });
+    const director = state.runtime!.director!;
+    const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard")!;
+    yard.hp = yard.maxHp * 0.5;
+    director.phase = "pressure";
+    state.tick = director.finaleStart;
+    const originalFinaleStart = director.finaleStart;
+
+    const events = tickMissionDirector(state);
+
+    expect(state.runtime!.director!.phase).toBe("pressure");
+    expect(state.runtime!.director!.finaleStart).toBe(originalFinaleStart + 180);
+    expect(state.runtime!.director!.finaleStart).toBeLessThanOrEqual(Math.floor((state.runtime!.deadline ?? 3600) * 0.9));
+    expect(events[0]).toMatchObject({ text: expect.stringContaining("recover") });
   });
 
   it("does not run director events during tutorial training, including legacy state", () => {

@@ -100,14 +100,25 @@ describe("tactical expansion", () => {
       });
       const spread = Math.max(...convoy.map((entity) => Math.hypot(entity.x - convoy[0]!.x, entity.y - convoy[0]!.y)));
       expect(spread).toBeLessThan(4);
-      expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 20)).toBe(true);
+      const map = generateMap(state.seed, createCampaign(state.seed).missions[state.missionIndex]!);
+      expect(convoy.every((entity) => Math.hypot(entity.x - map.playerStart.x, entity.y - map.playerStart.y) < 8)).toBe(true);
+      expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 8)).toBe(true);
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
       expect(CONVOY_STAGING_TICKS).toBe(7 * 60 * TICKS_PER_SECOND);
       expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS);
-      for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) tick(state);
-      expect(state.entities.filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined)).toEqual([]);
-      tick(state);
+      const convoyIds = new Set(convoy.map((entity) => entity.id));
+      let enemyEngaged = false;
+      for (let i = 0; i < CONVOY_STAGING_TICKS - 1; i++) {
+        tick(state, undefined, { evaluateObjectives: false });
+        const attackers = state.entities.filter((entity) => entity.owner === 1 && entity.attackTarget !== undefined);
+        expect(attackers.every((entity) => !convoyIds.has(entity.attackTarget!))).toBe(true);
+        enemyEngaged ||= attackers.some((attacker) => state.entities.some(
+          (target) => target.id === attacker.attackTarget && target.owner === 0 && target.hp > 0,
+        ));
+      }
+      expect(enemyEngaged).toBe(true);
+      tick(state, undefined, { evaluateObjectives: false });
       const routeEnd = neutral?.path.at(-1);
       expect(routeEnd).toBeDefined();
       expect(Math.hypot(routeEnd!.x - state.runtime!.zone!.x, routeEnd!.y - state.runtime!.zone!.y)).toBeLessThanOrEqual(6);
@@ -120,6 +131,32 @@ describe("tactical expansion", () => {
     }
     const hostile = state.entities.find((entity) => entity.owner === 1 && entity.class === "unit");
     expect(hostile?.attackTarget).not.toBe(neutral?.id);
+  });
+
+  it("ends escort convoys at a route-side extraction point instead of the enemy base", () => {
+    let sample: { state: ReturnType<typeof createMission>; map: ReturnType<typeof generateMap> } | undefined;
+    for (let seed = 0; seed < 200 && !sample; seed++) {
+      const campaign = createCampaign(seed);
+      const mission = campaign.missions.find((item) => item.win.kind === "escort");
+      if (!mission) continue;
+      sample = { state: createMission({ seed, missionIndex: mission.index }), map: generateMap(seed, mission) };
+    }
+
+    expect(sample).toBeDefined();
+    const { state, map } = sample!;
+    const zone = state.runtime?.zone;
+    expect(zone).toBeDefined();
+    expect(Math.hypot(zone!.x - map.enemyStart.x, zone!.y - map.enemyStart.y)).toBeGreaterThan(8);
+
+    const convoy = state.entities.filter((entity) => entity.scenarioRole === "convoy");
+    expect(convoy.every((entity) => Math.hypot(entity.x - map.playerStart.x, entity.y - map.playerStart.y) < 8)).toBe(true);
+    for (let i = 0; i < CONVOY_STAGING_TICKS; i++) tick(state, undefined, { evaluateObjectives: false });
+    const destinations = state.entities
+      .filter((entity) => entity.scenarioRole === "convoy")
+      .map((entity) => entity.orderDestination)
+      .filter((destination): destination is { x: number; y: number } => !!destination);
+    expect(destinations.length).toBeGreaterThan(0);
+    expect(destinations.every((destination) => Math.hypot(destination.x - map.enemyStart.x, destination.y - map.enemyStart.y) > 6)).toBe(true);
   });
 
   it("stages rescue targets in the 55%-80% portion of the route", () => {
@@ -191,6 +228,32 @@ describe("tactical expansion", () => {
     for (let i = 0; i < 100; i++) tick(state);
 
     expect(stranded.neutral).toBe(false);
+    expect(state.runtime.rescued).toBe(1);
+  });
+
+  it("does not chain rescue contacts within one tick", () => {
+    const state = makeFixture({ width: 16, height: 16, win: { kind: "rescue", targetCount: 2, ticks: 100 } });
+    const rescuer = addUnit(state, 0, "infantry", 2, 2);
+    const first = addUnit(state, 0, "infantry", 4, 2);
+    const second = addUnit(state, 0, "infantry", 6, 2);
+    first.neutral = true;
+    first.scenarioRole = "stranded";
+    second.neutral = true;
+    second.scenarioRole = "stranded";
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [first.id, second.id],
+      rescued: 0,
+      required: 2,
+      secondary: [],
+    };
+
+    tick(state);
+
+    expect(rescuer.neutral).not.toBe(true);
+    expect(first.neutral).toBe(false);
+    expect(second.neutral).toBe(true);
     expect(state.runtime.rescued).toBe(1);
   });
 

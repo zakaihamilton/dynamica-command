@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkBalance, summarizeBalance, type BalanceRecord } from "../../lib/sim/balance";
+import { archetypeFailureRecords, checkArchetypeBalance, checkBalance, summarizeBalance, type BalanceRecord } from "../../lib/sim/balance";
 
 function makeRecord(overrides: Partial<BalanceRecord> = {}): BalanceRecord {
   return {
@@ -53,6 +53,33 @@ describe("summarizeBalance", () => {
     expect(summary.averageCommandRejections).toBeCloseTo(1.5);
     expect(summary.commandRejectionRate).toBeCloseTo(3 / 30);
     expect(summary.powerDeficitRate).toBe(0);
+  });
+
+  it("summarizes gameplay diagnostics without requiring legacy fixtures to provide them", () => {
+    const summary = summarizeBalance([
+      makeRecord({
+        firstCombatTick: 120,
+        firstPressureTick: 360,
+        primaryCompletedTick: 720,
+        repairCommands: 2,
+        openingCredits: 240,
+        baselineRouteLength: 40,
+        alternateRouteLength: 52,
+        reachableResourceValue: 12_000,
+        nearestResourceDistance: 7,
+        laneCount: 2,
+        targetDepth: 0.7,
+        targetRouteLength: 55,
+        targetReachable: true,
+      }),
+    ]);
+    expect(summary.byMissionKind.escort?.averageFirstCombatTick).toBe(120);
+    expect(summary.byMissionKind.escort?.averageFirstPressureTick).toBe(360);
+    expect(summary.byMissionKind.escort?.averagePrimaryCompletedTick).toBe(720);
+    expect(summary.byMissionKind.escort?.averageRepairCommands).toBe(2);
+    expect(summary.byMissionKind.escort?.averageOpeningCredits).toBe(240);
+    expect(summary.byMissionKind.escort?.averageAlternateRouteLength).toBe(52);
+    expect(summary.byMissionKind.escort?.targetReachabilityRate).toBe(1);
   });
 });
 
@@ -228,5 +255,51 @@ describe("checkBalance", () => {
       maxAverageCasualties: 40,
     });
     expect(result.failures.join(" ")).toContain("truncated");
+  });
+});
+
+describe("checkArchetypeBalance", () => {
+  it("groups records by strategy and family", () => {
+    const summary = summarizeBalance([
+      makeRecord({ strategy: "rush", family: "economy", kind: "harvestQuota" }),
+      makeRecord({ strategy: "rush", family: "economy", kind: "forceQuota", result: "lost" }),
+    ]);
+    expect(summary.byStrategy.rush?.byFamily.economy?.samples).toBe(2);
+    expect(summary.byStrategy.rush?.byMissionKind.harvestQuota?.wins).toBe(1);
+  });
+
+  it("rejects reliability failures and anti-cheese universal wins", () => {
+    const records = ["rush", "turtle", "greed", "infantry", "vehicles"].flatMap((strategy) =>
+      Array.from({ length: 8 }, (_, index): BalanceRecord => ({
+        ...makeRecord({ strategy: strategy as BalanceRecord["strategy"], kind: strategy === "rush" ? "harvestQuota" : "decapitate" }),
+        result: "won",
+        commandRejections: strategy === "turtle" && index === 0 ? 1 : 0,
+      })),
+    );
+    const result = checkArchetypeBalance(summarizeBalance(records), records);
+    expect(result.passed).toBe(false);
+    expect(result.failures.join(" ")).toContain("rush harvestQuota");
+    expect(result.failures.join(" ")).toContain("turtle has rejected commands");
+  });
+
+  it("reports successful records contributing to an anti-cheese violation", () => {
+    const records = Array.from({ length: 8 }, () => makeRecord({
+      strategy: "rush",
+      family: "economy",
+      kind: "harvestQuota",
+      result: "won",
+    }));
+    const failures = archetypeFailureRecords(summarizeBalance(records), records, ["rush"]);
+    expect(failures).toHaveLength(8);
+  });
+
+  it("does not cap an autonomous escort objective for an archetype", () => {
+    const records = Array.from({ length: 8 }, () => makeRecord({
+      strategy: "greed",
+      kind: "escort",
+      result: "won",
+    }));
+    const result = checkArchetypeBalance(summarizeBalance(records), records, ["greed"]);
+    expect(result).toEqual({ passed: true, failures: [] });
   });
 });

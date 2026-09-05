@@ -39,9 +39,11 @@ describe("product chrome", () => {
         levelCount={8}
         missionName="System Failure"
         objective="Hold the line"
+        profileLabel="Resource Race"
       />,
     );
     expect(screen.getByTestId("level-progress")).toHaveTextContent("Operation 1 of 8");
     expect(screen.getByText("System Failure")).toBeVisible();
+    expect(screen.getByTestId("mission-profile")).toHaveTextContent("Resource Race");
   });
 });

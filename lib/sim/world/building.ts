@@ -157,10 +157,6 @@ export function openTileNear(
         if (inside) continue;
         if (!isWalkable(state, nx, ny)) continue;
         if (Math.abs(heightAt(state, nx, ny) - originH) > 1) continue;
-        const unitThere = state.entities.some(
-          (e) => e.hp > 0 && e.class === "unit" && Math.round(e.x) === nx && Math.round(e.y) === ny,
-        );
-        if (unitThere) continue;
         return { x: nx, y: ny };
       }
     }

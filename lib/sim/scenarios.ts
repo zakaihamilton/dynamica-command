@@ -12,11 +12,18 @@ import type {
 import { secondaryObjectivesForMission } from "../gen/objectives";
 import { inObjectiveZone, OBJECTIVE_ZONE_RADIUS, RESCUE_CONTACT_RADIUS } from "../types";
 import { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS } from "../gen/pacing";
-import { PATH_DIRS, diagonalCornerBlocked, routePendingFor } from "./pathfinding";
+import { resolveMissionProfile } from "../gen/profile";
+import { PATH_DIRS, diagonalCornerBlocked, findPathDetailed, routePendingFor } from "./pathfinding";
 import { tryFindPathDetailed } from "./pathBudget";
 import { canClimb, distToEntity, inBounds, isStaticWalkable, isWalkable, spawnBuildingAt, spawnUnit } from "./world";
 
 export { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS };
+
+export type ScenarioAffordances = {
+  targetDepth: number;
+  routeLength: number;
+  targetReachable: boolean;
+};
 
 /** Adds scenario targets and common runtime metadata to a freshly spawned mission. */
 export function configureMissionScenario(
@@ -25,7 +32,7 @@ export function configureMissionScenario(
   mission: MissionDef,
   rng: Rng,
 ): void {
-  const enemyStart = map.enemyStart;
+  const profile = resolveMissionProfile(state.seed, mission.index, mission.win.kind, mission.profile);
   const scenarioReachability = reachableScenarioCells(state);
 
   if (mission.win.kind === "destroyMarked") {
@@ -33,12 +40,12 @@ export function configureMissionScenario(
     const spots = map.markedSpots.length
       ? map.markedSpots
       : [
-          { x: enemyStart.x - 4, y: enemyStart.y - 6 },
-          { x: enemyStart.x + 2, y: enemyStart.y - 6 },
+          enemyApproachPoint(map, 6, -2),
+          enemyApproachPoint(map, 6, 2),
         ];
     const count = mission.win.targetCount ?? 1;
     for (let i = 0; i < count; i++) {
-      const spot = spots[i] ?? { x: enemyStart.x - 4 - i * 3, y: enemyStart.y - 6 };
+      const spot = spots[i] ?? enemyApproachPoint(map, 6 + i * 3, i % 2 === 0 ? -2 : 2);
       const kind = rng.pick(["refinery", "factory", "objective"] as const);
       const buildingKind = kind === "refinery" ? "objective" : kind;
       const placed = spawnBuildingAt(
@@ -59,13 +66,21 @@ export function configureMissionScenario(
   if (["escort", "sabotage", "rescue", "extraction"].includes(mission.win.kind)) {
     const kind = mission.win.kind;
     const targetIds: number[] = [];
+    const contestedRoute = profile.variant === "contestedRoute";
     const count = mission.win.targetCount ?? 2;
     const rescueRoute = kind === "rescue"
-      ? { start: map.playerStart, end: map.enemyStart, min: 0.55, max: 0.8 }
+      ? {
+          start: map.playerStart,
+          end: map.enemyStart,
+          min: 0.55,
+          max: 0.8,
+        }
       : undefined;
     if (kind === "sabotage") {
       for (let i = 0; i < count; i++) {
-        const spot = map.markedSpots[i] ?? { x: enemyStart.x - 4 - i * 3, y: enemyStart.y - 5 + (i % 2) * 2 };
+        const depth = contestedRoute ? 6 : 4;
+        const spacing = contestedRoute ? 4 : 3;
+        const spot = map.markedSpots[i] ?? enemyApproachPoint(map, depth + i * spacing, i % 2 === 0 ? -2 : 2);
         const objective = spawnBuildingAt(
           state,
           1,
@@ -84,7 +99,7 @@ export function configureMissionScenario(
           ? convoyStartPoint(map, i)
           : kind === "rescue"
             ? rescuePoint(map, i, count)
-            : centerPoint(map, i, count);
+          : centerPoint(map, i, count, contestedRoute);
         const point = reachableScenarioPoint(state, desired, scenarioReachability, rescueRoute);
         const target = spawnUnit(state, 0, kind === "escort" ? "convoyTruck" : "infantry", point.x, point.y);
         target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
@@ -102,7 +117,13 @@ export function configureMissionScenario(
       phase: "active",
       targetIds,
       convoyStartTick: kind === "escort" ? CONVOY_STAGING_TICKS : undefined,
-      zone: kind === "escort" ? map.enemyStart : map.playerStart,
+      // Escort missions terminate at a route-side extraction point rather
+      // than sending the convoy into the enemy base. This keeps the convoy
+      // objective distinct from an assault while preserving a reachable
+      // destination on the same operational lanes.
+      zone: kind === "escort"
+        ? convoyZonePoint(state, map, contestedRoute, scenarioReachability)
+        : map.playerStart,
       deadline: state.tick + (mission.win.ticks ?? 3600) + (kind === "escort" ? CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS : 0),
       rescued: 0,
       required: count,
@@ -124,19 +145,71 @@ export function configureMissionScenario(
   }
 }
 
-function centerPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart">, index: number, count: number): Vec2 {
-  const t = (index + 1) / (count + 1);
+/** Measures the generated scenario without adding metadata to persisted state. */
+export function scenarioAffordances(state: SimState): ScenarioAffordances {
+  const playerYard = state.entities.find(
+    (entity) => entity.owner === 0 && entity.class === "building" && entity.kind === "constructionYard" && entity.hp > 0,
+  );
+  const enemyYard = state.entities.find(
+    (entity) => entity.owner === 1 && entity.class === "building" && entity.kind === "constructionYard" && entity.hp > 0,
+  );
+  const targetId = state.runtime?.targetIds[0];
+  const target = targetId === undefined
+    ? enemyYard
+    : state.entities.find((entity) => entity.id === targetId);
+  if (!playerYard || !target) return { targetDepth: 0, routeLength: 0, targetReachable: false };
+  const route = findPathDetailed(state, playerYard, target);
+  const baseDistance = enemyYard ? Math.max(1, Math.hypot(enemyYard.x - playerYard.x, enemyYard.y - playerYard.y)) : 1;
+  const targetDistance = Math.hypot(target.x - playerYard.x, target.y - playerYard.y);
+  return {
+    targetDepth: Math.min(1, targetDistance / baseDistance),
+    routeLength: route.status === "complete" ? route.path.length : 0,
+    targetReachable: route.status === "complete",
+  };
+}
+
+function centerPoint(
+  map: Pick<GeneratedMap, "playerStart" | "enemyStart">,
+  index: number,
+  count: number,
+  contested: boolean,
+): Vec2 {
+  const base = (index + 1) / (count + 1);
+  const t = contested ? Math.min(0.78, base + 0.12) : base;
   return {
     x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * t),
     y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * t),
   };
 }
 
-function rescuePoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart">, index: number, count: number): Vec2 {
+function rescuePoint(
+  map: Pick<GeneratedMap, "playerStart" | "enemyStart">,
+  index: number,
+  count: number,
+): Vec2 {
+  // Rescue missions already place the stranded units on a visible route band.
+  // Keep the contested profile's extra risk in the approach lanes and alerts,
+  // rather than pushing the rescue targets deeper and starving the base guard.
   const t = 0.55 + (index / Math.max(1, count - 1)) * 0.25;
   return {
     x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * t),
     y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * t),
+  };
+}
+
+function enemyApproachPoint(
+  map: Pick<GeneratedMap, "playerStart" | "enemyStart" | "width" | "height">,
+  distance: number,
+  lateralOffset: number,
+): Vec2 {
+  const towardPlayer = {
+    x: Math.sign(map.playerStart.x - map.enemyStart.x),
+    y: Math.sign(map.playerStart.y - map.enemyStart.y),
+  };
+  const lateral = { x: -towardPlayer.y, y: towardPlayer.x };
+  return {
+    x: Math.max(2, Math.min(map.width - 3, Math.round(map.enemyStart.x + towardPlayer.x * distance + lateral.x * lateralOffset))),
+    y: Math.max(2, Math.min(map.height - 3, Math.round(map.enemyStart.y + towardPlayer.y * distance + lateral.y * lateralOffset))),
   };
 }
 
@@ -222,7 +295,10 @@ function reachableScenarioPoint(
   return bestInBand ?? best ?? desired;
 }
 
-function convoyStartPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart" | "width" | "height">, index: number): Vec2 {
+function convoyStartPoint(
+  map: Pick<GeneratedMap, "playerStart" | "width" | "height">,
+  index: number,
+): Vec2 {
   const offsets = [
     { x: 0, y: 0 },
     { x: 1, y: 1 },
@@ -230,13 +306,31 @@ function convoyStartPoint(map: Pick<GeneratedMap, "playerStart" | "enemyStart" |
     { x: 1, y: -1 },
   ];
   const offset = offsets[index % offsets.length]!;
-  const routeT = 0.4;
-  const anchorX = Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * routeT);
-  const anchorY = Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * routeT);
+  const anchorX = Math.round(map.playerStart.x);
+  const anchorY = Math.round(map.playerStart.y);
   return {
     x: Math.max(2, Math.min(map.width - 3, anchorX + offset.x)),
     y: Math.max(2, Math.min(map.height - 3, anchorY + offset.y)),
   };
+}
+
+function convoyZonePoint(
+  state: SimState,
+  map: Pick<GeneratedMap, "playerStart" | "enemyStart">,
+  contested: boolean,
+  seen?: Uint8Array,
+): Vec2 {
+  const routeT = contested ? 0.66 : 0.72;
+  const desired = {
+    x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * routeT),
+    y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * routeT),
+  };
+  return reachableScenarioPoint(state, desired, seen, {
+    start: map.playerStart,
+    end: map.enemyStart,
+    min: routeT - 0.08,
+    max: routeT + 0.08,
+  });
 }
 
 function convoyDestination(state: SimState, zone: Vec2, index: number): Vec2 {
@@ -257,15 +351,18 @@ function convoyDestination(state: SimState, zone: Vec2, index: number): Vec2 {
   return candidates[index % candidates.length]?.point ?? zone;
 }
 
+const EMPTY_EVENTS: SimEvent[] = [];
+
 export function tickScenario(state: SimState): SimEvent[] {
-  const events: SimEvent[] = [];
   const runtime = state.runtime;
-  if (!runtime || runtime.phase === "complete") return events;
+  if (!runtime || runtime.phase === "complete") return EMPTY_EVENTS;
   const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
   if (runtime.kind === "extraction" && yard) {
     runtime.zone = { x: yard.x, y: yard.y };
   }
   if (runtime.kind === "rescue" || runtime.kind === "extraction") {
+    // Capture this list before contacting targets. A newly rescued target may
+    // not rescue another target until the next simulation tick.
     const rescuers = state.entities.filter(
       (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !e.neutral,
     );
@@ -304,21 +401,23 @@ export function tickScenario(state: SimState): SimEvent[] {
     const zone = runtime.zone;
     if (zone) {
       if (runtime.kind === "extraction") {
-        const extracted = new Set(runtime.extractedIds ?? []);
+        const extracted = runtime.extractedIds ?? [];
         for (const id of runtime.targetIds) {
-          if (extracted.has(id)) continue;
+          if (extracted.includes(id)) continue;
           const e = state.entities.find((item) => item.id === id && item.hp > 0);
           if (!e || e.neutral || !inObjectiveZone(e.x, e.y, zone)) continue;
-          extracted.add(id);
+          extracted.push(id);
           e.marked = false;
         }
-        runtime.extractedIds = [...extracted];
-        runtime.rescued = extracted.size;
+        runtime.extractedIds = extracted;
+        runtime.rescued = extracted.length;
       } else {
-        runtime.rescued = runtime.targetIds.filter((id) => {
+        let rescued = 0;
+        for (const id of runtime.targetIds) {
           const e = state.entities.find((item) => item.id === id && item.hp > 0);
-          return !!e && inObjectiveZone(e.x, e.y, zone);
-        }).length;
+          if (e && inObjectiveZone(e.x, e.y, zone)) rescued += 1;
+        }
+        runtime.rescued = rescued;
       }
     }
   }
@@ -328,5 +427,5 @@ export function tickScenario(state: SimState): SimEvent[] {
   if (timed && timed.target !== undefined) timed.completed = state.tick < timed.target;
   const keepUnits = runtime.secondary.find((objective) => objective.kind === "keepUnits");
   if (keepUnits) keepUnits.completed = state.entities.some((entity) => entity.owner === 0 && entity.class === "unit" && entity.hp > 0 && !entity.neutral);
-  return events;
+  return EMPTY_EVENTS;
 }

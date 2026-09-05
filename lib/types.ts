@@ -25,6 +25,21 @@ export type WinCategoryKind =
   | "holdTheLine";
 
 export type MissionKind = WinCategoryKind | "escort" | "sabotage" | "rescue" | "extraction";
+export type MissionFamily = "economy" | "assault" | "defense" | "operation";
+export type MissionProfileVariant =
+  | "resourceRace"
+  | "forwardIndustry"
+  | "surgicalStrike"
+  | "siege"
+  | "concentratedWaves"
+  | "crossfire"
+  | "directRoute"
+  | "contestedRoute";
+export type MissionProfile = {
+  family: MissionFamily;
+  variant: MissionProfileVariant;
+};
+export type BalanceStrategy = "competent" | "baseline" | "rush" | "turtle" | "greed" | "infantry" | "vehicles";
 export type Formation = "line" | "column" | "wedge";
 export type Stance = "aggressive" | "defensive" | "hold";
 export type ScenarioRole = "convoy" | "stranded" | "cargo";
@@ -163,6 +178,8 @@ export type Entity = {
   formation?: Formation;
   blockedTicks?: number;
   routePending?: boolean;
+  /** Objective building currently assigned to an AI guard. */
+  scenarioGuardTargetId?: number;
   supportTargetId?: number;
   supportMode?: "auto" | "assigned" | "hold";
   /** When true, the harvester is executing a player-issued move command and should
@@ -251,6 +268,8 @@ export type MissionDef = {
   mapSize: number;
   biome: BiomeName;
   kind?: MissionKind;
+  /** Seed-derived tactical and narrative identity; omitted by legacy fixtures. */
+  profile?: MissionProfile;
 };
 
 export type Campaign = {

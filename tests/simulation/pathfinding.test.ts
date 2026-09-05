@@ -84,6 +84,23 @@ describe("pathfinding", () => {
     expect(last.y).toBe(2);
   });
 
+  it("routes to the reachable perimeter of a multi-tile building", () => {
+    const s = makeFixture({ width: 12, height: 10, win: { kind: "annihilate" } });
+    for (const [x, y] of [
+      [4, 3], [5, 3], [6, 3], [4, 4], [4, 5], [4, 6], [5, 6], [6, 6],
+    ]) setTile(s, x, y, TILE_BLOCKED);
+    const target = addBuilding(s, 1, "objective", 5, 4, 0, true);
+
+    const result = findPathDetailed(s, { x: 1, y: 1 }, target);
+    const last = result.path.at(-1);
+
+    expect(result.status).toBe("complete");
+    expect(last).toBeDefined();
+    expect(last!.x).toBeGreaterThanOrEqual(target.x + 2);
+    expect(last!.y).toBeGreaterThanOrEqual(target.y - 1);
+    expect(last!.y).toBeLessThanOrEqual(target.y + 2);
+  });
+
   it("moves a unit toward a move order", () => {
     const s = makeFixture({ width: 10, height: 8, win: { kind: "harvestQuota", target: 99999 } });
     addBuilding(s, 0, "constructionYard", 0, 0);

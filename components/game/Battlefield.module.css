@@ -84,6 +84,14 @@
   color: var(--chrome-gold);
 }
 
+.profile {
+  margin-top: 0.24rem;
+  color: var(--chrome-cyan);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
 .objective {
   max-width: 100%;
   text-align: right;
@@ -159,6 +167,10 @@
 
   .status {
     font-size: 0.62rem;
+  }
+
+  .profile {
+    font-size: 0.52rem;
   }
 
   .status {

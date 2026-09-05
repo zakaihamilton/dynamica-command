@@ -1,6 +1,6 @@
 import { isSupportUnit, UNIT_STATS } from "../../catalog";
 import { isUnitEntity, type BuildingKind, type Command, type Entity, type MissionKind, type SimState, type UnitKind } from "../../types";
-import { living } from "../world";
+import { livingView } from "../world";
 
 export const COMMANDER_CADENCE = 24;
 export const COMBAT_ORDER_REFRESH = 96;
@@ -18,53 +18,107 @@ export const OFFENSIVE_KINDS = new Set<MissionKind>([
   "annihilate",
 ]);
 
+type CommanderViews = {
+  tick: number;
+  active: Entity[];
+  playerBuildings: Entity[];
+  playerUnits: Entity[];
+  enemyEntities: Entity[];
+};
+
+const commanderViews = new WeakMap<SimState, CommanderViews>();
+
+function viewsFor(state: SimState): CommanderViews {
+  const active = livingView(state);
+  const cached = commanderViews.get(state);
+  if (cached?.tick === state.tick && cached.active === active) return cached;
+  const views = cached ?? {
+    tick: state.tick,
+    active,
+    playerBuildings: [],
+    playerUnits: [],
+    enemyEntities: [],
+  };
+  views.tick = state.tick;
+  views.active = active;
+  views.playerBuildings.length = 0;
+  views.playerUnits.length = 0;
+  views.enemyEntities.length = 0;
+  for (const entity of active) {
+    if (entity.owner === 0 && entity.class === "building") views.playerBuildings.push(entity);
+    if (entity.owner === 0 && entity.class === "unit" && !entity.neutral) views.playerUnits.push(entity);
+    if (entity.owner === 1) views.enemyEntities.push(entity);
+  }
+  commanderViews.set(state, views);
+  return views;
+}
+
 export type CommanderMetrics = {
   plans: number;
   commands: number;
   commandsByType: Partial<Record<Command["type"], number>>;
 };
 
+/** Internal cached view. Callers must not mutate the returned array. */
+export function playerBuildingsView(state: SimState, kind?: BuildingKind): Entity[] {
+  const buildings = viewsFor(state).playerBuildings;
+  return kind === undefined ? buildings : buildings.filter((entity) => entity.kind === kind);
+}
+
+/** Public snapshot that cannot poison the commander query cache. */
 export function playerBuildings(state: SimState, kind?: BuildingKind): Entity[] {
-  return living(state).filter(
-    (entity) => entity.owner === 0 && entity.class === "building" && (kind === undefined || entity.kind === kind),
-  );
+  return playerBuildingsView(state, kind).slice();
 }
 
+/** Internal cached view. Callers must not mutate the returned array. */
+export function playerUnitsView(state: SimState, predicate?: (entity: Entity) => boolean): Entity[] {
+  const units = viewsFor(state).playerUnits;
+  return predicate ? units.filter(predicate) : units;
+}
+
+/** Public snapshot that cannot poison the commander query cache. */
 export function playerUnits(state: SimState, predicate?: (entity: Entity) => boolean): Entity[] {
-  return living(state).filter(
-    (entity) => entity.owner === 0 && entity.class === "unit" && !entity.neutral && (!predicate || predicate(entity)),
-  );
+  return playerUnitsView(state, predicate).slice();
 }
 
+/** Internal cached view. Callers must not mutate the returned array. */
+export function enemyEntitiesView(state: SimState): Entity[] {
+  return viewsFor(state).enemyEntities;
+}
+
+/** Public snapshot that cannot poison the commander query cache. */
 export function enemyEntities(state: SimState): Entity[] {
-  return living(state).filter((entity) => entity.owner === 1);
+  return enemyEntitiesView(state).slice();
 }
 
 export function combatUnits(state: SimState): Entity[] {
-  return playerUnits(
+  return playerUnitsView(
     state,
     (entity) => isUnitEntity(entity) && UNIT_STATS[entity.kind].damage > 0 && !isSupportUnit(entity.kind),
   );
 }
 
 export function readyProducers(state: SimState, kind: BuildingKind): Entity[] {
-  return playerBuildings(state, kind).filter((entity) => entity.constructing === 0);
+  return playerBuildingsView(state, kind).filter((entity) => entity.constructing === 0);
 }
 
 export function queuedUnitCount(state: SimState, kind: UnitKind): number {
-  return playerBuildings(state).reduce((count, producer) => {
+  let count = 0;
+  for (const producer of playerBuildingsView(state)) {
     const active = producer.producing?.kind === kind ? 1 : 0;
-    const queued = producer.queue?.filter((item) => item === kind).length ?? 0;
-    return count + active + queued;
-  }, 0);
+    let queued = 0;
+    for (const item of producer.queue ?? []) if (item === kind) queued += 1;
+    count += active + queued;
+  }
+  return count;
 }
 
 export function totalUnitCount(state: SimState, kind: UnitKind): number {
-  return playerUnits(state, (entity) => entity.kind === kind).length;
+  return playerUnitsView(state, (entity) => entity.kind === kind).length;
 }
 
 export function completedOrBuilding(state: SimState, kind: BuildingKind): number {
-  return playerBuildings(state, kind).length;
+  return playerBuildingsView(state, kind).length;
 }
 
 export function combatValue(entity: Entity): number {

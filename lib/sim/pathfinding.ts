@@ -1,7 +1,6 @@
-import type { Entity, SimState, Vec2 } from "../types";
+import { footprintOf } from "../catalog";
+import { isBuildingEntity, type Entity, type SimState, type Vec2 } from "../types";
 import { inBounds, makeUnitOccupancy, staticNavigationFor } from "./world";
-
-type Node = { x: number; y: number; g: number; f: number; px: number; py: number; seq: number };
 
 export type PathSearchStatus = "complete" | "partial" | "unreachable";
 
@@ -24,9 +23,18 @@ type SearchBuffers = {
   gScore: Float64Array;
   parent: Int32Array;
   generation: number;
+  open: MinHeap;
+};
+
+type StaticPathCache = {
+  revision: number;
+  paths: Map<string, PathSearchResult>;
 };
 
 const searchBuffers = new WeakMap<SimState, SearchBuffers>();
+const staticPathCache = new WeakMap<SimState, StaticPathCache>();
+const sharedStaticPaths = new Map<string, PathSearchResult>();
+const SHARED_STATIC_PATH_LIMIT = 4096;
 
 export const PATH_DIRS: Vec2[] = [
   { x: 1, y: 0 },
@@ -47,41 +55,82 @@ export type FindPathOptions = {
 };
 
 class MinHeap {
-  private items: Node[] = [];
+  private xs = new Float64Array(64);
+  private ys = new Float64Array(64);
+  private gs = new Float64Array(64);
+  private fs = new Float64Array(64);
+  private seqs = new Float64Array(64);
+  private size = 0;
+  x = 0;
+  y = 0;
+  g = 0;
+  f = 0;
+  seq = 0;
 
   get length(): number {
-    return this.items.length;
+    return this.size;
   }
 
-  push(node: Node): void {
-    this.items.push(node);
-    this.up(this.items.length - 1);
+  clear(): void {
+    this.size = 0;
   }
 
-  pop(): Node | undefined {
-    const items = this.items;
-    if (!items.length) return undefined;
-    const top = items[0]!;
-    const last = items.pop()!;
-    if (items.length) {
-      items[0] = last;
-      this.down(0);
+  push(x: number, y: number, g: number, f: number, seq: number): void {
+    const index = this.size;
+    this.ensureCapacity(index + 1);
+    this.xs[index] = x;
+    this.ys[index] = y;
+    this.gs[index] = g;
+    this.fs[index] = f;
+    this.seqs[index] = seq;
+    this.size = index + 1;
+    this.up(index);
+  }
+
+  pop(): boolean {
+    const n = this.size;
+    if (!n) return false;
+    this.x = this.xs[0]!;
+    this.y = this.ys[0]!;
+    this.g = this.gs[0]!;
+    this.f = this.fs[0]!;
+    this.seq = this.seqs[0]!;
+    const last = n - 1;
+    if (last > 0) {
+      this.xs[0] = this.xs[last]!;
+      this.ys[0] = this.ys[last]!;
+      this.gs[0] = this.gs[last]!;
+      this.fs[0] = this.fs[last]!;
+      this.seqs[0] = this.seqs[last]!;
     }
-    return top;
+    this.size = last;
+    if (last > 0) this.down(0);
+    return true;
   }
 
   private less(i: number, j: number): boolean {
-    const a = this.items[i]!;
-    const b = this.items[j]!;
-    if (a.f !== b.f) return a.f < b.f;
-    return a.seq < b.seq;
+    const a = this.fs[i]!;
+    const b = this.fs[j]!;
+    if (a !== b) return a < b;
+    return this.seqs[i]! < this.seqs[j]!;
   }
 
   private swap(i: number, j: number): void {
-    const items = this.items;
-    const tmp = items[i]!;
-    items[i] = items[j]!;
-    items[j] = tmp;
+    let value = this.xs[i]!;
+    this.xs[i] = this.xs[j]!;
+    this.xs[j] = value;
+    value = this.ys[i]!;
+    this.ys[i] = this.ys[j]!;
+    this.ys[j] = value;
+    value = this.gs[i]!;
+    this.gs[i] = this.gs[j]!;
+    this.gs[j] = value;
+    value = this.fs[i]!;
+    this.fs[i] = this.fs[j]!;
+    this.fs[j] = value;
+    value = this.seqs[i]!;
+    this.seqs[i] = this.seqs[j]!;
+    this.seqs[j] = value;
   }
 
   private up(index: number): void {
@@ -95,7 +144,7 @@ class MinHeap {
   }
 
   private down(index: number): void {
-    const n = this.items.length;
+    const n = this.size;
     let i = index;
     for (;;) {
       const l = i * 2 + 1;
@@ -107,6 +156,26 @@ class MinHeap {
       this.swap(i, best);
       i = best;
     }
+  }
+
+  private ensureCapacity(required: number): void {
+    if (required <= this.fs.length) return;
+    const capacity = Math.max(required, this.fs.length * 2);
+    const xs = new Float64Array(capacity);
+    const ys = new Float64Array(capacity);
+    const gs = new Float64Array(capacity);
+    const fs = new Float64Array(capacity);
+    const seqs = new Float64Array(capacity);
+    xs.set(this.xs);
+    ys.set(this.ys);
+    gs.set(this.gs);
+    fs.set(this.fs);
+    seqs.set(this.seqs);
+    this.xs = xs;
+    this.ys = ys;
+    this.gs = gs;
+    this.fs = fs;
+    this.seqs = seqs;
   }
 }
 
@@ -144,16 +213,37 @@ export function findPathDetailed(
   const sy = Math.round(from.y);
   const gx = Math.round(to.x);
   const gy = Math.round(to.y);
+  const w = state.width;
   if (sx === gx && sy === gy) return { path: [], status: "complete" };
   if (!inBounds(state, gx, gy)) return { path: [], status: "unreachable" };
 
   const ignoreId = ignoreIdOf(from, opts);
   const avoidUnits = opts?.avoidUnits === true;
+  const maxNodes = Math.min(opts?.maxNodes ?? PATH_MAX_NODES, PATH_MAX_NODES, w * state.height);
+  const navigationRevision = state.navigationRevision ?? 0;
+  const target = to as Entity;
+  const targetFootprint = isBuildingEntity(target) ? footprintOf(target.kind) : undefined;
+  const navigation = staticNavigationFor(state);
+  const cacheKey = !avoidUnits
+    ? `${sx},${sy}:${gx},${gy}:${maxNodes}:${targetFootprint?.w ?? 0},${targetFootprint?.h ?? 0}`
+    : undefined;
+  if (cacheKey) {
+    const sharedKey = `${navigation.geometryKey}:${cacheKey}`;
+    const shared = sharedStaticPaths.get(sharedKey);
+    if (shared) {
+      sharedStaticPaths.delete(sharedKey);
+      sharedStaticPaths.set(sharedKey, shared);
+      return { path: shared.path.slice(), status: shared.status };
+    }
+    const cache = staticPathCache.get(state);
+    if (cache?.revision === navigationRevision) {
+      const cached = cache.paths.get(cacheKey);
+      if (cached) return { path: cached.path.slice(), status: cached.status };
+    }
+  }
   const occupancy = avoidUnits
     ? (opts?.occupancy ?? makeUnitOccupancy(state, ignoreId))
     : undefined;
-  const w = state.width;
-  const navigation = staticNavigationFor(state);
   const canClimbLocal = (x0: number, y0: number, x1: number, y1: number) =>
     Math.abs(navigation.heights[y1 * w + x1]! - navigation.heights[y0 * w + x0]!) <= 1;
   const startKey = sy * w + sx;
@@ -166,15 +256,24 @@ export function findPathDetailed(
   const passable = (x: number, y: number) => inBounds(state, x, y) && navigation.walkable[y * w + x] === 1 && !unitBlocked(x, y);
 
   const walkableGoal = passable(gx, gy);
-  const goalOk = (x: number, y: number) =>
-    walkableGoal ? x === gx && y === gy : Math.max(Math.abs(x - gx), Math.abs(y - gy)) === 1;
+  const goalOk = (x: number, y: number) => {
+    if (targetFootprint) {
+      const inside = x >= gx && x < gx + targetFootprint.w && y >= gy && y < gy + targetFootprint.h;
+      return !inside
+        && x >= gx - 1
+        && x <= gx + targetFootprint.w
+        && y >= gy - 1
+        && y <= gy + targetFootprint.h;
+    }
+    return walkableGoal ? x === gx && y === gy : Math.max(Math.abs(x - gx), Math.abs(y - gy)) === 1;
+  };
 
-  const maxNodes = Math.min(opts?.maxNodes ?? PATH_MAX_NODES, PATH_MAX_NODES, w * state.height);
   const key = (x: number, y: number) => y * w + x;
-  const open = new MinHeap();
-  let seq = 0;
-  open.push({ x: sx, y: sy, g: 0, f: heuristic(sx, sy, gx, gy), px: -1, py: -1, seq: seq++ });
   const buffers = buffersFor(state, w * state.height);
+  const open = buffers.open;
+  open.clear();
+  let seq = 0;
+  open.push(sx, sy, 0, heuristic(sx, sy, gx, gy), seq++);
   const generation = nextGeneration(buffers);
   buffers.stamps[startKey] = generation;
   buffers.gScore[startKey] = 0;
@@ -183,53 +282,73 @@ export function findPathDetailed(
   let bestH = Infinity;
 
   while (open.length && explored < maxNodes) {
-    const current = open.pop()!;
-    const currentKey = key(current.x, current.y);
-    if (current.g > (buffers.gScore[currentKey] ?? Infinity)) continue;
+    open.pop();
+    const currentX = open.x;
+    const currentY = open.y;
+    const currentG = open.g;
+    const currentKey = key(currentX, currentY);
+    if (currentG > (buffers.gScore[currentKey] ?? Infinity)) continue;
     explored++;
-    const h = heuristic(current.x, current.y, gx, gy);
-    if (h < bestH && !(current.x === sx && current.y === sy)) {
+    const h = heuristic(currentX, currentY, gx, gy);
+    if (h < bestH && !(currentX === sx && currentY === sy)) {
       bestH = h;
       bestKey = currentKey;
     }
-    if (goalOk(current.x, current.y) && !(current.x === sx && current.y === sy && !walkableGoal)) {
-      if (current.x === sx && current.y === sy) continue;
-      return { path: reconstruct(buffers.parent, currentKey, startKey, w), status: "complete" };
+    if (goalOk(currentX, currentY) && !(currentX === sx && currentY === sy && !walkableGoal)) {
+      if (currentX === sx && currentY === sy) continue;
+      return cacheStaticPath(state, navigation.geometryKey, cacheKey, navigationRevision, { path: reconstruct(buffers.parent, currentKey, startKey, w), status: "complete" });
     }
     for (const d of PATH_DIRS) {
-      const nx = current.x + d.x;
-      const ny = current.y + d.y;
+      const nx = currentX + d.x;
+      const ny = currentY + d.y;
       if (!inBounds(state, nx, ny)) continue;
       if (!passable(nx, ny)) continue;
-      if (!canClimbLocal(current.x, current.y, nx, ny)) continue;
-      if (diagonalCornerBlockedLocal(navigation, current.x, current.y, nx, ny)) continue;
+      if (!canClimbLocal(currentX, currentY, nx, ny)) continue;
+      if (diagonalCornerBlockedLocal(navigation, currentX, currentY, nx, ny)) continue;
       const step = d.x !== 0 && d.y !== 0 ? 1.414 : 1;
-      const tentative = current.g + step;
+      const tentative = currentG + step;
       const k = key(nx, ny);
       if (tentative >= (buffers.stamps[k] === generation ? buffers.gScore[k] : Infinity)) continue;
       buffers.stamps[k] = generation;
       buffers.gScore[k] = tentative;
       buffers.parent[k] = currentKey;
-      open.push({
-        x: nx,
-        y: ny,
-        g: tentative,
-        f: tentative + heuristic(nx, ny, gx, gy),
-        px: current.x,
-        py: current.y,
-        seq: seq++,
-      });
+      open.push(nx, ny, tentative, tentative + heuristic(nx, ny, gx, gy), seq++);
     }
   }
   const capped = explored >= maxNodes && open.length > 0;
-  if (capped && bestKey < 0) return { path: [], status: "partial" };
+  if (capped && bestKey < 0) return cacheStaticPath(state, navigation.geometryKey, cacheKey, navigationRevision, { path: [], status: "partial" });
   if (bestKey >= 0) {
-    return {
+    return cacheStaticPath(state, navigation.geometryKey, cacheKey, navigationRevision, {
       path: reconstruct(buffers.parent, bestKey, startKey, w),
       status: capped ? "partial" : "unreachable",
-    };
+    });
   }
-  return { path: [], status: "unreachable" };
+  return cacheStaticPath(state, navigation.geometryKey, cacheKey, navigationRevision, { path: [], status: "unreachable" });
+}
+
+function cacheStaticPath(
+  state: SimState,
+  geometryKey: string,
+  key: string | undefined,
+  revision: number,
+  result: PathSearchResult,
+): PathSearchResult {
+  if (!key) return result;
+  const sharedKey = `${geometryKey}:${key}`;
+  sharedStaticPaths.set(sharedKey, { path: result.path.slice(), status: result.status });
+  while (sharedStaticPaths.size > SHARED_STATIC_PATH_LIMIT) {
+    const first = sharedStaticPaths.keys().next().value as string | undefined;
+    if (first === undefined) break;
+    sharedStaticPaths.delete(first);
+  }
+  let cache = staticPathCache.get(state);
+  if (!cache || cache.revision !== revision) {
+    cache = { revision, paths: new Map() };
+    staticPathCache.set(state, cache);
+  }
+  // Keep a private copy because callers consume paths with shift/unshift.
+  cache.paths.set(key, { path: result.path.slice(), status: result.status });
+  return result;
 }
 
 function diagonalCornerBlockedLocal(
@@ -268,6 +387,7 @@ function buffersFor(state: SimState, size: number): SearchBuffers {
     gScore: new Float64Array(size),
     parent: new Int32Array(size),
     generation: 0,
+    open: new MinHeap(),
   };
   searchBuffers.set(state, created);
   return created;

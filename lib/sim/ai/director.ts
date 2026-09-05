@@ -2,12 +2,32 @@ import { BUILDING_STATS, UNIT_STATS, footprintOf, isSupportUnit, isUnitAvailable
 import { isUnitEntity, type Entity, type MissionDirectorPhase, type SimState, type UnitKind } from "../../types";
 import { rngFromState } from "../../seed/rng";
 import { missionDifficulty } from "../difficulty";
-import { byId, closestApproach, distToEntity, findBuildSite, living, nearest, powerFor, spawnBuilding, trySpawnUnit } from "../world";
+import { profileContractFor, resolveMissionProfile } from "../../gen/profile";
+import { byId, closestApproach, distToEntity, findBuildSite, livingView, nearest, powerFor, spawnBuilding, trySpawnUnit } from "../world";
 import { tryBuildForwardInfrastructure, tryBuildPower, tryBuildRefinery, tryBuildTurret } from "./building";
-import { assignAttack, assignAssault, assignMove, enemyCombat, sendHome } from "./combat";
+import { assignAttack, assignAssault, assignMove, sendHome } from "./combat";
 import { contestedResourcePoint, distance, queueUnit, shouldAutoRepair, shouldRetreat } from "./helpers";
 
 const YARD_DEFENSE_RANGE = 14;
+
+type DirectorBuffers = {
+  enemyBuildings: Entity[];
+  enemyUnits: Entity[];
+};
+
+const directorBuffers = new WeakMap<SimState, DirectorBuffers>();
+
+function buffersFor(state: SimState): DirectorBuffers {
+  const cached = directorBuffers.get(state);
+  if (cached) {
+    cached.enemyBuildings.length = 0;
+    cached.enemyUnits.length = 0;
+    return cached;
+  }
+  const buffers = { enemyBuildings: [], enemyUnits: [] };
+  directorBuffers.set(state, buffers);
+  return buffers;
+}
 
 export function directorPhase(state: SimState): MissionDirectorPhase {
   if (state.tutorialStage !== undefined) return "opening";
@@ -26,9 +46,18 @@ export function guardScenarioObjectives(state: SimState, units: Entity[]): void 
     .map((id) => byId(state, id))
     .filter((entity): entity is Entity => !!entity && entity.hp > 0 && entity.owner === 1);
   if (!targets.length || !units.length) return;
-  targets.forEach((target, index) => {
+  // Assign each guard at most one objective. If there are more targets than
+  // guards, repeatedly assigning the same unit would make it flip between
+  // perimeter tiles every tick.
+  targets.slice(0, units.length).forEach((target, index) => {
     const guard = units[index % units.length]!;
-    if (guard.attackTarget === undefined) assignMove(state, guard, closestApproach(state, guard, target));
+    if (guard.attackTarget !== undefined) return;
+    // Keep the selected perimeter tile stable while the guard approaches the
+    // same building. Recomputing the nearest tile from a sub-tile position
+    // can alternate between two equally close tiles at the midpoint.
+    if (guard.scenarioGuardTargetId === target.id && guard.orderMode === "move") return;
+    guard.scenarioGuardTargetId = target.id;
+    assignMove(state, guard, closestApproach(state, guard, target));
   });
 }
 
@@ -48,7 +77,31 @@ export function guardResourceLane(state: SimState, units: Entity[], yard: Entity
 export function tickAi(state: SimState): void {
   if (state.result !== "playing") return;
   const rng = rngFromState(state.rngState);
-  const enemyBuildings = living(state).filter((e) => e.owner === 1 && e.class === "building");
+  // This is on the hot path for every simulation tick. Build the frequently
+  // used views in one pass instead of repeatedly filtering the same entity
+  // list during production, repair, and assault decisions.
+  const active = livingView(state);
+  const { enemyBuildings, enemyUnits } = buffersFor(state);
+  let hasHarvester = false;
+  let playerTanks = 0;
+  let playerInfantry = 0;
+  let woundedHumans = false;
+  let woundedVehicles = false;
+  let medicCount = 0;
+  let repairTruckCount = 0;
+  for (const entity of active) {
+    if (entity.owner === 1 && entity.class === "building") enemyBuildings.push(entity);
+    if (entity.owner === 1 && isUnitEntity(entity)) {
+      if (UNIT_STATS[entity.kind].damage > 0 && !isSupportUnit(entity.kind)) enemyUnits.push(entity);
+      if (entity.kind === "harvester") hasHarvester = true;
+      if (entity.kind === "medic") medicCount += 1;
+      if (entity.kind === "repairTruck") repairTruckCount += 1;
+      if (!isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "human" && entity.hp < entity.maxHp) woundedHumans = true;
+      if (!isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "vehicle" && entity.hp < entity.maxHp) woundedVehicles = true;
+    }
+    if (entity.owner === 0 && entity.kind === "tank") playerTanks += 1;
+    if (entity.owner === 0 && entity.kind === "infantry") playerInfantry += 1;
+  }
   const yard = enemyBuildings.find((e) => e.kind === "constructionYard");
   if (!yard) {
     state.aiState = "retreat";
@@ -57,7 +110,10 @@ export function tickAi(state: SimState): void {
   }
 
   const difficulty = missionDifficulty(state.missionIndex);
-  const escortStaging = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined;
+  const profile = state.runtime?.director
+    ? resolveMissionProfile(state.seed, state.missionIndex, state.win.kind)
+    : undefined;
+  const profileContract = profile ? profileContractFor(profile) : undefined;
   const phase = directorPhase(state);
   const productionWindow =
     state.tick >= difficulty.enemyProductionStart &&
@@ -67,21 +123,8 @@ export function tickAi(state: SimState): void {
     const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0 && !e.producing);
     const barracks = enemyBuildings.find((e) => e.kind === "barracks" && e.constructing === 0 && !e.producing);
     const hasRefinery = enemyBuildings.some((e) => e.kind === "refinery");
-    const hasHarvester = living(state).some((e) => e.owner === 1 && e.kind === "harvester");
-    const playerTanks = living(state).filter((entity) => entity.owner === 0 && entity.kind === "tank").length;
-    const playerInfantry = living(state).filter((entity) => entity.owner === 0 && entity.kind === "infantry").length;
     const want: UnitKind = playerTanks > playerInfantry ? "antiArmor" : rng.chance(0.4) ? "tank" : "infantry";
     const producer = want === "infantry" || want === "antiArmor" ? barracks : factory;
-    const woundedHumans = living(state).some(
-      (entity) => entity.owner === 1 && isUnitEntity(entity) && !isSupportUnit(entity.kind) &&
-        UNIT_STATS[entity.kind].domain === "human" && entity.hp < entity.maxHp,
-    );
-    const woundedVehicles = living(state).some(
-      (entity) => entity.owner === 1 && isUnitEntity(entity) && !isSupportUnit(entity.kind) &&
-        UNIT_STATS[entity.kind].domain === "vehicle" && entity.hp < entity.maxHp,
-    );
-    const medicCount = living(state).filter((entity) => entity.owner === 1 && entity.kind === "medic").length;
-    const repairTruckCount = living(state).filter((entity) => entity.owner === 1 && entity.kind === "repairTruck").length;
     const supportWant = state.missionIndex >= 2 && (
       woundedHumans && medicCount === 0 ? "medic" :
       woundedVehicles && repairTruckCount === 0 ? "repairTruck" :
@@ -118,26 +161,14 @@ export function tickAi(state: SimState): void {
     }
   }
 
-  if (escortStaging) {
-    for (const unit of enemyCombat(state)) {
-      unit.attackTarget = undefined;
-      unit.path = [];
-      unit.routePending = false;
-      unit.orderMode = undefined;
-      unit.orderDestination = undefined;
-      unit.idle = true;
-    }
-    state.aiState = "economy";
-    state.rngState = rng.state;
-    return;
-  }
-
   if (state.win.kind === "holdTheLine" && state.tick > 0 && state.tick % difficulty.enemyAssaultEvery === 0) {
     const fp = footprintOf("constructionYard");
     const spot = { x: yard.x - 1, y: yard.y + fp.h };
-    trySpawnUnit(state, 1, rng.chance(0.45) ? "tank" : "infantry", spot.x, spot.y);
+    const spawned = trySpawnUnit(state, 1, rng.chance(0.45) ? "tank" : "infantry", spot.x, spot.y);
+    if (spawned) enemyUnits.push(spawned);
     if (state.missionIndex >= 4) {
-      trySpawnUnit(state, 1, "infantry", spot.x, spot.y + 1);
+      const extraSpawned = trySpawnUnit(state, 1, "infantry", spot.x, spot.y + 1);
+      if (extraSpawned) enemyUnits.push(extraSpawned);
     }
   }
 
@@ -146,7 +177,7 @@ export function tickAi(state: SimState): void {
     yard,
     (e) => e.owner === 0 && e.kind === "constructionYard",
   );
-  const waveEvery = difficulty.enemyAssaultEvery;
+  const waveEvery = Math.max(240, difficulty.enemyAssaultEvery + (profileContract?.assaultEveryOffset ?? 0));
   for (const b of enemyBuildings) {
     if (b.constructing > 0 || b.hp <= 0) continue;
     if (b.hp < b.maxHp && shouldAutoRepair(state, b)) b.repairing = true;
@@ -157,18 +188,16 @@ export function tickAi(state: SimState): void {
     state,
     yard,
     (e) => e.owner === 0 && isUnitEntity(e) && e.kind !== "harvester" && !isSupportUnit(e.kind) && (
-      UNIT_STATS[e.kind].damage > 0 && (!e.neutral || e.scenarioRole === "convoy")
+      (!e.neutral || e.scenarioRole === "convoy")
     ) && !(
       e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined
     ),
   );
-  const units = enemyCombat(state);
+  const units = enemyUnits;
   const averageHealth = units.length ? units.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / units.length : 1;
   if (shouldRetreat(state, averageHealth)) state.aiState = "retreat";
   else if (threat && distToEntity(yard, threat) <= YARD_DEFENSE_RANGE) state.aiState = "defense";
-  else if (playerYard && state.tick >= waveEvery && !(
-    state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined
-  )) state.aiState = "assault";
+  else if (playerYard && state.tick >= waveEvery) state.aiState = "assault";
   else if (units.length > 0 && state.tick % 180 === 0) state.aiState = "regroup";
   else state.aiState = "economy";
 
@@ -184,6 +213,9 @@ export function tickAi(state: SimState): void {
     for (const u of units) sendHome(state, u, yard);
   } else if (state.aiState === "economy" || state.aiState === "regroup") {
     for (const u of units) {
+      // Combat acquires targets before the director runs. Do not replace an
+      // active attack with a return-to-base route on the same tick.
+      if (u.attackTarget !== undefined) continue;
       if (distToEntity(u, yard) <= YARD_DEFENSE_RANGE) continue;
       sendHome(state, u, yard);
     }

@@ -247,7 +247,7 @@ export function biomeMaterials(biome: BiomeName): BiomeMaterials {
 export function fogTerrainGain(fog: number): number {
   if (fog >= 2) return 1;
   if (fog === 1) return 0.55;
-  return 0.15;
+  return 0;
 }
 
 export function tileVariant(seed: number, x: number, y: number): number {

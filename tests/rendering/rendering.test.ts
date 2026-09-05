@@ -10,6 +10,7 @@ import {
   drawBlockerProp,
   drawTerrainScatter,
   scatterForTile,
+  smoothFogGain,
   withAlpha,
 } from "../../lib/render/terrainPaint";
 import { hash } from "../../lib/gen/tilePalette";
@@ -273,14 +274,23 @@ describe("seeded terrain atlas", () => {
     expect(b).toBeGreaterThan(r);
   });
 
-  it("keeps unexplored terrain present while fog only darkens it", () => {
+  it("keeps unexplored terrain behind an opaque shroud", () => {
     expect(fogTerrainGain(2)).toBe(1);
     expect(fogTerrainGain(1)).toBe(0.55);
-    expect(fogTerrainGain(0)).toBe(0.15);
+    expect(fogTerrainGain(0)).toBe(0);
     const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 11 });
     const visible = sampleTerrainMaterial(state, 3, 3);
     expect(visible.r + visible.g + visible.b).toBeGreaterThan(0);
-    expect(fogTerrainGain(0) * visible.r).toBeGreaterThan(0);
+    expect(fogTerrainGain(0) * visible.r).toBe(0);
+  });
+
+  it("does not re-cover a tile after it has been discovered", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" } });
+    state.fog.fill(0);
+    state.fog[fogIndex(state, 3, 3)!] = 2;
+
+    expect(smoothFogGain(state, 3, 3)).toBe(1);
+    expect(smoothFogGain(state, 3, 4)).toBe(0);
   });
 
   it("maps atlas cells onto isometric diamond vertices", () => {

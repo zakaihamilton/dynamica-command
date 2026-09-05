@@ -14,7 +14,7 @@ describe("out of bounds shroud", () => {
     expect(fogAt(s, 10 + MAP_SKIRT, 0)).toBe(0);
   });
 
-  it("reveals skirt tiles in sight and shrouds them after vision leaves", () => {
+  it("keeps discovered skirt tiles revealed after vision leaves", () => {
     const s = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
     s.fog = makeFog(12, 12, 0);
     addUnit(s, 0, "infantry", 1, 1);
@@ -26,7 +26,7 @@ describe("out of bounds shroud", () => {
     s.entities[0]!.x = 10;
     s.entities[0]!.y = 10;
     tickFog(s);
-    expect(fogAt(s, -2, 1)).toBe(1);
+    expect(fogAt(s, -2, 1)).toBe(2);
     expect(fogAt(s, 10, 10)).toBe(2);
   });
 

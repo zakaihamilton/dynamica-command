@@ -41,7 +41,7 @@ function selectedCategory(pending: PendingAlerts): AlertCategory | undefined {
   return undefined;
 }
 
-export function flushPlayerAlerts(state: SimState, pending: PendingAlerts, events: SimEvent[]): void {
+export function flushPlayerAlerts(state: SimState, pending: PendingAlerts, events?: SimEvent[]): void {
   const category = selectedCategory(pending);
   if (!category) return;
   const mute = alertMute.get(state) ?? emptyMute();
@@ -49,7 +49,7 @@ export function flushPlayerAlerts(state: SimState, pending: PendingAlerts, event
   if (state.tick < until) return;
   mute[`${category}Until`] = state.tick + ALERT_MUTE_TICKS;
   alertMute.set(state, mute);
-  events.push(alertEvent(category));
+  events?.push(alertEvent(category));
 }
 
 function alertEvent(category: AlertCategory): SimEvent {

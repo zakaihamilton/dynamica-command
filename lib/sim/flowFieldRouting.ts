@@ -1,9 +1,31 @@
-import type { Entity, SimState, Vec2 } from "../types";
+import type { Entity, SimState } from "../types";
 import { flowCellTaken, flowDistanceAt, flowFieldFor, flowStep, type FlowField } from "./flowField";
 import { routePendingFor } from "./pathfinding";
 import { tryFindPathDetailed } from "./pathBudget";
 
 const FLOW_PATH_PREFIX_LENGTH = 1;
+
+type RankedFollower = { entity: Entity; field: FlowField; dist: number };
+type FlowRoutingBuffers = {
+  fields: Map<string, FlowField>;
+  followers: Entity[];
+  ranked: RankedFollower[];
+};
+
+const flowRoutingBuffers = new WeakMap<SimState, FlowRoutingBuffers>();
+
+function buffersFor(state: SimState): FlowRoutingBuffers {
+  const cached = flowRoutingBuffers.get(state);
+  if (cached) {
+    cached.fields.clear();
+    cached.followers.length = 0;
+    cached.ranked.length = 0;
+    return cached;
+  }
+  const buffers = { fields: new Map<string, FlowField>(), followers: [], ranked: [] };
+  flowRoutingBuffers.set(state, buffers);
+  return buffers;
+}
 
 /** Prepare a short shared-field path prefix for each active group follower. */
 export function prepareFlowFieldRoutes(
@@ -11,8 +33,7 @@ export function prepareFlowFieldRoutes(
   occupancy: Uint8Array,
   reserved: Map<number, number>,
 ): void {
-  const fields = new Map<string, FlowField>();
-  const followers: Entity[] = [];
+  const { fields, followers, ranked } = buffersFor(state);
   for (const entity of state.entities) {
     if (entity.hp <= 0 || entity.class !== "unit" || !entity.flowGoal || !entity.orderDestination) continue;
     const destination = entity.orderDestination;
@@ -33,13 +54,19 @@ export function prepareFlowFieldRoutes(
     followers.push(entity);
   }
 
-  const ranked = followers.map((entity) => {
+  for (let i = 0; i < followers.length; i++) {
+    const entity = followers[i]!;
     const goal = entity.flowGoal!;
     const key = `${state.navigationRevision ?? 0}:${Math.round(goal.x)}:${Math.round(goal.y)}`;
     const field = fields.get(key) ?? flowFieldFor(state, goal);
     fields.set(key, field);
-    return { entity, field, dist: flowDistanceAt(field, entity.x, entity.y) };
-  });
+    const entry = ranked[i] ?? { entity, field, dist: 0 };
+    entry.entity = entity;
+    entry.field = field;
+    entry.dist = flowDistanceAt(field, entity.x, entity.y);
+    ranked[i] = entry;
+  }
+  ranked.length = followers.length;
   ranked.sort((a, b) => a.dist - b.dist || a.entity.id - b.entity.id);
 
   for (const { entity, field } of ranked) {
@@ -54,27 +81,18 @@ function assignFlowPrefix(
   entity: Entity,
   field: FlowField,
 ): void {
-  const path: Vec2[] = [];
-  let cursor = { x: Math.round(entity.x), y: Math.round(entity.y) };
-  for (let i = 0; i < FLOW_PATH_PREFIX_LENGTH; i++) {
-    const step = flowStep(field, cursor.x, cursor.y, {
-      occupancy,
-      reserved,
-      ignoreId: entity.id,
-      state,
-    });
-    if (!step) break;
-    path.push(step);
-    cursor = step;
-  }
+  const cursorX = Math.round(entity.x);
+  const cursorY = Math.round(entity.y);
+  const next = FLOW_PATH_PREFIX_LENGTH > 0
+    ? flowStep(field, cursorX, cursorY, { occupancy, reserved, ignoreId: entity.id, state })
+    : undefined;
 
-  const next = path[0];
   const existing = entity.path[0];
   const nextFree = next ? prefixCellOpen(state, occupancy, reserved, entity.id, next.x, next.y) : false;
   const existingFree = existing ? prefixCellOpen(state, occupancy, reserved, entity.id, existing.x, existing.y) : false;
 
   if (next && nextFree) {
-    entity.path = path;
+    entity.path = [next];
     entity.routePending = true;
     reserveCell(state, reserved, entity.id, next.x, next.y);
     return;
@@ -85,7 +103,7 @@ function assignFlowPrefix(
     return;
   }
   if (next) {
-    entity.path = path;
+    entity.path = [next];
     entity.routePending = true;
     return;
   }

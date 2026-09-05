@@ -6,6 +6,7 @@ import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../..
 import { missionDifficulty } from "../../lib/sim/difficulty";
 import { powerFor } from "../../lib/sim/world";
 import { queueUnit } from "../../lib/sim/ai/helpers";
+import { assignAssault } from "../../lib/sim/ai/combat";
 
 describe("enemy AI", () => {
   it("builds toward a contested resource lane before committing another wave", () => {
@@ -50,6 +51,17 @@ describe("enemy AI", () => {
     s.tick = productionTick;
     tickAi(s);
 
+    expect(s.entities.some((entity) =>
+      entity.owner === 1 &&
+      entity.class === "building" &&
+      (entity.kind === "power" || entity.kind === "refinery") &&
+      entity.constructing > 0 &&
+      !initialBuildingIds.has(entity.id) &&
+      Math.hypot(entity.x - yard.x, entity.y - yard.y) >= 10,
+    )).toBe(true);
+
+    s.tick = productionTick + difficulty.enemyProductionEvery;
+    tickAi(s);
     expect(s.entities.some((entity) =>
       entity.owner === 1 &&
       entity.class === "building" &&
@@ -150,6 +162,22 @@ describe("enemy AI", () => {
     expect(s.aiState).toBe("assault");
     expect(even.attackTarget).toBe(harvester.id);
     expect(odd.attackTarget).toBe(playerYard.id);
+  });
+
+  it("checks the sorted raider cohort before skipping an assault refresh", () => {
+    const state = makeFixture({ width: 20, height: 20, win: { kind: "annihilate" } });
+    const enemyYard = addBuilding(state, 1, "constructionYard", 2, 2);
+    const playerYard = addBuilding(state, 0, "constructionYard", 16, 16);
+    const raider = addUnit(state, 1, "infantry", 10, 10);
+    const guard = addUnit(state, 1, "infantry", 3, 2);
+    guard.attackTarget = playerYard.id;
+
+    // The input order deliberately differs from distance order. The guard is
+    // already assigned, but the farther raider still needs an order.
+    assignAssault(state, [raider, guard], enemyYard, playerYard, false);
+
+    expect(guard.attackTarget).toBe(playerYard.id);
+    expect(raider.attackTarget).toBe(playerYard.id);
   });
 
   it("prioritizes a live convoy over the default harassment targets", () => {

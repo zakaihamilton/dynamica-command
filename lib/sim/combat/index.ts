@@ -1,4 +1,4 @@
-import { byId, distToEntity, living } from "../world";
+import { distToEntity, livingView } from "../world";
 import { rngFromState } from "../../seed/rng";
 import { buildGrid, statsFor, isCombatThreat, acquire, acquirePreferred, closestEnemy } from "./grid";
 import { lineOfSight, firingPosition } from "./targeting";
@@ -7,23 +7,14 @@ import { createPendingAlerts, flushPlayerAlerts } from "./alerts";
 import type { SimEvent, SimState } from "../../types";
 import { tryFindPath } from "../pathBudget";
 
-export function tickCombat(state: SimState): SimEvent[] {
-  const events: SimEvent[] = [];
-  const pending = createPendingAlerts();
+const EMPTY_EVENTS: SimEvent[] = [];
+
+export function tickCombat(state: SimState, eventSink?: SimEvent[], collectEvents = true): SimEvent[] {
+  const events = eventSink ?? (collectEvents ? [] : undefined);
+  const pending = collectEvents ? createPendingAlerts() : undefined;
   const rng = rngFromState(state.rngState);
   const grid = buildGrid(state);
-  const escortStaging = state.runtime?.kind === "escort" && state.runtime.convoyStartTick !== undefined;
-  for (const e of living(state)) {
-    if (escortStaging && e.owner === 1) {
-      e.attackTarget = undefined;
-      e.path = [];
-      e.routePending = false;
-      e.flowGoal = undefined;
-      e.orderMode = undefined;
-      e.orderDestination = undefined;
-      e.idle = true;
-      continue;
-    }
+  for (const e of livingView(state)) {
     if (e.class === "unit") e.suppression = Math.max(0, (e.suppression ?? 0) - 1);
     const st = statsFor(e);
     if (st.damage <= 0 || e.neutral) continue;
@@ -32,7 +23,9 @@ export function tickCombat(state: SimState): SimEvent[] {
 
     const ordered = e.class === "unit" && !e.idle;
     if (ordered && e.attackTarget !== undefined) {
-      const assigned = byId(state, e.attackTarget);
+      const assignedCandidate = grid.byId[e.attackTarget];
+      const assigned = assignedCandidate && assignedCandidate.hp > 0 ? assignedCandidate : undefined;
+      if (!assigned) e.attackTarget = undefined;
       if (!assigned) {
         e.attackTarget = undefined;
         resumeAttackMove(state, e);
@@ -99,7 +92,8 @@ export function tickCombat(state: SimState): SimEvent[] {
     const hold = stance === "hold";
     const defend = stance === "defensive";
     const inRangeThreat = hold ? undefined : closestEnemy(grid, e, st.range, true);
-    let target = inRangeThreat ?? (hold ? undefined : e.attackTarget !== undefined ? byId(state, e.attackTarget) : undefined);
+    let target = inRangeThreat ?? (hold ? undefined : e.attackTarget !== undefined ? grid.byId[e.attackTarget] : undefined);
+    if (target && target.hp <= 0) target = undefined;
     if (target && !isCombatThreat(state, target)) {
       const threat = hold || defend ? closestEnemy(grid, e, st.range, true) : acquire(grid, e, true);
       if (threat) {
@@ -130,7 +124,7 @@ export function tickCombat(state: SimState): SimEvent[] {
       e.attackTarget = undefined;
     }
   }
-  flushPlayerAlerts(state, pending, events);
+  if (events && pending) flushPlayerAlerts(state, pending, events);
   state.rngState = rng.state;
-  return events;
+  return events ?? EMPTY_EVENTS;
 }

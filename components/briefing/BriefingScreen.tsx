@@ -14,8 +14,10 @@ import type { BriefingLine } from "@/lib/types";
 import { BriefingActions } from "./BriefingActions";
 import { BriefingMast } from "./BriefingMast";
 import { BriefingObjectives } from "./BriefingObjectives";
+import { BriefingProfile } from "./BriefingProfile";
 import { BriefingAllyPortraits, BriefingEnemyPortrait } from "./BriefingPortraits";
 import { BriefingStory } from "./BriefingStory";
+import { profileContractFor, resolveMissionProfile } from "@/lib/gen/profile";
 import styles from "./BriefingScreen.module.css";
 import { useCampaignProgress } from "../campaign/useCampaignProgress";
 import { useBriefingController } from "./useBriefingController";
@@ -41,6 +43,9 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
     () => (def ? missionObjectives(def, campaign) : []),
     [def, campaign],
   );
+  const profileContract = def
+    ? profileContractFor(resolveMissionProfile(seed, def.index, def.win.kind, def.profile))
+    : undefined;
   const backLabel = returnToGame ? "Back to mission" : origin === "campaign" ? "Back to operations" : origin === "result" ? "Back to result" : "Back to menu";
 
   if (!def) {
@@ -89,6 +94,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
               speakerRole={liveRole}
             />
           </section>
+          {profileContract ? <BriefingProfile contract={profileContract} /> : null}
           <BriefingObjectives objectives={objectives} />
           <BriefingActions
             campaign={campaign}

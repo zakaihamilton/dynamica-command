@@ -423,6 +423,7 @@ describe("production and overlay helpers", () => {
     const state = createMission({ seed: 421, missionIndex: mission.index });
 
     expect(playFieldStatus(state, campaign).briefingObjectives).toEqual(missionObjectives(mission, campaign));
+    expect(playFieldStatus(state, campaign).profileLabel).toMatch(/Resource Race|Forward Industry|Direct Route|Contested Route|Surgical Strike|Siege|Concentrated Waves|Crossfire/);
   });
 });
 

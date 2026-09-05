@@ -1,9 +1,10 @@
 import { labelFor, TICKS_PER_SECOND } from "../catalog";
 import { formatMissionMinutesFromTicks, MAX_MISSION_TICKS } from "../gen/pacing";
+import { profileContractFor, resolveMissionProfile } from "../gen/profile";
 import { objectiveHeadline } from "../gen/story";
 import type { LossReason, MissionKind, Owner, SimState } from "../types";
 import { objectiveProgress, secondaryProgress } from "./objectives";
-import { living } from "./world";
+import { livingView } from "./world";
 
 export type ForceDebrief = {
   unitsRemaining: number;
@@ -13,7 +14,7 @@ export type ForceDebrief = {
 };
 
 function forceDebrief(state: SimState, owner: Owner): ForceDebrief {
-  const active = living(state).filter((entity) => entity.owner === owner);
+  const active = livingView(state).filter((entity) => entity.owner === owner);
   return {
     unitsRemaining: active.filter((entity) => entity.class === "unit").length,
     buildingsRemaining: active.filter((entity) => entity.class === "building").length,
@@ -76,11 +77,17 @@ export function missionLossMessage(state: SimState): string {
 export function missionDebrief(state: SimState) {
   const objective = objectiveProgress(state);
   const won = state.result === "won";
+  const profile = profileContractFor(resolveMissionProfile(state.seed, state.missionIndex, state.win.kind));
   return {
     outcome: won ? "Primary objective achieved." : missionLossMessage(state),
     objective: {
       headline: objectiveHeadline(state.win),
       progress: objective.label,
+    },
+    tactical: {
+      label: profile.label,
+      emphasis: profile.emphasis,
+      completed: won,
     },
     secondary: secondaryProgress(state),
     battle: {

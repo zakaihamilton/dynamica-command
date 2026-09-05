@@ -1,5 +1,6 @@
-import type { BiomeName, MissionKind } from "../types";
+import type { BiomeName, MissionKind, MissionProfile } from "../types";
 import { createRng, type Rng } from "../seed/rng";
+import { profileContractFor } from "./profile";
 
 const FIRST_FEM = [
   "Elena", "Irene", "Nadia", "Claire", "Helena", "Mara", "Lydia", "Kara", "Nina", "Ruth",
@@ -138,6 +139,9 @@ export function genEnemyTitle(rng: Rng): string {
   return rng.pick(ENEMY_TITLE);
 }
 
-export function genMissionTitle(rng: Rng, kind: MissionKind): string {
-  return rng.pick(MISSION_TITLES[kind]);
+export function genMissionTitle(rng: Rng, kind: MissionKind, profile?: MissionProfile): string {
+  const titles = MISSION_TITLES[kind];
+  if (!profile) return rng.pick(titles);
+  const profileBias = profileContractFor(profile).label.length % titles.length;
+  return titles[(rng.int(titles.length) + profileBias) % titles.length]!;
 }

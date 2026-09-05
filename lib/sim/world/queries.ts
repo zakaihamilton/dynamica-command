@@ -1,5 +1,17 @@
-import { footprintOf } from "../../catalog";
+import { BUILDING_STATS, footprintOf } from "../../catalog";
 import { isBuildingEntity, type Entity, type SimState, type TileKind, type Vec2 } from "../../types";
+
+type LivingCache = { tick: number; entities: SimState["entities"]; value: Entity[] };
+const livingCache = new WeakMap<SimState, LivingCache>();
+type EntityIndexCache = { entities: SimState["entities"]; value: Map<number, Entity> };
+const entityIndexCache = new WeakMap<SimState, EntityIndexCache>();
+type UnitAtCache = { tick: number; entities: SimState["entities"]; value: Array<Entity | undefined> };
+const unitAtCache = new WeakMap<SimState, UnitAtCache>();
+type UnitOccupancyCache = { tick: number; entities: SimState["entities"]; value: Uint8Array };
+const unitOccupancyCache = new WeakMap<SimState, UnitOccupancyCache>();
+type PowerTotals = { produced: number; used: number; surplus: number };
+type PowerCache = { tick: number; entities: SimState["entities"]; value: [PowerTotals, PowerTotals] };
+const powerCache = new WeakMap<SimState, PowerCache>();
 
 export function at(state: SimState, x: number, y: number): number {
   return y * state.width + x;
@@ -47,21 +59,122 @@ export function occupies(e: Entity, x: number, y: number): boolean {
 }
 
 export function unitAt(state: SimState, x: number, y: number): Entity | undefined {
-  return state.entities.find(
-    (e) => e.hp > 0 && e.class === "unit" && Math.round(e.x) === x && Math.round(e.y) === y,
-  );
+  if (!inBounds(state, x, y)) return undefined;
+  let cached = unitAtCache.get(state);
+  if (!cached || cached.tick !== state.tick || cached.entities !== state.entities) {
+    const value = cached?.value.length === state.width * state.height
+      ? cached.value
+      : new Array<Entity | undefined>(state.width * state.height);
+    value.fill(undefined);
+    for (const entity of state.entities) {
+      if (entity.hp <= 0 || entity.class !== "unit") continue;
+      const ex = Math.round(entity.x);
+      const ey = Math.round(entity.y);
+      if (!inBounds(state, ex, ey)) continue;
+      const key = ey * state.width + ex;
+      if (!value[key]) value[key] = entity;
+    }
+    cached = { tick: state.tick, entities: state.entities, value };
+    unitAtCache.set(state, cached);
+  }
+  return cached.value[y * state.width + x];
+}
+
+export function unitOccupied(state: SimState, x: number, y: number): boolean {
+  if (!inBounds(state, x, y)) return false;
+  return unitOccupancyFor(state)[y * state.width + x] === 1;
+}
+
+export function unitOccupancyFor(state: SimState): Uint8Array {
+  let cached = unitOccupancyCache.get(state);
+  if (!cached || cached.tick !== state.tick || cached.entities !== state.entities) {
+    const value = cached?.value.length === state.width * state.height ? cached.value : new Uint8Array(state.width * state.height);
+    value.fill(0);
+    for (const entity of state.entities) {
+      if (entity.hp <= 0 || entity.class !== "unit") continue;
+      const ex = Math.round(entity.x);
+      const ey = Math.round(entity.y);
+      if (inBounds(state, ex, ey)) value[ey * state.width + ex] = 1;
+    }
+    cached = { tick: state.tick, entities: state.entities, value };
+    unitOccupancyCache.set(state, cached);
+  }
+  return cached.value;
 }
 
 export function buildingAt(state: SimState, x: number, y: number): Entity | undefined {
   return state.entities.find((e) => e.class === "building" && occupies(e, x, y));
 }
 
+/** Internal per-tick living view. Callers must not mutate the returned array. */
+export function livingView(state: SimState): Entity[] {
+  const cached = livingCache.get(state);
+  if (cached?.tick === state.tick && cached.entities === state.entities) return cached.value;
+  const value = cached?.value ?? [];
+  value.length = 0;
+  for (const entity of state.entities) {
+    if (entity.hp > 0) value.push(entity);
+  }
+  livingCache.set(state, { tick: state.tick, entities: state.entities, value });
+  return value;
+}
+
+/** Return a stable snapshot so external callers cannot mutate the query cache. */
 export function living(state: SimState): Entity[] {
-  return state.entities.filter((e) => e.hp > 0);
+  return livingView(state).slice();
+}
+
+/** Invalidate the per-tick query result after a spawn or lethal damage. */
+export function invalidateLivingCache(state: SimState): void {
+  livingCache.delete(state);
+  entityIndexCache.delete(state);
+  powerCache.delete(state);
+  invalidateUnitAtCache(state);
+}
+
+export function invalidateUnitAtCache(state: SimState): void {
+  const unitAt = unitAtCache.get(state);
+  if (unitAt) unitAt.tick = -1;
+  const occupancy = unitOccupancyCache.get(state);
+  if (occupancy) occupancy.tick = -1;
+}
+
+export function invalidatePowerCache(state: SimState): void {
+  powerCache.delete(state);
+}
+
+/** Compute both factions' power totals once for the current simulation tick. */
+export function powerBreakdownFor(state: SimState, owner: 0 | 1): PowerTotals {
+  const cached = powerCache.get(state);
+  if (cached?.tick === state.tick && cached.entities === state.entities) return cached.value[owner];
+
+  const value: [PowerTotals, PowerTotals] = [
+    { produced: 0, used: 0, surplus: 0 },
+    { produced: 0, used: 0, surplus: 0 },
+  ];
+  for (const e of livingView(state)) {
+    if (!isBuildingEntity(e) || e.constructing > 0) continue;
+    const totals = value[e.owner];
+    const watt = BUILDING_STATS[e.kind].power;
+    if (watt >= 0) totals.produced += watt;
+    else totals.used -= watt;
+  }
+  value[0]!.surplus = value[0]!.produced - value[0]!.used;
+  value[1]!.surplus = value[1]!.produced - value[1]!.used;
+  powerCache.set(state, { tick: state.tick, entities: state.entities, value });
+  return value[owner];
 }
 
 export function byId(state: SimState, id: number): Entity | undefined {
-  return state.entities.find((e) => e.id === id && e.hp > 0);
+  let cached = entityIndexCache.get(state);
+  if (!cached || cached.entities !== state.entities) {
+    const value = new Map<number, Entity>();
+    for (const entity of state.entities) value.set(entity.id, entity);
+    cached = { entities: state.entities, value };
+    entityIndexCache.set(state, cached);
+  }
+  const entity = cached.value.get(id);
+  return entity && entity.hp > 0 ? entity : undefined;
 }
 
 export function dist(a: Vec2, b: Vec2): number {
@@ -71,12 +184,10 @@ export function dist(a: Vec2, b: Vec2): number {
 export function distToEntity(from: Vec2, e: Entity): number {
   if (!isBuildingEntity(e)) return Math.hypot(from.x - e.x, from.y - e.y);
   const fp = footprintOf(e.kind);
-  let best = Infinity;
-  for (let oy = 0; oy < fp.h; oy++) {
-    for (let ox = 0; ox < fp.w; ox++) {
-      const d = Math.hypot(from.x - (e.x + ox), from.y - (e.y + oy));
-      if (d < best) best = d;
-    }
-  }
-  return best;
+  // The closest footprint cell is independently the closest rounded source
+  // coordinate on each axis. This is equivalent to the old nested search for
+  // integer building positions, without allocating or iterating the footprint.
+  const x = Math.max(e.x, Math.min(e.x + fp.w - 1, Math.round(from.x)));
+  const y = Math.max(e.y, Math.min(e.y + fp.h - 1, Math.round(from.y)));
+  return Math.hypot(from.x - x, from.y - y);
 }

@@ -1,7 +1,7 @@
 import { isUnitAvailable, UNIT_STATS } from "../../catalog";
 import { TILE_RESOURCE } from "../../types";
 import type { Entity, SimState, UnitKind, Vec2 } from "../../types";
-import { BUILDING_PLACEMENT_RADIUS, canPlaceBuilding, findBuildSite, living, nearest, powerFor } from "../world";
+import { BUILDING_PLACEMENT_RADIUS, canPlaceBuilding, findBuildSite, livingView, nearest, powerFor } from "../world";
 
 export const RETREAT_ENTER_HEALTH = 0.35;
 export const RETREAT_RECOVER_HEALTH = 0.5;
@@ -53,9 +53,14 @@ export function contestedResourcePoint(state: SimState, yard: Entity): Vec2 | un
 }
 
 export function hasBuildingNear(state: SimState, kind: "power" | "refinery", point: Vec2, radius: number): boolean {
-  return living(state).some(
-    (entity) => entity.owner === 1 && entity.class === "building" && entity.kind === kind && distance(entity, point) <= radius,
-  );
+  const radius2 = radius * radius;
+  for (const entity of livingView(state)) {
+    if (entity.owner !== 1 || entity.class !== "building" || entity.kind !== kind) continue;
+    const dx = entity.x - point.x;
+    const dy = entity.y - point.y;
+    if (dx * dx + dy * dy <= radius2) return true;
+  }
+  return false;
 }
 
 export function forwardRelaySite(state: SimState, yard: Entity, point: Vec2): Vec2 | undefined {

@@ -1,4 +1,4 @@
-export { type GeneratedMap, mapSizeForMission, generateMap } from "./map/generator";
+export { type GeneratedMap, type MapAffordances, mapSizeForMission, generateMap } from "./map/generator";
 export {
   MAP_SKIRT,
   MAP_SKIRT_ALPHA,

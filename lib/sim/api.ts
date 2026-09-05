@@ -22,11 +22,17 @@ import { missionDifficulty } from "./difficulty";
 import { tickMovement } from "./movement";
 
 export { issue, inspect };
-export { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS } from "./scenarios";
+export { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS, scenarioAffordances, type ScenarioAffordances } from "./scenarios";
 
 export type TickOptions = {
   evaluateObjectives?: boolean;
+  /** Skip presentation-only event construction for headless simulation. */
+  collectEvents?: boolean;
+  /** Skip fog updates when no renderer consumes the state. */
+  updateFog?: boolean;
 };
+
+const EMPTY_EVENTS: SimEvent[] = [];
 
 export function createMission(opts: { seed: number; missionIndex: number }): SimState {
   const campaign = createCampaign(opts.seed);
@@ -155,27 +161,33 @@ export function tick(
   state: SimState,
   commands?: Command[],
   options: TickOptions = {},
-): { state: SimState; events: SimEvent[] } {
+): { state: SimState; events: SimEvent[]; commandRejections: number } {
   resetPathBudget();
-  const events: SimEvent[] = [];
-  if (commands?.length) events.push(...applyCommands(state, commands));
-  if (state.result !== "playing") return { state, events };
-  events.push(...tickProduction(state));
-  events.push(...tickEconomy(state));
+  const collectEvents = options.collectEvents !== false;
+  const events = collectEvents ? [] : EMPTY_EVENTS;
+  const commandEvents = commands?.length ? applyCommands(state, commands) : EMPTY_EVENTS;
+  const commandRejections = commandEvents.reduce(
+    (count, event) => count + (event.type === "commandRejected" ? 1 : 0),
+    0,
+  );
+  if (collectEvents) events.push(...commandEvents);
+  if (state.result !== "playing") return { state, events, commandRejections };
+  tickProduction(state, collectEvents ? events : undefined, collectEvents);
+  tickEconomy(state, collectEvents ? events : undefined, collectEvents);
   tickMovement(state);
-  events.push(...tickCombat(state));
-  events.push(...tickRepair(state));
-  events.push(...tickSupport(state));
-  events.push(...tickMissionDirector(state));
+  tickCombat(state, collectEvents ? events : undefined, collectEvents);
+  tickRepair(state, collectEvents ? events : undefined, collectEvents);
+  tickSupport(state, collectEvents ? events : undefined, collectEvents);
+  tickMissionDirector(state, collectEvents ? events : undefined, collectEvents);
   tickAi(state);
-  tickFog(state);
+  if (options.updateFog !== false) tickFog(state);
   state.tick += 1;
-  events.push(...tickScenario(state));
+  tickScenario(state);
   if (options.evaluateObjectives !== false) {
-    events.push(...evaluateObjectives(state));
+    evaluateObjectives(state, collectEvents ? events : undefined, collectEvents);
   }
   compactDestroyedEntities(state);
-  return { state, events };
+  return { state, events, commandRejections };
 }
 
 export function createCampaignAndMission(seed: number, missionIndex: number) {

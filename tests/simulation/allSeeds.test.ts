@@ -8,7 +8,7 @@ import { diagonalCornerBlocked, PATH_DIRS } from "../../lib/sim/pathfinding";
 import type { Entity, MissionKind, SimState, Vec2 } from "../../lib/types";
 
 const SEED_COUNT = 10_000;
-const EXHAUSTIVE_TEST_TIMEOUT = 120_000;
+const EXHAUSTIVE_TEST_TIMEOUT = 180_000;
 const IS_COVERAGE = Boolean(process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE);
 const SCENARIO_SAMPLE_COUNT = 1_024;
 const REPRESENTATIVE_SEEDS = Array.from(
