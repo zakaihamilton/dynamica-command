@@ -1,21 +1,14 @@
-import {
-  unitSprite,
-} from "@/lib/gen/assets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
 import { frameTickBudget, TICK_MS } from "@/lib/game/loop";
-import { TILE_H, tileToScreen, type Camera } from "@/lib/iso";
-import { animFrame, toFacing, unitMovementOffset } from "@/lib/render/anim";
-import { rasterize } from "@/lib/render/sprites";
+import { tileToScreen, type Camera } from "@/lib/iso";
 import {
   CINEMA_SCROLL_PAD,
   scrollLayerBlitOffset,
   scrollLayerNeedsRebuild,
   scrollLayerPaintCamera,
   terrainScrollPad,
-  type ScrollLayer,
 } from "@/lib/render/scrollLayer";
 import { terrainColors } from "@/lib/render/terrainMaterials";
-import { drawUnitShadow } from "@/lib/render/unitMotion";
 import { BUILDING_STATS, isSupportUnit, UNIT_STATS } from "@/lib/catalog";
 import { FX_DURATION } from "@/lib/render/fx";
 import { renderWorld } from "@/lib/render/renderer";
@@ -24,17 +17,21 @@ import { tick } from "@/lib/sim/api";
 import { nearest } from "@/lib/sim/world";
 import { assignAttack } from "@/lib/sim/ai/combat";
 import { assignSupportTarget } from "@/lib/sim/support";
-import type { Facing, UnitKind } from "@/lib/types";
-import { type Actor, type CinemaScene, type Shot } from "./scene";
+import type { UnitKind } from "@/lib/types";
+import { type CinemaScene, type Shot } from "./scene";
 import { cinemaCamera, cinemaOrigin, paintCinemaStatic } from "./paint";
+import {
+  type CinemaTerrainCache,
+  type RenderCinemaOptions,
+  CINEMA_TERRAIN_CACHE_LIMIT,
+  CINEMA_REFERENCE_FRAME_MS,
+  CINEMA_SHOT_LIFETIME_MS,
+  paintCinemaActor,
+  paintAmbientSignals,
+} from "./rendering/index";
 
-type CinemaTerrainCache = ScrollLayer & {
-  canvas: HTMLCanvasElement | null;
-};
+export * from "./rendering/index";
 
-const CINEMA_TERRAIN_CACHE_LIMIT = 4;
-const CINEMA_REFERENCE_FRAME_MS = 1000 / 60;
-const CINEMA_SHOT_LIFETIME_MS = 18 * CINEMA_REFERENCE_FRAME_MS;
 const cinemaTerrains = new Map<string, CinemaTerrainCache>();
 
 function cinemaTerrainContentKey(scene: CinemaScene, w: number, h: number, zoom: number): string {
@@ -134,7 +131,6 @@ function stepCinemaSimulation(scene: CinemaScene, shots: Shot[]): void {
       }
     }
 
-    // Cancel any distant retreat / sendHome paths from AI director so combatants hold the clash zone
     for (const e of scene.state.entities) {
       if (e.class !== "unit" || e.hp <= 0) continue;
       if (e.orderDestination && Math.hypot(e.orderDestination.x - cx, e.orderDestination.y - cy) > 4) {
@@ -146,7 +142,6 @@ function stepCinemaSimulation(scene: CinemaScene, shots: Shot[]): void {
       }
     }
 
-    // Re-lock combat units onto active tactical opponents within the clash radius
     const pCombat = scene.state.entities.filter(
       (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !isSupportUnit(e.kind as UnitKind) && UNIT_STATS[e.kind as UnitKind].damage > 0,
     );
@@ -168,7 +163,6 @@ function stepCinemaSimulation(scene: CinemaScene, shots: Shot[]): void {
       }
     }
 
-    // Support units (medic, repairTruck) prioritize healing / repairing wounded friendly units
     const supportUnits = scene.state.entities.filter(
       (e) => e.class === "unit" && e.hp > 0 && isSupportUnit(e.kind as UnitKind),
     );
@@ -178,7 +172,6 @@ function stepCinemaSimulation(scene: CinemaScene, shots: Shot[]): void {
         if (target) assignSupportTarget(scene.state, u, target);
       }
     }
-
   }
 }
 
@@ -216,12 +209,6 @@ export function stepCinemaScene(scene: CinemaScene, shots: Shot[], t: number, no
   for (let i = 0; i < budget.ticks; i++) stepCinemaSimulation(scene, shots);
 }
 
-export type RenderCinemaOptions = {
-  camera?: Camera;
-  paintAmbient?: boolean;
-  useTerrainCache?: boolean;
-};
-
 export function renderCinemaFrame(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -238,7 +225,6 @@ export function renderCinemaFrame(
   const followCamera = Boolean(options?.camera);
   const preview = !paintAmbient;
 
-  // Render actual game gameplay directly onto PIP feed once terrain is loaded
   if (preview && scene.state && isTerrainAtlasReady(scene.state)) {
     try {
       renderWorld(ctx, scene.state, cam, new Set(), null, {
@@ -298,122 +284,4 @@ export function renderCinemaFrame(
   }
 
   if (paintAmbient) paintAmbientSignals(ctx, w, h, t);
-}
-
-function actorFacing(actor: Actor): Facing {
-  const dest = actor.waypoints[actor.wi]!;
-  let dx = dest.x - actor.x;
-  let dy = dest.y - actor.y;
-  if (Math.hypot(dx, dy) < 0.05) {
-    const next = actor.waypoints[(actor.wi + 1) % actor.waypoints.length]!;
-    dx = next.x - actor.x;
-    dy = next.y - actor.y;
-  }
-  return toFacing(dx, dy);
-}
-
-function paintCinemaActor(
-  ctx: CanvasRenderingContext2D,
-  scene: CinemaScene,
-  cam: Camera,
-  actor: Actor,
-  t: number,
-  preview: boolean,
-  profile0: ReturnType<typeof generateVisualProfile>,
-  profile1: ReturnType<typeof generateVisualProfile>,
-): void {
-  const elev = scene.map.heights[Math.floor(actor.y) * scene.map.width + Math.floor(actor.x)] ?? 1;
-  const s = tileToScreen(actor.x, actor.y, cam, elev);
-  const pal = actor.owner === 0 ? scene.us.palette : scene.them.palette;
-  const facing = preview ? actorFacing(actor) : 0;
-  const frame = preview ? animFrame(t * 17, actor.kind === "antiArmor" ? 105 : 90, 4) : 0;
-  const spec = unitSprite(actor.kind, pal, {
-    profile: actor.owner === 0 ? profile0 : profile1,
-    facing,
-    animationFrame: frame,
-  });
-  const img = rasterize(spec);
-  const ax = (spec.anchorX ?? spec.w / 2) * cam.zoom;
-  const ay = (spec.anchorY ?? spec.h) * cam.zoom;
-  const groundX = s.x;
-  const groundY = s.y + (TILE_H / 2) * cam.zoom;
-  if (preview) {
-    drawUnitShadow(ctx, actor.kind, groundX, groundY, cam.zoom, 1, true);
-  }
-  const bob = preview ? unitMovementOffset(actor.kind, frame).bobY * cam.zoom : 0;
-  ctx.drawImage(img, s.x - ax, groundY - ay + bob, spec.w * cam.zoom, spec.h * cam.zoom);
-}
-
-function paintAmbientSignals(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void {
-  const minDimension = Math.min(w, h);
-  const sweep = ((t * 0.006) % 1) * Math.PI * 2;
-  const radarX = w * 0.84;
-  const radarY = h * 0.2;
-  const radarRadius = Math.max(34, minDimension * 0.13);
-  const reticleX = w * 0.16 + Math.sin(t * 0.004) * Math.min(24, w * 0.02);
-  const reticleY = h * 0.76 + Math.cos(t * 0.003) * Math.min(16, h * 0.02);
-  const pulse = 0.38 + Math.sin(t * 0.055) * 0.1;
-
-  ctx.save();
-  ctx.globalCompositeOperation = "screen";
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "#5ce1e6";
-  ctx.fillStyle = "#5ce1e6";
-
-  ctx.globalAlpha = 0.11;
-  ctx.beginPath();
-  ctx.arc(radarX, radarY, radarRadius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(radarX, radarY, radarRadius * 0.64, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(radarX - radarRadius, radarY);
-  ctx.lineTo(radarX + radarRadius, radarY);
-  ctx.moveTo(radarX, radarY - radarRadius);
-  ctx.lineTo(radarX, radarY + radarRadius);
-  ctx.stroke();
-
-  ctx.globalAlpha = 0.25;
-  ctx.beginPath();
-  ctx.moveTo(radarX, radarY);
-  ctx.lineTo(radarX + Math.cos(sweep) * radarRadius, radarY + Math.sin(sweep) * radarRadius);
-  ctx.stroke();
-
-  ctx.globalAlpha = pulse;
-  ctx.beginPath();
-  ctx.arc(reticleX, reticleY, 16 + Math.sin(t * 0.04) * 2, 0, Math.PI * 2);
-  ctx.moveTo(reticleX - 25, reticleY);
-  ctx.lineTo(reticleX - 7, reticleY);
-  ctx.moveTo(reticleX + 7, reticleY);
-  ctx.lineTo(reticleX + 25, reticleY);
-  ctx.moveTo(reticleX, reticleY - 25);
-  ctx.lineTo(reticleX, reticleY + 7);
-  ctx.moveTo(reticleX, reticleY + 7);
-  ctx.lineTo(reticleX, reticleY + 25);
-  ctx.stroke();
-
-  ctx.globalAlpha = 0.08;
-  const scanY = ((t * 0.45) % (h + 90)) - 45;
-  ctx.beginPath();
-  ctx.moveTo(0, scanY);
-  ctx.lineTo(w, scanY);
-  ctx.stroke();
-
-  ctx.globalAlpha = 0.18;
-  const cornerLength = Math.max(18, minDimension * 0.045);
-  for (const [x, y, xDirection, yDirection] of [
-    [18, 58, 1, 1],
-    [w - 18, 58, -1, 1],
-    [18, h - 34, 1, -1],
-    [w - 18, h - 34, -1, -1],
-  ] as const) {
-    ctx.beginPath();
-    ctx.moveTo(x, y + cornerLength * yDirection);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x + cornerLength * xDirection, y);
-    ctx.stroke();
-  }
-
-  ctx.restore();
 }
