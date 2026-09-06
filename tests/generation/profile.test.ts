@@ -86,13 +86,12 @@ describe("mission profiles", () => {
   it("exposes stable profiles and family-specific briefing hooks", () => {
     for (const seed of [0, 42, 421, 9999]) {
       const campaign = createCampaign(seed);
-      expect(campaign.missions).toHaveLength(8);
+      expect(campaign.missions).toHaveLength(6);
       expect(campaign.missions.every((mission) => mission.profile)).toBe(true);
       const kinds = campaign.missions.map((mission) => mission.win.kind);
       const specialKinds = kinds.filter((kind) => NEW_MISSION_KINDS.includes(kind));
-      expect(specialKinds).toHaveLength(4);
-      expect(new Set(specialKinds)).toEqual(new Set(NEW_MISSION_KINDS));
-      expect(kinds.filter((kind) => !NEW_MISSION_KINDS.includes(kind))).toHaveLength(4);
+      expect(specialKinds).toHaveLength(3);
+      expect(kinds.filter((kind) => !NEW_MISSION_KINDS.includes(kind))).toHaveLength(3);
 
       const briefingLines = campaign.missions.flatMap((mission) => mission.briefing.map((line) => line.text));
       expect(new Set(briefingLines).size).toBe(briefingLines.length);

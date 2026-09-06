@@ -8,7 +8,7 @@ import { isEditableTarget, menuCommandFromKey } from "@/lib/ui/shortcuts";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import type { MenuView } from "./MenuOverlay";
 import { tutorialPath } from "../game/hooks/missionRoutes";
-import { dailySeed, menuLaunchPath, rollSeed } from "./menuLaunch";
+import { menuLaunchPath, rollSeed, weeklySeed } from "./menuLaunch";
 
 export function useMenuController() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export function useMenuController() {
   }, [code]);
 
   const openNewGame = useCallback(() => {
-    setCode((current) => current.length === 4 ? current : dailySeed());
+    setCode((current) => current.length === 4 ? current : weeklySeed());
     setError("");
     setCopied(false);
     setView("newGame");
@@ -59,7 +59,7 @@ export function useMenuController() {
   }, []);
 
   const restoreDaily = useCallback(() => {
-    setCode(dailySeed());
+    setCode(weeklySeed());
     setError("");
     setCopied(false);
   }, []);

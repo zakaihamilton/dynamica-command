@@ -558,6 +558,9 @@ export function composeMusic(seed: number, cue: MusicCue, missionIndex = 0): Mus
   };
 
   smoothMelodyLine(notes.melody);
+  notes.counter = notes.counter.filter(
+    (note) => !notes.melody.some((lead) => lead.step === note.step && lead.midi === note.midi),
+  );
 
   return {
     cue,

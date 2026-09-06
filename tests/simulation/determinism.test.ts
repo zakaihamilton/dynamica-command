@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { createCampaign } from "../../lib/gen/campaign";
 import { NEW_MISSION_KINDS } from "../../lib/catalog";
 import { generateMap } from "../../lib/gen/map";
-import { BIOMES } from "../../lib/gen/names";
 import { MAX_MISSION_TICKS, MIN_MISSION_TICKS } from "../../lib/gen/pacing";
 import { createMission, inspect, tick } from "../../lib/sim/api";
 import { TILE_WATER } from "../../lib/types";
@@ -13,22 +12,20 @@ describe("determinism", () => {
     const b = createCampaign(0);
     expect(a).toEqual(b);
     expect(a.seed).toBe("0000");
-    expect(a.missions).toHaveLength(8);
+    expect(a.missions).toHaveLength(6);
     const kinds = a.missions.map((m) => m.win.kind);
-    expect(kinds.filter((kind) => NEW_MISSION_KINDS.includes(kind as typeof NEW_MISSION_KINDS[number]))).toHaveLength(4);
-    expect(new Set(kinds).size).toBe(8);
+    expect(kinds.filter((kind) => NEW_MISSION_KINDS.includes(kind as typeof NEW_MISSION_KINDS[number]))).toHaveLength(3);
+    expect(new Set(kinds).size).toBe(6);
     const biomes = a.missions.map((m) => m.biome);
-    expect(new Set(biomes).size).toBe(BIOMES.length);
-    expect([...biomes].sort()).toEqual([...BIOMES].sort());
+    expect(new Set(biomes).size).toBe(6);
   });
 
   it("assigns a unique biome to each mission from the seed", () => {
     for (const seed of [0, 42, 421, 9999]) {
       const campaign = createCampaign(seed);
       const biomes = campaign.missions.map((m) => m.biome);
-      expect(biomes).toHaveLength(8);
-      expect(new Set(biomes).size).toBe(8);
-      expect([...biomes].sort()).toEqual([...BIOMES].sort());
+      expect(biomes).toHaveLength(6);
+      expect(new Set(biomes).size).toBe(6);
       expect(createCampaign(seed).missions.map((m) => m.biome)).toEqual(biomes);
       const maps = campaign.missions.map((mission) => generateMap(seed, mission));
       expect(maps.map((map) => map.biome)).toEqual(biomes);

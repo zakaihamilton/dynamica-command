@@ -82,7 +82,7 @@ export function musicMissionContext(seed: number, missionIndex: number): MusicMi
 export function campaignMusicContexts(seed: number): MusicMissionContext[] {
   const biomes = pickMissionBiomes(seed);
   const kinds = pickMissionKinds(seed);
-  return biomes.map((biome, index) => ({ biome, missionKind: kinds[index] }));
+  return kinds.map((missionKind, index) => ({ biome: biomes[index] ?? biomes[0], missionKind }));
 }
 
 export function styleAffinityScore(name: MusicStyleName, ctx: MusicMissionContext): number {
@@ -158,11 +158,12 @@ export function pickAssignedItem<T>(
   if (missionIndex >= 0 && missionIndex < assigned.length) return assigned[missionIndex]!;
   const used = new Set(assigned);
   const leftover = items.filter((item) => !used.has(item));
-  return pickBestByScore(
-    leftover.length > 0 ? leftover : items,
-    (item) => scoreOf(item, fallbackCtx),
-    rng.fork(String(missionIndex)),
-  );
+  if (leftover.length === 0) {
+    return pickBestByScore(items, (item) => scoreOf(item, fallbackCtx), rng.fork(String(missionIndex)));
+  }
+  const orderedLeftover = rng.fork("leftover-order").shuffle(leftover);
+  const offset = missionIndex - assigned.length;
+  return orderedLeftover[offset % orderedLeftover.length]!;
 }
 
 export function applyMissionTints(style: MusicStyleProfile, ctx: MusicMissionContext): MusicStyleProfile {

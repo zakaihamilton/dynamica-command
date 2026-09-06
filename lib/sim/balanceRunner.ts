@@ -77,7 +77,7 @@ export function defaultBalanceJobs(scenarioCount: number): number {
 
 export function balanceScenarios(options: BalanceRunOptions): Array<{ seed: number; mission: number }> {
   const missions = [...new Set(options.missions)]
-    .filter((mission) => Number.isInteger(mission) && mission >= 0 && mission < 8)
+    .filter((mission) => Number.isInteger(mission) && mission >= 0 && mission < 6)
     .sort((a, b) => a - b);
   const from = Math.max(0, Math.min(9999, Math.floor(options.from)));
   const to = Math.max(0, Math.min(9999, Math.floor(options.to)));

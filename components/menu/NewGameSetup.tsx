@@ -7,7 +7,7 @@ import { SHORTCUT } from "@/lib/ui/shortcuts";
 import type { Campaign } from "@/lib/types";
 import type { CSSProperties, RefObject } from "react";
 import { SeedEntry } from "./SeedEntry";
-import { dailySeed } from "./menuLaunch";
+import { weeklySeed } from "./menuLaunch";
 import styles from "./NewGameSetup.module.css";
 
 const LONG_FACTION_CHARS = 24;
@@ -39,7 +39,7 @@ export function NewGameSetup({
   onLaunch: () => void;
   onBack: () => void;
 }) {
-  const isDaily = code === dailySeed();
+  const isSynchronized = code === weeklySeed();
   const factionLine = preview
     ? `${preview.factions[0].name} vs ${preview.factions[1].name}`
     : "";
@@ -48,10 +48,10 @@ export function NewGameSetup({
   return (
     <MetalPanel as="section" className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title" data-testid="deploy-screen">
       <div className={styles.intro}>
-        <ConsoleLabel>{isDaily ? "Dynamica command // Daily Challenge" : "Dynamica command // Custom Campaign"}</ConsoleLabel>
+        <ConsoleLabel>{isSynchronized ? "Dynamica command // Campaign of the Week" : "Dynamica command // Custom Campaign"}</ConsoleLabel>
         <h2 id="new-game-title" className={styles.title}>New campaign</h2>
         <p className={styles.copy}>
-          Today&apos;s daily seed is pre-rolled for all commanders. Launch to share the same battlefield, or enter any code to play a different campaign.
+          This week&apos;s synchronized campaign seed is active for all commanders. Launch to deploy into the shared theater, or enter any code to play a different campaign.
         </p>
         {preview && (
           <>
@@ -104,7 +104,7 @@ export function NewGameSetup({
         )}
         <div className={styles.introReadout}>
           <span>CAMPAIGN FORMAT</span>
-          <strong>8 OPERATIONS</strong>
+          <strong>6 OPERATIONS</strong>
           <span>SAME CODE, SAME CAMPAIGN · SAVED ON THIS DEVICE</span>
         </div>
       </div>
@@ -119,7 +119,7 @@ export function NewGameSetup({
           onChange={onChange}
           onRandomize={onRandomize}
           onToday={onToday}
-          todayDisabled={isDaily}
+          todayDisabled={isSynchronized}
           onLaunch={onLaunch}
         />
         <div className={styles.actions}>
@@ -151,7 +151,7 @@ export function NewGameSetup({
             Back
           </ConsoleButton>
         </div>
-        <p className={styles.hint}>R rolls a new campaign · Today restores the daily seed · Enter launches · Escape returns</p>
+        <p className={styles.hint}>R rolls a new campaign · Today restores the weekly seed · Enter launches · Escape returns</p>
       </div>
     </MetalPanel>
   );

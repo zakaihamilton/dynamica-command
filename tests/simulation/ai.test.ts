@@ -238,7 +238,7 @@ describe("enemy AI", () => {
   });
 
   it("keeps generated destroy-marked targets available to the AI guard logic", () => {
-    const s = createMission({ seed: 421, missionIndex: 5 });
+    const s = createMission({ seed: 421, missionIndex: 1 });
     expect(s.win.kind).toBe("destroyMarked");
     expect(s.runtime?.targetIds).toEqual(s.win.targetIds);
 

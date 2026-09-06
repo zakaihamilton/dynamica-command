@@ -54,7 +54,7 @@ describe("headless balance ticks", () => {
 
   it("matches long-running reference transitions", () => {
     for (const strategy of ["rush", "turtle", "greed", "infantry", "vehicles"] as const) {
-      const reference = createMission({ seed: 421, missionIndex: 7 });
+      const reference = createMission({ seed: 421, missionIndex: 5 });
       const headless = structuredClone(reference);
       const referenceCommander = new ArchetypeCommander(strategy);
       const headlessCommander = new ArchetypeCommander(strategy);

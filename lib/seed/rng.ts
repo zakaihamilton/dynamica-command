@@ -1,7 +1,7 @@
 export const SEED_MIN = 0;
 export const SEED_MAX = 9999;
 export const MISSION_MIN = 0;
-export const MISSION_MAX = 7;
+export const MISSION_MAX = 5;
 
 export function formatSeed(seed: number): string {
   return Math.max(SEED_MIN, Math.min(SEED_MAX, seed | 0))

@@ -10,7 +10,7 @@ describe("campaign balance sweep", () => {
   it("keeps every sampled mission playable and economically stable through its opening", () => {
     for (const seed of SEEDS) {
       const campaign = createCampaign(seed);
-      expect(campaign.missions).toHaveLength(8);
+      expect(campaign.missions).toHaveLength(6);
       for (const mission of campaign.missions) {
         const map = generateMap(seed, mission);
         const startTiles = [map.playerStart, map.enemyStart].map((point) => map.tiles[point.y * map.width + point.x]);
