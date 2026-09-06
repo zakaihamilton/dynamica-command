@@ -1,5 +1,5 @@
-import type { BalanceStrategy, MissionFamily, MissionKind, UnitKind } from "../types";
-import { missionFamilyFor } from "../gen/profile";
+import type { BalanceStrategy, MissionFamily, MissionKind, UnitKind } from "../../types";
+import { missionFamilyFor } from "../../gen/profile";
 
 export type BalanceRecord = {
   mission?: number;

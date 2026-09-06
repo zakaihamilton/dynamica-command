@@ -1,18 +1,18 @@
 import { useCallback, useLayoutEffect, useRef, type MutableRefObject, type PointerEvent } from "react";
-import { beep } from "@/lib/audio/synth";
-import { beepForCommands } from "@/lib/audio/uiOrders";
 import { pickTile } from "@/lib/render/renderer";
-import { commandMarkerKind, type CommandMarker } from "@/lib/render/renderOverlays";
+import type { CommandMarker } from "@/lib/render/renderOverlays";
 import { panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { type Camera } from "@/lib/iso";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import { canvasPointerPos } from "./canvasPointer";
-import { contextOrders, entityAt, pickSelectableEntity, pointerTile } from "./gameInputOrders";
+import { entityAt, pickSelectableEntity, pointerTile } from "./gameInputOrders";
 import { battlefieldCursor } from "@/lib/ui/battlefieldCursor";
-import { resolvePointerUp, isSameKindDoubleClick, type LastUnitClick, type PointerUpEffect } from "./gamePointerUp";
+import { resolvePointerUp, isSameKindDoubleClick, type LastUnitClick } from "./gamePointerUp";
 import { selectionBoxDistance, selectionProjectionPoint, type SelectionBox } from "./selectionBox";
 import { useTouchGestures } from "./useTouchGestures";
+import { useOrderDispatch } from "./useOrderDispatch";
+import { usePointerUpHandler } from "./usePointerUpHandler";
 
 export function useGameInput({
   stateRef,
@@ -95,31 +95,18 @@ export function useGameInput({
     syncCursor();
   }, [placeKind, repairMode, sellMode, selectedIds, syncCursor]);
 
-  const markUnitCommand = useCallback((s: SimState, p: { x: number; y: number }, commands: Command[]) => {
-    const kind = commandMarkerKind(commands);
-    if (!kind) return;
-    const { x, y } = pointerTile(s, p, camRef.current);
-    commandMarkerRef.current = { x, y, bornMs: performance.now(), kind };
-  }, [camRef]);
-
-  const issueContextOrder = useCallback((s: SimState, p: { x: number; y: number }, attackMove = false) => {
-    const { x: tx, y: ty } = pointerTile(s, p, camRef.current);
-    if (repairRef.current || sellRef.current) {
-      clearTools();
-      beep("cancel");
-      syncCursor();
-      return;
-    }
-    const ids = [...selectedRef.current];
-    const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
-    const commands = contextOrders(s, ids, target, tx, ty, attackMove);
-    cmdQRef.current.push(...commands);
-    markUnitCommand(s, p, commands);
-    mobileCommandRef.current = null;
-    setMobileCommandState(null);
-    const kind = beepForCommands(commands);
-    if (kind) beep(kind);
-  }, [camRef, clearTools, cmdQRef, markUnitCommand, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState, syncCursor]);
+  const { markUnitCommand, issueContextOrder } = useOrderDispatch({
+    camRef,
+    selectedRef,
+    cmdQRef,
+    repairRef,
+    sellRef,
+    clearTools,
+    mobileCommandRef,
+    setMobileCommandState,
+    commandMarkerRef,
+    syncCursor,
+  });
 
   const { beginTouch, moveTouch, endTouch, cancelTouch } = useTouchGestures({
     camRef,
@@ -129,32 +116,23 @@ export function useGameInput({
     issueContextOrder,
   });
 
-  const applyPointerUp = useCallback((effect: PointerUpEffect, event: PointerEvent<HTMLCanvasElement>) => {
-    if (effect.preventDefault) event.preventDefault();
-    if (effect.clearBox) boxRef.current = null;
-    if (effect.commands?.length) {
-      cmdQRef.current.push(...effect.commands);
-      markUnitCommand(stateRef.current, canvasPointerPos(event), effect.commands);
-    }
-    if (effect.select) commitSelection(effect.select);
-    if (effect.endSelectionMode) setSelectionMode(false);
-    if (effect.clearMobileCommand) {
-      mobileCommandRef.current = null;
-      setMobileCommandState(null);
-    }
-    if (effect.clearPlace) {
-      placeRef.current = null;
-      setPlaceKind(null);
-    }
-    if (effect.clearRepairAndSell) {
-      repairRef.current = false;
-      setRepairMode(false);
-      sellRef.current = false;
-      setSellMode(false);
-    }
-    if (effect.beep) beep(effect.beep);
-    syncCursor(event.currentTarget);
-  }, [cmdQRef, commitSelection, markUnitCommand, mobileCommandRef, placeRef, repairRef, sellRef, setMobileCommandState, setPlaceKind, setRepairMode, setSelectionMode, setSellMode, stateRef, syncCursor]);
+  const { applyPointerUp } = usePointerUpHandler({
+    stateRef,
+    cmdQRef,
+    boxRef,
+    commitSelection,
+    setSelectionMode,
+    mobileCommandRef,
+    setMobileCommandState,
+    placeRef,
+    setPlaceKind,
+    repairRef,
+    setRepairMode,
+    sellRef,
+    setSellMode,
+    markUnitCommand,
+    syncCursor,
+  });
 
   const onDown = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     canvasElRef.current = e.currentTarget;
@@ -187,9 +165,6 @@ export function useGameInput({
     return p;
   }, [camRef, stateRef, syncCursor]);
 
-  // Pointerenter is hover/cursor only. After setPointerCapture, browsers can emit a
-  // pointerenter with stale coordinates; treating that as a move turned taps into
-  // marquee-drags or pans and dropped the selection.
   const onEnter = useCallback((e: PointerEvent<HTMLCanvasElement>) => {
     canvasElRef.current = e.currentTarget;
     hoverAtPointer(e);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMission, tick } from "../../lib/sim/api";
 import { ArchetypeCommander } from "../../lib/sim/commander/archetypes";
-import { stratifiedBalanceScenarios } from "../../lib/sim/balanceRunner";
+import { stratifiedBalanceScenarios } from "../../lib/sim/balance";
 
 function withoutFog(state: ReturnType<typeof createMission>) {
   const { fog: _fog, ...outcomeState } = state;

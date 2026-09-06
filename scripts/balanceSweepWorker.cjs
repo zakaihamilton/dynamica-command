@@ -2,7 +2,7 @@
 require("tsx/cjs");
 
 const { parentPort, workerData } = require("node:worker_threads");
-const { runBalanceSweepJob } = require("../lib/sim/balanceRunner.ts");
+const { runBalanceSweepJob } = require("../lib/sim/balance/runner.ts");
 
 if (!parentPort) throw new Error("Balance sweep worker requires a parent port");
 

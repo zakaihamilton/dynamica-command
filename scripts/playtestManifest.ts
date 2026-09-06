@@ -1,4 +1,4 @@
-import { representativePlaytestManifest } from "../lib/sim/balanceRunner";
+import { representativePlaytestManifest } from "../lib/sim/balance/sampling";
 
 console.log(JSON.stringify({
   range: { from: 0, to: 39 },
