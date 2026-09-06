@@ -7,7 +7,7 @@ import {
   runBalanceScenarios,
   runBalanceSweepScenarios,
   stableBalanceRecords,
-} from "../../lib/sim/balanceRunner";
+} from "../../lib/sim/balance";
 
 describe("balance runner", () => {
   it("keeps serial and worker-thread results deterministic and identically ordered", async () => {

@@ -5,7 +5,7 @@ import {
   runBalanceJob,
   stableBalanceRecords,
   type BalanceScenario,
-} from "../../lib/sim/balanceRunner";
+} from "../../lib/sim/balance";
 
 const COMPETENT_EDGE_SCENARIOS: BalanceScenario[] = [
   { seed: 1, mission: 5 },

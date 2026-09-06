@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMission, inspect, tick } from "../../lib/sim/api";
 import { ARCHETYPE_STRATEGIES, ArchetypeCommander } from "../../lib/sim/commander/archetypes";
-import { hasNonFiniteState } from "../../lib/sim/balanceRunner";
+import { hasNonFiniteState } from "../../lib/sim/balance";
 import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
 import type { Command, Entity, MissionKind, SimState } from "../../lib/types";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultBalanceJobs, balanceScenarios, runBalanceJob, sortBalanceRecords, stableBalanceRecords, stratifiedBalanceScenarios } from "../../lib/sim/balanceRunner";
+import { defaultBalanceJobs, balanceScenarios, runBalanceJob, sortBalanceRecords, stableBalanceRecords, stratifiedBalanceScenarios } from "../../lib/sim/balance";
 
 describe("defaultBalanceJobs", () => {
   it("returns at least 1", () => {

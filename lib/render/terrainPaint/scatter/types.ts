@@ -1,0 +1,39 @@
+import type { BiomeName, SurfaceKind } from "../../../types";
+import { blockerPropKind, type BlockerPropKind } from "../../../gen/terrainDecorKinds";
+
+export { blockerPropKind };
+export type { BlockerPropKind };
+
+export type ScatterKind =
+  | "pebble"
+  | "pebbleCluster"
+  | "tuft"
+  | "shrub"
+  | "debris"
+  | "crystalChip"
+  | "reed"
+  | "cinder"
+  | "iceChip"
+  | "landmark";
+
+export type ScatterItem = {
+  kind: ScatterKind;
+  ox: number;
+  oy: number;
+  scale: number;
+  variant: number;
+};
+
+export type ScatterWorld = {
+  seed: number;
+  missionIndex?: number;
+  biome: BiomeName;
+  width: number;
+  height: number;
+  tiles: number[];
+  heights: number[];
+  surfaces: SurfaceKind[];
+};
+
+export const LUSH_SCATTER: ReadonlySet<ScatterKind> = new Set(["tuft", "shrub", "reed"]);
+export const ARID_SCATTER: ReadonlySet<ScatterKind> = new Set(["pebble", "pebbleCluster", "debris", "cinder"]);
