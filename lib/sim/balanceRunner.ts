@@ -221,7 +221,7 @@ function runScenario(
       openingCredits = state.credits[0];
       openingUnitsProducedByRole = { ...state.unitsProducedByRole };
     }
-    if (state.result === "playing") powerDeficit ||= powerBreakdown(state, 0).surplus < 0;
+    if (state.result === "playing" && state.losses.buildings[0] === 0) powerDeficit ||= powerBreakdown(state, 0).surplus < 0;
   }
   return {
     powerDeficit,

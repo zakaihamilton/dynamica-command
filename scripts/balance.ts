@@ -161,7 +161,7 @@ async function main() {
   strategies,
   jobs,
   range: { from, to },
-  missions: [...new Set(missions)].filter((mission) => Number.isInteger(mission) && mission >= 0 && mission < 8).sort((a, b) => a - b),
+  missions: [...new Set(missions)].filter((mission) => Number.isInteger(mission) && mission >= 0 && mission < 6).sort((a, b) => a - b),
   ticks: maxTicks,
   samples: records.length,
   timing: {

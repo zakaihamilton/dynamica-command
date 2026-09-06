@@ -130,6 +130,20 @@ describe("runBalanceJob", () => {
     expect(records[0]?.lossReason).toBe("yardDestroyed");
     expect(records[0]?.powerDeficit).toBe(false);
   });
+
+  it("does not count power deficit when power buildings are destroyed in combat on defeat", () => {
+    const records = runBalanceJob({
+      from: 7,
+      to: 7,
+      missions: [3],
+      maxTicks: 14400,
+      strategy: "rush",
+      scenarios: [{ seed: 7, mission: 3 }],
+    });
+    expect(records[0]?.result).toBe("lost");
+    expect(records[0]?.lossReason).toBe("yardDestroyed");
+    expect(records[0]?.powerDeficit).toBe(false);
+  });
 });
 
 describe("stratifiedBalanceScenarios", () => {
