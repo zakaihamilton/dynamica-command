@@ -35,7 +35,7 @@ Open the app, then choose **New Game** or type a seed such as `0421` and choose 
 | `yarn playtest:manifest` | Print the deterministic two-scenario-per-profile manual playtest manifest from seeds `0000`–`0039` |
 | `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
 
-For local E2E runs, the preflight launches the same headless browser used by Playwright and reports an actionable install/path error before starting the app. Run `yarn playwright install chromium`, or point at an installed browser with `PLAYWRIGHT_CHROME_PATH=/absolute/path/to/chrome yarn test:e2e`. Ubuntu CI installs and runs the bundled Chromium as the authoritative browser environment.
+For local E2E runs, the preflight launches the same headless browser used by Playwright and reports an actionable install/path error before starting the app. Run `yarn playwright install chromium webkit`, or point at an installed browser with `PLAYWRIGHT_CHROME_PATH=/absolute/path/to/chrome yarn test:e2e`. Ubuntu CI runs bundled Chromium and WebKit; the iPhone touch suite uses WebKit.
 
 ## How a seed works
 

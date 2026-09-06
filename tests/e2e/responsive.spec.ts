@@ -497,8 +497,9 @@ test.describe("mobile-first layouts", () => {
     const canvas = page.getByTestId("battlefield-canvas");
     const closedCanvasBounds = await canvas.boundingBox();
     expect(closedCanvasBounds).not.toBeNull();
-    expect(closedCanvasBounds!.width).toBe(390);
-    expect(closedCanvasBounds!.height).toBe(844);
+    // WebKit can round viewport units to fractional CSS pixels.
+    expect(closedCanvasBounds!.width).toBeCloseTo(390, 0);
+    expect(closedCanvasBounds!.height).toBeCloseTo(844, 0);
 
     await launcher.getByTestId("mobile-command-toggle").click();
     const panel = page.getByTestId("command-sidebar");

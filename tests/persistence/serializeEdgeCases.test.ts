@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   decodeSave,
+  decodeSavedState,
   deserializeState,
   saveKey,
   serializeState,
@@ -243,4 +244,17 @@ describe("normalizeState edge cases", () => {
     (state as { height: unknown }).height = 0;
     expect(() => deserializeState(serializeState(state))).toThrow("Invalid save state");
   });
+});
+
+describe("save allocation limits", () => {
+  it.each([[257, 1], [1, 257], [1e9, 1e9], [Infinity, 1]])(
+    "rejects dimensions %s × %s before reading map arrays",
+    (width, height) => {
+      const state = { ...baseState(), width, height };
+      Object.defineProperty(state, "heights", {
+        get() { throw new Error("map allocation path reached"); },
+      });
+      expect(() => decodeSavedState(state)).toThrow("Invalid save state");
+    },
+  );
 });

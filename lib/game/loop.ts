@@ -28,7 +28,7 @@ export type LoopOptions = {
   drainCommands: () => Command[];
   step: SimulationStep;
   isPaused?: () => boolean;
-  onFrame?: (now: number, state: SimState, paused: boolean, subTickAlpha: number) => void;
+  onFrame?: (now: number, state: SimState, paused: boolean, subTickAlpha: number, frameMs: number) => void;
   onTick?: (state: SimState, events: SimEvent[], now: number) => void;
   onEvents?: (events: SimEvent[]) => void;
 };
@@ -70,11 +70,12 @@ export function startLoop({
     if (paused) {
       acc = 0;
       last = now;
-      onFrame?.(now, state, true, 0);
+      onFrame?.(now, state, true, 0, 0);
       raf = requestAnimationFrame(frame);
       return;
     }
-    acc += now - last;
+    const frameMs = Math.max(0, now - last);
+    acc += frameMs;
     last = now;
     const budget = frameTickBudget(acc);
     acc = budget.acc;
@@ -88,7 +89,7 @@ export function startLoop({
     }
     if (state.result !== "playing") acc = 0;
     const subTickAlpha = state.result === "playing" ? Math.max(0, Math.min(1, acc / TICK_MS)) : 1;
-    onFrame?.(now, state, false, subTickAlpha);
+    onFrame?.(now, state, false, subTickAlpha, Math.min(frameMs, 100));
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);

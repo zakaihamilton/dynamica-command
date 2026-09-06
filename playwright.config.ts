@@ -10,16 +10,15 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:3100",
     headless: true,
-    ...(chromePath ? { launchOptions: { executablePath: chromePath } } : {}),
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"], ...(chromePath ? { launchOptions: { executablePath: chromePath } } : {}) } },
     {
       name: "iphone-touch",
       testMatch: /responsive\.spec\.ts/,
-      use: { ...devices["iPhone 13"], browserName: "chromium" },
+      use: { ...devices["iPhone 13"], browserName: "webkit" },
     },
-    { name: "android-touch", testMatch: /responsive\.spec\.ts/, use: { ...devices["Pixel 5"] } },
+    { name: "android-touch", testMatch: /responsive\.spec\.ts/, use: { ...devices["Pixel 5"], ...(chromePath ? { launchOptions: { executablePath: chromePath } } : {}) } },
   ],
   webServer: {
     command: "yarn build && PORT=3100 HOSTNAME=127.0.0.1 yarn start",

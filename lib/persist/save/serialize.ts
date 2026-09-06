@@ -77,8 +77,8 @@ export function deserializeState(raw: string): SimState {
 function normalizeState(value: unknown): SimState {
   if (!isRecord(value)) throw new Error("Invalid save state");
   if (
-    typeof value.width !== "number" || !Number.isInteger(value.width) || value.width <= 0 ||
-    typeof value.height !== "number" || !Number.isInteger(value.height) || value.height <= 0
+    typeof value.width !== "number" || !Number.isInteger(value.width) || value.width <= 0 || value.width > 256 ||
+    typeof value.height !== "number" || !Number.isInteger(value.height) || value.height <= 0 || value.height > 256
   ) {
     throw new Error("Invalid save state");
   }

@@ -119,3 +119,26 @@ describe("startLoop", () => {
     expect(cancel).toHaveBeenCalledOnce();
   });
 });
+
+describe("frame elapsed time", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it.each([30, 60, 144])("reports one second of camera time at %s Hz", (hz) => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    let frame: FrameRequestCallback;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frame = callback; return 1; });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const state = createMission({ seed: 421, missionIndex: 0 });
+    let distance = 0;
+    const loop = startLoop({
+      getState: () => state, setState: () => {}, drainCommands: () => [],
+      step: (s) => ({ state: s, events: [] }),
+      onFrame: (_now, _s, _paused, _alpha, frameMs) => { distance += 600 * frameMs / 1000; },
+    });
+    for (let i = 1; i <= hz; i++) frame!(i * 1000 / hz);
+    expect(distance).toBeCloseTo(600);
+    frame!(60_000);
+    expect(distance).toBeCloseTo(660);
+    loop.stop();
+  });
+});

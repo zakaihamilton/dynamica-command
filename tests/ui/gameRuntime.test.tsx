@@ -394,3 +394,41 @@ describe("useGameRuntime", () => {
     expect(pauseMusic).toHaveBeenCalledOnce();
   });
 });
+
+describe("automatic save recovery", () => {
+  it("retries a failed terminal save without duplicating telemetry", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const state = { ...result.current.playField.state, result: "lost" as const };
+    const options = (startLoop.mock.calls as unknown as [{ onFrame: (now: number, snapshot: typeof state, paused: boolean, alpha: number, frameMs: number) => void }][])[0]![0];
+    const original = Storage.prototype.setItem;
+    let attempts = 0;
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
+      if (key === saveKey(421) && ++attempts === 1) throw new Error("quota");
+      original.call(this, key, value);
+    });
+    act(() => options.onFrame(1000, state, false, 0, 16));
+    expect(readSave(localStorageAdapter(), 421)?.result).not.toBe("lost");
+    expect(result.current.playField.combatAlert).toContain("could not be saved");
+    act(() => options.onFrame(1500, state, false, 0, 16));
+    expect(attempts).toBe(1);
+    act(() => options.onFrame(2000, state, false, 0, 16));
+    expect(readSave(localStorageAdapter(), 421)?.result).toBe("lost");
+    expect(result.current.playField.combatAlert).toBe("Progress saved.");
+    act(() => options.onFrame(3000, state, false, 0, 16));
+    expect(attempts).toBe(2);
+    expect(JSON.parse(localStorage.getItem(TELEMETRY_KEY)!).records).toHaveLength(1);
+    spy.mockRestore();
+  });
+
+  it("does not overwrite an external save after a terminal conflict", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const state = { ...result.current.playField.state, result: "lost" as const };
+    const external = { ...state, tick: 123, result: "playing" as const };
+    writeSave(localStorageAdapter(), external);
+    const options = (startLoop.mock.calls as unknown as [{ onFrame: (now: number, snapshot: typeof state, paused: boolean, alpha: number, frameMs: number) => void }][])[0]![0];
+    act(() => options.onFrame(1000, state, false, 0, 16));
+    act(() => options.onFrame(3000, state, false, 0, 16));
+    expect(readSave(localStorageAdapter(), 421)?.tick).toBe(123);
+    expect(result.current.playField.combatAlert).toContain("changed in another tab");
+  });
+});

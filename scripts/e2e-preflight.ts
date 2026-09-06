@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { chromium } from "@playwright/test";
+import { chromium, webkit } from "@playwright/test";
 
 const configuredPath = process.env.PLAYWRIGHT_CHROME_PATH;
 
@@ -16,11 +16,13 @@ async function main() {
       ...(configuredPath ? { executablePath: configuredPath } : {}),
     });
     await browser.close();
-    console.log(`Playwright browser preflight passed${configuredPath ? ` using ${configuredPath}` : " using the bundled Chromium"}.`);
+    browser = await webkit.launch({ headless: true });
+    await browser.close();
+    console.log(`Playwright Chromium and WebKit preflight passed${configuredPath ? ` using ${configuredPath}` : " using the bundled Chromium"}.`);
   } catch (error) {
     await browser?.close().catch(() => undefined);
     console.error("Playwright preflight failed: the configured browser could not launch.");
-    console.error("Install Chromium with `yarn playwright install chromium`, or set PLAYWRIGHT_CHROME_PATH to a runnable Chrome/Chromium executable.");
+    console.error("Install browsers with `yarn playwright install chromium webkit`. PLAYWRIGHT_CHROME_PATH overrides Chromium only.");
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   }

@@ -7,7 +7,7 @@ import { startLoop } from "@/lib/game/loop";
 import { tick } from "@/lib/sim/api";
 import { completeMission, readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
 import { cachedLocalStorage } from "@/lib/persist/save";
-import { saveKey, type SaveSession } from "@/lib/persist/save";
+import { saveKey, type SaveSession, type SaveWriteStatus } from "@/lib/persist/save";
 import { recordTelemetry, telemetryFromMission } from "@/lib/persist/telemetry";
 import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import { burstsFromEvents, type FxBurst } from "@/lib/render/fx";
@@ -69,6 +69,27 @@ export function useGameLoop({
     let appliedIntensity: MusicIntensity = "calm";
     let lastCombatTick = Number.NEGATIVE_INFINITY;
     let nextCampaignSaveAttemptMs = 0;
+    let nextSaveAttemptMs = 0;
+    let retrySave = false;
+    let lastSaveStatus: SaveWriteStatus = "saved";
+    let terminalPresented = terminalSaveRef.current;
+    const saveImplicit = (state: SimState, now: number) => {
+      const status = saveSession.write(state, "implicit");
+      retrySave = status === "failed";
+      nextSaveAttemptMs = now + CAMPAIGN_SAVE_RETRY_MS;
+      if (status !== lastSaveStatus) {
+        const message = status === "conflict"
+          ? "Autosave paused: this campaign changed in another tab. Use Save Mission or Load Mission to resolve it."
+          : status === "failed"
+            ? "Progress could not be saved. Retrying; check available browser storage."
+            : "Progress saved.";
+        onAlert(message);
+        onTacticalAnnouncement(message);
+      }
+      lastSaveStatus = status;
+      if (status === "saved" && state.result !== "playing") terminalSaveRef.current = true;
+      return status;
+    };
     let commandApplied = false;
     let commandsIssued = 0;
     let commandRejections = 0;
@@ -85,7 +106,7 @@ export function useGameLoop({
       cancelIdle();
       const run = () => {
         idleHandle = null;
-        saveSession.write(stateRef.current, "implicit");
+        saveImplicit(stateRef.current, performance.now());
       };
       if (typeof requestIdleCallback === "function") {
         idleViaTimeout = false;
@@ -98,7 +119,7 @@ export function useGameLoop({
     const saveOnPageHide = () => {
       if (!persistCampaign) return;
       const current = stateRef.current;
-      saveSession.write(current, "implicit");
+      saveImplicit(current, performance.now());
     };
     const onStorage = (event: StorageEvent) => {
       if (event.storageArea && event.storageArea !== window.localStorage) return;
@@ -171,24 +192,25 @@ export function useGameLoop({
           fxRef.current.push(...spawned.bursts);
         }
       },
-      onFrame: (now, s, paused, subTickAlpha) => {
+      onFrame: (now, s, paused, subTickAlpha, frameMs) => {
+        const panStep = 600 * frameMs / 1000;
         if (!paused) {
           const cam = camRef.current;
           const canvas = canvasRef.current;
           const bounds = canvas
             ? cameraPanBounds(cam, s.width, s.height, canvas.width, canvas.height)
             : undefined;
-          if (keys.current.w || keys.current.ArrowUp) panCamera(cam, 0, 10, bounds);
-          if (keys.current.s || keys.current.ArrowDown) panCamera(cam, 0, -10, bounds);
-          if (keys.current.a || keys.current.ArrowLeft) panCamera(cam, 10, 0, bounds);
-          if (keys.current.d || keys.current.ArrowRight) panCamera(cam, -10, 0, bounds);
+          if (keys.current.w || keys.current.ArrowUp) panCamera(cam, 0, panStep, bounds);
+          if (keys.current.s || keys.current.ArrowDown) panCamera(cam, 0, -panStep, bounds);
+          if (keys.current.a || keys.current.ArrowLeft) panCamera(cam, panStep, 0, bounds);
+          if (keys.current.d || keys.current.ArrowRight) panCamera(cam, -panStep, 0, bounds);
           const hoveredEdge = edgePanHover.current;
           const hold = hoveredEdge && now - hoveredEdge.startedAt >= EDGE_PAN_DELAY_MS ? hoveredEdge.dir : null;
           panHold.current = hold;
           if (hold && bounds) {
             if (!panAvailability(cam, bounds)[hold]) applyEdgePan(null);
             else {
-              const off = panOffset(hold);
+              const off = panOffset(hold, panStep);
               panCamera(cam, off.dx, off.dy, bounds);
             }
           } else if (bounds) {
@@ -206,10 +228,11 @@ export function useGameLoop({
           edgePanHover.current = null;
           panHold.current = null;
         }
-        if (s.result !== "playing" && !terminalSaveRef.current) {
-          terminalSaveRef.current = true;
+        if (s.result !== "playing" && !terminalPresented) {
+          terminalPresented = true;
           if (persistCampaign) {
-            saveSession.write(s, "implicit");
+            cancelIdle();
+            saveImplicit(s, now);
             recordTelemetry(
               cachedLocalStorage(),
               telemetryFromMission(s, { commandsIssued, commandRejections }),
@@ -217,6 +240,7 @@ export function useGameLoop({
           }
           setState({ ...s, entities: [...s.entities] });
         }
+        if (persistCampaign && retrySave && now >= nextSaveAttemptMs) saveImplicit(s, now);
         if (persistCampaign && s.result === "won" && !campaignRecordedRef.current) {
           if (now >= nextCampaignSaveAttemptMs) {
             const progress = readCampaignProgress(cachedLocalStorage(), s.seed);

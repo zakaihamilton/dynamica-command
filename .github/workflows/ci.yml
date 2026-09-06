@@ -98,7 +98,7 @@ jobs:
           node-version: 22.22.2
           cache: yarn
       - run: yarn install --frozen-lockfile
-      - run: yarn playwright install --with-deps chromium
+      - run: yarn playwright install --with-deps chromium webkit
       - run: yarn test:e2e
         env:
           CI: true
