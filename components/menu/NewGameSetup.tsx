@@ -8,6 +8,7 @@ import type { Campaign } from "@/lib/types";
 import type { CSSProperties, RefObject } from "react";
 import { SeedEntry } from "./SeedEntry";
 import { weeklySeed } from "./menuLaunch";
+import { useWeeklyCountdown } from "./useWeeklyCountdown";
 import styles from "./NewGameSetup.module.css";
 
 const LONG_FACTION_CHARS = 24;
@@ -39,6 +40,7 @@ export function NewGameSetup({
   onLaunch: () => void;
   onBack: () => void;
 }) {
+  const { countdown, week } = useWeeklyCountdown();
   const isSynchronized = code === weeklySeed();
   const factionLine = preview
     ? `${preview.factions[0].name} vs ${preview.factions[1].name}`
@@ -104,8 +106,8 @@ export function NewGameSetup({
         )}
         <div className={styles.introReadout}>
           <span>CAMPAIGN FORMAT</span>
-          <strong>6 OPERATIONS</strong>
-          <span>SAME CODE, SAME CAMPAIGN · SAVED ON THIS DEVICE</span>
+          <strong>{isSynchronized ? `6 OPERATIONS · WEEK ${week}` : "6 OPERATIONS"}</strong>
+          <span>{isSynchronized ? `RESETS IN ${countdown} · MONDAY 00:00 UTC` : "SAME CODE, SAME CAMPAIGN · SAVED ON THIS DEVICE"}</span>
         </div>
       </div>
 

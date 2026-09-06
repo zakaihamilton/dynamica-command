@@ -16,6 +16,21 @@ export function weeklySeed(now = Date.now()): string {
   return formatSeed(hash32(`weekly:${week}`) % 10000);
 }
 
+export function timeUntilNextWeeklyReset(now = Date.now()): number {
+  const EPOCH_MONDAY_OFFSET = 259_200_000;
+  const nextReset = (weeklyIndex(now) + 1) * MS_PER_WEEK - EPOCH_MONDAY_OFFSET;
+  return Math.max(0, nextReset - now);
+}
+
+export function formatWeeklyCountdown(now = Date.now()): string {
+  const remaining = timeUntilNextWeeklyReset(now);
+  const days = Math.floor(remaining / MS_PER_DAY);
+  const hours = Math.floor((remaining % MS_PER_DAY) / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  if (days > 0) return `${days}d ${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
 export function dailySeed(now = Date.now()): string {
   const dayIndex = Math.floor(now / MS_PER_DAY);
   return formatSeed(hash32(`daily:${dayIndex}`) % 10000);
