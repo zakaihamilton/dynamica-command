@@ -8,7 +8,7 @@ const UNIT_KINDS: UnitKind[] = ["infantry", "antiArmor", "tank", "harvester"];
 const BUILDING_KINDS: BuildingKind[] = ["power", "barracks", "refinery", "factory", "turret"];
 
 function denseLateGameState(): SimState {
-  const state = createMission({ seed: 421, missionIndex: 7 });
+  const state = createMission({ seed: 421, missionIndex: 5 });
   const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
   if (!yard) throw new Error("Dense performance fixture needs a player construction yard");
 
@@ -56,7 +56,7 @@ test("keeps full battlefield frames within budget with a dense late-game state",
   }, { key: saveKey(state.seed), raw: saveEnvelope(state) });
 
   await page.setViewportSize({ width: 1600, height: 900 });
-  await page.goto("/play?seed=0421&mission=7&resume=1&perf=1");
+  await page.goto("/play?seed=0421&mission=5&resume=1&perf=1");
   await expect(page.getByTestId("battlefield-canvas")).toBeVisible();
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await page.keyboard.press("Escape");
@@ -88,7 +88,7 @@ test("keeps mobile battlefield frames within budget with a dense late-game state
   }, { key: saveKey(state.seed), raw: saveEnvelope(state) });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/play?seed=0421&mission=7&resume=1&perf=1");
+  await page.goto("/play?seed=0421&mission=5&resume=1&perf=1");
   await expect(page.getByTestId("battlefield-canvas")).toBeVisible();
   await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
   await page.keyboard.press("Escape");
