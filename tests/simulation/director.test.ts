@@ -20,7 +20,7 @@ describe("mission director", () => {
   });
 
   it("escalates a mission with deterministic reserve waves", () => {
-    const state = createMission({ seed: 421, missionIndex: 0 });
+    const state = createMission({ seed: 2, missionIndex: 0 });
     const director = state.runtime?.director;
     expect(director).toBeDefined();
     expect(director?.phase).toBe("opening");
@@ -80,7 +80,7 @@ describe("mission director", () => {
 
   it("keeps profile finales behind the legacy late-mission floor", () => {
     for (const seed of [0, 421, 9999]) {
-      for (const missionIndex of [0, 3, 7]) {
+      for (const missionIndex of [0, 2, 5]) {
         const state = createMission({ seed, missionIndex });
         const timeline = directorTimeline(state);
         const horizon = state.runtime?.deadline ?? state.win.ticks ?? 3600;

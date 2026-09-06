@@ -73,7 +73,7 @@ export function SeedEntry({
             <ConsoleButton
               muted
               className={styles.today}
-              tooltip={todayDisabled ? "Already on today's campaign" : "Return to today's daily campaign"}
+              tooltip={todayDisabled ? "Already on this week's campaign" : "Return to this week's campaign"}
               onClick={onToday}
               disabled={todayDisabled}
             >

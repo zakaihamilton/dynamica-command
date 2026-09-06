@@ -236,12 +236,12 @@ describe("CampaignCompleteScreen", () => {
     expect(screen.getByTestId("mission-card-1")).toHaveAccessibleName(/Deploy mission 2/i);
     expect(screen.getByTestId("mission-card-2")).toHaveAccessibleName(/Locked mission 3/i);
 
-    fireEvent.click(screen.getByTestId("mission-card-1"));
+    fireEvent.click(screen.getByTestId("mission-card-2"));
     expect(screen.getByTestId("mission-detail")).toHaveTextContent(/Primary objective/i);
     expect(screen.getByTestId("mission-detail")).toHaveTextContent(/Secondary objectives/i);
     expect(screen.getByTestId("mission-detail")).toHaveTextContent(/Time limit/i);
     expect(screen.getByTestId("mission-detail")).toHaveTextContent(/Unlocks after completion/i);
-    fireEvent.click(screen.getByTestId("mission-card-5"));
+    fireEvent.click(screen.getByTestId("mission-card-4"));
     expect(screen.getByTestId("mission-detail")).toHaveTextContent(/Expected duration/i);
     fireEvent.click(screen.getByTestId("mission-card-1"));
     fireEvent.click(screen.getByTestId("launch-selected-mission"));

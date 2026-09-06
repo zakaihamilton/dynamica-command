@@ -49,15 +49,15 @@ describe("tactical expansion", () => {
 
   it("ramps enemy pressure across the campaign instead of starting at endgame strength", () => {
     const opening = createMission({ seed: 421, missionIndex: 0 });
-    const finale = createMission({ seed: 421, missionIndex: 7 });
+    const finale = createMission({ seed: 421, missionIndex: 5 });
     const openingEnemy = opening.entities.filter((entity) => entity.owner === 1 && entity.hp > 0);
     const finaleEnemy = finale.entities.filter((entity) => entity.owner === 1 && entity.hp > 0);
 
     expect(opening.entities.some((entity) => entity.owner === 0 && entity.kind === "barracks")).toBe(true);
     expect(openingEnemy.some((entity) => entity.kind === "tank" || entity.kind === "turret")).toBe(false);
     expect(finaleEnemy.some((entity) => entity.kind === "tank" || entity.kind === "turret")).toBe(true);
-    expect(missionDifficulty(0).enemyProductionStart).toBeGreaterThan(missionDifficulty(7).enemyProductionStart);
-    expect(missionDifficulty(0).enemyAssaultEvery).toBeGreaterThan(missionDifficulty(7).enemyAssaultEvery);
+    expect(missionDifficulty(0).enemyProductionStart).toBeGreaterThan(missionDifficulty(5).enemyProductionStart);
+    expect(missionDifficulty(0).enemyAssaultEvery).toBeGreaterThan(missionDifficulty(5).enemyAssaultEvery);
   });
 
   it("keeps offensive starting defenses in the mission difficulty data", () => {
@@ -344,7 +344,7 @@ describe("tactical expansion", () => {
   });
 
   it("places extraction drop-off at the player construction yard", () => {
-    const state = createMission({ seed: 3209, missionIndex: 0 });
+    const state = createMission({ seed: 41, missionIndex: 0 });
     expect(state.missionKind).toBe("extraction");
     const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
     expect(yard).toBeDefined();

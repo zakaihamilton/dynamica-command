@@ -58,7 +58,7 @@ function issueBenchmarkDestinations(
 
 const atlasSamples: Sample[] = [];
 for (const seed of [0, 421, 9999]) {
-  const state = createMission({ seed, missionIndex: 7 });
+  const state = createMission({ seed, missionIndex: 5 });
   const started = performance.now();
   const atlas = bakeTerrainAtlasData(state);
   atlasSamples.push({
@@ -88,7 +88,7 @@ function percentile(values: number[], ratio: number): number {
 
 const simulationSamples: SimulationSample[] = [];
 for (const seed of [0, 421, 9999]) {
-  const state = createMission({ seed, missionIndex: 7 });
+  const state = createMission({ seed, missionIndex: 5 });
   const commander = new CompetentCommander();
   const timings: number[] = [];
   for (let i = 0; i < SIM_TICKS && state.result === "playing"; i++) {

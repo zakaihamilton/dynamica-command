@@ -116,7 +116,7 @@ function routeReachable(distances: Int32Array, width: number, points: Vec2[]): b
 
 export function mapSizeForMission(index: number): number {
   if (index <= 1) return 48;
-  if (index <= 4) return 72;
+  if (index <= 3) return 72;
   return 96;
 }
 
@@ -385,6 +385,9 @@ export function generateMap(
     }, width, height);
     paintBase(tiles, heights, surfaces, width, height, spot, 3);
     markedSpots.push(spot);
+  }
+  if (markCount > 0) {
+    pruneWaterIslands(tiles, width, height, heights);
   }
 
   distances = walkDistances(tiles, heights, width, height, playerStart);

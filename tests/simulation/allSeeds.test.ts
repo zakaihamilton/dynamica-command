@@ -77,15 +77,15 @@ describe("all-seed invariants", () => {
       const scenarioKinds = kinds.filter((kind) => SCENARIO_KINDS.has(kind));
       const classicKinds = kinds.filter((kind) => !NEW_MISSION_KINDS.includes(kind as typeof NEW_MISSION_KINDS[number]));
 
-      if (missions.length !== 8) throw new Error(`Seed ${seed} generated ${missions.length} missions`);
-      if (new Set(kinds).size !== 8) throw new Error(`Seed ${seed} generated duplicate mission kinds`);
-      if (scenarioKinds.length !== 4 || new Set(scenarioKinds).size !== 4) {
+      if (missions.length !== 6) throw new Error(`Seed ${seed} generated ${missions.length} missions`);
+      if (new Set(kinds).size !== 6) throw new Error(`Seed ${seed} generated duplicate mission kinds`);
+      if (scenarioKinds.length !== 3 || new Set(scenarioKinds).size !== 3) {
         throw new Error(`Seed ${seed} generated invalid scenario mix: ${scenarioKinds.join(", ")}`);
       }
-      if (classicKinds.length !== 4 || new Set(classicKinds).size !== 4) {
+      if (classicKinds.length !== 3 || new Set(classicKinds).size !== 3) {
         throw new Error(`Seed ${seed} generated invalid classic mix: ${classicKinds.join(", ")}`);
       }
-      if (new Set(missions.map((mission) => mission.biome)).size !== 8) {
+      if (new Set(missions.map((mission) => mission.biome)).size !== 6) {
         throw new Error(`Seed ${seed} repeated a biome`);
       }
       for (const [index, mission] of missions.entries()) {

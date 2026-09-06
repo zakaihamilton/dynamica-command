@@ -31,7 +31,7 @@ describe("campaign summary policy", () => {
     progress.medals = { "0": 3, "1": 2 };
     const summary = campaignSummary(campaign, progress);
 
-    expect(summary).toMatchObject({ completed: 2, totalMedals: 5, possibleMedals: 24, isComplete: false });
+    expect(summary).toMatchObject({ completed: 2, totalMedals: 5, possibleMedals: 18, isComplete: false });
     expect(missionMedalDisplay(2)).toBe("★★☆");
   });
 });

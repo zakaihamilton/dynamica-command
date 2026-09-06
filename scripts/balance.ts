@@ -41,7 +41,7 @@ const progressEvery = Math.max(1, Number(arg("progress-every", "1")) || 1);
 const requestedJobs = Math.max(0, Number(arg("jobs", "0")) || 0);
 const maxElapsedMs = Math.max(0, Number(arg("max-elapsed-ms", "0")) || 0);
 const maxWinRate = optionalNumberArg("max-win-rate");
-const missions = missionArg === "all" ? [...Array(8).keys()] : [Number(missionArg)];
+const missions = missionArg === "all" ? [...Array(6).keys()] : [Number(missionArg)];
 
 const supportedStrategies: readonly string[] = ["competent", "baseline", ...ARCHETYPE_STRATEGIES];
 if (strategyArg !== "archetypes" && !supportedStrategies.includes(strategyArg)) {
@@ -161,7 +161,7 @@ async function main() {
   strategies,
   jobs,
   range: { from, to },
-  missions: [...new Set(missions)].filter((mission) => Number.isInteger(mission) && mission >= 0 && mission < 8).sort((a, b) => a - b),
+  missions: [...new Set(missions)].filter((mission) => Number.isInteger(mission) && mission >= 0 && mission < 6).sort((a, b) => a - b),
   ticks: maxTicks,
   samples: records.length,
   timing: {

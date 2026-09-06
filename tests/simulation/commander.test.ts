@@ -114,7 +114,7 @@ describe("competent commander", () => {
   });
 
   it("gives the first offensive mission enough infrastructure to stage an assault", () => {
-    const state = createMission({ seed: 0, missionIndex: 0 });
+    const state = createMission({ seed: 1, missionIndex: 2 });
     const player = state.entities.filter((entity) => entity.owner === 0);
 
     expect(player.some((entity) => entity.class === "building" && entity.kind === "factory")).toBe(true);
@@ -139,7 +139,7 @@ describe("competent commander", () => {
   });
 
   it("does not retry an impossible single-instance building for a structure quota", () => {
-    const state = createMission({ seed: 23, missionIndex: 7 });
+    const state = createMission({ seed: 26, missionIndex: 2 });
     const commander = new CompetentCommander();
     let rejections = 0;
 
@@ -153,9 +153,9 @@ describe("competent commander", () => {
   });
 
   it.skipIf(IS_COVERAGE).each([
-    [2, 7, "structureQuota"],
-    [1, 7, "escort"],
-    [3, 1, "extraction"],
+    [2, 0, "structureQuota"],
+    [0, 2, "escort"],
+    [0, 1, "extraction"],
   ] as const)("completes generated %s/%s (%s) objectives with deterministic command execution", (seed, missionIndex, kind) => {
     const state = runGeneratedMission(seed, missionIndex);
 

@@ -2,6 +2,7 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
+import { useWeeklyCountdown } from "./useWeeklyCountdown";
 import styles from "./MenuMainPanel.module.css";
 
 export function MenuMainPanel({
@@ -15,11 +16,15 @@ export function MenuMainPanel({
   onLoadMission: () => void;
   onOptions: () => void;
 }) {
+  const { countdown, week } = useWeeklyCountdown();
+
   return (
     <MetalPanel as="nav" className={styles.panel} data-testid="menu-dashboard" aria-label="Main menu">
       <div className={styles.panelHeader}>
         <ConsoleLabel>Deploy</ConsoleLabel>
-        <span className={styles.status}>READY</span>
+        <span className={styles.status} data-testid="weekly-countdown" title="Time until next synchronized weekly campaign">
+          WEEK {week} · {countdown}
+        </span>
       </div>
 
       <div className={styles.actions}>

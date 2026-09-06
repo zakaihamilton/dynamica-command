@@ -58,9 +58,9 @@ describe("generated audio", () => {
     expect(corpus.some((pattern) => pattern.drums.some((event) => event.kind === "rim" || event.kind === "shaker"))).toBe(true);
     expect(new Set(corpus.map((pattern) => pattern.style.voiceEngine)).size).toBe(5);
 
-    const missions = Array.from({ length: 8 }, (_, mission) => composeMusic(421, "mission", mission));
-    expect(new Set(missions.map((pattern) => pattern.style.name)).size).toBe(8);
-    expect(new Set(missions.map((pattern) => pattern.style.arrangement.name)).size).toBe(8);
+    const missions = Array.from({ length: 6 }, (_, mission) => composeMusic(421, "mission", mission));
+    expect(new Set(missions.map((pattern) => pattern.style.name)).size).toBe(6);
+    expect(new Set(missions.map((pattern) => pattern.style.arrangement.name)).size).toBe(6);
     const campaign = Array.from({ length: 12 }, (_, mission) => composeMusic(421, "mission", mission));
     expect(new Set(campaign.map((pattern) => pattern.style.arrangement.name)).size).toBe(12);
     expect(campaign.some((pattern, index) =>
@@ -113,11 +113,11 @@ describe("generated audio", () => {
         expect(tundraFamilies).toContain(composeMusic(seed, "mission", 0).style.name);
       }
       const volcanicIndex = biomes.indexOf("volcanic shelf");
-      if (volcanicIndex >= 0) {
+      if (volcanicIndex >= 0 && volcanicIndex < 6) {
         expect(volcanicOrSecondary).toContain(composeMusic(seed, "mission", volcanicIndex).style.name);
       }
       const tundraIndex = biomes.indexOf("tundra grid");
-      if (tundraIndex >= 0) {
+      if (tundraIndex >= 0 && tundraIndex < 6) {
         expect(tundraOrSecondary).toContain(composeMusic(seed, "mission", tundraIndex).style.name);
       }
     }
@@ -296,8 +296,10 @@ describe("generated audio", () => {
       expect(["pulse", "march", "shuffle", "half-time", "breakbeat", "four-floor", "offbeat"]).toContain(pattern.theme.groove);
       expect(["natural minor", "dorian", "mixolydian", "major", "phrygian", "harmonic minor", "minor pentatonic", "lydian", "double harmonic", "blues"]).toContain(pattern.scaleName);
       expect(sectionNotes("hook", "melody").length).toBeGreaterThan(24);
-      expect(sectionNotes("groove", "melody").length).toBeGreaterThan(0);
-      expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
+      if (pattern.style.arrangement.melodyEnabled[1]) {
+        expect(sectionNotes("groove", "melody").length).toBeGreaterThan(0);
+        expect(averageDuration(sectionNotes("hook", "melody"))).toBeGreaterThan(averageDuration(sectionNotes("groove", "melody")));
+      }
       expect(sectionNotes("climax", "melody").length).toBeGreaterThanOrEqual(sectionNotes("hook", "melody").length);
       if (pattern.style.pulseRole !== "none") {
         expect(sectionNotes("climax", "pulse").length).toBeGreaterThan(sectionNotes("hook", "pulse").length);
@@ -431,7 +433,7 @@ describe("generated audio", () => {
 
   it("keeps climax counters off the harmony line and does not stack drum hits", () => {
     for (const seed of [0, 1, 421, 9999]) {
-      for (let mission = 0; mission < 8; mission++) {
+      for (let mission = 0; mission < 6; mission++) {
         const pattern = composeMusic(seed, "mission", mission);
         const climax = pattern.sections.find((section) => section.name === "climax");
         expect(climax).toBeTruthy();

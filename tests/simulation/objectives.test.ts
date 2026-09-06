@@ -266,18 +266,18 @@ describe("generated mission pacing", () => {
   });
 
   it("gives extraction missions a full rounded operation window", () => {
-    const campaign = createCampaign(5);
-    const extraction = campaign.missions[6]!;
+    const campaign = createCampaign(0);
+    const extraction = campaign.missions.find((m) => m.win.kind === "extraction")!;
     expect(extraction.win.kind).toBe("extraction");
-    expect(extraction.win.ticks).toBe(minutesToTicks(27));
-    expect(missionDurationMinutesFor(5, 6, "extraction")).toBe(27);
+    expect(extraction.win.ticks).toBe(minutesToTicks(12));
+    expect(missionDurationMinutesFor(0, extraction.index, "extraction")).toBe(12);
   });
 });
 
 describe("generated structure quotas", () => {
   it("never asks for multiple copies of a single-instance producer", () => {
     for (let seed = 0; seed < 40; seed++) {
-      for (let index = 0; index < 8; index++) {
+      for (let index = 0; index < 6; index++) {
         const win = generateWinCategory(seed, index, "structureQuota");
         expect(["barracks", "factory"]).not.toContain(win.building);
       }
@@ -331,11 +331,11 @@ describe("mission briefing objectives", () => {
     const campaign = createCampaign(421);
     const sabotage = campaign.missions.find((mission) => mission.win.kind === "sabotage");
     expect(sabotage).toBeDefined();
-    expect(missionObjectives(sabotage!, campaign)[0]?.text).toContain("within 12 min");
+    expect(missionObjectives(sabotage!, campaign)[0]?.text).toContain("within 18 min");
 
     const hold = campaign.missions.find((mission) => mission.win.kind === "holdTheLine");
     expect(hold).toBeDefined();
-    expect(missionObjectives(hold!, campaign)[0]?.text).toContain("for 10 min");
+    expect(missionObjectives(hold!, campaign)[0]?.text).toContain("for 15 min");
 
     const fallbackEscort = { index: 2, win: { kind: "escort" as const } };
     expect(missionObjectives(fallbackEscort, campaign)[0]?.text).toContain("within 14 min");

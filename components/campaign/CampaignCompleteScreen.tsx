@@ -16,6 +16,7 @@ import { briefingPath } from "../game/hooks/missionRoutes";
 import styles from "./CampaignCompleteScreen.module.css";
 import { campaignSummary, missionMedalDisplay, missionUnlocks } from "./campaignSummary";
 import { useCampaignProgress } from "./useCampaignProgress";
+import { formatCampaignShareCard } from "@/lib/ui/shareCard";
 
 export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number; mode?: "record" | "operations" }) {
   const router = useRouter();
@@ -24,6 +25,18 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
   const summary = campaignSummary(campaign, progress);
   const operations = mode === "operations";
   const [selectedMissionIndex, setSelectedMissionIndex] = useState(() => Math.min(progress.unlockedMission, campaign.missions.length - 1));
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    try {
+      const card = formatCampaignShareCard(campaign, progress);
+      await navigator.clipboard?.writeText(card);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     if (!operations) return;
@@ -59,7 +72,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
   const missionQueue = (
     <section className={styles.section} aria-labelledby="mission-record-title">
       <ConsoleLabel as="h2">{operations ? "Deployment queue" : "Mission record"}</ConsoleLabel>
-      <h2 id="mission-record-title" className={styles.sectionTitle}>{operations ? "Choose an operation" : "Eight operations"}</h2>
+      <h2 id="mission-record-title" className={styles.sectionTitle}>{operations ? "Choose an operation" : "Six operations"}</h2>
       <div className={styles.missions}>
         {campaign.missions.map((mission, index) => {
           const medals = progress.medals[String(mission.index)] ?? 0;
@@ -197,6 +210,12 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           )}
 
           <div className={styles.actions}>
+            <ConsoleButton
+              tooltip={copied ? "Theater dossier copied to clipboard!" : "Copy Wordle-style campaign score to clipboard"}
+              onClick={handleShare}
+            >
+              {copied ? "Copied!" : "Share dossier"}
+            </ConsoleButton>
             <ConsoleButton muted onClick={() => router.push("/")} tooltip="Return to the main menu">Return to menu</ConsoleButton>
           </div>
         </MetalPanel>
