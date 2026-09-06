@@ -26,11 +26,11 @@ Open the app, then choose **New Game** or type a seed such as `0421` and choose 
 | `yarn test:e2e` | Playwright browser smoke test; runs a browser preflight first |
 | `yarn inspect 0421` | Dump generated campaign JSON |
 | `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
-| `yarn balance --from 0 --to 39 --jobs 8 --check true` | Run the competent commander through the full mission horizon with bounded worker parallelism and enforce balance thresholds. `--jobs 1` is the serial reference; omit it for a bounded CPU-based default. CI samples seeds `0000`–`0039` (320 scenarios) with 8 workers. |
+| `yarn balance --from 0 --to 39 --jobs 8 --check true` | Run the competent commander through the full mission horizon with bounded worker parallelism and enforce balance thresholds. `--jobs 1` is the serial reference; omit it for a bounded CPU-based default. CI samples seeds `0000`–`0039` (240 scenarios) with 8 workers. |
 | `yarn health:invariants` | Validate generated campaign topology and scenario reachability across representative seeds |
 | `yarn health:coverage` | Run focused V8 coverage; long generated-map and commander sweeps run in `health:invariants` |
 | `yarn health:performance` | Enforce terrain atlas, simulation, combat, and routing performance budgets |
-| `yarn health:balance` | Run the strict 320-scenario competent-commander acceptance sweep used by CI |
+| `yarn health:balance` | Run the strict 240-scenario competent-commander acceptance sweep used by CI |
 | `yarn health:balance:archetypes` | Run the stratified rush, turtle, greed, infantry, and vehicles acceptance sweep used by CI |
 | `yarn playtest:manifest` | Print the deterministic two-scenario-per-profile manual playtest manifest from seeds `0000`–`0039` |
 | `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
@@ -39,14 +39,14 @@ For local E2E runs, the preflight launches the same headless browser used by Pla
 
 ## How a seed works
 
-A seed is a four-digit campaign code. Enter the same number later and you get the same world, factions, and eight missions. Progress (units, credits, explored map, and build queues) autosaves on this device for that seed. Pause **Save Mission** also writes a named slot you can keep beside that autosave. Music and sound settings are saved separately.
+A seed is a four-digit campaign code. Enter the same number later and you get the same world, factions, and six operations. Progress (units, credits, explored map, and build queues) autosaves on this device for that seed. Pause **Save Mission** also writes a named slot you can keep beside that autosave. Music and sound settings are saved separately.
 
 ```text
 seed 0421
   ├─ world setting, tone, conflict
   ├─ two factions (names, palettes)
   ├─ commander, advisor, enemy leader (faces + copy)
-  └─ 8 missions
+  └─ 6 operations
        ├─ win category + parameters
        ├─ briefing + tactical profile (opening plan and fallback)
        └─ map (size, heightmap, resources, bases)
@@ -56,7 +56,7 @@ Share a seed to share a universe. **Load Mission** lists named save slots and au
 
 ## Campaign
 
-Eight missions, about **5–20 minutes** each for classic and hold-the-line operations (later missions run longer). Timed operations (escort, sabotage, rescue, extraction) use a longer window: **10–30 minutes** of active time (sabotage **12–30**), plus a 7-minute wait before an escort convoy starts moving and a 2-minute final-approach buffer. Mission briefings show whole minutes; the battlefield clock counts down to the second. Every seed includes escort, sabotage, rescue, and extraction, plus four of the eight classic win categories:
+Six operations across three distinct acts, about **5–20 minutes** each for classic and hold-the-line operations (later missions run longer). Timed operations (escort, sabotage, rescue, extraction) use a longer window: **10–30 minutes** of active time (sabotage **12–30**), plus a 7-minute wait before an escort convoy starts moving and a 2-minute final-approach buffer. Mission briefings show whole minutes; the battlefield clock counts down to the second. Each campaign combines three tactical scenario operations with three classic objectives:
 
 | Category | You win by… |
 | --- | --- |

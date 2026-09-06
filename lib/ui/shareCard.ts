@@ -1,6 +1,7 @@
 import { formatSeed } from "../seed/rng";
 import type { Campaign, CampaignProgress, SimState } from "../types";
 import { missionDebrief } from "../sim/debrief";
+import { weeklyIndex, weeklySeed } from "@/components/menu/menuLaunch";
 
 function shareUrl(seedStr: string): string {
   if (typeof window !== "undefined" && window.location?.origin) {
@@ -18,9 +19,13 @@ export function formatMissionShareCard(state: SimState): string {
   const missionNumber = state.missionIndex + 1;
   const friendlyLost = debrief.forces.friendly.unitsLost;
   const enemyLost = debrief.forces.enemy.unitsLost;
+  const isWeekly = seedStr === weeklySeed();
+  const header = isWeekly
+    ? `DYNAMICA COMMAND Week ${weeklyIndex()} · Mission ${missionNumber}/6`
+    : `DYNAMICA COMMAND · Mission ${missionNumber}/6`;
 
   return [
-    `DYNAMICA COMMAND · Mission ${missionNumber}/6`,
+    header,
     `Seed ${seedStr} // ${state.missionName}`,
     `${outcomeText} ${medalIcons} (⏱️ ${debrief.battle.duration})`,
     `Score: ${debrief.battle.score.toLocaleString()} pts`,
@@ -47,8 +52,13 @@ export function formatCampaignShareCard(campaign: Campaign, progress: CampaignPr
     return "⬛";
   }).join("");
 
+  const isWeekly = seedStr === weeklySeed();
+  const header = isWeekly
+    ? `DYNAMICA COMMAND Week ${weeklyIndex()} // Theater Dossier`
+    : `DYNAMICA COMMAND // Theater Dossier`;
+
   return [
-    `DYNAMICA COMMAND // Theater Dossier`,
+    header,
     `Seed ${seedStr} · ${campaign.world.name}`,
     `${grid} (${totalMedals}/${totalPossible} Medals)`,
     `Operations: ${progress.completedMissions.length}/6 Complete`,
