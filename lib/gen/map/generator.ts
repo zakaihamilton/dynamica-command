@@ -26,6 +26,7 @@ import {
   type GeneratedMap,
   computeMapAffordances,
   walkDistances,
+  routeLength,
   routeReachable,
   startPointForCorner,
   clampPoint,
@@ -146,6 +147,25 @@ export function generateMap(
     }
   }
   if (routeRepaired) distances = walkDistances(tiles, heights, width, height, playerStart);
+  const initialRouteLengths = routePlans.map((route) => routeLength(route));
+  const initialBaseline = Math.min(...initialRouteLengths);
+  const initialAlternate = Math.max(...initialRouteLengths);
+  if (initialBaseline > 0 && initialAlternate > initialBaseline * 1.8) {
+    const dx = enemyStart.x - playerStart.x;
+    const dy = enemyStart.y - playerStart.y;
+    const lineLength = Math.hypot(dx, dy) || 1;
+    const offset = Math.round(Math.min(width, height) * 0.06);
+    const fallbackRoute: Vec2[] = [
+      playerStart,
+      {
+        x: Math.max(2, Math.min(width - 3, Math.round((playerStart.x + enemyStart.x) / 2 - (dy / lineLength) * offset))),
+        y: Math.max(2, Math.min(height - 3, Math.round((playerStart.y + enemyStart.y) / 2 + (dx / lineLength) * offset))),
+      },
+      enemyStart,
+    ];
+    carveRoute(tiles, heights, surfaces, width, height, fallbackRoute, 1, salt + 401, false);
+    routePlans.push(fallbackRoute);
+  }
   if (distances[idx(enemyStart.x, enemyStart.y, width)] < 0) {
     carveRoute(tiles, heights, surfaces, width, height, [playerStart, enemyStart], 2, salt, false);
   }
