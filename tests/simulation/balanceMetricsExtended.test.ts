@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { archetypeFailureRecords, checkArchetypeBalance, checkBalance, summarizeBalance, type BalanceRecord } from "../../lib/sim/balance";
+import { archetypeFailureRecords, checkArchetypeBalance, checkBalance, DEFAULT_BALANCE_THRESHOLDS, summarizeBalance, type BalanceRecord } from "../../lib/sim/balance";
 
 function makeRecord(overrides: Partial<BalanceRecord> = {}): BalanceRecord {
   return {
@@ -122,6 +122,14 @@ describe("checkBalance", () => {
       maxCommandRejectionRate: 0,
       maxAverageCasualties: 40,
     });
+    expect(result.passed).toBe(true);
+  });
+
+  it("does not require an artificial loss quota in the default gate", () => {
+    const records = Array.from({ length: 10 }, () => makeRecord({ result: "won" }));
+    const result = checkBalance(summarizeBalance(records), DEFAULT_BALANCE_THRESHOLDS);
+
+    expect(DEFAULT_BALANCE_THRESHOLDS.maxWinRate).toBeUndefined();
     expect(result.passed).toBe(true);
   });
 

@@ -597,6 +597,20 @@ test("offers to reset an unreadable save from the campaign archive", async ({ pa
   await expect(page.evaluate((key) => localStorage.getItem(key), saveKey(421))).resolves.toBeNull();
 });
 
+test("does not open an empty pause load view for an unreadable autosave", async ({ page }) => {
+  await deployToBattlefield(page);
+  await page.evaluate(({ key }) => {
+    localStorage.setItem(key, "not valid json");
+  }, { key: saveKey(421) });
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("pause-menu")).toBeVisible();
+  await page.getByRole("button", { name: "Load Mission" }).click();
+
+  await expect(page.getByRole("status")).toHaveText("No save slots.");
+  await expect(page.getByRole("heading", { name: "Load mission" })).toHaveCount(0);
+});
+
 test("loads the last save from the pause menu", async ({ page }) => {
   const state = distinctiveSave();
   await deployToBattlefield(page);

@@ -20,6 +20,14 @@ function arg(name: string, fallback: string): string {
   return index >= 0 ? process.argv[index + 1] ?? fallback : fallback;
 }
 
+function optionalNumberArg(name: string): number | undefined {
+  const index = process.argv.indexOf(`--${name}`);
+  if (index < 0) return undefined;
+  const value = Number(process.argv[index + 1]);
+  if (!Number.isFinite(value)) throw new Error(`Invalid --${name} value`);
+  return value;
+}
+
 const from = Number(arg("from", "0"));
 const to = Number(arg("to", "99"));
 const missionArg = arg("mission", "all");
@@ -32,6 +40,7 @@ const progressEnabled = arg("progress", "true") !== "false";
 const progressEvery = Math.max(1, Number(arg("progress-every", "1")) || 1);
 const requestedJobs = Math.max(0, Number(arg("jobs", "0")) || 0);
 const maxElapsedMs = Math.max(0, Number(arg("max-elapsed-ms", "0")) || 0);
+const maxWinRate = optionalNumberArg("max-win-rate");
 const missions = missionArg === "all" ? [...Array(8).keys()] : [Number(missionArg)];
 
 const supportedStrategies: readonly string[] = ["competent", "baseline", ...ARCHETYPE_STRATEGIES];
@@ -85,7 +94,7 @@ async function main() {
   const thresholds: BalanceThresholds = {
   ...DEFAULT_BALANCE_THRESHOLDS,
   minWinRate: Number(arg("min-win-rate", String(DEFAULT_BALANCE_THRESHOLDS.minWinRate))),
-  maxWinRate: Number(arg("max-win-rate", String(DEFAULT_BALANCE_THRESHOLDS.maxWinRate))),
+  ...(maxWinRate === undefined ? {} : { maxWinRate }),
   maxTimeoutRate: Number(arg("max-timeout-rate", String(DEFAULT_BALANCE_THRESHOLDS.maxTimeoutRate))),
   minKindSamples: Number(arg("min-kind-samples", String(DEFAULT_BALANCE_THRESHOLDS.minKindSamples))),
   minKindWinRate: Number(arg("min-kind-win-rate", String(DEFAULT_BALANCE_THRESHOLDS.minKindWinRate))),

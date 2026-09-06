@@ -8,7 +8,7 @@ import { planBuilding } from "../../lib/sim/commander/production";
 import { missionDifficulty } from "../../lib/sim/difficulty";
 import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
 import { enemyEntities, playerBuildings, playerUnits } from "../../lib/sim/commander/queries";
-import { powerBreakdown } from "../../lib/sim/world";
+import { invalidateEntityCaches, living, powerBreakdown, unitAt } from "../../lib/sim/world";
 
 const IS_COVERAGE = Boolean(process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE);
 
@@ -40,6 +40,24 @@ describe("competent commander", () => {
     expect(playerUnits(state)).toContainEqual(unit);
     expect(enemyEntities(state)).toContainEqual(enemy);
     expect(powerBreakdown(state, 0)).toMatchObject({ produced: 50, used: 0, surplus: 50 });
+  });
+
+  it("refreshes all entity-derived queries after a structural mutation", () => {
+    const state = makeFixture({ width: 20, height: 20, win: { kind: "annihilate" } });
+    const power = addBuilding(state, 0, "power", 2, 2);
+    const unit = addUnit(state, 0, "infantry", 4, 4);
+
+    expect(living(state)).toContainEqual(unit);
+    expect(unitAt(state, 4, 4)?.id).toBe(unit.id);
+    expect(powerBreakdown(state, 0).produced).toBe(BUILDING_STATS.power.power);
+
+    unit.hp = 0;
+    power.hp = 0;
+    invalidateEntityCaches(state);
+
+    expect(living(state)).not.toContainEqual(unit);
+    expect(unitAt(state, 4, 4)).toBeUndefined();
+    expect(powerBreakdown(state, 0).produced).toBe(0);
   });
 
   it("queues a force-quota role and wins through the public command API", () => {

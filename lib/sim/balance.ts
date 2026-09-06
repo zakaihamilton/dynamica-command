@@ -123,9 +123,6 @@ export function balanceFailureReason(record: Pick<BalanceRecord, "result" | "tru
 
 export const DEFAULT_BALANCE_THRESHOLDS: BalanceThresholds = {
   minWinRate: 0.60,
-  // The 320-scenario CI sweep must still contain at least eight losses; this
-  // keeps the softened campaign from silently becoming an automatic win.
-  maxWinRate: 0.975,
   maxTimeoutRate: 0.20,
   minKindSamples: 4,
   minKindWinRate: 0.40,

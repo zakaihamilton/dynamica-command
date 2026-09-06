@@ -9,7 +9,7 @@ import {
   isNumber,
   assertSupportedContentVersion,
 } from "./validation";
-import { decodeSavedState, saveKey } from "./serialize";
+import { decodeSavedState } from "./serialize";
 import { listSaves } from "./api";
 import { safeGetItem, safeKeys, safeRemoveItem, safeSetItem, type StorageAdapter } from "./storage";
 
@@ -220,7 +220,10 @@ export function listArchiveEntries(storage: StorageAdapter): ArchiveEntry[] {
 export function hasLoadableSaves(storage: StorageAdapter, seed?: number): boolean {
   if (listSlots(storage).length > 0) return true;
   if (seed === undefined) return listSaves(storage).length > 0;
-  return safeGetItem(storage, saveKey(seed)) !== null;
+  // Match the load list rather than checking for a raw key. A corrupt or
+  // unsupported autosave can remain in storage, but it is not loadable and
+  // must not open an empty pause-menu load screen.
+  return listSaves(storage).some((save) => save.seed === formatSeed(seed));
 }
 
 export function listPauseLoadEntries(storage: StorageAdapter, seed: number): ArchiveEntry[] {

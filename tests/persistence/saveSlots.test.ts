@@ -19,6 +19,7 @@ import {
   writeSave,
   writeSlot,
   SAVE_CONTENT_VERSION,
+  saveKey,
 } from "../../lib/persist/save";
 import { completeMission, freshCampaignProgress, readCampaignProgress, writeCampaignProgress } from "../../lib/persist/campaign";
 import { makeFixture } from "../../lib/sim/fixtures";
@@ -171,6 +172,15 @@ describe("named save slots", () => {
     expect(listArchiveEntries(storage)).toHaveLength(0);
     expect(listPauseLoadEntries(storage, 9)).toHaveLength(0);
     expect(hasLoadableSaves(storage, 9)).toBe(false);
+  });
+
+  it("does not treat an unreadable autosave as loadable for a paused mission", () => {
+    const storage = memoryStorage();
+    storage.setItem(saveKey(9), "{not valid json");
+
+    expect(hasLoadableSaves(storage, 9)).toBe(false);
+    expect(listPauseLoadEntries(storage, 9)).toEqual([]);
+    expect(hasLoadableSaves(storage)).toBe(false);
   });
 
   it("writes a versioned slot envelope", () => {

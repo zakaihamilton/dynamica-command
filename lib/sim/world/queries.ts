@@ -124,12 +124,21 @@ export function living(state: SimState): Entity[] {
   return livingView(state).slice();
 }
 
-/** Invalidate the per-tick query result after a spawn or lethal damage. */
-export function invalidateLivingCache(state: SimState): void {
+/**
+ * Invalidate all entity-derived query caches after a structural or lethal
+ * entity mutation. Callers that mutate positions only can use
+ * invalidateUnitAtCache instead.
+ */
+export function invalidateEntityCaches(state: SimState): void {
   livingCache.delete(state);
   entityIndexCache.delete(state);
   powerCache.delete(state);
   invalidateUnitAtCache(state);
+}
+
+/** Backward-compatible name for structural entity mutations. */
+export function invalidateLivingCache(state: SimState): void {
+  invalidateEntityCaches(state);
 }
 
 export function invalidateUnitAtCache(state: SimState): void {
