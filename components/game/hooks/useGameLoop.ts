@@ -1,4 +1,4 @@
-import { useEffect, type MutableRefObject } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import { dispatchBattlefieldAudio } from "@/lib/audio/battlefield";
 import { TICKS_PER_SECOND } from "@/lib/catalog";
 import { pauseMusic, setMusicIntensity, type MusicIntensity } from "@/lib/audio/music";
@@ -65,19 +65,25 @@ export function useGameLoop({
   saveSession: SaveSession;
   persistCampaign?: boolean;
 }) {
+  const presentationRef = useRef<{ state: SimState; terminal: boolean } | null>(null);
+  const saveRetryRef = useRef<{
+    state: SimState | null;
+    retry: boolean;
+    nextAttemptMs: number;
+    lastStatus: SaveWriteStatus;
+  }>({ state: null, retry: false, nextAttemptMs: 0, lastStatus: "saved" });
   useEffect(() => {
     let appliedIntensity: MusicIntensity = "calm";
     let lastCombatTick = Number.NEGATIVE_INFINITY;
     let nextCampaignSaveAttemptMs = 0;
-    let nextSaveAttemptMs = 0;
-    let retrySave = false;
-    let lastSaveStatus: SaveWriteStatus = "saved";
-    let terminalPresented = terminalSaveRef.current;
+    const saveRetry = saveRetryRef.current;
+
     const saveImplicit = (state: SimState, now: number) => {
       const status = saveSession.write(state, "implicit");
-      retrySave = status === "failed";
-      nextSaveAttemptMs = now + CAMPAIGN_SAVE_RETRY_MS;
-      if (status !== lastSaveStatus) {
+      saveRetry.state = state;
+      saveRetry.retry = status === "failed";
+      saveRetry.nextAttemptMs = now + CAMPAIGN_SAVE_RETRY_MS;
+      if (status !== saveRetry.lastStatus) {
         const message = status === "conflict"
           ? "Autosave paused: this campaign changed in another tab. Use Save Mission or Load Mission to resolve it."
           : status === "failed"
@@ -86,7 +92,7 @@ export function useGameLoop({
         onAlert(message);
         onTacticalAnnouncement(message);
       }
-      lastSaveStatus = status;
+      saveRetry.lastStatus = status;
       if (status === "saved" && state.result !== "playing") terminalSaveRef.current = true;
       return status;
     };
@@ -101,6 +107,21 @@ export function useGameLoop({
       else if (typeof cancelIdleCallback === "function") cancelIdleCallback(idleHandle);
       idleHandle = null;
     };
+    const syncSession = (state: SimState) => {
+      if (presentationRef.current?.state === state) return;
+      presentationRef.current = { state, terminal: terminalSaveRef.current };
+      cancelIdle();
+      saveRetry.state = state;
+      saveRetry.retry = false;
+      saveRetry.lastStatus = "saved";
+      saveRetry.nextAttemptMs = 0;
+      nextCampaignSaveAttemptMs = 0;
+      commandsIssued = 0;
+      commandRejections = 0;
+      commandApplied = false;
+      lastCombatTick = Number.NEGATIVE_INFINITY;
+    };
+    syncSession(stateRef.current);
     const scheduleAutosave = () => {
       if (!persistCampaign) return;
       cancelIdle();
@@ -136,6 +157,7 @@ export function useGameLoop({
         stateRef.current = next;
       },
       drainCommands: () => {
+        syncSession(stateRef.current);
         const commands = cmdQ.current.splice(0, cmdQ.current.length);
         commandApplied = commands.length > 0;
         commandsIssued += commands.length;
@@ -144,6 +166,7 @@ export function useGameLoop({
       step: tick,
       isPaused: () => pausedRef.current,
       onTick: (next, events, now) => {
+        syncSession(next);
         commandRejections += events.filter((event) => event.type === "commandRejected").length;
         if (next.tick % AUTOSAVE_INTERVAL_TICKS === 0) scheduleAutosave();
         if (commandApplied || next.tick % 6 === 0) {
@@ -193,6 +216,7 @@ export function useGameLoop({
         }
       },
       onFrame: (now, s, paused, subTickAlpha, frameMs) => {
+        syncSession(s);
         const panStep = 600 * frameMs / 1000;
         if (!paused) {
           const cam = camRef.current;
@@ -228,8 +252,8 @@ export function useGameLoop({
           edgePanHover.current = null;
           panHold.current = null;
         }
-        if (s.result !== "playing" && !terminalPresented) {
-          terminalPresented = true;
+        if (s.result !== "playing" && !presentationRef.current!.terminal) {
+          presentationRef.current!.terminal = true;
           if (persistCampaign) {
             cancelIdle();
             saveImplicit(s, now);
@@ -240,7 +264,7 @@ export function useGameLoop({
           }
           setState({ ...s, entities: [...s.entities] });
         }
-        if (persistCampaign && retrySave && now >= nextSaveAttemptMs) saveImplicit(s, now);
+        if (persistCampaign && saveRetry.retry && now >= saveRetry.nextAttemptMs) saveImplicit(s, now);
         if (persistCampaign && s.result === "won" && !campaignRecordedRef.current) {
           if (now >= nextCampaignSaveAttemptMs) {
             const progress = readCampaignProgress(cachedLocalStorage(), s.seed);

@@ -492,6 +492,7 @@ describe("PauseMenu", () => {
     const onBack = vi.fn();
     const onCommitSave = vi.fn(() => true);
     const onLoadEntry = vi.fn();
+    const onLeaveWithoutSave = vi.fn();
     const props = {
       view: "main" as const,
       notice: "Mission saved.",
@@ -509,6 +510,7 @@ describe("PauseMenu", () => {
       onControls,
       onOptions,
       onMenu: vi.fn(),
+      onLeaveWithoutSave,
       onToggleSound: vi.fn(),
       onToggleMusic: vi.fn(),
       onVolumeChange: vi.fn(),
@@ -529,6 +531,8 @@ describe("PauseMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Options" }));
     expect(onOptions).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Main Menu" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Leave without saving" }));
+    expect(onLeaveWithoutSave).toHaveBeenCalledOnce();
 
     rerender(<PauseMenu {...props} view="controls" notice="" />);
     expect(screen.getByTestId("pause-controls")).toBeVisible();

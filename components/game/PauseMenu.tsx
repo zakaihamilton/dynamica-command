@@ -1,6 +1,7 @@
 "use client";
 
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { useModalFocus } from "@/components/ui/useModalFocus";
 import type { AudioVolumeKey } from "@/lib/audio/mixer";
 import type { ArchiveEntry, SlotMeta } from "@/lib/persist/save";
@@ -31,6 +32,7 @@ export function PauseMenu({
   onControls,
   onOptions,
   onMenu,
+  onLeaveWithoutSave,
   onToggleSound,
   onToggleMusic,
   onToggleTacticalRoster,
@@ -54,6 +56,7 @@ export function PauseMenu({
   onControls: () => void;
   onOptions: () => void;
   onMenu: () => void;
+  onLeaveWithoutSave?: () => void;
   onToggleSound: () => void;
   onToggleMusic: () => void;
   onToggleTacticalRoster?: () => void;
@@ -110,6 +113,11 @@ export function PauseMenu({
           />
         )}
         {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
+        {view === "main" && onLeaveWithoutSave ? (
+          <ConsoleButton className={styles.action} onClick={onLeaveWithoutSave}>
+            Leave without saving
+          </ConsoleButton>
+        ) : null}
         <p className={styles.hint}>{view === "main" ? "Escape resumes the mission" : "Escape returns to the pause menu"}</p>
       </MetalPanel>
     </div>

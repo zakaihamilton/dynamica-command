@@ -17,7 +17,8 @@ import { useMissionBackGuard } from "../../components/game/hooks/useMissionBackG
 import { useMenuController } from "../../components/menu/useMenuController";
 import { weeklySeed } from "../../components/menu/menuLaunch";
 import { consumeFreshLaunchIntent } from "../../lib/persist/navigation";
-import { createSaveSession, listSlots, localStorageAdapter, readSave, writeSave } from "../../lib/persist/save";
+import { createSaveSession, listSlots, localStorageAdapter, readSave, writeSave, saveKey, writeSlot } from "../../lib/persist/save";
+import { freshCampaignProgress, campaignKey } from "../../lib/persist/campaign";
 import { defaultSettings } from "../../lib/persist/settings";
 import { makeFixture, addBuilding, addUnit } from "../../lib/sim/fixtures";
 import type { Command } from "../../lib/types";
@@ -300,12 +301,13 @@ describe("game lifecycle hooks", () => {
     const { result } = renderHook(() => useMissionRoutes({
       stateRef: { current: state },
       saveSession: session,
+      onSaveError: vi.fn(),
     }));
 
     act(() => result.current.viewMissionBriefing());
 
     expect(readSave(storage, 421)?.tick).toBe(77);
-    expect(router.push).toHaveBeenCalledWith("/briefing?seed=0421&mission=0&return=game&from=result");
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("returns tutorial exits to the command desk without writing campaign progress", () => {
@@ -315,6 +317,7 @@ describe("game lifecycle hooks", () => {
     const { result } = renderHook(() => useMissionRoutes({
       stateRef: { current: state },
       saveSession: session,
+      onSaveError: vi.fn(),
       tutorial: true,
     }));
 
@@ -544,5 +547,120 @@ describe("useGameKeyboard", () => {
     expect(cancelConfirmation).toHaveBeenCalledOnce();
     expect(resumeMission).not.toHaveBeenCalled();
     expect(saveMission).not.toHaveBeenCalled();
+  });
+});
+
+describe("save before navigation", () => {
+  it.each(["goHomeNow", "viewMissionBriefing", "goCampaignMap", "goNextBriefing", "resultPrimary"] as const)(
+    "persists the latest tick before %s", (action) => {
+      const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+      state.tick = 29;
+      const storage = localStorageAdapter();
+      const { result } = renderHook(() => useMissionRoutes({
+        stateRef: { current: state }, saveSession: createSaveSession(storage, 421), onSaveError: vi.fn(),
+      }));
+      router.push.mockImplementationOnce(() => {
+        expect(readSave(storage, 421)?.tick).toBe(29);
+      });
+      act(() => result.current[action]());
+      expect(router.push).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(["failed", "conflict"] as const)("keeps the mission open on a %s save", (status) => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const onSaveError = vi.fn();
+    const saveSession = { write: vi.fn(() => status), adoptCurrent: vi.fn(), markExternalChange: vi.fn() };
+    const { result } = renderHook(() => useMissionRoutes({ stateRef: { current: state }, saveSession, onSaveError }));
+    act(() => result.current.goHomeNow());
+    act(() => result.current.viewMissionBriefing());
+    expect(router.push).not.toHaveBeenCalled();
+    expect(onSaveError).toHaveBeenCalled();
+    expect(result.current.prepareLeave()).toBe(false);
+  });
+
+  it("retains the requested destination as a leave-without-save fallback", () => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const onSaveError = vi.fn();
+    const saveSession = { write: vi.fn(() => "failed" as const), adoptCurrent: vi.fn(), markExternalChange: vi.fn() };
+    const { result } = renderHook(() => useMissionRoutes({ stateRef: { current: state }, saveSession, onSaveError }));
+    act(() => result.current.goHomeNow());
+    expect(onSaveError).toHaveBeenCalledOnce();
+    const fallback = onSaveError.mock.calls[0]![1] as () => void;
+    act(fallback);
+    expect(router.push).toHaveBeenCalledWith("/");
+  });
+});
+
+function persistenceProps(): Parameters<typeof useGameSession>[0] {
+  return {
+    seed: 421, stateRef: { current: makeFixture({ seed: 421, win: { kind: "annihilate" } }) },
+    setState: vi.fn(), commitSelection: vi.fn(), cmdQRef: { current: [] }, fxRef: { current: [] },
+    clearTools: vi.fn(), resetInput: vi.fn(), resetCamera: vi.fn(),
+    pausedRef: { current: true }, setPaused: vi.fn(), setPauseView: vi.fn(), setPauseNotice: vi.fn(),
+    campaignRecordedRef: { current: false }, terminalSaveRef: { current: false },
+    settings: defaultSettings(), setSettings: vi.fn(), saveSession: createSaveSession(localStorageAdapter(), 421),
+  };
+}
+
+describe("partial persistence feedback", () => {
+  it("reports the named slot as saved when only the autosave update fails", () => {
+    const props = persistenceProps();
+    props.saveSession.write = vi.fn(() => "failed" as const);
+    const { result } = renderHook(() => useGameSession(props));
+    act(() => { expect(result.current.saveNamedSlot("Fallback", null)).toBe(true); });
+    expect(listSlots(localStorageAdapter())).toHaveLength(1);
+    expect(props.setPauseView).toHaveBeenCalledWith("main");
+    expect(props.setPauseNotice).toHaveBeenCalledWith(expect.stringContaining('Saved “Fallback”, but'));
+  });
+
+  it.each([0, 1])("does not apply or navigate to mission %s after a failed campaign restore", (missionIndex) => {
+    const props = persistenceProps();
+    const storage = localStorageAdapter();
+    writeSave(storage, props.stateRef.current);
+    const before = storage.getItem(saveKey(421));
+    writeSlot(storage, {
+      name: "Earlier", state: { ...props.stateRef.current, missionIndex, tick: 88 },
+      campaign: freshCampaignProgress(421),
+    });
+    const { result } = renderHook(() => useGameSession(props));
+    const entry = result.current.listLoadEntries().find((entry) => entry.kind === "slot")!;
+    const original = Storage.prototype.setItem;
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
+      if (key === campaignKey(421)) throw new Error("quota");
+      original.call(this, key, value);
+    });
+    try {
+      act(() => result.current.loadArchiveEntry(entry));
+      expect(props.stateRef.current.tick).toBe(0);
+      expect(props.setState).not.toHaveBeenCalled();
+      expect(router.push).not.toHaveBeenCalled();
+      expect(storage.getItem(saveKey(421))).toBe(before);
+      expect(props.setPauseNotice).toHaveBeenCalledWith(expect.stringContaining("previous autosave was restored"));
+    } finally { spy.mockRestore(); }
+  });
+
+  it("shows a failed leave in the pause menu", () => {
+    const props = persistenceProps();
+    props.saveSession.write = vi.fn(() => "failed" as const);
+    const { result } = renderHook(() => useGameSession(props));
+    act(() => result.current.goMenu());
+    act(() => result.current.confirmAction());
+    expect(router.push).not.toHaveBeenCalled();
+    expect(props.setPaused).toHaveBeenCalledWith(true);
+    expect(props.setPauseView).toHaveBeenCalledWith("main");
+    expect(props.setPauseNotice).toHaveBeenCalledWith(expect.stringContaining("Couldn't save"));
+  });
+
+  it("can leave without saving after a failed confirmed leave", () => {
+    const props = persistenceProps();
+    props.saveSession.write = vi.fn(() => "failed" as const);
+    const { result } = renderHook(() => useGameSession(props));
+    act(() => result.current.goMenu());
+    act(() => result.current.confirmAction());
+    expect(result.current.canLeaveWithoutSave).toBe(true);
+    act(() => result.current.leaveWithoutSave());
+    expect(router.push).toHaveBeenCalledWith("/");
+    expect(result.current.canLeaveWithoutSave).toBe(false);
   });
 });

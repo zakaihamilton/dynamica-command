@@ -94,7 +94,9 @@ Performance-sensitive work should be measured with `yarn health:performance`. Th
 - `lib/persist/telemetry`: bounded local mission metrics.
 - `SaveSession`: best-effort same-tab and cross-tab conflict detection around `localStorage`.
 
-Explicit save/load actions may adopt a new snapshot. Implicit autosaves refuse to overwrite a detected external change so another tab is not silently lost. Named slots store a mission snapshot plus that moment's campaign progress; loading a slot restores both.
+Explicit save/load actions may adopt a new snapshot. Implicit autosaves refuse to overwrite a detected external change so another tab is not silently lost. Named slots store a mission snapshot plus that moment's campaign progress. A slot load writes both records before replacing the active mission or navigating. If campaign writing fails, it attempts to restore the previous autosave and reports any rollback failure; localStorage does not provide multi-key transactions. A successful named-slot write is reported as saved even if updating the separate autosave fails.
+
+Mission navigation, including confirmed browser Back, saves the latest state before leaving. A failed or conflicting save keeps the mission open and displays a pause-menu notice. Loop presentation state follows the authoritative simulation object so restarting or loading in place resets terminal handling and per-session counters without replaying telemetry for an already-finished loaded mission.
 
 ## Adding a feature
 

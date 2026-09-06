@@ -12,12 +12,12 @@ import {
   readSlot,
   removeSave,
   removeSlot,
-  writeSave,
   writeSlot,
   type ArchiveEntry,
 } from "@/lib/persist/save";
+import { restoreSlot } from "@/lib/persist/save/restore";
 import type { SaveSession } from "@/lib/persist/save";
-import { readCampaignProgress, writeCampaignProgress } from "@/lib/persist/campaign";
+import { readCampaignProgress } from "@/lib/persist/campaign";
 import { createMission } from "@/lib/sim/api";
 import { createTutorialMission, enterTutorialStage } from "@/lib/sim/tutorial";
 import { formatSeed } from "@/lib/seed/rng";
@@ -136,13 +136,12 @@ export function useMissionPersistence({
       return false;
     }
     const status = saveSession.write(current, "explicit");
-    if (status !== "saved") {
-      setPauseNotice("Couldn't save. Check that this browser allows site data.");
-      return false;
-    }
     const slot = readSlot(storage, written.id);
+    const savedName = slot?.name ?? name;
     setPauseView("main");
-    setPauseNotice(`Saved “${slot?.name ?? name}”.`);
+    setPauseNotice(status === "saved"
+      ? `Saved “${savedName}”.`
+      : `Saved “${savedName}”, but the autosave could not be updated. Use Load Mission to restore this named slot.`);
     return true;
   }, [saveSession, setPauseNotice, setPauseView, stateRef, tutorial]);
 
@@ -171,16 +170,17 @@ export function useMissionPersistence({
       setPauseNotice("Couldn't load that save slot.");
       return;
     }
-    writeCampaignProgress(storage, slot.campaign);
+    const error = restoreSlot(storage, slot);
+    if (error) {
+      setPauseNotice(error);
+      return;
+    }
     if (slot.state.seed === seed && slot.state.missionIndex === stateRef.current.missionIndex) {
-      const autosave = saveSession.write(slot.state, "explicit");
-      if (autosave !== "saved") writeSave(storage, slot.state);
       applyLoadedState(slot.state, `Loaded “${slot.name}”.`);
       return;
     }
-    writeSave(storage, slot.state);
-    router.push(`/play?seed=${formatSeed(slot.state.seed)}&mission=${slot.state.missionIndex}&slot=${slot.id}`);
-  }, [applyLoadedState, router, saveSession, seed, setPauseNotice, stateRef, tutorial]);
+    router.push(`/play?seed=${formatSeed(slot.state.seed)}&mission=${slot.state.missionIndex}&resume=1`);
+  }, [applyLoadedState, router, seed, setPauseNotice, stateRef, tutorial]);
 
   const restartMissionNow = useCallback(() => {
     const world = stateRef.current;

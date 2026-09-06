@@ -7,8 +7,9 @@ import { createCamera } from "../../lib/iso";
 import { makeFixture } from "../../lib/sim/fixtures";
 import { markFreshLaunchIntent } from "../../lib/persist/navigation";
 import { localStorageAdapter, readSave, saveKey, writeSave, writeSlot } from "../../lib/persist/save";
-import { freshCampaignProgress, readCampaignProgress, writeCampaignProgress, completeMission } from "../../lib/persist/campaign";
+import { freshCampaignProgress, campaignKey, readCampaignProgress, writeCampaignProgress, completeMission } from "../../lib/persist/campaign";
 import { TELEMETRY_KEY } from "../../lib/persist/telemetry";
+import type { LoopOptions } from "../../lib/game/loop";
 import type { BuildingKind, SimEvent } from "../../lib/types";
 
 const renderGameFrame = vi.hoisted(() => vi.fn(() => ({
@@ -430,5 +431,61 @@ describe("automatic save recovery", () => {
     act(() => options.onFrame(3000, state, false, 0, 16));
     expect(readSave(localStorageAdapter(), 421)?.tick).toBe(123);
     expect(result.current.playField.combatAlert).toContain("changed in another tab");
+  });
+});
+
+describe("mission replacement in a mounted loop", () => {
+  it("saves and records each terminal result after restarting in place", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const options = (startLoop.mock.calls as unknown as [LoopOptions][])[0]![0];
+    const finish = (now: number) => {
+      const state = options.getState();
+      state.result = "lost";
+      act(() => options.onFrame!(now, state, false, 0, 16));
+      expect(readSave(localStorageAdapter(), 421)?.result).toBe("lost");
+    };
+    finish(1000);
+    act(() => result.current.overlays.session.restartMission());
+    act(() => result.current.overlays.session.confirmAction());
+    expect(options.getState().result).toBe("playing");
+    expect(startLoop).toHaveBeenCalledOnce();
+    finish(2000);
+    expect(JSON.parse(localStorage.getItem(TELEMETRY_KEY)!).records).toHaveLength(2);
+  });
+
+  it("does not replay terminal telemetry when loading a finished slot in place", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const state = { ...result.current.playField.state, result: "lost" as const };
+    const slot = writeSlot(localStorageAdapter(), { name: "Finished", state, campaign: freshCampaignProgress(421) });
+    expect(slot.ok).toBe(true);
+    const entry = result.current.overlays.session.listLoadEntries().find((entry) => entry.kind === "slot")!;
+    act(() => result.current.overlays.session.loadArchiveEntry(entry));
+    const options = (startLoop.mock.calls as unknown as [LoopOptions][])[0]![0];
+    act(() => options.onFrame!(1000, options.getState(), true, 0, 0));
+    expect(localStorage.getItem(TELEMETRY_KEY)).toBeNull();
+  });
+});
+
+describe("initial slot load failures", () => {
+  it("keeps the slot URL and previous autosave when campaign restoration fails", () => {
+    const storage = localStorageAdapter();
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    writeSave(storage, state);
+    const before = storage.getItem(saveKey(421));
+    const written = writeSlot(storage, {
+      name: "Earlier", state: { ...state, tick: 12 }, campaign: freshCampaignProgress(421),
+    });
+    if (!written.ok) throw new Error("Slot fixture failed");
+    window.history.replaceState({}, "", `/play?seed=0421&mission=0&slot=${written.id}`);
+    const original = Storage.prototype.setItem;
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
+      if (key === campaignKey(421)) throw new Error("quota");
+      original.call(this, key, value);
+    });
+    try {
+      expect(() => initialMission(421, 0, false, false, false, written.id)).toThrow("previous autosave was restored");
+      expect(storage.getItem(saveKey(421))).toBe(before);
+      expect(window.location.search).toContain(`slot=${written.id}`);
+    } finally { spy.mockRestore(); }
   });
 });

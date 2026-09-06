@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { clearMusicPosition } from "@/lib/audio/music";
 import { useAudioPreferences } from "@/components/audio/useAudioPreferences";
 import { createMission } from "@/lib/sim/api";
@@ -7,10 +7,9 @@ import {
   cachedLocalStorage,
   readSave,
   readSlot,
-  writeSave,
 } from "@/lib/persist/save";
 import { consumeFreshLaunchIntent } from "@/lib/persist/navigation";
-import { writeCampaignProgress } from "@/lib/persist/campaign";
+import { restoreSlot } from "@/lib/persist/save/restore";
 import type { SaveSession } from "@/lib/persist/save";
 import type { GameSettings } from "@/lib/persist/settings";
 import type { SimState } from "@/lib/types";
@@ -50,8 +49,8 @@ export function initialMission(
     }
     const slot = readSlot(cachedLocalStorage(), slotId);
     if (slot && slot.state.seed === seed) {
-      writeCampaignProgress(cachedLocalStorage(), slot.campaign);
-      writeSave(cachedLocalStorage(), slot.state);
+      const error = restoreSlot(cachedLocalStorage(), slot);
+      if (error) throw new Error(error);
       try {
         const url = new URL(window.location.href);
         if (url.searchParams.has("slot")) {
@@ -108,18 +107,38 @@ export function useGameSession({
   onBrowserBackLeave?: () => void;
 }) {
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
-  const routes = useMissionRoutes({ stateRef, saveSession, tutorial });
-  const { goHomeNow } = routes;
+  const [canLeaveWithoutSave, setCanLeaveWithoutSave] = useState(false);
+  const leaveWithoutSaveRef = useRef<(() => void) | null>(null);
+  const onSaveError = useCallback((message: string, fallback: () => void) => {
+    leaveWithoutSaveRef.current = fallback;
+    setCanLeaveWithoutSave(true);
+    pausedRef.current = true;
+    setPaused(true);
+    setPauseView("main");
+    setPauseNotice(message);
+  }, [pausedRef, setPaused, setPauseView, setPauseNotice]);
+  const routes = useMissionRoutes({ stateRef, saveSession, tutorial, onSaveError });
+  const { goHomeNow, prepareLeave } = routes;
   const browserBackRef = useRef(false);
   const leaveBackRef = useRef<() => void>(() => undefined);
+  const leaveWithoutSave = useCallback(() => {
+    const fallback = leaveWithoutSaveRef.current;
+    leaveWithoutSaveRef.current = null;
+    setCanLeaveWithoutSave(false);
+    fallback?.();
+  }, []);
+  const clearLeaveFallback = useCallback(() => {
+    leaveWithoutSaveRef.current = null;
+    setCanLeaveWithoutSave(false);
+  }, []);
   const confirmGoHome = useCallback(() => {
     if (browserBackRef.current) {
       browserBackRef.current = false;
-      leaveBackRef.current();
+      if (prepareLeave(() => leaveBackRef.current())) leaveBackRef.current();
       return;
     }
     goHomeNow();
-  }, [goHomeNow]);
+  }, [goHomeNow, prepareLeave]);
   const persistence = useMissionPersistence({
     seed,
     stateRef,
@@ -139,6 +158,7 @@ export function useGameSession({
     saveSession,
     tutorial,
   });
+  const persistNamedSlot = persistence.saveNamedSlot;
   const confirmation = useMissionConfirmation({
     restartNow: persistence.restartMissionNow,
     goHomeNow: confirmGoHome,
@@ -166,16 +186,23 @@ export function useGameSession({
   }, [pausedRef, setPaused, setPauseNotice, setPauseView]);
 
   const resumeMission = useCallback(() => {
+    clearLeaveFallback();
     pausedRef.current = false;
     setPaused(false);
     setPauseView("main");
     setPauseNotice("");
-  }, [pausedRef, setPaused, setPauseNotice, setPauseView]);
+  }, [clearLeaveFallback, pausedRef, setPaused, setPauseNotice, setPauseView]);
 
   const cancelConfirmation = useCallback(() => {
     browserBackRef.current = false;
     cancelConfirmationState();
   }, [cancelConfirmationState]);
+
+  const saveNamedSlot = useCallback((name: string, overwriteId: string | null) => {
+    const saved = persistNamedSlot(name, overwriteId);
+    if (saved) clearLeaveFallback();
+    return saved;
+  }, [clearLeaveFallback, persistNamedSlot]);
 
   return {
     router: routes.router,
@@ -186,7 +213,7 @@ export function useGameSession({
     resumeMission,
     saveMission: persistence.openSaveSlots,
     loadMission: persistence.openLoadSlots,
-    saveNamedSlot: persistence.saveNamedSlot,
+    saveNamedSlot,
     loadArchiveEntry: persistence.loadArchiveEntry,
     deleteArchiveEntry: persistence.deleteArchiveEntry,
     defaultSlotName: persistence.defaultSlotName,
@@ -208,6 +235,8 @@ export function useGameSession({
     goCampaignVictory: routes.goCampaignVictory,
     goCampaignMap: routes.goCampaignMap,
     goRetry: routes.goRetry,
+    canLeaveWithoutSave,
+    leaveWithoutSave,
   };
 }
 

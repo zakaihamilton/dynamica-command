@@ -43,6 +43,7 @@ export function GamePauseSurface({
         setNotice("");
       }}
       onMenu={session.goMenu}
+      onLeaveWithoutSave={session.canLeaveWithoutSave ? session.leaveWithoutSave : undefined}
       onToggleSound={session.toggleSound}
       onToggleMusic={session.toggleMusic}
       onToggleTacticalRoster={session.toggleTacticalRoster}
