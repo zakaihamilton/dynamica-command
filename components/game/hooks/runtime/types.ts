@@ -1,0 +1,65 @@
+import type { MutableRefObject } from "react";
+import type { SaveSession, SaveWriteStatus } from "@/lib/persist/save";
+import type { Camera } from "@/lib/iso";
+import type { FxBurst } from "@/lib/render/fx";
+import type { PanAvailability, PanDir } from "@/lib/render/camera";
+import type { Command, SimEvent, SimState } from "@/lib/types";
+
+export type RuntimeRefs = {
+  stateRef: MutableRefObject<SimState>;
+  commandQueue: MutableRefObject<Command[]>;
+  pausedRef: MutableRefObject<boolean>;
+  cameraRef: MutableRefObject<Camera>;
+  canvasRef: MutableRefObject<HTMLCanvasElement | null>;
+  keys: MutableRefObject<Record<string, boolean>>;
+  edgePanHover: MutableRefObject<{ dir: PanDir; startedAt: number } | null>;
+  panHold: MutableRefObject<PanDir | null>;
+  panAvailabilityRef: MutableRefObject<PanAvailability>;
+  fxRef: MutableRefObject<FxBurst[]>;
+  fxSequence: MutableRefObject<number>;
+  terminalSaveRef: MutableRefObject<boolean>;
+  campaignRecordedRef: MutableRefObject<boolean>;
+  lifecycleRef: MutableRefObject<RuntimeLifecycleState>;
+  persistenceRef: MutableRefObject<RuntimePersistenceState>;
+};
+
+export type RuntimePorts = {
+  setState: (state: SimState) => void;
+  setPanAvailability: (availability: PanAvailability) => void;
+  applyEdgePan: (direction: PanDir | null) => void;
+  redraw: (nowMs?: number, subTickAlpha?: number) => void;
+  onAlert: (text: string) => void;
+  onTacticalAnnouncement: (text: string) => void;
+  saveSession: SaveSession;
+  persistCampaign: boolean;
+};
+
+export type RuntimeCounters = {
+  commandsIssued: number;
+  commandRejections: number;
+};
+
+export type RuntimeLifecycleState = {
+  sessionState: SimState | null;
+  terminalPresented: boolean;
+  commandApplied: boolean;
+  counters: RuntimeCounters;
+};
+
+export type RuntimePersistenceState = {
+  saveRetry: {
+    state: SimState | null;
+    retry: boolean;
+    nextAttemptMs: number;
+    lastStatus: SaveWriteStatus;
+  };
+  nextCampaignSaveAttemptMs: number;
+};
+
+export type RuntimeController = {
+  start: () => void;
+  stop: () => void;
+  drainCommands: () => Command[];
+  onTick: (state: SimState, events: SimEvent[], now: number) => void;
+  onFrame: (now: number, state: SimState, paused: boolean, subTickAlpha: number, frameMs: number) => void;
+};

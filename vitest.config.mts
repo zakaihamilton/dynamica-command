@@ -9,6 +9,10 @@ export default defineConfig({
   test: {
     environment: "node",
     pool: "threads",
+    // The simulation suites are CPU-bound. A bounded pool lets independent
+    // seed partitions run in parallel without starving the long commander and
+    // balance cases that otherwise exceed their per-test budgets.
+    maxWorkers: 8,
     include: ["tests/**/*.test.{ts,tsx}"],
     setupFiles: ["tests/setup.ts"],
     // Keep focused coverage tolerant of V8 overhead; exhaustive checks run in

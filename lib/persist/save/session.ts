@@ -17,6 +17,7 @@ export type SaveSession = {
   write: (state: SimState, mode: SaveWriteMode) => SaveWriteStatus;
   adoptCurrent: () => void;
   markExternalChange: () => void;
+  isStorageEventForSession?: (storageArea: Storage | null) => boolean;
 };
 
 export function saveStorageSnapshot(storage: StorageAdapter, seed: number): SaveStorageSnapshot {
@@ -56,6 +57,9 @@ export function createSaveSession(storage: StorageAdapter, seed: number): SaveSe
     },
     markExternalChange() {
       externallyChanged = true;
+    },
+    isStorageEventForSession(storageArea) {
+      return storageArea === null || storageArea === storage.area;
     },
   };
 }

@@ -3,6 +3,8 @@ export type StorageAdapter = {
   setItem: (key: string, value: string) => void;
   removeItem: (key: string) => void;
   keys: () => string[];
+  /** Browser-backed adapters expose their native area for storage events. */
+  area?: Storage;
 };
 
 /** Storage can fail in browsers with disabled privacy storage or an exhausted quota. */
@@ -56,6 +58,7 @@ export function memoryStorage(initial: Record<string, string> = {}): StorageAdap
 
 export function localStorageAdapter(): StorageAdapter {
   return {
+    area: window.localStorage,
     getItem: (k) => window.localStorage.getItem(k),
     setItem: (k, v) => window.localStorage.setItem(k, v),
     removeItem: (k) => window.localStorage.removeItem(k),
@@ -65,6 +68,7 @@ export function localStorageAdapter(): StorageAdapter {
 
 export function sessionStorageAdapter(): StorageAdapter {
   return {
+    area: window.sessionStorage,
     getItem: (k) => window.sessionStorage.getItem(k),
     setItem: (k, v) => window.sessionStorage.setItem(k, v),
     removeItem: (k) => window.sessionStorage.removeItem(k),

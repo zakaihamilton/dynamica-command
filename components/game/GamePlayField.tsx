@@ -9,6 +9,32 @@ import { TutorialOverlay } from "./TutorialOverlay";
 import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "./hooks/useGameCamera";
 import { playFieldStatus } from "./playFieldStatus";
 
+export type GamePlayFieldProps = {
+  hostRef: Ref<HTMLDivElement>;
+  canvasRef: Ref<HTMLCanvasElement>;
+  panAvail: PanAvailability;
+  hotPan: PanDir | null;
+  campaign: Campaign;
+  state: SimState;
+  tutorial: boolean;
+  paused?: boolean;
+  onPointerDown: PointerEventHandler<HTMLCanvasElement>;
+  onPointerMove: PointerEventHandler<HTMLCanvasElement>;
+  onPointerEnter: PointerEventHandler<HTMLCanvasElement>;
+  onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
+  onPointerUp: PointerEventHandler<HTMLCanvasElement>;
+  onPointerCancel: PointerEventHandler<HTMLCanvasElement>;
+  onAdvanceTutorial: () => void;
+  onExitTutorial: () => void;
+  onBackTutorial: () => void;
+  onNextBriefing: () => void;
+  onCampaignVictory: () => void;
+  onCampaignMap: () => void;
+  onRetry: () => void;
+  onMenu: () => void;
+  combatAlert?: string | null;
+};
+
 export function GamePlayField({
   hostRef,
   canvasRef,
@@ -33,31 +59,7 @@ export function GamePlayField({
   onRetry,
   onMenu,
   combatAlert,
-}: {
-  hostRef: Ref<HTMLDivElement>;
-  canvasRef: Ref<HTMLCanvasElement>;
-  panAvail: PanAvailability;
-  hotPan: PanDir | null;
-  campaign: Campaign;
-  state: SimState;
-  tutorial: boolean;
-  paused?: boolean;
-  onPointerDown: PointerEventHandler<HTMLCanvasElement>;
-  onPointerMove: PointerEventHandler<HTMLCanvasElement>;
-  onPointerEnter: PointerEventHandler<HTMLCanvasElement>;
-  onPointerLeave: PointerEventHandler<HTMLCanvasElement>;
-  onPointerUp: PointerEventHandler<HTMLCanvasElement>;
-  onPointerCancel: PointerEventHandler<HTMLCanvasElement>;
-  onAdvanceTutorial: () => void;
-  onExitTutorial: () => void;
-  onBackTutorial: () => void;
-  onNextBriefing: () => void;
-  onCampaignVictory: () => void;
-  onCampaignMap: () => void;
-  onRetry: () => void;
-  onMenu: () => void;
-  combatAlert?: string | null;
-}) {
+}: GamePlayFieldProps) {
   const status = playFieldStatus(state, campaign);
   return (
     <Battlefield
