@@ -9,6 +9,7 @@ const chromiumLaunchOptions = {
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
+  workers: process.env.CI ? 1 : undefined,
   retries: process.env.CI ? 2 : 0,
   reporter: "line",
   use: {
@@ -25,7 +26,7 @@ export default defineConfig({
     { name: "android-touch", testMatch: /responsive\.spec\.ts/, use: { ...devices["Pixel 5"], launchOptions: chromiumLaunchOptions } },
   ],
   webServer: {
-    command: "NEXT_PUBLIC_E2E_MUTE_MUSIC=1 yarn build && PORT=3100 HOSTNAME=127.0.0.1 yarn start",
+    command: "NEXT_PUBLIC_E2E_MUTE_MUSIC=1 NEXT_PUBLIC_E2E_MUTE_SFX=1 yarn build && PORT=3100 HOSTNAME=127.0.0.1 yarn start",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: false,
     timeout: 120_000,

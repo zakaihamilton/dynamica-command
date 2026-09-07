@@ -14,4 +14,13 @@ describe("E2E soundtrack guard", () => {
 
     expect(isMusicEnabled()).toBe(false);
   });
+
+  it("keeps runtime sound effects disabled even when saved preferences enable them", async () => {
+    vi.stubEnv("NEXT_PUBLIC_E2E_MUTE_SFX", "1");
+    const { isSfxEnabled, setSfxEnabled } = await import("../../lib/audio/synth");
+
+    setSfxEnabled(true);
+
+    expect(isSfxEnabled()).toBe(false);
+  });
 });

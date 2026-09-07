@@ -47,6 +47,40 @@ describe("blocker prop art", () => {
     expect(ofKind(pine, "poly").length).toBeGreaterThan(ofKind(tree, "poly").length);
   });
 
+  it("gives neighboring tree variants distinct bounded silhouettes", () => {
+    const signatures = new Set<string>();
+    for (let v = 0; v < 32; v++) {
+      const prims = blockerPropPrims("tree", v, TONE, "jungle wreckage");
+      signatures.add(JSON.stringify(prims));
+      for (const prim of prims) {
+        if (prim.k === "ell") {
+          expect(prim.x - prim.rx).toBeGreaterThanOrEqual(-24);
+          expect(prim.x + prim.rx).toBeLessThanOrEqual(24);
+          expect(prim.y - prim.ry).toBeGreaterThanOrEqual(-36);
+          expect(prim.y + prim.ry).toBeLessThanOrEqual(16);
+        } else if (prim.k === "poly") {
+          for (let i = 0; i < prim.pts.length; i += 2) {
+            expect(prim.pts[i]).toBeGreaterThanOrEqual(-24);
+            expect(prim.pts[i]).toBeLessThanOrEqual(24);
+            expect(prim.pts[i + 1]).toBeGreaterThanOrEqual(-36);
+            expect(prim.pts[i + 1]).toBeLessThanOrEqual(16);
+          }
+        } else if (prim.k === "line") {
+          expect(Math.min(prim.x0, prim.x1)).toBeGreaterThanOrEqual(-24);
+          expect(Math.max(prim.x0, prim.x1)).toBeLessThanOrEqual(24);
+          expect(Math.min(prim.y0, prim.y1)).toBeGreaterThanOrEqual(-36);
+          expect(Math.max(prim.y0, prim.y1)).toBeLessThanOrEqual(16);
+        } else {
+          expect(Math.min(prim.x0, prim.cx, prim.x1)).toBeGreaterThanOrEqual(-24);
+          expect(Math.max(prim.x0, prim.cx, prim.x1)).toBeLessThanOrEqual(24);
+          expect(Math.min(prim.y0, prim.cy, prim.y1)).toBeGreaterThanOrEqual(-36);
+          expect(Math.max(prim.y0, prim.cy, prim.y1)).toBeLessThanOrEqual(16);
+        }
+      }
+    }
+    expect(signatures.size).toBeGreaterThanOrEqual(16);
+  });
+
   it("stacks sandstone as at least three band polygons", () => {
     const prims = blockerPropPrims("sandstone", 2, TONE, "glass desert");
     expect(ofKind(prims, "poly").length).toBeGreaterThanOrEqual(4);
