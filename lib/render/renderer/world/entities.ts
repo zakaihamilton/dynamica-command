@@ -36,6 +36,7 @@ import {
   drawUnitGlow,
   drawUnitHealthMeter,
   entityHasWorldHealthMeter,
+  repairTargetIds,
   worldHealthMeterHeight,
   worldHealthMeterLayout,
 } from "../../renderOverlays";
@@ -121,6 +122,7 @@ export function renderEntityPhase(
 
   const z = cam.zoom;
   const cullPad = Math.max(128, 140 * z);
+  const repairTargets = repairTargetIds(state);
 
   for (const e of drawList) {
     const entityAlpha = renderEntityOpacity(state, e, timeMs);
@@ -287,7 +289,7 @@ export function renderEntityPhase(
       ctx.globalAlpha = 1;
     }
 
-    if (entityHasWorldHealthMeter(e)) {
+    if (entityHasWorldHealthMeter(e, repairTargets.has(e.id))) {
       const isSelected = selected.has(e.id);
       const { barW, meterY, centerX } = worldHealthMeterLayout(e, spec, dx, dy, s.y, z);
       drawUnitHealthMeter(
@@ -300,6 +302,7 @@ export function renderEntityPhase(
         spriteAlpha,
         isSelected,
         barW,
+        repairTargets.has(e.id),
       );
 
       if (e.class === "unit" && (e.suppression ?? 0) > 0) {

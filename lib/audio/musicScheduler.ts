@@ -1,5 +1,5 @@
 import { composeMusic, midiToHz, STEPS_PER_BAR, BARS_PER_SECTION, type MusicIntensity, type MusicPattern, type MusicStem, type MusicVoiceType } from "./compose";
-import { getAudioContext, peekAudioContext } from "./context";
+import { getAudioContext, peekAudioContext, resumeAudio } from "./context";
 import { getAudioBus } from "./mixer";
 import {
   createGraph,
@@ -242,7 +242,11 @@ if (typeof window !== "undefined") {
 
 export function ensureMusicPlaying(): void {
   if (!enabled || paused) return;
-  const audio = peekAudioContext();
+  // A browser can suspend an already-created context after tab switches or
+  // OS audio-device changes. Always ask the unlocked context to resume before
+  // checking the scheduler so an existing timer cannot leave the soundtrack
+  // silent forever.
+  const audio = resumeAudio();
   if (!audio) return;
   if (!pattern) setPattern(composeMusic(seed, cue, missionIndex));
   if (timer) return;

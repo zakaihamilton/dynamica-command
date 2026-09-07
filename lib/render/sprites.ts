@@ -94,7 +94,9 @@ export function spriteContentBounds(image: HTMLCanvasElement): SpriteBounds | un
 }
 
 function rasterCacheKey(spec: SpriteSpec): string {
-  const crop = spec.imageCrop ? `${spec.imageCrop.x},${spec.imageCrop.y},${spec.imageCrop.w},${spec.imageCrop.h}` : "";
+  const crop = spec.imageCrop
+    ? `${spec.imageCrop.x},${spec.imageCrop.y},${spec.imageCrop.w},${spec.imageCrop.h}:${spec.imageCrop.sourceW},${spec.imageCrop.sourceH}:${spec.imageCrop.refW ?? ""}:${spec.imageCrop.refH ?? ""}`
+    : "";
   const texture = spec.imageTextureSrc
     ? `${spec.imageTextureSrc}:${spec.imageTextureOpacity ?? ""}:${spec.imageTextureOffset ?? 0}`
     : "";
@@ -199,8 +201,17 @@ export function rasterize(spec: SpriteSpec, onReady?: () => void): HTMLCanvasEle
     const paintImage = () => {
       if (generation !== rasterGeneration || cache.get(key) !== c) return;
       const inset = Math.max(1, Math.round(Math.min(c.width, c.height) * 0.025));
-      const crop = spec.imageCrop ?? { x: 0, y: 0, w: image.naturalWidth, h: image.naturalHeight };
-      const scale = Math.min((c.width - inset * 2) / crop.w, (c.height - inset * 2) / crop.h);
+      const crop = spec.imageCrop ?? {
+        x: 0,
+        y: 0,
+        w: image.naturalWidth,
+        h: image.naturalHeight,
+        sourceW: image.naturalWidth,
+        sourceH: image.naturalHeight,
+      };
+      const refW = crop.refW ?? (crop.sourceW > 0 ? crop.sourceW : crop.w);
+      const refH = crop.refH ?? (crop.sourceH > 0 ? crop.sourceH : crop.h);
+      const scale = Math.min((c.width - inset * 2) / refW, (c.height - inset * 2) / refH);
       const dw = Math.round(crop.w * scale);
       const dh = Math.round(crop.h * scale);
       ctx.clearRect(0, 0, c.width, c.height);

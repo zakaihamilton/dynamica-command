@@ -28,6 +28,17 @@ function sprite(id: string): SpriteSpec {
   };
 }
 
+function imageSprite(sourceW: number, sourceH: number): SpriteSpec {
+  return {
+    ...sprite("shared-image"),
+    kind: "unit",
+    w: 64,
+    h: 60,
+    imageSrc: "/shared.webp",
+    imageCrop: { x: 0, y: 0, w: 32, h: 32, sourceW, sourceH },
+  };
+}
+
 describe("render session caches", () => {
   let getContext: ReturnType<typeof vi.spyOn>;
 
@@ -53,6 +64,14 @@ describe("render session caches", () => {
     expect(spriteCacheSize()).toBe(512);
     expect(cachedSprite("sprite-0")).toBeUndefined();
     expect(cachedSprite("sprite-512")).toBeDefined();
+  });
+
+  it("keeps raster entries separate when image source dimensions differ", () => {
+    const first = rasterize(imageSprite(384, 512));
+    const second = rasterize(imageSprite(512, 384));
+
+    expect(second).not.toBe(first);
+    expect(spriteCacheSize()).toBe(2);
   });
 
   it("bounds and clears visual profile caches by session", () => {

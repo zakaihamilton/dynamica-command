@@ -15,7 +15,7 @@ import {
   spritePreviewLayout,
 } from "@/lib/render/spritePreview";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
-import { isUnitKind } from "@/lib/catalog";
+import { isUnitKind, UNIT_STATS } from "@/lib/catalog";
 import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import styles from "./SpritePreview.module.css";
@@ -61,7 +61,9 @@ export function SpritePreview({
       ctx.imageSmoothingEnabled = true;
       if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
 
-      const movement = isUnitKind(kind) ? unitMovementOffset(kind, animationFrame) : null;
+      const movement = isUnitKind(kind) && UNIT_STATS[kind].domain !== "human"
+        ? unitMovementOffset(kind, animationFrame)
+        : null;
       const renderDx = layout.x;
       const renderDy = layout.y + (movement?.bobY ?? 0) * layout.scale;
       const groundX = Math.round(logicalWidth / 2);

@@ -101,9 +101,10 @@ export function setMusicCue(nextCue: MusicCue, nextSeed: number, nextMissionInde
 }
 
 export function setMusicEnabled(value: boolean): void {
-  setEnabled(value);
-  setAudioBusEnabled("music", value);
-  if (!value) stopMusic();
+  const enabledForRuntime = process.env.NEXT_PUBLIC_E2E_MUTE_MUSIC === "1" ? false : value;
+  setEnabled(enabledForRuntime);
+  setAudioBusEnabled("music", enabledForRuntime);
+  if (!enabledForRuntime) stopMusic();
   else ensureMusicPlaying();
 }
 

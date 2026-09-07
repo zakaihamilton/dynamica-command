@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   rasterize: vi.fn(() => ({ width: 200, height: 160 })),
   spriteContentBounds: vi.fn(() => ({ minX: 8, minY: 12, width: 40, height: 20 })),
   drawUnitShadow: vi.fn(),
+  unitMovementOffset: vi.fn(),
   paintBuildingAssetOverlay: vi.fn(),
 }));
 
@@ -44,6 +45,7 @@ vi.mock("@/lib/render/sprites", () => ({
   spriteContentBounds: mocks.spriteContentBounds,
 }));
 vi.mock("@/lib/render/unitMotion", () => ({ drawUnitShadow: mocks.drawUnitShadow }));
+vi.mock("@/lib/render/anim", () => ({ unitMovementOffset: mocks.unitMovementOffset }));
 vi.mock("@/lib/render/previewEffects", () => ({ paintBuildingAssetOverlay: mocks.paintBuildingAssetOverlay }));
 vi.mock("@/lib/render/gl/modelLoader", () => ({ buildTurretHeadModel: vi.fn() }));
 vi.mock("@/lib/render/gl/modelRenderer", () => ({ draw3dModel: vi.fn() }));
@@ -131,16 +133,20 @@ describe("SpritePreview", () => {
   it("keeps unit animation and shadow rendering while cleaning up its timer", () => {
     const setIntervalSpy = vi.spyOn(window, "setInterval");
     const clearIntervalSpy = vi.spyOn(window, "clearInterval");
-    const { container, unmount } = render(<SpritePreview kind="infantry" palette={palette} profile={profile} />);
+    const previews = (["infantry", "antiArmor", "medic"] as const).map((kind) => render(
+      <SpritePreview kind={kind} palette={palette} profile={profile} />,
+    ));
 
-    expect(container.querySelector("canvas")).toBeTruthy();
+    expect(previews.every(({ container }) => container.querySelector("canvas"))).toBe(true);
     expect(mocks.drawUnitShadow).toHaveBeenCalled();
     expect(mocks.paintBuildingAssetOverlay).not.toHaveBeenCalled();
+    expect(mocks.unitMovementOffset).not.toHaveBeenCalled();
     expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 140);
 
-    unmount();
+    previews.forEach(({ unmount }) => unmount());
 
-    expect(clearIntervalSpy).toHaveBeenCalledWith(setIntervalSpy.mock.results[0]?.value);
+    expect(clearIntervalSpy).toHaveBeenCalledTimes(3);
+    expect(clearIntervalSpy.mock.calls.map(([id]) => id)).toEqual(setIntervalSpy.mock.results.map(({ value }) => value));
   });
 
   it("keeps both building and unit previews attached to sidebar item cards", () => {

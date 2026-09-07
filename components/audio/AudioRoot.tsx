@@ -46,17 +46,23 @@ function AudioRootInner() {
   }, [pathname, seedParam, missionParam]);
 
   useEffect(() => {
+    const unlockEvents = ["pointerdown", "keydown", "touchstart"] as const;
     const unlock = () => unlockAudio();
     const onVisibility = () => {
       if (!document.hidden && isAudioUnlocked()) unlockAudio();
       else if (document.hidden) saveAudibleMusicPosition();
     };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
+    // Capture input before game controls can stop propagation. Keep these
+    // listeners for the lifetime of the root so a suspended or failed context
+    // can be retried by a later user gesture.
+    for (const eventName of unlockEvents) {
+      document.addEventListener(eventName, unlock, true);
+    }
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
+      for (const eventName of unlockEvents) {
+        document.removeEventListener(eventName, unlock, true);
+      }
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);

@@ -25,4 +25,54 @@ describe("audio context", () => {
     expect(getAudioContext()?.sampleRate).toBe(AUDIO_SAMPLE_RATE);
     expect(optionsSeen).toEqual([{ sampleRate: AUDIO_SAMPLE_RATE }]);
   });
+
+  it("only resumes after an explicit unlock and can recover a suspended context", async () => {
+    const resume = vi.fn(async () => undefined);
+    class AudioContextStub {
+      sampleRate = AUDIO_SAMPLE_RATE;
+      resume = resume;
+
+      constructor(options?: AudioContextOptions) {
+        void options;
+      }
+    }
+
+    vi.stubGlobal("window", { AudioContext: AudioContextStub });
+    const { resumeAudio, unlockAudioContext } = await import("../../lib/audio/context");
+
+    expect(resumeAudio()).toBeNull();
+    expect(resume).not.toHaveBeenCalled();
+
+    expect(unlockAudioContext()).not.toBeNull();
+    expect(resume).toHaveBeenCalledOnce();
+
+    expect(resumeAudio()).not.toBeNull();
+    expect(resume).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears the unlock state when resume fails so a later gesture can retry", async () => {
+    const resume = vi.fn()
+      .mockRejectedValueOnce(new Error("autoplay blocked"))
+      .mockResolvedValue(undefined);
+    class AudioContextStub {
+      sampleRate = AUDIO_SAMPLE_RATE;
+      resume = resume;
+
+      constructor(options?: AudioContextOptions) {
+        void options;
+      }
+    }
+
+    vi.stubGlobal("window", { AudioContext: AudioContextStub });
+    const { isAudioUnlocked, unlockAudioContext } = await import("../../lib/audio/context");
+
+    unlockAudioContext();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(isAudioUnlocked()).toBe(false);
+
+    unlockAudioContext();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(isAudioUnlocked()).toBe(true);
+    expect(resume).toHaveBeenCalledTimes(2);
+  });
 });

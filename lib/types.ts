@@ -305,6 +305,8 @@ export type SpriteCrop = {
   h: number;
   sourceW: number;
   sourceH: number;
+  refW?: number;
+  refH?: number;
 };
 
 export type SpriteSpec = {

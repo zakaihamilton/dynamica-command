@@ -1,6 +1,7 @@
 import { beepForCommands } from "@/lib/audio/uiOrders";
 import type { BeepKind } from "@/lib/audio/synth";
 import type { Camera } from "@/lib/iso";
+import { canPlaceBuilding } from "@/lib/sim/world";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import {
@@ -150,10 +151,11 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
   }
 
   if (placeKind) {
+    const validPlacement = canPlaceBuilding(state, placeKind, tx, ty);
     return {
       clearBox: true,
       commands: [{ type: "build", building: placeKind, x: tx, y: ty }],
-      clearPlace: true,
+      clearPlace: validPlacement,
       beep: "build",
     };
   }

@@ -1,4 +1,5 @@
-import type { Entity } from "../../types";
+import { isSupportUnit } from "../../catalog";
+import { isUnitEntity, type Entity } from "../../types";
 
 /** Dark steel housing, matching `--chrome-void`. */
 const METER_HOUSING = "rgba(5, 8, 14, 0.92)";
@@ -7,10 +8,32 @@ const METER_STEEL = "rgba(58, 77, 94, 0.85)";
 const METER_TRACK = "rgba(12, 16, 20, 0.95)";
 const METER_SEGMENT = "rgba(5, 8, 14, 0.45)";
 const METER_SELECT = "#f5e6a8";
+const METER_REPAIR_GLOW = "rgba(255, 214, 72, 0.92)";
+const METER_REPAIR_EDGE = "#ffe58a";
 const SEGMENT_PX = 4;
 
-export function entityHasWorldHealthMeter(e: Pick<Entity, "class" | "kind">): boolean {
-  return e.class === "unit" || (e.class === "building" && e.kind === "turret");
+export function entityHasWorldHealthMeter(
+  e: Pick<Entity, "class" | "kind">,
+  isRepairing = false,
+): boolean {
+  return e.class === "unit" || (e.class === "building" && (e.kind === "turret" || isRepairing));
+}
+
+/** Returns entities currently receiving a building repair or support heal. */
+export function repairTargetIds(state: { entities: Entity[] }): Set<number> {
+  const ids = new Set<number>();
+  for (const entity of state.entities) {
+    if (entity.hp <= 0 || entity.neutral) continue;
+    if (entity.class === "building" && entity.repairing) ids.add(entity.id);
+    if (
+      isUnitEntity(entity) &&
+      isSupportUnit(entity.kind) &&
+      entity.supportTargetId !== undefined
+    ) {
+      ids.add(entity.supportTargetId);
+    }
+  }
+  return ids;
 }
 
 export function worldHealthMeterLayout(
@@ -55,6 +78,7 @@ export function drawUnitHealthMeter(
   alpha = 1,
   isSelected = false,
   barWidth?: number,
+  isRepairing = false,
 ): void {
   if (maxHp <= 0 || hp <= 0) return;
   const ratio = Math.max(0, Math.min(1, hp / maxHp));
@@ -65,6 +89,16 @@ export function drawUnitHealthMeter(
 
   ctx.save();
   ctx.globalAlpha = alpha;
+
+  if (isRepairing) {
+    ctx.save();
+    ctx.shadowColor = METER_REPAIR_GLOW;
+    ctx.shadowBlur = Math.max(3, Math.round(5 * z));
+    ctx.strokeStyle = METER_REPAIR_EDGE;
+    ctx.lineWidth = Math.max(1, z);
+    ctx.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);
+    ctx.restore();
+  }
 
   ctx.fillStyle = METER_HOUSING;
   ctx.fillRect(x - 1, y - 1, w + 2, h + 2);

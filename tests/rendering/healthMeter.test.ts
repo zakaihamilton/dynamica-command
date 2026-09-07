@@ -3,9 +3,11 @@ import {
   drawUnitHealthMeter,
   entityHasWorldHealthMeter,
   healthMeterColors,
+  repairTargetIds,
   worldHealthMeterHeight,
   worldHealthMeterLayout,
 } from "../../lib/render/renderOverlays";
+import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
 
 describe("health meter colors", () => {
   it("returns olive for health ratio > 0.5", () => {
@@ -117,6 +119,31 @@ describe("drawUnitHealthMeter canvas rendering", () => {
     expect(ctx.fillRect).toHaveBeenCalledWith(179, 99, 42, 7);
   });
 
+  it("adds a yellow glow around a repairing health bar", () => {
+    const ctx = createMockCtx();
+    drawUnitHealthMeter(ctx, 100, 50, 50, 100, 1, 1, false, 20, true);
+
+    expect(ctx.shadowColor).toBe("rgba(255, 214, 72, 0.92)");
+    expect(ctx.shadowBlur).toBe(5);
+    expect(ctx.strokeRect).toHaveBeenNthCalledWith(1, 88.5, 48.5, 23, 5);
+    expect(ctx.strokeRect).toHaveBeenNthCalledWith(2, 89.5, 49.5, 21, 3);
+  });
+
+});
+
+describe("repairTargetIds", () => {
+  it("tracks repairing buildings and units assigned to support providers", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const building = addBuilding(state, 0, "power", 4, 4);
+    building.repairing = true;
+    const truck = addUnit(state, 0, "repairTruck", 2, 2);
+    const tank = addUnit(state, 0, "tank", 3, 3);
+    truck.supportTargetId = tank.id;
+    const idleUnit = addUnit(state, 0, "infantry", 5, 5);
+
+    expect(repairTargetIds(state)).toEqual(new Set([building.id, tank.id]));
+    expect(repairTargetIds({ entities: [{ ...idleUnit, hp: 0 }] })).toEqual(new Set());
+  });
 });
 
 describe("entityHasWorldHealthMeter", () => {
@@ -128,6 +155,10 @@ describe("entityHasWorldHealthMeter", () => {
 
   it("shows the world meter for turret buildings", () => {
     expect(entityHasWorldHealthMeter({ class: "building", kind: "turret" })).toBe(true);
+  });
+
+  it("shows a world meter for a non-turret building while it is being repaired", () => {
+    expect(entityHasWorldHealthMeter({ class: "building", kind: "power" }, true)).toBe(true);
   });
 
   it("hides the world meter for other buildings", () => {

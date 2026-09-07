@@ -61,6 +61,7 @@ describe("pointer canvas math", () => {
 describe("pointer-up policy", () => {
   it("places a building, cancels tools on right-click, and issues a mobile command", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
+    addBuilding(state, 0, "constructionYard", 1, 1);
     const cam = createCamera();
     const p = tileToScreen(4, 5, cam, heightAt(state, 4, 5));
 
@@ -84,6 +85,29 @@ describe("pointer-up policy", () => {
       clearPlace: true,
       beep: "build",
       commands: [{ type: "build", building: "power", x: 4, y: 5 }],
+    });
+
+    const invalidPlacement = tileToScreen(0, 0, cam, heightAt(state, 0, 0));
+    expect(resolvePointerUp({
+      pointerType: "mouse",
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      p: invalidPlacement,
+      state,
+      cam,
+      selectedIds: [],
+      box: null,
+      selectionMode: false,
+      mobileCommand: null,
+      placeKind: "power",
+      repairMode: false,
+      sellMode: false,
+    })).toMatchObject({
+      clearBox: true,
+      clearPlace: false,
+      beep: "build",
+      commands: [{ type: "build", building: "power", x: 0, y: 0 }],
     });
 
     expect(resolvePointerUp({
