@@ -60,4 +60,16 @@ describe("runtime frame coordinator", () => {
     expect(frame.edgePanHover.current).toBeNull();
     expect(frame.panHold.current).toBeNull();
   });
+
+  it("uses elapsed time when edge-pan frames are delayed", () => {
+    const frame = makeFrameCoordinator();
+    const state = makeFixture({ width: 48, height: 48, win: { kind: "annihilate" } });
+    frame.edgePanHover.current = { dir: "right", startedAt: 0 };
+    const before = frame.camera.x;
+
+    frame.coordinator.onFrame(state, 0, false, 0);
+    frame.coordinator.onFrame(state, 1_000, false, 100);
+
+    expect(frame.camera.x).toBe(before - 600);
+  });
 });

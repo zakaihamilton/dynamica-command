@@ -2,6 +2,11 @@ import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, ED
 import type { Camera } from "@/lib/iso";
 import type { SimState } from "@/lib/types";
 
+// Recover useful edge-pan distance when WebKit or a backgrounded tab delivers
+// animation frames sparsely, without allowing an arbitrarily long frame gap to
+// teleport the camera.
+const MAX_CAMERA_ELAPSED_MS = 1_000;
+
 export function createFrameCoordinator({
   cameraRef,
   canvasRef,
@@ -21,9 +26,15 @@ export function createFrameCoordinator({
   setPanAvailability: (availability: PanAvailability) => void;
   applyEdgePan: (direction: PanDir | null) => void;
 }) {
+  let previousFrameAt: number | null = null;
+
   return {
     onFrame(state: SimState, now: number, paused: boolean, frameMs: number) {
+      const elapsedSinceFrame = previousFrameAt === null ? frameMs : Math.max(0, now - previousFrameAt);
+      previousFrameAt = now;
+      const cameraFrameMs = Math.min(elapsedSinceFrame, MAX_CAMERA_ELAPSED_MS);
       const panStep = 600 * frameMs / 1000;
+      const edgePanStep = 600 * cameraFrameMs / 1000;
       if (!paused) {
         const camera = cameraRef.current;
         const canvas = canvasRef.current;
@@ -40,7 +51,7 @@ export function createFrameCoordinator({
         if (hold && bounds) {
           if (!panAvailability(camera, bounds)[hold]) applyEdgePan(null);
           else {
-            const offset = panOffset(hold, panStep);
+            const offset = panOffset(hold, edgePanStep);
             panCamera(camera, offset.dx, offset.dy, bounds);
           }
         } else if (bounds) {
@@ -55,6 +66,7 @@ export function createFrameCoordinator({
           }
         }
       } else {
+        previousFrameAt = null;
         edgePanHover.current = null;
         panHold.current = null;
       }
