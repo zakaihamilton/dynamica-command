@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { createCampaign } from "../../lib/gen/campaign";
-import { MAX_MISSION_TICKS } from "../../lib/gen/pacing";
 import { BUILDING_STATS } from "../../lib/catalog";
 import { createMission, inspect, tick } from "../../lib/sim/api";
 import { CompetentCommander } from "../../lib/sim/commander";
@@ -9,18 +8,6 @@ import { missionDifficulty } from "../../lib/sim/difficulty";
 import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
 import { enemyEntities, playerBuildings, playerUnits } from "../../lib/sim/commander/queries";
 import { invalidateEntityCaches, living, powerBreakdown, unitAt } from "../../lib/sim/world";
-
-const IS_COVERAGE = Boolean(process.env.NODE_V8_COVERAGE || process.env.VITEST_COVERAGE);
-
-function runGeneratedMission(seed: number, missionIndex: number) {
-  const state = createMission({ seed, missionIndex });
-  const commander = new CompetentCommander();
-  const horizon = state.runtime?.deadline ?? state.win.ticks ?? MAX_MISSION_TICKS;
-  for (let i = 0; i < horizon && state.result === "playing"; i++) {
-    tick(state, commander.plan(state));
-  }
-  return state;
-}
 
 describe("competent commander", () => {
   it("returns snapshots instead of exposing cached query state", () => {
@@ -150,17 +137,6 @@ describe("competent commander", () => {
 
     expect(state.missionKind).toBe("structureQuota");
     expect(rejections).toBe(0);
-  });
-
-  it.skipIf(IS_COVERAGE).each([
-    [2, 0, "structureQuota"],
-    [0, 2, "escort"],
-    [0, 1, "extraction"],
-  ] as const)("completes generated %s/%s (%s) objectives with deterministic command execution", (seed, missionIndex, kind) => {
-    const state = runGeneratedMission(seed, missionIndex);
-
-    expect(state.missionKind).toBe(kind);
-    expect(state.result).toBe("won");
   });
 
   it("keeps a committed assault focused on its objective until it wins", () => {

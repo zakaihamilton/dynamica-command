@@ -15,6 +15,7 @@ import { useGameSelection } from "./useGameSelection";
 import { useGameRuntimeState } from "./useGameRuntimeState";
 import { clearRenderSessionCaches } from "@/lib/render/sessionCache";
 import type { PauseView } from "@/lib/ui/shortcuts";
+import type { GameRuntimeSurfaces } from "./runtime/surfaces";
 
 export function useGameRuntime({
   seed,
@@ -283,10 +284,7 @@ export function useGameRuntime({
 
   useEffect(() => () => clearRenderSessionCaches(), []);
 
-  return {
-    campaign,
-    playerVisualProfile,
-    palette: state.factions[0].palette,
+  const surfaces = {
     playField: {
       hostRef,
       canvasRef,
@@ -339,6 +337,13 @@ export function useGameRuntime({
       actions,
       session,
     },
+  } satisfies GameRuntimeSurfaces;
+
+  return {
+    campaign,
+    playerVisualProfile,
+    palette: state.factions[0].palette,
+    ...surfaces,
   };
 }
 

@@ -156,6 +156,8 @@ inspect(state)          // compact JSON: credits, counts, objective, result
 
 `yarn sim` exit codes: `0` playing, `10` win, `11` lose.
 
+For deterministic bug reports and regression fixtures, `runReplay({ seed, missionIndex, orders, maxTicks })` in `lib/sim/replay.ts` runs the same scheduled-order format without a DOM and returns inspection data, events, command rejections, and a fog-independent gameplay fingerprint. `yarn test` remains the exhaustive suite; `yarn test:fast` skips only the heavyweight exhaustive balance, terrain, commander, profile, and all-seed cases for a quick edit loop. `yarn verify:fast` combines typecheck, lint, and that fast tier. CI continues to publish per-test timing JSON through `yarn ci:timed-tests`.
+
 Optional `--orders orders.json`:
 
 ```json

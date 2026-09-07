@@ -14,6 +14,34 @@ import type { GameActions } from "./hooks/useGameActions";
 import type { GameCamera } from "./hooks/useGameCamera";
 import type { GameSession } from "./hooks/useGameSession";
 
+export type GameOverlayProps = {
+  campaign: Campaign;
+  state: SimState;
+  playerVisualProfile: FactionVisualProfile;
+  selectedIds: number[];
+  tutorial: boolean;
+  selectionMode?: boolean;
+  mobilePanelOpen: boolean;
+  mobileLauncherRef: Ref<HTMLButtonElement>;
+  miniRef: Ref<HTMLCanvasElement>;
+  activeTab: CommandTab;
+  onTab: (tab: CommandTab) => void;
+  paused: boolean;
+  pauseView: PauseView;
+  pauseNotice: string;
+  tacticalAnnouncement?: string;
+  audioSettings: GameSettings;
+  camera: GameCamera;
+  setPauseView: (view: PauseView) => void;
+  setPauseNotice: (notice: string) => void;
+  onToggleMobilePanel: () => void;
+  onPause: () => void;
+  onSelect?: (ids: number[]) => void;
+  onAnnounce?: (message: string) => void;
+  actions: GameActions;
+  session: GameSession;
+};
+
 export function GameOverlays({
   campaign,
   state,
@@ -39,32 +67,7 @@ export function GameOverlays({
   onAnnounce = () => undefined,
   actions,
   session,
-}: {
-  campaign: Campaign;
-  state: SimState;
-  playerVisualProfile: FactionVisualProfile;
-  selectedIds: number[];
-  tutorial: boolean;
-  mobilePanelOpen: boolean;
-  mobileLauncherRef: Ref<HTMLButtonElement>;
-  miniRef: Ref<HTMLCanvasElement>;
-  activeTab: CommandTab;
-  onTab: (tab: CommandTab) => void;
-  paused: boolean;
-  pauseView: PauseView;
-  pauseNotice: string;
-  tacticalAnnouncement?: string;
-  audioSettings: GameSettings;
-  camera: GameCamera;
-  setPauseView: (view: PauseView) => void;
-  setPauseNotice: (notice: string) => void;
-  onToggleMobilePanel: () => void;
-  onPause: () => void;
-  onSelect?: (ids: number[]) => void;
-  onAnnounce?: (message: string) => void;
-  actions: GameActions;
-  session: GameSession;
-}) {
+}: GameOverlayProps) {
   // Memoized so the selected-entity snapshot is not rebuilt on unrelated re-renders.
   const { palette, selected } = useMemo(
     () => gameOverlayModel({ state, selectedIds }),

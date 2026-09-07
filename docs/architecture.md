@@ -23,11 +23,20 @@ runtime hooks
   ├─ useGameLoop          — browser effects around the simulation loop
   └─ useGameRenderer      — Canvas frame rendering and effects
 
+runtime controllers
+  ├─ RuntimeController     — fixed-step loop lifecycle and command/state wiring
+  ├─ persistence coordinator — autosave, conflict retry, campaign progress, telemetry
+  ├─ presentation coordinator — simulation events to audio, alerts, and FX
+  ├─ frame coordinator      — camera pan, bounds, availability, and redraw timing
+  └─ surface adapter        — typed play-field and overlay props
+
 lib/gen + lib/sim
   └─ DOM-free deterministic game domain used by the UI, tests, and CLIs
 ```
 
 The `lib/gen` and `lib/sim` layers must not import React, browser globals, or Canvas APIs. This keeps generated campaigns and simulation replays usable from Vitest and the headless scripts.
+
+The gameplay runtime is the browser-side composition boundary. `useGameRuntime` assembles typed refs and ports, while the runtime controllers own lifecycle effects. New gameplay behavior should not be added to a controller: extend the domain model and public command/event API first, then connect the behavior through the UI adapter.
 
 ## Seed and generated content
 
@@ -86,6 +95,8 @@ Static terrain and building occupancy are cached by `navigationRevision` in `sta
 
 Performance-sensitive work should be measured with `yarn health:performance`. The benchmark covers late-game simulation, terrain atlas generation, foreground routing, multi-destination flow fields, and blocked-line-of-sight combat. Do not loosen a threshold without recording why the workload or target changed.
 
+Unit-test timing is published by `yarn ci:timed-tests` as `artifacts/test-timing.json`. The pre-refactor full-suite baseline was approximately 78 seconds wall-clock, with headless balance, balance regressions, terrain, commander, and profile suites as the principal hotspots. The exhaustive `yarn test` command has no hard duration gate; the timing report is the regression signal.
+
 ## Persistence boundaries
 
 - `lib/persist/save`: versioned simulation serialization, per-seed autosaves, and named save slots.
@@ -95,6 +106,8 @@ Performance-sensitive work should be measured with `yarn health:performance`. Th
 - `SaveSession`: best-effort same-tab and cross-tab conflict detection around `localStorage`.
 
 Explicit save/load actions may adopt a new snapshot. Implicit autosaves refuse to overwrite a detected external change so another tab is not silently lost. Named slots store a mission snapshot plus that moment's campaign progress. A slot load writes both records before replacing the active mission or navigating. If campaign writing fails, it attempts to restore the previous autosave and reports any rollback failure; localStorage does not provide multi-key transactions. A successful named-slot write is reported as saved even if updating the separate autosave fails.
+
+The product remains local-only. Future online persistence should enter behind the existing `StorageAdapter`/`SaveSession` boundary so runtime controllers continue to depend on save-session operations rather than `localStorage`; authentication, cloud synchronization, multiplayer networking, server authority, and save migration are intentionally out of scope.
 
 Mission navigation, including confirmed browser Back, saves the latest state before leaving. A failed or conflicting save keeps the mission open and displays a pause-menu notice. Loop presentation state follows the authoritative simulation object so restarting or loading in place resets terminal handling and per-session counters without replaying telemetry for an already-finished loaded mission.
 
@@ -106,3 +119,5 @@ Mission navigation, including confirmed browser Back, saves the latest state bef
 4. Add focused unit tests, plus a determinism or generated-seed invariant when the feature affects seeded content.
 5. Connect the UI through a hook or surface component, keeping Canvas rendering and browser APIs out of the domain layer.
 6. Run typecheck, lint, targeted tests, the full suite, build, and the relevant health scripts.
+
+For reproducible gameplay bugs, add a scheduled-order replay fixture using `lib/sim/replay.ts` and the existing `scripts/sim.ts --orders` format. Replay fingerprints exclude fog and normalize entity ordering, so they describe simulation behavior rather than renderer state.

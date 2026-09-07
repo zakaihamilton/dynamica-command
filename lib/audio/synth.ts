@@ -15,8 +15,9 @@ let sfxEnabled = true;
 const lastPlayed = new Map<SfxKind, number>();
 
 export function setSfxEnabled(value: boolean): void {
-  sfxEnabled = value;
-  setAudioBusEnabled("sfx", value);
+  const enabledForRuntime = process.env.NEXT_PUBLIC_E2E_MUTE_SFX === "1" ? false : value;
+  sfxEnabled = enabledForRuntime;
+  setAudioBusEnabled("sfx", enabledForRuntime);
 }
 
 export function isSfxEnabled(): boolean {

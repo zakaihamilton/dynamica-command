@@ -19,7 +19,8 @@ const renderGameFrame = vi.hoisted(() => vi.fn(() => ({
   fx: [],
 })));
 
-const startLoop = vi.hoisted(() => vi.fn(() => ({ stop: vi.fn() })));
+const stopLoop = vi.hoisted(() => vi.fn());
+const startLoop = vi.hoisted(() => vi.fn(() => ({ stop: stopLoop })));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/audio/synth", () => ({ beep: vi.fn(), setSfxEnabled: vi.fn(), playSfx: vi.fn() }));
@@ -49,6 +50,7 @@ afterEach(() => {
   window.sessionStorage.clear();
   renderGameFrame.mockClear();
   startLoop.mockClear();
+  stopLoop.mockClear();
 });
 
 beforeEach(() => {
@@ -346,6 +348,17 @@ describe("useGameRuntime", () => {
     expect(result.current.overlays.actions.mobileCommandState).toBeNull();
     expect(result.current.overlays.mobilePanelOpen).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
+  });
+
+  it("wires runtime lifecycle callbacks and stops the loop on unmount", () => {
+    const { unmount } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const options = (startLoop.mock.calls[0] as unknown as [LoopOptions])[0];
+
+    expect(options.drainCommands).toEqual(expect.any(Function));
+    expect(options.onTick).toEqual(expect.any(Function));
+    expect(options.onFrame).toEqual(expect.any(Function));
+    unmount();
+    expect(stopLoop).toHaveBeenCalledOnce();
   });
 
   it("returns focus to the launcher when a mobile panel action closes it", () => {
