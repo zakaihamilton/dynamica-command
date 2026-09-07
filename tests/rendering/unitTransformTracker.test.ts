@@ -100,6 +100,29 @@ describe("unitTransformTracker sub-tick interpolation and dynamics", () => {
     expect(dyn.turretYaw).toBeCloseTo(expected, 1);
   });
 
+  it("turns the rendered chassis toward a stationary attack target", () => {
+    const state = createMission({ seed: 101, missionIndex: 0 });
+    const unit = state.entities.find((e) => e.class === "unit");
+    if (!unit) throw new Error("Expected unit");
+    unit.kind = "tank";
+    unit.facing = 0;
+    const target = state.entities.find((e) => e.owner !== unit.owner && e.hp > 0);
+    if (!target) throw new Error("Expected opposing entity");
+    target.x = unit.x + 5;
+    target.y = unit.y + 5;
+    unit.attackTarget = target.id;
+    const byId = new Map(state.entities.map((entity) => [entity.id, entity]));
+
+    updateUnitHistory(state, 1000);
+    let dyn = computeUnitDynamicTransform(unit, state, 0, 1000, byId);
+    for (let t = 1050; t <= 2000; t += 50) {
+      dyn = computeUnitDynamicTransform(unit, state, 0, t, byId);
+    }
+
+    expect(dyn.baseFacing).toBe(2);
+    expect(dyn.rotationOffset).toBeCloseTo(0, 1);
+  });
+
   it("animates leg angles during movement", () => {
     const state = createMission({ seed: 101, missionIndex: 0 });
     const unit = state.entities.find((e) => e.class === "unit");
@@ -150,5 +173,57 @@ describe("unitTransformTracker sub-tick interpolation and dynamics", () => {
     const mid = computeUnitDynamicTransform(unit, state, 0.5, 1200);
     expect(mid.x).toBeCloseTo(unit.x, 2);
     expect(mid.y).toBeCloseTo(unit.y, 2);
+  });
+
+  it("smoothly tracks continuous vehicle screen angle and micro-rotation offset", () => {
+    const state = createMission({ seed: 101, missionIndex: 0 });
+    const unit = state.entities.find((e) => e.class === "unit");
+    if (!unit) throw new Error("Expected unit");
+
+    unit.kind = "tank";
+    unit.facing = 0;
+    // Order tank to move straight South in screen coordinates (+X, +Y in tile coords)
+    unit.path = [{ x: unit.x + 5, y: unit.y + 5 }];
+
+    updateUnitHistory(state, 1000);
+    const initial = computeUnitDynamicTransform(unit, state, 0, 1000);
+    expect(typeof initial.screenAngle).toBe("number");
+    expect(initial.baseFacing).toBeGreaterThanOrEqual(0);
+    expect(initial.baseFacing).toBeLessThanOrEqual(7);
+    expect(initial.rotationOffset).toBeGreaterThanOrEqual(-Math.PI / 8);
+    expect(initial.rotationOffset).toBeLessThanOrEqual(Math.PI / 8);
+
+    // After turning towards target over time, baseFacing converges to South (Facing 2)
+    let turned = initial;
+    for (let t = 1050; t <= 2000; t += 50) {
+      turned = computeUnitDynamicTransform(unit, state, 0, t);
+    }
+
+    expect(turned.baseFacing).toBe(2);
+    expect(turned.rotationOffset).toBeCloseTo(0, 1);
+  });
+
+  it("computes dynamic bipedal gait properties for walking soldiers", () => {
+    const state = createMission({ seed: 101, missionIndex: 0 });
+    const unit = state.entities.find((e) => e.class === "unit");
+    if (!unit) throw new Error("Expected unit");
+
+    unit.kind = "infantry";
+    unit.path = [{ x: unit.x + 5, y: unit.y }];
+
+    updateUnitHistory(state, 1000);
+    const t1 = computeUnitDynamicTransform(unit, state, 0, 1100);
+    const t2 = computeUnitDynamicTransform(unit, state, 0, 1250);
+
+    expect(t1.gaitBobY).toBeLessThanOrEqual(0);
+    expect(t1.gaitBobY).toBeGreaterThanOrEqual(-2.5);
+    expect(typeof t1.swayX).toBe("number");
+    expect(typeof t1.gaitTilt).toBe("number");
+    expect(typeof t1.scaleX).toBe("number");
+    expect(typeof t1.scaleY).toBe("number");
+    expect(typeof t1.isFootPlant).toBe("boolean");
+    expect([-1, 1]).toContain(t1.footPlantSide);
+    // Dynamic values vary across walk cycle
+    expect(t1.gaitBobY).not.toBe(t2.gaitBobY);
   });
 });

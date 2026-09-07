@@ -14,7 +14,7 @@ import { FX_DURATION } from "@/lib/render/fx";
 import { renderWorld } from "@/lib/render/renderer";
 import { isTerrainAtlasReady } from "@/lib/render/terrainAtlas";
 import { tick } from "@/lib/sim/api";
-import { nearest } from "@/lib/sim/world";
+import { nearest, spawnUnit } from "@/lib/sim/world";
 import { assignAttack } from "@/lib/sim/ai/combat";
 import { assignSupportTarget } from "@/lib/sim/support";
 import type { UnitKind } from "@/lib/types";
@@ -148,6 +148,18 @@ function stepCinemaSimulation(scene: CinemaScene, shots: Shot[]): void {
     const eCombat = scene.state.entities.filter(
       (e) => e.owner === 1 && e.class === "unit" && e.hp > 0 && !isSupportUnit(e.kind as UnitKind) && UNIT_STATS[e.kind as UnitKind].damage > 0,
     );
+
+    // Keep active combat alive so the preview camera never frames an empty battlefield
+    if (pCombat.length < 2) {
+      const pSpawnKind: UnitKind = scene.scenarioKind === "infantryStorm" ? "infantry" : "tank";
+      const newP = spawnUnit(scene.state, 0, pSpawnKind, cx - 1, cy + 1);
+      pCombat.push(newP);
+    }
+    if (eCombat.length < 2) {
+      const eSpawnKind: UnitKind = scene.scenarioKind === "infantryStorm" ? "infantry" : "tank";
+      const newE = spawnUnit(scene.state, 1, eSpawnKind, cx + 1, cy - 1);
+      eCombat.push(newE);
+    }
 
     for (const u of eCombat) {
       if (u.attackTarget === undefined || u.idle) {

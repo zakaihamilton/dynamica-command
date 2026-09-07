@@ -57,7 +57,7 @@ export function SpritePreview({
 
       const movement = isUnitKind(kind) ? unitMovementOffset(kind, animationFrame) : null;
       const renderDx = Math.round((canvas.width - dw) / 2);
-      const renderDy = Math.round((canvas.height - dh) / 2) - (movement?.bobY ?? 0) * scale;
+      const renderDy = Math.round((canvas.height - dh) / 2) + (movement?.bobY ?? 0) * scale;
       const groundX = Math.round(canvas.width / 2);
       const groundY = Math.round((canvas.height + dh) / 2);
 

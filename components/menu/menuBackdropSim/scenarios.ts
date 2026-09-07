@@ -24,15 +24,35 @@ export const CINEMA_SCENARIO_KINDS: readonly CinemaScenarioKind[] = [
   "convoyRaid",
 ];
 
-const CINEMA_BUILDING_SEARCH_RADIUS = 8;
+export const CINEMA_BUILDING_SEARCH_RADIUS = 8;
 
-export const CINEMA_STRUCTURE_KINDS: Record<CinemaScenarioKind, { player: BuildingKind; enemy: BuildingKind }> = {
-  baseAssault: { player: "barracks", enemy: "turret" },
-  turretDefense: { player: "turret", enemy: "factory" },
-  harvesterAmbush: { player: "power", enemy: "refinery" },
-  armorClash: { player: "factory", enemy: "factory" },
-  infantryStorm: { player: "barracks", enemy: "barracks" },
-  convoyRaid: { player: "turret", enemy: "refinery" },
+export interface CinemaScenarioDef {
+  defendingOwner: 0 | 1;
+  structures: readonly [BuildingKind, BuildingKind];
+}
+
+export const CINEMA_SCENARIOS: Record<CinemaScenarioKind, CinemaScenarioDef> = {
+  // Enemy base assault (Player attacks enemy base at e0; structures are 100% Enemy / owner 1)
+  baseAssault: { defendingOwner: 1, structures: ["turret", "barracks"] },
+  // Home base defense (Enemy attacks player base at p0; structures are 100% Player / owner 0)
+  turretDefense: { defendingOwner: 0, structures: ["turret", "factory"] },
+  // Enemy resource base ambush (Player ambushes enemy mining operations at e0; structures are 100% Enemy / owner 1)
+  harvesterAmbush: { defendingOwner: 1, structures: ["refinery", "power"] },
+  // Enemy forward vehicle factory assault (Player armor attacks enemy factory at e0; structures are 100% Enemy / owner 1)
+  armorClash: { defendingOwner: 1, structures: ["factory", "turret"] },
+  // Home base defense against infantry assault (Enemy storming player base at p0; structures are 100% Player / owner 0)
+  infantryStorm: { defendingOwner: 0, structures: ["barracks", "power"] },
+  // Home base raid interception (Enemy raiding player logistics base at p0; structures are 100% Player / owner 0)
+  convoyRaid: { defendingOwner: 0, structures: ["turret", "refinery"] },
+};
+
+export const CINEMA_STRUCTURE_KINDS: Record<CinemaScenarioKind, { player?: BuildingKind; enemy?: BuildingKind; primary: BuildingKind; secondary: BuildingKind }> = {
+  baseAssault: { primary: "turret", secondary: "barracks", enemy: "turret" },
+  turretDefense: { primary: "turret", secondary: "factory", player: "turret" },
+  harvesterAmbush: { primary: "refinery", secondary: "power", enemy: "refinery" },
+  armorClash: { primary: "factory", secondary: "turret", enemy: "factory" },
+  infantryStorm: { primary: "barracks", secondary: "power", player: "barracks" },
+  convoyRaid: { primary: "turret", secondary: "refinery", player: "turret" },
 };
 
 export function spawnCinemaBuilding(
@@ -81,8 +101,10 @@ export function spawnCinemaBuilding(
 export interface ScenarioSpawnResult {
   pUnits: ReturnType<typeof spawnUnit>[];
   eUnits: ReturnType<typeof spawnUnit>[];
-  playerStructure: ReturnType<typeof spawnBuilding>;
-  enemyStructure: ReturnType<typeof spawnBuilding>;
+  structures: ReturnType<typeof spawnBuilding>[];
+  playerStructure?: ReturnType<typeof spawnBuilding>;
+  enemyStructure?: ReturnType<typeof spawnBuilding>;
+  defendingOwner: 0 | 1;
 }
 
 export function populateScenarioForces(
@@ -95,7 +117,9 @@ export function populateScenarioForces(
 ): ScenarioSpawnResult {
   const pUnits: ReturnType<typeof spawnUnit>[] = [];
   const eUnits: ReturnType<typeof spawnUnit>[] = [];
-  const structureKinds = CINEMA_STRUCTURE_KINDS[scenarioKind];
+  const scenarioDef = CINEMA_SCENARIOS[scenarioKind];
+  const defendingOwner = scenarioDef.defendingOwner;
+  const [bKind1, bKind2] = scenarioDef.structures;
 
   if (scenarioKind === "baseAssault") {
     // Player assault breaching enemy forward fortification
@@ -186,25 +210,27 @@ export function populateScenarioForces(
     assignAttack(state, pUnits[1]!, convoyTruck);
   }
 
-  const pBuildingSlot = { x: clashX, y: clashY + 2 };
-  const eBuildingSlot = { x: clashX + 2, y: clashY + 1 };
+  // Base structures: Both buildings belong exclusively to defendingOwner (single faction)
+  // Placement is offset slightly from the clash center so both structures and units are clearly framed
+  const bSlot1 = defendingOwner === 0 ? { x: clashX - 1, y: clashY + 2 } : { x: clashX + 2, y: clashY - 1 };
+  const bSlot2 = defendingOwner === 0 ? { x: clashX - 2, y: clashY + 1 } : { x: clashX + 1, y: clashY - 2 };
 
-  let playerStructure: ReturnType<typeof spawnBuilding>;
-  let enemyStructure: ReturnType<typeof spawnBuilding>;
-  if (scenarioKind === "baseAssault") {
-    enemyStructure = spawnCinemaBuilding(state, 1, structureKinds.enemy, eBuildingSlot, { x: clashX, y: clashY });
-    playerStructure = spawnCinemaBuilding(state, 0, structureKinds.player, pBuildingSlot, { x: clashX, y: clashY });
+  const s1 = spawnCinemaBuilding(state, defendingOwner, bKind1, bSlot1, { x: clashX, y: clashY });
+  const s2 = spawnCinemaBuilding(state, defendingOwner, bKind2, bSlot2, { x: clashX, y: clashY });
+  const structures = [s1, s2];
+
+  const playerStructure = defendingOwner === 0 ? s1 : undefined;
+  const enemyStructure = defendingOwner === 1 ? s1 : undefined;
+
+  if (defendingOwner === 1) {
+    // Attacking player units immediately target the enemy base structure
+    if (pUnits[0]) assignAttack(state, pUnits[0], s1);
+    if (pUnits[1]) assignAttack(state, pUnits[1], s1);
   } else {
-    playerStructure = spawnCinemaBuilding(state, 0, structureKinds.player, pBuildingSlot, { x: clashX, y: clashY });
-    enemyStructure = spawnCinemaBuilding(state, 1, structureKinds.enemy, eBuildingSlot, { x: clashX, y: clashY });
-  }
-  if (scenarioKind === "baseAssault") {
-    assignAttack(state, pUnits[0]!, enemyStructure);
-    assignAttack(state, pUnits[1]!, enemyStructure);
-  } else if (scenarioKind === "turretDefense") {
-    assignAttack(state, eUnits[0]!, playerStructure);
-    assignAttack(state, eUnits[1]!, playerStructure);
+    // Attacking enemy units immediately target the player base structure
+    if (eUnits[0]) assignAttack(state, eUnits[0], s1);
+    if (eUnits[1]) assignAttack(state, eUnits[1], s1);
   }
 
-  return { pUnits, eUnits, playerStructure, enemyStructure };
+  return { pUnits, eUnits, structures, playerStructure, enemyStructure, defendingOwner };
 }

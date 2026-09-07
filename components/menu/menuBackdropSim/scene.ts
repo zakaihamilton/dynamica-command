@@ -73,19 +73,19 @@ export function createCinemaScene(
 
   const p0 = map.playerStart;
   const e0 = map.enemyStart;
+  const defendingOwner = (scenarioKind === "turretDefense" || scenarioKind === "infantryStorm" || scenarioKind === "convoyRaid") ? 0 : 1;
+  const baseCenter = defendingOwner === 0 ? p0 : e0;
 
-  // Search for an open walkable clash zone between the two bases
-  const midX = Math.round((p0.x + e0.x) / 2);
-  const midY = Math.round((p0.y + e0.y) / 2);
-  let clashX = midX;
-  let clashY = midY;
+  // Search for an open walkable clash zone centered directly at the defending base
+  let clashX = baseCenter.x;
+  let clashY = baseCenter.y;
   for (let r = 0; r <= 8; r++) {
     let found = false;
     for (let dx = -r; dx <= r && !found; dx++) {
       for (let dy = -r; dy <= r && !found; dy++) {
-        if (isStaticWalkable(state, midX + dx, midY + dy)) {
-          clashX = midX + dx;
-          clashY = midY + dy;
+        if (isStaticWalkable(state, baseCenter.x + dx, baseCenter.y + dy)) {
+          clashX = baseCenter.x + dx;
+          clashY = baseCenter.y + dy;
           found = true;
         }
       }
@@ -93,7 +93,8 @@ export function createCinemaScene(
     if (found) break;
   }
 
-  // Pre-calculated integer tile positions within widescreen PIP feed
+  // Pre-calculated integer tile positions within widescreen PIP feed:
+  // Defenders hold the base while attackers advance inward.
   const pSlots = [
     { x: clashX - 1, y: clashY + 1 }, // (32, 80)
     { x: clashX - 1, y: clashY },     // (80, 56)

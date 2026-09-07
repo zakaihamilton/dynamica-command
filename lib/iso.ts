@@ -1,3 +1,5 @@
+import type { Facing } from "./types";
+
 export type Camera = {
   x: number;
   y: number;
@@ -8,6 +10,22 @@ export const TILE_W = 64;
 export const TILE_H = 32;
 // Restore readable cliff depth so plateaus and ridges separate from plains.
 export const HEIGHT_STEP = 22;
+
+/** Convert tile coordinate delta to screen direction angle in radians [-pi, pi]. */
+export function isoHeadingAngle(dx: number, dy: number): number {
+  const sdx = (dx - dy) * (TILE_W / 2);
+  const sdy = (dx + dy) * (TILE_H / 2);
+  return Math.atan2(sdy, sdx);
+}
+
+/** Convert tile coordinate delta to the correct 8-way screen-isometric Facing. */
+export function toIsometricFacing(dx: number, dy: number): Facing {
+  const sdx = (dx - dy) * 2;
+  const sdy = dx + dy;
+  if (Math.abs(sdx) < 0.0001 && Math.abs(sdy) < 0.0001) return 0;
+  const angle = Math.atan2(sdy, sdx);
+  return ((Math.round((angle / (Math.PI * 2)) * 8) + 8) % 8) as Facing;
+}
 
 export function createCamera(): Camera {
   return { x: 400, y: 80, zoom: 1 };

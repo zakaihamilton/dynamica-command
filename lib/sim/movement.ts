@@ -1,5 +1,6 @@
 import { UNIT_STATS } from "../catalog";
-import { isUnitEntity, type Entity, type Facing, type SimState, type UnitEntity } from "../types";
+import { toIsometricFacing } from "../iso";
+import { isUnitEntity, type Entity, type SimState, type UnitEntity } from "../types";
 import { tryFindPathDetailed } from "./pathBudget";
 import { routePendingFor } from "./pathfinding";
 import { prepareFlowFieldRoutes } from "./flowFieldRouting";
@@ -190,8 +191,7 @@ export function tickMovement(state: SimState): void {
       const dx = stepTarget.x - e.x;
       const dy = stepTarget.y - e.y;
       if (Math.hypot(dx, dy) > 0.001) {
-        const angle = Math.atan2(dy, dx);
-        e.facing = ((Math.round((angle / (Math.PI * 2)) * 8) + 8) % 8) as Facing;
+        e.facing = toIsometricFacing(dx, dy);
       }
     }
     const before = current;

@@ -21,6 +21,8 @@ import { footprintOf } from "../../lib/catalog";
 import { createMission } from "../../lib/sim/api";
 import { tileToScreen } from "../../lib/iso";
 import { isTerrainAtlasReady, preloadTerrainAtlas } from "../../lib/render/terrainAtlas";
+import { areRasterSourcesReady, preloadRasterSources } from "../../lib/render/sprites";
+import { listTacticalRasterSources } from "../../lib/gen/visualAssets";
 import { terrainAccess } from "../../lib/sim/world";
 import type { BuildingEntity } from "../../lib/types";
 
@@ -155,7 +157,7 @@ describe("welcome target cinema shots", () => {
     expect(scene.combatEpicenter).toBeDefined();
   });
 
-  it("includes real varied structures in every preview scenario", () => {
+  it("includes real varied structures belonging to only one defending faction in every preview scenario", () => {
     const buildingShots = CINEMA_SHOTS.filter((shot) => shot.type === "building");
     const structureKinds = new Set<string>();
     expect(buildingShots.length).toBeGreaterThanOrEqual(2);
@@ -164,6 +166,14 @@ describe("welcome target cinema shots", () => {
       const scene = createCinemaScene(CINEMA_SEED, 0, kind);
       const activeBuildings = scene.state.entities.filter((entity) => entity.class === "building" && entity.hp > 0);
       expect(activeBuildings.length).toBeGreaterThanOrEqual(2);
+
+      // Verify that all buildings belong strictly to one faction (either all player 0 or all enemy 1)
+      const owners = new Set(activeBuildings.map((b) => b.owner));
+      expect(owners.size).toBe(1);
+      const sceneBuildingOwners = new Set(scene.buildings.map((b) => b.owner));
+      expect(sceneBuildingOwners.size).toBe(1);
+      expect(owners.values().next().value).toBe(sceneBuildingOwners.values().next().value);
+
       for (const building of activeBuildings) structureKinds.add(building.kind);
 
       for (const shot of buildingShots) {
@@ -308,7 +318,7 @@ describe("welcome target cinema shots", () => {
     }
   });
 
-  it("verifies and preloads terrain atlas readiness before displaying gameplay", async () => {
+  it("verifies and preloads terrain atlas and raster sprite readiness before displaying gameplay", async () => {
     const scene = createCinemaScene(CINEMA_SEED, 0);
     expect(isTerrainAtlasReady(scene.ground)).toBe(true);
     if (scene.state) {
@@ -316,6 +326,10 @@ describe("welcome target cinema shots", () => {
       const ready = await preloadTerrainAtlas(scene.state);
       expect(ready).toBe(true);
     }
+    const sources = listTacticalRasterSources();
+    expect(sources.length).toBeGreaterThan(0);
+    preloadRasterSources(sources);
+    expect(areRasterSourcesReady(sources)).toBe(true);
   });
 
   it("rotates across distinct tactical scenarios including building attacks and ambushes", () => {

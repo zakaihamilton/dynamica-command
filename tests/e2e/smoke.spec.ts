@@ -1,10 +1,14 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { footprintOf } from "../../lib/catalog";
+import { TILE_H, tileToScreen } from "../../lib/iso";
+import { cameraPanBounds, clampCamera } from "../../lib/render/camera";
 import { createMission } from "../../lib/sim/api";
+import { heightAt } from "../../lib/sim/world";
 import { spawnBuilding } from "../../lib/sim/world";
 import { CAMPAIGN_PROGRESS_VERSION, campaignKey, freshCampaignProgress } from "../../lib/persist/campaign";
 import { SAVE_CONTENT_VERSION, SAVE_VERSION, saveKey, SLOT_VERSION, slotKey } from "../../lib/persist/save";
 import { SETTINGS_KEY, SETTINGS_VERSION } from "../../lib/persist/settings";
-import type { SimState } from "../../lib/types";
+import { isBuildingEntity, type Entity, type SimState } from "../../lib/types";
 
 async function openBriefing(page: Page) {
   await page.goto("/");
@@ -41,6 +45,93 @@ async function canvasDigest(canvas: Locator): Promise<number> {
 
 async function nextFrame(page: Page) {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+}
+
+async function waitForBattlefield(page: Page) {
+  const canvas = page.getByTestId("battlefield-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => canvas.evaluate((element) => {
+    const canvasElement = element as HTMLCanvasElement;
+    return canvasElement.width > 0 && canvasElement.height > 0;
+  })).toBe(true);
+}
+
+async function battlefieldEntityGeometry(page: Page, state: SimState, entity: Entity) {
+  const canvas = page.getByTestId("battlefield-canvas");
+  const dimensions = await canvas.evaluate((element) => ({
+    width: (element as HTMLCanvasElement).width,
+    height: (element as HTMLCanvasElement).height,
+  }));
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error("Battlefield canvas has no layout bounds");
+
+  const yard = state.entities.find((candidate) => candidate.owner === 0 && candidate.kind === "constructionYard");
+  if (!yard) throw new Error("Mission fixture has no construction yard");
+  const origin = { x: 0, y: 0, zoom: 1 };
+  const yardAnchor = tileToScreen(yard.x, yard.y, origin, heightAt(state, yard.x, yard.y));
+  const camera = {
+    x: dimensions.width / 2 - yardAnchor.x,
+    y: dimensions.height / 3 - yardAnchor.y,
+    zoom: 1,
+  };
+  clampCamera(camera, cameraPanBounds(camera, state.width, state.height, dimensions.width, dimensions.height));
+
+  const footprint = isBuildingEntity(entity) ? footprintOf(entity.kind) : undefined;
+  const x = footprint ? entity.x + (footprint.w - 1) / 2 : entity.x;
+  const y = footprint ? entity.y + (footprint.h - 1) / 2 : entity.y;
+  const screen = tileToScreen(x, y, camera, heightAt(state, Math.round(entity.x), Math.round(entity.y)));
+  const toCss = (value: number, axis: "x" | "y") => bounds[axis] + value * (bounds[axis === "x" ? "width" : "height"] / dimensions[axis === "x" ? "width" : "height"]);
+  return {
+    screen,
+    pointer: {
+      x: toCss(screen.x, "x"),
+      y: toCss(screen.y + TILE_H / 2 - 12, "y"),
+    },
+    scaleX: bounds.width / dimensions.width,
+    scaleY: bounds.height / dimensions.height,
+  };
+}
+
+async function canvasInkInScreenRegion(
+  canvas: Locator,
+  region: { x: number; y: number; width: number; height: number },
+  scale: { x: number; y: number },
+): Promise<number> {
+  return canvas.evaluate((element, args) => {
+    const canvasElement = element as HTMLCanvasElement;
+    const context = canvasElement.getContext("2d");
+    if (!context) throw new Error("Canvas context unavailable");
+    const left = Math.max(0, Math.floor(args.region.x * args.scale.x));
+    const top = Math.max(0, Math.floor(args.region.y * args.scale.y));
+    const right = Math.min(canvasElement.width, Math.ceil((args.region.x + args.region.width) * args.scale.x));
+    const bottom = Math.min(canvasElement.height, Math.ceil((args.region.y + args.region.height) * args.scale.y));
+    const data = context.getImageData(left, top, Math.max(0, right - left), Math.max(0, bottom - top)).data;
+    let ink = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const red = data[i] ?? 0;
+      const green = data[i + 1] ?? 0;
+      const blue = data[i + 2] ?? 0;
+      if (red + green + blue > 120) ink += 1;
+    }
+    return ink;
+  }, { region, scale });
+}
+
+async function goldTooltipPixels(canvas: Locator): Promise<number> {
+  return canvas.evaluate((element) => {
+    const canvasElement = element as HTMLCanvasElement;
+    const context = canvasElement.getContext("2d");
+    if (!context) throw new Error("Canvas context unavailable");
+    const data = context.getImageData(0, 0, canvasElement.width, canvasElement.height).data;
+    let pixels = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const red = data[i] ?? 0;
+      const green = data[i + 1] ?? 0;
+      const blue = data[i + 2] ?? 0;
+      if (red >= 145 && red <= 205 && green >= 130 && green <= 185 && blue >= 75 && blue <= 125) pixels += 1;
+    }
+    return pixels;
+  });
 }
 
 async function loadSelectedPauseSlot(page: Page, notice: RegExp) {
@@ -88,6 +179,48 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await expect(page.getByTestId("credits")).toBeVisible();
   await expect(page.getByTestId("time-remaining")).toHaveText(/Time remaining (?:09|10):\d{2}/);
+});
+
+test("keeps battlefield entities and hover tooltips visible after water effects", async ({ page }) => {
+  const seed = 5348;
+  const state = createMission({ seed, missionIndex: 0 });
+  const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
+  const unit = state.entities.find((entity) => entity.owner === 0 && entity.class === "unit");
+  expect(yard).toBeDefined();
+  expect(unit).toBeDefined();
+
+  await page.goto(`/play?seed=${seed}&mission=0&fresh=1`);
+  await waitForBattlefield(page);
+  const canvas = page.getByTestId("battlefield-canvas");
+  const yardGeometry = await battlefieldEntityGeometry(page, state, yard!);
+  const unitGeometry = await battlefieldEntityGeometry(page, state, unit!);
+
+  // The sprite body rises above the ground anchor. This crop excludes most
+  // of the terrain plate, making the assertion about the entity pixels.
+  const yardRegion = {
+    x: yardGeometry.screen.x - 58,
+    y: yardGeometry.screen.y - 112,
+    width: 116,
+    height: 92,
+  };
+  const unitRegion = {
+    x: unitGeometry.screen.x - 42,
+    y: unitGeometry.screen.y - 72,
+    width: 84,
+    height: 68,
+  };
+  await expect.poll(() => canvasInkInScreenRegion(canvas, yardRegion, {
+    x: yardGeometry.scaleX,
+    y: yardGeometry.scaleY,
+  })).toBeGreaterThan(80);
+  await expect.poll(() => canvasInkInScreenRegion(canvas, unitRegion, {
+    x: unitGeometry.scaleX,
+    y: unitGeometry.scaleY,
+  })).toBeGreaterThan(20);
+
+  const tooltipBefore = await goldTooltipPixels(canvas);
+  await page.mouse.move(yardGeometry.pointer.x, yardGeometry.pointer.y);
+  await expect.poll(() => goldTooltipPixels(canvas)).toBeGreaterThan(tooltipBefore + 20);
 });
 
 test("opens the operations map and launches an available mission", async ({ page }) => {
@@ -579,8 +712,11 @@ test("resumes a named save slot from the menu", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "LOAD MISSION" }).click();
   await page.getByRole("button", { name: "Resume Bridgehead" }).click();
-  await expect(page).toHaveURL(new RegExp(`/play\\?seed=0421&mission=0&slot=${slotId}`));
+  // Slot restoration promotes the snapshot to the campaign autosave and
+  // normalizes the URL so a refresh resumes that restored state.
+  await expect(page).toHaveURL(/\/play\?seed=0421&mission=0&resume=1/);
   await expect(page.getByTestId("credits")).toHaveText("9,876");
+  await expect(page.evaluate((key) => localStorage.getItem(key), slotKey(slotId))).resolves.not.toBeNull();
 });
 
 test("offers to reset an unreadable save from the campaign archive", async ({ page }) => {

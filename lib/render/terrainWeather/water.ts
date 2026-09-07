@@ -99,7 +99,8 @@ export function paintWaterFx(
       ctx.ellipse(mx + ix, my + iy + bob, tw * 0.18, th * 0.07, 0.35, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.restore();
+    ctx.restore(); // foam pass
+    ctx.restore(); // per-tile clip
   });
-  ctx.restore();
+  ctx.restore(); // water pass
 }

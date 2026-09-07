@@ -71,7 +71,7 @@ export function useAssetBayPreview({
 
       const bob = playing ? (movement?.bobY ?? 0) * scale : 0;
       const renderDx = dx;
-      const renderDy = dy - bob;
+      const renderDy = dy + bob;
       const groundX = dx + dw * 0.5;
       const groundY = dy + dh;
 

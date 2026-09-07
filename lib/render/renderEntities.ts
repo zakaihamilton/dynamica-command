@@ -1,5 +1,5 @@
 import { BUILDING_STATS, footprintOf } from "../catalog";
-import { toFacing } from "./anim";
+import { toIsometricFacing } from "../iso";
 import type { BuildingKind, Entity, Facing, SimState } from "../types";
 
 export function entityVariant(state: SimState, e: Entity): number {
@@ -30,7 +30,7 @@ export function facingFor(state: SimState, e: Entity, entityById: Map<number, En
     const dx = target.x - x;
     const dy = target.y - y;
     if (Math.hypot(dx, dy) > 0.2) {
-      e.facing = toFacing(dx, dy);
+      e.facing = toIsometricFacing(dx, dy);
     }
     return e.facing ?? ((e.owner === 0 ? 0 : 4) as Facing);
   }

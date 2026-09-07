@@ -14,6 +14,8 @@ export type UnitMotionOptions = {
   directionY?: number;
   dustFill?: string;
   reducedMotion?: boolean;
+  angularVelocity?: number;
+  footPlantSide?: -1 | 1;
 };
 
 export function movementDustFill(biome: BiomeName): string {
@@ -44,15 +46,38 @@ export function drawUnitShadow(
   scale: number,
   alpha: number = 1,
   isMoving: boolean = false,
+  options?: {
+    rotation?: number;
+    stridePhase?: number;
+  },
 ): void {
-  const { radX, radY } = unitShadowRadii(kind, scale);
+  const { radX: baseRadX, radY: baseRadY } = unitShadowRadii(kind, scale);
+  const isWalker = kind === "infantry" || kind === "medic" || kind === "antiArmor";
+  let radX = baseRadX;
+  let radY = baseRadY;
+
+  if (isWalker && isMoving && options?.stridePhase !== undefined) {
+    const pulse = Math.cos(options.stridePhase * 2);
+    radX = baseRadX * (1.0 + pulse * 0.15);
+    radY = baseRadY * (1.0 - pulse * 0.08);
+  }
+
   ctx.save();
   ctx.translate(UNIT_SHADOW_OFFSET_X * scale, UNIT_SHADOW_OFFSET_Y * scale);
   ctx.globalAlpha = alpha * (isMoving ? UNIT_SHADOW_MOVE_ALPHA : UNIT_SHADOW_ALPHA);
   ctx.fillStyle = UNIT_SHADOW_FILL;
-  ctx.beginPath();
-  ctx.ellipse(cx, groundY, radX, radY, 0, 0, Math.PI * 2);
-  ctx.fill();
+
+  if (options?.rotation && !isWalker) {
+    ctx.translate(cx, groundY);
+    ctx.rotate(options.rotation);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radX, radY, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.ellipse(cx, groundY, radX, radY, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 

@@ -127,6 +127,16 @@ export function cachedImage(src: string): HTMLImageElement {
   return image;
 }
 
+export function areRasterSourcesReady(srcs: readonly string[]): boolean {
+  if (typeof Image === "undefined") return true;
+  if (typeof navigator !== "undefined" && navigator.userAgent.includes("jsdom")) return true;
+  for (const src of srcs) {
+    const img = imageCache.get(src);
+    if (!img || !img.complete || img.naturalWidth <= 0) return false;
+  }
+  return true;
+}
+
 export function preloadRasterSources(srcs: readonly string[]): void {
   if (typeof Image === "undefined") return;
   for (const src of srcs) cachedImage(src);

@@ -146,7 +146,11 @@ export function renderEntityPhase(
     if (s.x < -cullPad || s.y < -cullPad || s.x > w + cullPad || s.y > h + cullPad) continue;
     const pal = state.factions[e.owner]!.palette;
     const profile = generateVisualProfile(state.seed, e.owner);
-    const facing = resolveFacing(state, e, entityById, e.class === "unit" ? { x: cx, y: cy } : undefined);
+    const dyn = e.class === "unit" ? dynCache.get(e.id) : undefined;
+    const isWalker = e.class === "unit" && (e.kind === "infantry" || e.kind === "medic" || e.kind === "antiArmor");
+    const isVehicle = e.class === "unit" && !isWalker;
+
+    const facing = dyn ? dyn.baseFacing : resolveFacing(state, e, entityById, e.class === "unit" ? { x: cx, y: cy } : undefined);
 
     let spec = e.class === "unit"
       ? unitSprite(e.kind as UnitKind, pal, {
@@ -162,6 +166,16 @@ export function renderEntityPhase(
           constructionStage: constructionStage(e),
           profile,
         });
+
+    // Apply continuous 360-degree rotation and chassis roll for vehicles, or gait pendulum tilt for walking soldiers
+    if (e.class === "unit" && dyn) {
+      if (isVehicle) {
+        spec = { ...spec, rotation: dyn.rotationOffset + dyn.roll };
+      } else if (isWalker && uAnim?.pose === "move") {
+        spec = { ...spec, rotation: uAnim.tilt ?? dyn.gaitTilt };
+      }
+    }
+
     if (isScenarioTarget(state, e)) drawRescueHalo(ctx, s.x, s.y, z, timeMs);
     let img = rasterize(spec);
     const cacheKey = spriteCacheKey(state, e);
@@ -174,8 +188,15 @@ export function renderEntityPhase(
     } else {
       lastReadySprite.set(cacheKey, { spec, img });
     }
-    const ax = (spec.anchorX ?? spec.w / 2) * z;
-    const ay = (spec.anchorY ?? spec.h) * z;
+
+    // Walker gait squash & stretch along stride cycle
+    const scaleXFactor = isWalker && uAnim?.pose === "move" && dyn ? (uAnim.scaleX ?? dyn.scaleX) : 1;
+    const scaleYFactor = isWalker && uAnim?.pose === "move" && dyn ? (uAnim.scaleY ?? dyn.scaleY) : 1;
+    const dw = Math.round(spec.w * z * scaleXFactor);
+    const dh = Math.round(spec.h * z * scaleYFactor);
+    const ax = ((spec.anchorX ?? spec.w / 2) / spec.w) * dw;
+    const ay = ((spec.anchorY ?? spec.h) / spec.h) * dh;
+
     const dir = facingVector(facing);
     const recoil = uAnim?.recoil ?? 0;
     const groundX = s.x;
@@ -192,11 +213,19 @@ export function renderEntityPhase(
         z,
         entityAlpha,
         uAnim?.pose === "move",
+        {
+          rotation: isVehicle && dyn ? dyn.rotationOffset : undefined,
+          stridePhase: isWalker && dyn ? (uAnim?.stridePhase ?? dyn.stridePhase) : undefined,
+        },
       );
     }
 
-    const dx = Math.round(s.x - ax - dir.x * recoil * 3 * z);
-    const dy = Math.round(groundY - ay - (uAnim?.bobY ?? 0) * z + dir.y * recoil * 3 * z);
+    // Walker hip sway and grounded vertical bobbing
+    const sway = isWalker && uAnim?.pose === "move" && dyn ? (uAnim.swayX ?? dyn.swayX) * z : 0;
+    const bob = isWalker && uAnim?.pose === "move" && dyn ? (uAnim.bobY ?? dyn.gaitBobY) * z : 0;
+
+    const dx = Math.round(s.x - ax + sway - dir.x * recoil * 3 * z);
+    const dy = Math.round(groundY - ay + bob - dir.y * recoil * 3 * z);
 
     if (uAnim?.pose === "move") {
       paintUnitMovementFx(
@@ -204,19 +233,21 @@ export function renderEntityPhase(
         e.kind as UnitKind,
         dx,
         dy,
-        spec.w * z,
-        spec.h * z,
+        dw,
+        dh,
         groundY,
         z,
         uAnim.frame,
         entityAlpha,
         {
-          strideRatio: uAnim.strideRatio,
-          stridePhase: uAnim.stridePhase,
+          strideRatio: uAnim.strideRatio ?? dyn?.strideRatio,
+          stridePhase: uAnim.stridePhase ?? dyn?.stridePhase,
           directionX: dir.x,
           directionY: dir.y,
           dustFill: movementDustFill(state.biome),
           reducedMotion: extras.reducedMotion,
+          angularVelocity: isVehicle && dyn ? dyn.angularVelocity : undefined,
+          footPlantSide: isWalker && dyn ? (uAnim.footPlantSide ?? dyn.footPlantSide) : undefined,
         },
       );
     }
@@ -224,11 +255,11 @@ export function renderEntityPhase(
     const spriteReady = !spec.imageSrc || isRasterReady(spec);
     const spriteAlpha = entityAlpha;
     if (spriteReady && isExtractableUnit(state, e)) {
-      drawUnitGlow(ctx, spec, img, dx, dy, spec.w * z, spec.h * z, timeMs, spriteAlpha, z);
+      drawUnitGlow(ctx, spec, img, dx, dy, dw, dh, timeMs, spriteAlpha, z);
     }
     if (spriteReady) {
       ctx.globalAlpha = spriteAlpha;
-      drawSprite(ctx, spec, img, dx, dy, spec.w * z, spec.h * z);
+      drawSprite(ctx, spec, img, dx, dy, dw, dh);
       ctx.globalAlpha = 1;
     }
     if (spriteReady && e.class !== "building") {
@@ -237,8 +268,8 @@ export function renderEntityPhase(
         spec,
         dx,
         dy,
-        spec.w * z,
-        spec.h * z,
+        dw,
+        dh,
         damageStage,
         timeMs,
         e.id,

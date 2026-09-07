@@ -45,6 +45,7 @@ import {
 import {
   oreGlint,
   oreSparkle,
+  paintWaterFx,
   waterCaustic,
   weatherKindForBiome,
   weatherParticleAt,
@@ -572,6 +573,34 @@ describe("terrain weather and water motion", () => {
     }
     expect(waterFxNeedsClip(state, 3, 3)).toBe(false);
     expect(waterFxNeedsClip(state, 2, 3)).toBe(true);
+  });
+
+  it("balances the water pass and each per-tile clip", () => {
+    const state = makeFixture({ width: 8, height: 8, win: { kind: "annihilate" }, seed: 832 });
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) setTile(state, x, y, TILE_WATER);
+    }
+    const save = vi.fn();
+    const restore = vi.fn();
+    let contextDepth = 0;
+    save.mockImplementation(() => { contextDepth += 1; });
+    restore.mockImplementation(() => { contextDepth -= 1; });
+    const ctx = new Proxy({
+      canvas: { width: 800, height: 600 },
+      save,
+      restore,
+    }, {
+      get(target, property, receiver) {
+        if (property in target) return Reflect.get(target, property, receiver);
+        return vi.fn();
+      },
+    }) as unknown as CanvasRenderingContext2D;
+
+    paintWaterFx(ctx, state, createCamera(), 0);
+
+    expect(save).toHaveBeenCalledTimes(restore.mock.calls.length);
+    expect(restore).toHaveBeenCalledTimes(save.mock.calls.length);
+    expect(contextDepth).toBe(0);
   });
 
 });

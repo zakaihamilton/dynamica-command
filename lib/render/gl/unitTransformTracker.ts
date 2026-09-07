@@ -1,6 +1,7 @@
 import { UNIT_STATS } from "../../catalog";
 import { groundHeight } from "../../sim/world";
-import type { Entity, SimState, UnitKind } from "../../types";
+import { isoHeadingAngle } from "../../iso";
+import type { Entity, Facing, SimState, UnitKind } from "../../types";
 import { lerp, lerpAngle } from "./glMath";
 
 export type UnitDynamicTransform = {
@@ -16,6 +17,19 @@ export type UnitDynamicTransform = {
   legLAngle: number;
   legRAngle: number;
   scoopAngle: number;
+  screenAngle: number;
+  baseFacing: Facing;
+  rotationOffset: number;
+  angularVelocity: number;
+  stridePhase: number;
+  strideRatio: number;
+  isFootPlant: boolean;
+  footPlantSide: -1 | 1;
+  swayX: number;
+  gaitBobY: number;
+  gaitTilt: number;
+  scaleX: number;
+  scaleY: number;
 };
 
 type UnitStateHistory = {
@@ -26,6 +40,7 @@ type UnitStateHistory = {
   currY: number;
   lastUpdateTick: number;
   yaw: number;
+  screenAngle: number;
   turretYaw: number;
   stridePhase: number;
   lastClockMs: number;
@@ -35,6 +50,7 @@ const historyMap = new Map<number, UnitStateHistory>();
 
 function createUnitHistory(e: Entity, state: SimState, clockMs: number): UnitStateHistory {
   const initialYaw = e.facing !== undefined ? (e.facing / 8) * Math.PI * 2 - Math.PI / 4 : -Math.PI / 4;
+  const initialScreenAngle = e.facing !== undefined ? (e.facing / 8) * Math.PI * 2 : 0;
   return {
     id: e.id,
     prevX: e.x,
@@ -43,6 +59,7 @@ function createUnitHistory(e: Entity, state: SimState, clockMs: number): UnitSta
     currY: e.y,
     lastUpdateTick: state.tick,
     yaw: initialYaw,
+    screenAngle: initialScreenAngle,
     turretYaw: initialYaw,
     stridePhase: 0,
     lastClockMs: clockMs,
@@ -121,55 +138,109 @@ export function computeUnitDynamicTransform(
   const slopeX = (hX1 - hX0) / (delta * 2);
   const slopeY = (hY1 - hY0) / (delta * 2);
 
-  // Target yaw calculation based on movement velocity, path, or explicit facing
+  // Target yaw calculation based on movement velocity, path, or explicit facing (preserving GL model contract)
   const moveDx = hist.currX - hist.prevX;
   const moveDy = hist.currY - hist.prevY;
   const moveDist = Math.hypot(moveDx, moveDy);
+  const attackTargetCandidate = e.attackTarget !== undefined
+    ? entityById?.get(e.attackTarget) ?? state.entities.find((entity) => entity.id === e.attackTarget)
+    : undefined;
+  const attackTarget = attackTargetCandidate && attackTargetCandidate.hp > 0 ? attackTargetCandidate : undefined;
+  const attackDx = attackTarget ? attackTarget.x - x : 0;
+  const attackDy = attackTarget ? attackTarget.y - y : 0;
+  const attackDist = Math.hypot(attackDx, attackDy);
+  const waypoint = e.path[0];
+  const waypointDx = waypoint ? waypoint.x - x : 0;
+  const waypointDy = waypoint ? waypoint.y - y : 0;
+  const waypointDist = Math.hypot(waypointDx, waypointDy);
 
   let targetYaw = hist.yaw;
   if (moveDist > 0.005) {
     targetYaw = Math.atan2(moveDy, moveDx) - Math.PI / 4;
-  } else if (e.path.length > 0 && e.path[0]) {
-    targetYaw = Math.atan2(e.path[0].y - y, e.path[0].x - x) - Math.PI / 4;
+  } else if (attackDist > 0.005) {
+    targetYaw = Math.atan2(attackDy, attackDx) - Math.PI / 4;
+  } else if (waypointDist > 0.005) {
+    targetYaw = Math.atan2(waypointDy, waypointDx) - Math.PI / 4;
   } else if (e.facing !== undefined) {
     targetYaw = (e.facing / 8) * Math.PI * 2 - Math.PI / 4;
   }
 
-  // Smooth angular interpolation for chassis
-  const turnSpeed = e.kind === "tank" ? 9.0 : 14.0;
-  hist.yaw = lerpAngle(hist.yaw, targetYaw, Math.min(1, dt * turnSpeed));
+  // Smooth angular interpolation for chassis in GL model space
+  const isVehicle = e.kind === "tank" || e.kind === "harvester" || e.kind === "convoyTruck" || e.kind === "repairTruck";
+  const legacyTurnSpeed = e.kind === "tank" ? 9.0 : 14.0;
+  hist.yaw = lerpAngle(hist.yaw, targetYaw, Math.min(1, dt * legacyTurnSpeed));
 
-  // Compute pitch and roll aligned with current heading
+  // Compute screen isometric target angle
+  let targetScreenAngle = hist.screenAngle;
+  if (moveDist > 0.005) {
+    targetScreenAngle = isoHeadingAngle(moveDx, moveDy);
+  } else if (attackDist > 0.005) {
+    targetScreenAngle = isoHeadingAngle(attackDx, attackDy);
+  } else if (waypointDist > 0.005) {
+    targetScreenAngle = isoHeadingAngle(waypointDx, waypointDy);
+  } else if (e.facing !== undefined) {
+    targetScreenAngle = (e.facing / 8) * Math.PI * 2;
+  }
+
+  // Smooth fluid turning rate: tanks turn heavier, wheeled vehicles steer agilely
+  const vehicleTurnSpeed = e.kind === "tank" ? 5.5 : e.kind === "harvester" ? 6.2 : isVehicle ? 8.0 : 16.0;
+  const prevAngle = hist.screenAngle;
+  hist.screenAngle = lerpAngle(hist.screenAngle, targetScreenAngle, Math.min(1, dt * vehicleTurnSpeed));
+  const angularVelocity = (hist.screenAngle - prevAngle) / dt;
+
+  // Determine nearest 45-degree base facing (0..7) and micro-rotation offset
+  const normalizedScreenAngle = ((hist.screenAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const baseFacing = ((Math.round((normalizedScreenAngle / (Math.PI * 2)) * 8) + 8) % 8) as Facing;
+  let nominalAngle = (baseFacing / 8) * Math.PI * 2;
+  if (nominalAngle > Math.PI) nominalAngle -= Math.PI * 2;
+
+  let rotationOffset = hist.screenAngle - nominalAngle;
+  while (rotationOffset > Math.PI) rotationOffset -= Math.PI * 2;
+  while (rotationOffset < -Math.PI) rotationOffset += Math.PI * 2;
+  rotationOffset = Math.max(-Math.PI / 8, Math.min(Math.PI / 8, rotationOffset));
+
+  // Compute pitch and roll aligned with current heading, plus centrifugal chassis roll during turns
   const cosYaw = Math.cos(hist.yaw + Math.PI / 4);
   const sinYaw = Math.sin(hist.yaw + Math.PI / 4);
   const pitch = -(slopeX * cosYaw + slopeY * sinYaw) * 0.45;
-  const roll = (slopeX * sinYaw - slopeY * cosYaw) * 0.45;
+  const centrifugalRoll = isVehicle ? -angularVelocity * 0.04 : 0;
+  const roll = Math.max(-0.25, Math.min(0.25, (slopeX * sinYaw - slopeY * cosYaw) * 0.45 + centrifugalRoll));
 
   // Turret aim tracking
   let targetTurretYaw = targetYaw;
   let barrelPitch = 0;
-  if (e.attackTarget !== undefined) {
-    const targetEntity = entityById?.get(e.attackTarget) ??
-      state.entities.find((t) => t.id === e.attackTarget);
-    if (targetEntity && targetEntity.hp > 0) {
-      const tDx = targetEntity.x - x;
-      const tDy = targetEntity.y - y;
-      targetTurretYaw = Math.atan2(tDy, tDx) - Math.PI / 4;
-      const tZ = groundHeight(state, targetEntity.x, targetEntity.y);
-      const dist = Math.max(0.5, Math.hypot(tDx, tDy));
-      barrelPitch = Math.atan2(tZ - z, dist) * 0.5;
-    }
+  if (attackTarget) {
+    const tDx = attackTarget.x - x;
+    const tDy = attackTarget.y - y;
+    targetTurretYaw = Math.atan2(tDy, tDx) - Math.PI / 4;
+    const tZ = groundHeight(state, attackTarget.x, attackTarget.y);
+    const dist = Math.max(0.5, Math.hypot(tDx, tDy));
+    barrelPitch = Math.atan2(tZ - z, dist) * 0.5;
   }
 
   hist.turretYaw = lerpAngle(hist.turretYaw, targetTurretYaw, Math.min(1, dt * 12.0));
 
   // Stride phase for walkers
-  const isMoving = moveDist > 0.001 || e.path.length > 0;
+  const isMoving = moveDist > 0.001 || waypointDist > 0.001;
   const speed = isMoving ? UNIT_STATS[e.kind as UnitKind].speed * 20 : 0;
   hist.stridePhase += speed * dt * 12.0;
 
   const legLAngle = isMoving ? Math.sin(hist.stridePhase) * 0.6 : 0;
   const legRAngle = isMoving ? -Math.sin(hist.stridePhase) * 0.6 : 0;
+
+  // Gait properties for walkers
+  const isWalker = e.kind === "infantry" || e.kind === "antiArmor" || e.kind === "medic";
+  const isHeavy = e.kind === "antiArmor";
+  const bobAmp = isHeavy ? 1.8 : 2.4;
+  const gaitBobY = isMoving && isWalker ? -Math.abs(Math.sin(hist.stridePhase)) * bobAmp : 0;
+  const swayX = isMoving && isWalker ? Math.sin(hist.stridePhase) * (isHeavy ? 1.0 : 1.4) : 0;
+  const gaitTilt = isMoving && isWalker ? Math.sin(hist.stridePhase) * (isHeavy ? 0.035 : 0.05) : 0;
+  const contactWeight = isMoving && isWalker ? Math.abs(Math.sin(hist.stridePhase)) : 0;
+  const scaleY = isMoving && isWalker ? 1.0 - contactWeight * 0.05 + (1 - contactWeight) * 0.02 : 1.0;
+  const scaleX = isMoving && isWalker ? 1.0 + contactWeight * 0.03 - (1 - contactWeight) * 0.01 : 1.0;
+  const footPlantSide = (Math.sin(hist.stridePhase) >= 0 ? 1 : -1) as -1 | 1;
+  const isFootPlant = isMoving && isWalker && Math.abs(Math.cos(hist.stridePhase)) > 0.82;
+  const strideRatio = isMoving && isWalker ? Math.sin(hist.stridePhase) : 0;
 
   // Recoil
   let recoil = 0;
@@ -202,5 +273,18 @@ export function computeUnitDynamicTransform(
     legLAngle,
     legRAngle,
     scoopAngle,
+    screenAngle: hist.screenAngle,
+    baseFacing,
+    rotationOffset,
+    angularVelocity,
+    stridePhase: hist.stridePhase,
+    strideRatio,
+    isFootPlant,
+    footPlantSide,
+    swayX,
+    gaitBobY,
+    gaitTilt,
+    scaleX,
+    scaleY,
   };
 }

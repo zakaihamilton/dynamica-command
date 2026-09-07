@@ -12,6 +12,12 @@ export type UnitAnim = {
   stridePhase: number;
   strideRatio: number;
   recoil: number;
+  swayX?: number;
+  tilt?: number;
+  scaleX?: number;
+  scaleY?: number;
+  isFootPlant?: boolean;
+  footPlantSide?: -1 | 1;
 };
 
 export type BuildingAnim = {
@@ -47,22 +53,60 @@ export function facingVector(facing: Facing): { x: number; y: number } {
   return { x: Math.cos(angle), y: Math.sin(angle) * 0.52 };
 }
 
+export type UnitMovementOffset = {
+  bobY: number;
+  swayX: number;
+  tilt: number;
+  scaleX: number;
+  scaleY: number;
+  strideRatio: number;
+  isFootPlant: boolean;
+  footPlantSide: -1 | 1;
+};
+
 export function unitMovementOffset(
   kind: UnitKind,
   frame: AnimFrame,
   stridePhase?: number,
-): { bobY: number; strideRatio: number } {
+): UnitMovementOffset {
   const infantry = kind === "infantry" || kind === "antiArmor" || kind === "medic";
   if (!infantry) {
-    return { bobY: 0, strideRatio: 0 };
+    return {
+      bobY: 0,
+      swayX: 0,
+      tilt: 0,
+      scaleX: 1,
+      scaleY: 1,
+      strideRatio: 0,
+      isFootPlant: false,
+      footPlantSide: 1,
+    };
   }
   const phase = stridePhase !== undefined ? stridePhase : (frame / 4) * Math.PI * 2;
   const isHeavy = kind === "antiArmor";
-  const compression = isHeavy ? 0.25 : 0.15;
-  const bob = -Math.abs(Math.sin(phase)) * compression;
+  // Walking gait: 2 vertical oscillations per full stride cycle (left & right footsteps)
+  const bobAmp = isHeavy ? 1.8 : 2.4;
+  const bob = -Math.abs(Math.sin(phase)) * bobAmp;
+  // Lateral hip sway alternating with lead leg
+  const swayX = Math.sin(phase) * (isHeavy ? 1.0 : 1.4);
+  // Pendulum body tilt around foot contact anchor
+  const tilt = Math.sin(phase) * (isHeavy ? 0.035 : 0.05);
+  // Volume-preserving contact compression and passing rise
+  const contactWeight = Math.abs(Math.sin(phase));
+  const scaleY = 1.0 - contactWeight * 0.05 + (1 - contactWeight) * 0.02;
+  const scaleX = 1.0 + contactWeight * 0.03 - (1 - contactWeight) * 0.01;
+  const footPlantSide = (Math.sin(phase) >= 0 ? 1 : -1) as -1 | 1;
+  const isFootPlant = Math.abs(Math.cos(phase)) > 0.82;
+
   return {
     bobY: bob,
+    swayX,
+    tilt,
+    scaleX,
+    scaleY,
     strideRatio: Math.sin(phase),
+    isFootPlant,
+    footPlantSide,
   };
 }
 
@@ -92,6 +136,12 @@ export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
       pose,
       frame,
       bobY: offset.bobY,
+      swayX: offset.swayX,
+      tilt: offset.tilt,
+      scaleX: offset.scaleX,
+      scaleY: offset.scaleY,
+      isFootPlant: offset.isFootPlant,
+      footPlantSide: offset.footPlantSide,
       stridePhase,
       strideRatio: offset.strideRatio,
       recoil: 0,

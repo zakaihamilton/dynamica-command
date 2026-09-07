@@ -22,7 +22,7 @@ import {
 } from "./menuBackdropSim";
 import { isTerrainAtlasReady, preloadTerrainAtlas } from "@/lib/render/terrainAtlas";
 import { listTacticalRasterSources } from "@/lib/gen/visualAssets";
-import { preloadRasterSources } from "@/lib/render/sprites";
+import { areRasterSourcesReady, preloadRasterSources } from "@/lib/render/sprites";
 import styles from "./MenuSignalOverlay.module.css";
 
 const REDUCE_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
@@ -82,7 +82,8 @@ export function MenuSignalOverlay() {
     );
     preloadTerrainAtlas(scene.ground);
     if (scene.state) preloadTerrainAtlas(scene.state);
-    preloadRasterSources(listTacticalRasterSources());
+    const tacticalSources = listTacticalRasterSources();
+    preloadRasterSources(tacticalSources);
 
     let nextScene: CinemaScene | null = null;
     let cycleIndex = sessionOffset;
@@ -125,7 +126,8 @@ export function MenuSignalOverlay() {
       }
 
       const terrainReady = scene.state ? isTerrainAtlasReady(scene.state) : isTerrainAtlasReady(scene.ground);
-      const isExpanded = next.expanded && terrainReady;
+      const rastersReady = areRasterSourcesReady(tacticalSources);
+      const isExpanded = next.expanded && terrainReady && rastersReady;
       const effectivePreview: PreviewPhase = isExpanded === next.expanded ? next : { ...next, expanded: false };
 
       if (effectivePreview.expanded) {
@@ -139,6 +141,19 @@ export function MenuSignalOverlay() {
             camera: cinemaShotCamera(scene, effectivePreview.shotIndex, canvas.width, canvas.height),
             paintAmbient: false,
           });
+        }
+      }
+
+      // Clear inactive lock canvases so stale frames or unrendered terrain never flash
+      for (let i = 0; i < canvasRefs.current.length; i++) {
+        if (!effectivePreview.expanded || effectivePreview.lockIndex !== i) {
+          const c = canvasRefs.current[i];
+          if (c) {
+            const ctx = c.getContext("2d");
+            if (ctx && c.width > 0 && c.height > 0) {
+              ctx.clearRect(0, 0, c.width, c.height);
+            }
+          }
         }
       }
       if (previewChanged(previewRef.current, effectivePreview)) {

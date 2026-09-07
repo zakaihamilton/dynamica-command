@@ -1,6 +1,7 @@
 import { HARVEST_PER_TICK, UNIT_STATS } from "../catalog";
+import { toIsometricFacing } from "../iso";
 import { TILE_RESOURCE } from "../types";
-import type { Entity, Facing, SimEvent, SimState } from "../types";
+import type { Entity, SimEvent, SimState } from "../types";
 import { tryFindPathDetailed } from "./pathBudget";
 import { routePendingFor } from "./pathfinding";
 import { at, closestApproach, dist, distToEntity, inBounds, livingView, nearest, tileAt } from "./world";
@@ -228,8 +229,7 @@ export function tickEconomy(state: SimState, eventSink?: SimEvent[], collectEven
       const fdx = gx - e.x;
       const fdy = gy - e.y;
       if (Math.hypot(fdx, fdy) > 0.001) {
-        const angle = Math.atan2(fdy, fdx);
-        e.facing = (((Math.round((angle / (Math.PI * 2)) * 8) + 8) % 8) as Facing);
+        e.facing = toIsometricFacing(fdx, fdy);
       }
       if (state.resourceAmount[i]! <= 0) {
         state.tiles[i] = 0;

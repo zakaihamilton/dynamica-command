@@ -1,7 +1,7 @@
 import { unitSprite } from "@/lib/gen/assets";
 import { generateVisualProfile } from "@/lib/gen/visualProfile";
-import { TILE_H, tileToScreen, type Camera } from "@/lib/iso";
-import { animFrame, toFacing, unitMovementOffset } from "@/lib/render/anim";
+import { TILE_H, tileToScreen, toIsometricFacing, type Camera } from "@/lib/iso";
+import { animFrame, unitMovementOffset } from "@/lib/render/anim";
 import { rasterize } from "@/lib/render/sprites";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
 import type { Facing } from "@/lib/types";
@@ -16,7 +16,7 @@ export function actorFacing(actor: Actor): Facing {
     dx = next.x - actor.x;
     dy = next.y - actor.y;
   }
-  return toFacing(dx, dy);
+  return toIsometricFacing(dx, dy);
 }
 
 export function paintCinemaActor(

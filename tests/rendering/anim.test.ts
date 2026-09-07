@@ -11,6 +11,7 @@ import {
   unitPose,
   waterShimmer,
 } from "../../lib/render/anim";
+import { toIsometricFacing } from "../../lib/iso";
 import { UNIT_STATS } from "../../lib/catalog";
 import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
 
@@ -20,6 +21,25 @@ describe("animation helpers", () => {
     expect(toFacing(0, 1)).toBe(2);
     expect(toFacing(-1, 0)).toBe(4);
     expect(toFacing(0, -1)).toBe(6);
+  });
+
+  it("maps isometric tile deltas accurately to screen-isometric facings", () => {
+    // East: +X, -Y in tile coords -> straight East on screen
+    expect(toIsometricFacing(1, -1)).toBe(0);
+    // South-East: +X in tile coords -> South-East on screen
+    expect(toIsometricFacing(1, 0)).toBe(1);
+    // South: +X, +Y in tile coords -> straight South on screen
+    expect(toIsometricFacing(1, 1)).toBe(2);
+    // South-West: +Y in tile coords -> South-West on screen
+    expect(toIsometricFacing(0, 1)).toBe(3);
+    // West: -X, +Y in tile coords -> straight West on screen
+    expect(toIsometricFacing(-1, 1)).toBe(4);
+    // North-West: -X in tile coords -> North-West on screen
+    expect(toIsometricFacing(-1, 0)).toBe(5);
+    // North: -X, -Y in tile coords -> straight North on screen
+    expect(toIsometricFacing(-1, -1)).toBe(6);
+    // North-East: -Y in tile coords -> North-East on screen
+    expect(toIsometricFacing(0, -1)).toBe(7);
   });
 
   it("cycles four frames without leaving the range", () => {
@@ -102,7 +122,7 @@ describe("animation helpers", () => {
     expect(damageFlicker(400, 2, 2)).toBeLessThan(1);
   });
 
-  it("calculates a tiny grounded step bob and stride ratio for moving soldiers", () => {
+  it("calculates a natural grounded step bob, sway, and stride ratio for moving soldiers", () => {
     const s = makeFixture({ win: { kind: "annihilate" } });
     const soldier = addUnit(s, 0, "infantry", 3, 3);
     soldier.facing = 0;
@@ -111,15 +131,17 @@ describe("animation helpers", () => {
     const movingAnim = unitAnim(soldier, 10, 100);
     expect(movingAnim.pose).toBe("move");
     expect(movingAnim.bobY).toBeLessThanOrEqual(0);
-    expect(movingAnim.bobY).toBeGreaterThanOrEqual(-0.25);
+    expect(movingAnim.bobY).toBeGreaterThanOrEqual(-2.5);
     expect(movingAnim.strideRatio).toBeGreaterThanOrEqual(-1);
     expect(movingAnim.strideRatio).toBeLessThanOrEqual(1);
+    expect(typeof movingAnim.swayX).toBe("number");
+    expect(typeof movingAnim.tilt).toBe("number");
 
     const heavySoldier = addUnit(s, 0, "antiArmor", 5, 5);
     heavySoldier.path = [{ x: 6, y: 5 }];
     const heavyAnim = unitAnim(heavySoldier, 10, 100);
     expect(heavyAnim.bobY).toBeLessThanOrEqual(0);
-    expect(heavyAnim.bobY).toBeGreaterThanOrEqual(-0.25);
+    expect(heavyAnim.bobY).toBeGreaterThanOrEqual(-2.0);
 
     soldier.path = [];
     const idleAnim = unitAnim(soldier, 10, 100);
