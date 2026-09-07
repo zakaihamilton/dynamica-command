@@ -58,8 +58,8 @@ export function drawUnitShadow(
 
   if (isWalker && isMoving && options?.stridePhase !== undefined) {
     const pulse = Math.cos(options.stridePhase * 2);
-    radX = baseRadX * (1.0 + pulse * 0.15);
-    radY = baseRadY * (1.0 - pulse * 0.08);
+    radX = baseRadX * (1.0 + pulse * 0.05);
+    radY = baseRadY * (1.0 - pulse * 0.03);
   }
 
   ctx.save();
@@ -67,17 +67,9 @@ export function drawUnitShadow(
   ctx.globalAlpha = alpha * (isMoving ? UNIT_SHADOW_MOVE_ALPHA : UNIT_SHADOW_ALPHA);
   ctx.fillStyle = UNIT_SHADOW_FILL;
 
-  if (options?.rotation && !isWalker) {
-    ctx.translate(cx, groundY);
-    ctx.rotate(options.rotation);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, radX, radY, 0, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    ctx.beginPath();
-    ctx.ellipse(cx, groundY, radX, radY, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  ctx.beginPath();
+  ctx.ellipse(cx, groundY, radX, radY, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 

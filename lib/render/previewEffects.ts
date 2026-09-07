@@ -1,13 +1,12 @@
-import { buildingAnim } from "@/lib/render/anim";
-import { buildTurretHeadModel, type UnitModel } from "@/lib/render/gl/modelLoader";
-import { draw3dModel } from "@/lib/render/gl/modelRenderer";
-import type { BuildingKind, Entity, Facing, Palette } from "@/lib/types";
+import { buildingAnim } from "./anim";
+import { buildTurretHeadModel, type UnitModel } from "./gl/modelLoader";
+import { draw3dModel } from "./gl/modelRenderer";
+import type { BuildingKind, Entity, Facing, Palette } from "../types";
 
 let cachedTurretModel: UnitModel | null = null;
+
 function getTurretModel(): UnitModel {
-  if (!cachedTurretModel) {
-    cachedTurretModel = buildTurretHeadModel();
-  }
+  if (!cachedTurretModel) cachedTurretModel = buildTurretHeadModel();
   return cachedTurretModel;
 }
 
@@ -31,6 +30,7 @@ function fakeBuilding(kind: BuildingKind): Entity {
   };
 }
 
+/** Paints the small lights, smoke, doors, and turret head used by item previews. */
 export function paintBuildingAssetOverlay(
   ctx: CanvasRenderingContext2D,
   kind: BuildingKind,
@@ -39,7 +39,7 @@ export function paintBuildingAssetOverlay(
   scale: number,
   timeMs: number,
   facing: Facing = 0,
-  playing: boolean = true,
+  playing = true,
   palette?: Palette,
 ): void {
   const anim = buildingAnim(fakeBuilding(kind), 0, timeMs);
@@ -69,10 +69,7 @@ export function paintBuildingAssetOverlay(
   }
   if (kind === "turret") {
     let currentAngle = (facing / 8) * Math.PI * 2;
-    if (playing) {
-      const sweep = Math.sin(timeMs * 0.0012) * 0.55;
-      currentAngle += sweep;
-    }
+    if (playing) currentAngle += Math.sin(timeMs * 0.0012) * 0.55;
     ctx.save();
     ctx.fillStyle = "rgba(8, 12, 16, 0.50)";
     ctx.beginPath();
@@ -80,8 +77,7 @@ export function paintBuildingAssetOverlay(
     ctx.fill();
     ctx.restore();
 
-    const model = getTurretModel();
-    draw3dModel(ctx, model, cx, cy - 3 * scale, scale, currentAngle - Math.PI / 4, palette);
+    draw3dModel(ctx, getTurretModel(), cx, cy - 3 * scale, scale, currentAngle - Math.PI / 4, palette);
   }
   ctx.restore();
 }

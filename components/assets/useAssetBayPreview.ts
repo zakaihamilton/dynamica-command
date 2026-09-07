@@ -5,7 +5,7 @@ import { unitMovementOffset } from "@/lib/render/anim";
 import { drawSprite, rasterize, rotatedSpriteBounds } from "@/lib/render/sprites";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
 import type { AnimFrame, BuildingKind, Facing, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
-import { paintBuildingAssetOverlay } from "./assetOverlayPaint";
+import { paintBuildingAssetOverlay } from "@/lib/render/previewEffects";
 
 export function useAssetBayPreview({
   canvasRef,

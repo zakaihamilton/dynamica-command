@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Facing } from "../../lib/types";
 import {
   TILE_H,
   TILE_W,
@@ -7,9 +8,12 @@ import {
   createCamera,
   expandIsoDiamond,
   isoAtlasTransform,
+  isoFacingAngle,
+  screenAngleToFacing,
   screenToGroundTile,
   screenToTile,
   tileToScreen,
+  toIsometricFacing,
 } from "../../lib/iso";
 
 describe("iso projection", () => {
@@ -56,5 +60,23 @@ describe("iso projection", () => {
   it("builds an affine atlas transform onto a diamond of TILE_W × TILE_H", () => {
     const [a, b, c, d, e, f] = isoAtlasTransform(8, 16, TILE_W, TILE_H, 8, 8);
     expect([a, b, c, d, e, f]).toEqual([4, 2, -4, 2, 8, 16]);
+  });
+
+  it("maps between 8-way isometric facings and screen angles with exact sector quantization", () => {
+    // Each of the 8 facings round-trips through screenAngleToFacing(isoFacingAngle(f))
+    for (let f = 0; f < 8; f++) {
+      const angle = isoFacingAngle(f as Facing);
+      expect(screenAngleToFacing(angle)).toBe(f);
+    }
+
+    // Facing angles match the 2:1 isometric projection of cardinal and diagonal tile steps
+    expect(toIsometricFacing(1, -1)).toBe(0);  // East
+    expect(toIsometricFacing(1, 0)).toBe(1);   // South-East
+    expect(toIsometricFacing(1, 1)).toBe(2);   // South
+    expect(toIsometricFacing(0, 1)).toBe(3);   // South-West
+    expect(toIsometricFacing(-1, 1)).toBe(4);  // West
+    expect(toIsometricFacing(-1, 0)).toBe(5);  // North-West
+    expect(toIsometricFacing(-1, -1)).toBe(6); // North
+    expect(toIsometricFacing(0, -1)).toBe(7);  // North-East
   });
 });

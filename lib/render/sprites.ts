@@ -293,10 +293,18 @@ export function drawSprite(
   dy: number,
   dw: number,
   dh: number,
+  source?: SpriteBounds,
 ): void {
   const smooth = Boolean(spec.svg || spec.imageSrc || spec.imageTextureSrc);
   ctx.imageSmoothingEnabled = smooth;
   if (smooth && "imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
+  const draw = (x: number, y: number, width: number, height: number) => {
+    if (source) {
+      ctx.drawImage(img, source.minX, source.minY, source.width, source.height, x, y, width, height);
+    } else {
+      ctx.drawImage(img, x, y, width, height);
+    }
+  };
   if (spec.rotation) {
     const scaleX = dw / spec.w;
     const scaleY = dh / spec.h;
@@ -305,10 +313,10 @@ export function drawSprite(
     ctx.save();
     ctx.translate(dx + ax, dy + ay);
     ctx.rotate(spec.rotation);
-    ctx.drawImage(img, -ax, -ay, dw, dh);
+    draw(-ax, -ay, dw, dh);
     ctx.restore();
   } else {
-    ctx.drawImage(img, dx, dy, dw, dh);
+    draw(dx, dy, dw, dh);
   }
   ctx.imageSmoothingEnabled = false;
 }

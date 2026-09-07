@@ -167,14 +167,6 @@ export function renderEntityPhase(
           profile,
         });
 
-    // Apply continuous 360-degree rotation and chassis roll for vehicles, or gait pendulum tilt for walking soldiers
-    if (e.class === "unit" && dyn) {
-      if (isVehicle) {
-        spec = { ...spec, rotation: dyn.rotationOffset + dyn.roll };
-      } else if (isWalker && uAnim?.pose === "move") {
-        spec = { ...spec, rotation: uAnim.tilt ?? dyn.gaitTilt };
-      }
-    }
 
     if (isScenarioTarget(state, e)) drawRescueHalo(ctx, s.x, s.y, z, timeMs);
     let img = rasterize(spec);
@@ -189,11 +181,8 @@ export function renderEntityPhase(
       lastReadySprite.set(cacheKey, { spec, img });
     }
 
-    // Walker gait squash & stretch along stride cycle
-    const scaleXFactor = isWalker && uAnim?.pose === "move" && dyn ? (uAnim.scaleX ?? dyn.scaleX) : 1;
-    const scaleYFactor = isWalker && uAnim?.pose === "move" && dyn ? (uAnim.scaleY ?? dyn.scaleY) : 1;
-    const dw = Math.round(spec.w * z * scaleXFactor);
-    const dh = Math.round(spec.h * z * scaleYFactor);
+    const dw = Math.round(spec.w * z);
+    const dh = Math.round(spec.h * z);
     const ax = ((spec.anchorX ?? spec.w / 2) / spec.w) * dw;
     const ay = ((spec.anchorY ?? spec.h) / spec.h) * dh;
 
@@ -214,17 +203,15 @@ export function renderEntityPhase(
         entityAlpha,
         uAnim?.pose === "move",
         {
-          rotation: isVehicle && dyn ? dyn.rotationOffset : undefined,
           stridePhase: isWalker && dyn ? (uAnim?.stridePhase ?? dyn.stridePhase) : undefined,
         },
       );
     }
 
-    // Walker hip sway and grounded vertical bobbing
-    const sway = isWalker && uAnim?.pose === "move" && dyn ? (uAnim.swayX ?? dyn.swayX) * z : 0;
+    // Walker grounded vertical bobbing
     const bob = isWalker && uAnim?.pose === "move" && dyn ? (uAnim.bobY ?? dyn.gaitBobY) * z : 0;
 
-    const dx = Math.round(s.x - ax + sway - dir.x * recoil * 3 * z);
+    const dx = Math.round(s.x - ax - dir.x * recoil * 3 * z);
     const dy = Math.round(groundY - ay + bob - dir.y * recoil * 3 * z);
 
     if (uAnim?.pose === "move") {

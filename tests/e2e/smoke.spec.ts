@@ -223,6 +223,91 @@ test("keeps battlefield entities and hover tooltips visible after water effects"
   await expect.poll(() => goldTooltipPixels(canvas)).toBeGreaterThan(tooltipBefore + 20);
 });
 
+test("keeps sidebar item portraits sharp across command tabs", async ({ page }) => {
+  const state = createMission({ seed: 421, missionIndex: 0 });
+  const yard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
+  const unit = state.entities.find((entity) => entity.owner === 0 && entity.class === "unit" && entity.kind === "infantry");
+  expect(yard).toBeDefined();
+  expect(unit).toBeDefined();
+
+  await deployToBattlefield(page);
+  await waitForBattlefield(page);
+  const sidebar = page.getByTestId("command-sidebar");
+
+  const portraitMetrics = async () => sidebar.evaluate((element) => [...element.querySelectorAll("button[aria-label*='credits']")].map((button) => {
+    const canvas = button.querySelector("canvas");
+    const art = button.querySelector(".art") ?? button.firstElementChild;
+    if (!(canvas instanceof HTMLCanvasElement) || !art) throw new Error("Sidebar portrait is missing");
+    const cardBounds = button.getBoundingClientRect();
+    const canvasBounds = canvas.getBoundingClientRect();
+    const artBounds = art.getBoundingClientRect();
+    return {
+      card: {
+        left: cardBounds.left,
+        right: cardBounds.right,
+        top: cardBounds.top,
+        bottom: cardBounds.bottom,
+      },
+      backingWidth: canvas.width,
+      backingHeight: canvas.height,
+      cssWidth: canvasBounds.width,
+      cssHeight: canvasBounds.height,
+      artRatio: artBounds.width / artBounds.height,
+      imageRendering: getComputedStyle(canvas).imageRendering,
+    };
+  }));
+  const sidebarBounds = await sidebar.boundingBox();
+  expect(sidebarBounds).not.toBeNull();
+  const expectInsideSidebar = (card: { left: number; right: number; top: number; bottom: number }) => {
+    expect(card.left).toBeGreaterThanOrEqual(sidebarBounds!.x);
+    expect(card.right).toBeLessThanOrEqual(sidebarBounds!.x + sidebarBounds!.width);
+    expect(card.top).toBeGreaterThanOrEqual(sidebarBounds!.y);
+    expect(card.bottom).toBeLessThanOrEqual(sidebarBounds!.y + sidebarBounds!.height);
+  };
+
+  const constructionPortraits = await portraitMetrics();
+  expect(constructionPortraits).toHaveLength(5);
+  for (const portrait of constructionPortraits) {
+    expectInsideSidebar(portrait.card);
+    expect(portrait.backingWidth).toBeGreaterThan(portrait.cssWidth);
+    expect(portrait.backingHeight).toBeGreaterThan(portrait.cssHeight);
+    expect(portrait.artRatio).toBeCloseTo(80 / 56, 2);
+    expect(portrait.imageRendering).toBe("auto");
+  }
+
+  await sidebar.getByRole("tab", { name: "Production" }).click();
+  const productionPortraits = await portraitMetrics();
+  expect(productionPortraits).toHaveLength(6);
+  productionPortraits.forEach((portrait) => expectInsideSidebar(portrait.card));
+  expect(productionPortraits.every((portrait) => portrait.backingWidth > portrait.cssWidth && portrait.backingHeight > portrait.cssHeight)).toBe(true);
+
+  const geometry = await battlefieldEntityGeometry(page, state, unit!);
+  await page.mouse.click(geometry.pointer.x, geometry.pointer.y);
+  await sidebar.getByRole("tab", { name: "Selected" }).click();
+  await expect(page.getByTestId("selected-kind")).toBeVisible();
+  const selectedPortrait = sidebar.locator("[data-testid='selected-panel'] canvas");
+  await expect(selectedPortrait).toBeVisible();
+  const selectedMetrics = await selectedPortrait.evaluate((element) => {
+    const canvas = element as HTMLCanvasElement;
+    const bounds = canvas.getBoundingClientRect();
+    return {
+      backingWidth: canvas.width,
+      backingHeight: canvas.height,
+      cssWidth: bounds.width,
+      cssHeight: bounds.height,
+      left: bounds.left,
+      right: bounds.right,
+      top: bounds.top,
+      bottom: bounds.bottom,
+      imageRendering: getComputedStyle(canvas).imageRendering,
+    };
+  });
+  expect(selectedMetrics.backingWidth).toBeGreaterThan(selectedMetrics.cssWidth);
+  expect(selectedMetrics.backingHeight).toBeGreaterThan(selectedMetrics.cssHeight);
+  expectInsideSidebar(selectedMetrics);
+  expect(selectedMetrics.imageRendering).toBe("auto");
+});
+
 test("opens the operations map and launches an available mission", async ({ page }) => {
   await page.goto("/campaign?seed=0421");
 

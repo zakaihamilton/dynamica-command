@@ -52,7 +52,38 @@
   justify-content: center;
   overflow: hidden;
   aspect-ratio: 80 / 56;
-  background: var(--chrome-void);
+  background:
+    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--a, var(--chrome-cyan)) 14%, transparent), transparent 68%),
+    repeating-linear-gradient(to bottom, transparent 0 3px, color-mix(in srgb, var(--chrome-cyan) 5%, transparent) 3px 4px),
+    var(--chrome-void);
+}
+
+.art::before,
+.art::after {
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+  content: "";
+}
+
+.art::before {
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--a, var(--chrome-cyan)) 24%, var(--chrome-inset));
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--a, var(--chrome-cyan)) 10%, transparent);
+}
+
+.art::after {
+  top: 4px;
+  right: 4px;
+  width: 12px;
+  height: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--a, var(--chrome-cyan)) 70%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--a, var(--chrome-cyan)) 70%, transparent);
+}
+
+.sprite {
+  position: relative;
+  z-index: 1;
 }
 
 .card:hover:not(:disabled) .sprite {

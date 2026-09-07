@@ -84,26 +84,18 @@ export function unitMovementOffset(
   }
   const phase = stridePhase !== undefined ? stridePhase : (frame / 4) * Math.PI * 2;
   const isHeavy = kind === "antiArmor";
-  // Walking gait: 2 vertical oscillations per full stride cycle (left & right footsteps)
-  const bobAmp = isHeavy ? 1.8 : 2.4;
+  // Natural vertical bobbing along stride cycle (grounded foot contact and rising step)
+  const bobAmp = isHeavy ? 1.0 : 1.4;
   const bob = -Math.abs(Math.sin(phase)) * bobAmp;
-  // Lateral hip sway alternating with lead leg
-  const swayX = Math.sin(phase) * (isHeavy ? 1.0 : 1.4);
-  // Pendulum body tilt around foot contact anchor
-  const tilt = Math.sin(phase) * (isHeavy ? 0.035 : 0.05);
-  // Volume-preserving contact compression and passing rise
-  const contactWeight = Math.abs(Math.sin(phase));
-  const scaleY = 1.0 - contactWeight * 0.05 + (1 - contactWeight) * 0.02;
-  const scaleX = 1.0 + contactWeight * 0.03 - (1 - contactWeight) * 0.01;
   const footPlantSide = (Math.sin(phase) >= 0 ? 1 : -1) as -1 | 1;
   const isFootPlant = Math.abs(Math.cos(phase)) > 0.82;
 
   return {
     bobY: bob,
-    swayX,
-    tilt,
-    scaleX,
-    scaleY,
+    swayX: 0,
+    tilt: 0,
+    scaleX: 1,
+    scaleY: 1,
     strideRatio: Math.sin(phase),
     isFootPlant,
     footPlantSide,
@@ -126,7 +118,8 @@ export function unitAnim(e: Entity, tick: number, clockMs?: number): UnitAnim {
   const isHeavy = kind === "antiArmor";
 
   if (pose === "move") {
-    const period = isHeavy ? 105 : isInfantry ? 80 : 90;
+    // Natural human running cadence (~3.3 steps/second, ~600ms per full stride cycle)
+    const period = isHeavy ? 170 : isInfantry ? 150 : 160;
     const frame = animFrame(t, period, 4, e.id);
     const strideCycleMs = period * 4;
     const stridePhase = (((t + e.id * 73) % strideCycleMs) / strideCycleMs) * Math.PI * 2;

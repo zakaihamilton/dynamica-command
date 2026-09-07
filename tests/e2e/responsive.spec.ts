@@ -551,6 +551,18 @@ test.describe("mobile-first layouts", () => {
           cards: cards.map((card) => ({
             card: bounds(card),
             art: card.firstElementChild ? bounds(card.firstElementChild) : null,
+            canvas: (() => {
+              const canvas = card.querySelector("canvas");
+              if (!(canvas instanceof HTMLCanvasElement)) return null;
+              const rect = canvas.getBoundingClientRect();
+              return {
+                backingWidth: canvas.width,
+                backingHeight: canvas.height,
+                cssWidth: rect.width,
+                cssHeight: rect.height,
+                imageRendering: getComputedStyle(canvas).imageRendering,
+              };
+            })(),
           })),
           documentWidth: document.documentElement.scrollWidth,
         };
@@ -564,9 +576,13 @@ test.describe("mobile-first layouts", () => {
 
       const cardWidths = layout.cards.map(({ card }) => card.width);
       expect(Math.max(...cardWidths) - Math.min(...cardWidths)).toBeLessThanOrEqual(1);
-      for (const { art } of layout.cards) {
+      for (const { art, canvas } of layout.cards) {
         expect(art).not.toBeNull();
         expect(art!.width / art!.height).toBeCloseTo(80 / 56, 2);
+        expect(canvas).not.toBeNull();
+        expect(canvas!.backingWidth).toBeGreaterThan(canvas!.cssWidth);
+        expect(canvas!.backingHeight).toBeGreaterThan(canvas!.cssHeight);
+        expect(canvas!.imageRendering).toBe("auto");
       }
 
       const tabWidths = layout.tabs.map(({ width }) => width);

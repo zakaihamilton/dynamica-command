@@ -1,6 +1,6 @@
 import { UNIT_STATS } from "../../catalog";
 import { groundHeight } from "../../sim/world";
-import { isoHeadingAngle } from "../../iso";
+import { isoFacingAngle, isoHeadingAngle, screenAngleToFacing } from "../../iso";
 import type { Entity, Facing, SimState, UnitKind } from "../../types";
 import { lerp, lerpAngle } from "./glMath";
 
@@ -50,7 +50,7 @@ const historyMap = new Map<number, UnitStateHistory>();
 
 function createUnitHistory(e: Entity, state: SimState, clockMs: number): UnitStateHistory {
   const initialYaw = e.facing !== undefined ? (e.facing / 8) * Math.PI * 2 - Math.PI / 4 : -Math.PI / 4;
-  const initialScreenAngle = e.facing !== undefined ? (e.facing / 8) * Math.PI * 2 : 0;
+  const initialScreenAngle = e.facing !== undefined ? isoFacingAngle(e.facing) : 0;
   return {
     id: e.id,
     prevX: e.x,
@@ -179,20 +179,24 @@ export function computeUnitDynamicTransform(
   } else if (waypointDist > 0.005) {
     targetScreenAngle = isoHeadingAngle(waypointDx, waypointDy);
   } else if (e.facing !== undefined) {
-    targetScreenAngle = (e.facing / 8) * Math.PI * 2;
+    targetScreenAngle = isoFacingAngle(e.facing);
   }
 
-  // Smooth fluid turning rate: tanks turn heavier, wheeled vehicles steer agilely
-  const vehicleTurnSpeed = e.kind === "tank" ? 5.5 : e.kind === "harvester" ? 6.2 : isVehicle ? 8.0 : 16.0;
+  // Smooth fluid turning rate: vehicles pivot cleanly through intermediate facings, while infantry turn swiftly
+  const isWalker = e.kind === "infantry" || e.kind === "antiArmor" || e.kind === "medic";
+  const isMoving = moveDist > 0.001 || waypointDist > 0.001;
+  const vehicleTurnSpeed = isMoving
+    ? (e.kind === "tank" ? 14.0 : e.kind === "harvester" ? 16.0 : 20.0)
+    : (e.kind === "tank" ? 8.0 : e.kind === "harvester" ? 9.0 : 12.0);
   const prevAngle = hist.screenAngle;
-  hist.screenAngle = lerpAngle(hist.screenAngle, targetScreenAngle, Math.min(1, dt * vehicleTurnSpeed));
+  hist.screenAngle = isWalker
+    ? targetScreenAngle
+    : lerpAngle(hist.screenAngle, targetScreenAngle, Math.min(1, dt * vehicleTurnSpeed));
   const angularVelocity = (hist.screenAngle - prevAngle) / dt;
 
-  // Determine nearest 45-degree base facing (0..7) and micro-rotation offset
-  const normalizedScreenAngle = ((hist.screenAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  const baseFacing = ((Math.round((normalizedScreenAngle / (Math.PI * 2)) * 8) + 8) % 8) as Facing;
-  let nominalAngle = (baseFacing / 8) * Math.PI * 2;
-  if (nominalAngle > Math.PI) nominalAngle -= Math.PI * 2;
+  // Determine nearest 8-way isometric facing and rotation offset
+  const baseFacing = screenAngleToFacing(hist.screenAngle);
+  const nominalAngle = isoFacingAngle(baseFacing);
 
   let rotationOffset = hist.screenAngle - nominalAngle;
   while (rotationOffset > Math.PI) rotationOffset -= Math.PI * 2;
@@ -220,24 +224,21 @@ export function computeUnitDynamicTransform(
 
   hist.turretYaw = lerpAngle(hist.turretYaw, targetTurretYaw, Math.min(1, dt * 12.0));
 
-  // Stride phase for walkers
-  const isMoving = moveDist > 0.001 || waypointDist > 0.001;
+  // Stride phase for walkers (authentic walking cadence)
   const speed = isMoving ? UNIT_STATS[e.kind as UnitKind].speed * 20 : 0;
-  hist.stridePhase += speed * dt * 12.0;
+  hist.stridePhase += speed * dt * 6.0;
 
   const legLAngle = isMoving ? Math.sin(hist.stridePhase) * 0.6 : 0;
   const legRAngle = isMoving ? -Math.sin(hist.stridePhase) * 0.6 : 0;
 
-  // Gait properties for walkers
-  const isWalker = e.kind === "infantry" || e.kind === "antiArmor" || e.kind === "medic";
+  // Gait properties for walkers: subtle vertical step bobbing, stable upright silhouette
   const isHeavy = e.kind === "antiArmor";
-  const bobAmp = isHeavy ? 1.8 : 2.4;
+  const bobAmp = isHeavy ? 1.0 : 1.4;
   const gaitBobY = isMoving && isWalker ? -Math.abs(Math.sin(hist.stridePhase)) * bobAmp : 0;
-  const swayX = isMoving && isWalker ? Math.sin(hist.stridePhase) * (isHeavy ? 1.0 : 1.4) : 0;
-  const gaitTilt = isMoving && isWalker ? Math.sin(hist.stridePhase) * (isHeavy ? 0.035 : 0.05) : 0;
-  const contactWeight = isMoving && isWalker ? Math.abs(Math.sin(hist.stridePhase)) : 0;
-  const scaleY = isMoving && isWalker ? 1.0 - contactWeight * 0.05 + (1 - contactWeight) * 0.02 : 1.0;
-  const scaleX = isMoving && isWalker ? 1.0 + contactWeight * 0.03 - (1 - contactWeight) * 0.01 : 1.0;
+  const swayX = 0;
+  const gaitTilt = 0;
+  const scaleY = 1.0;
+  const scaleX = 1.0;
   const footPlantSide = (Math.sin(hist.stridePhase) >= 0 ? 1 : -1) as -1 | 1;
   const isFootPlant = isMoving && isWalker && Math.abs(Math.cos(hist.stridePhase)) > 0.82;
   const strideRatio = isMoving && isWalker ? Math.sin(hist.stridePhase) : 0;

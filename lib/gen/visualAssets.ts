@@ -121,9 +121,9 @@ export const UNIT_DIRECTION_CROPS: Partial<Record<UnitKind, Partial<Record<UnitV
     front: { x: 52, y: 0, w: 280, h: 512, sourceW: 384, sourceH: 512 },
     "front-left": { x: 24, y: 0, w: 336, h: 512, sourceW: 384, sourceH: 512 },
     left: { x: 0, y: 0, w: 384, h: 512, sourceW: 384, sourceH: 512 },
-    "back-left": { x: 0, y: 0, w: 368, h: 512, sourceW: 384, sourceH: 512 },
+    "back-left": { x: 20, y: 0, w: 344, h: 512, sourceW: 384, sourceH: 512 },
     back: { x: 52, y: 0, w: 280, h: 512, sourceW: 384, sourceH: 512 },
-    "back-right": { x: 20, y: 0, w: 344, h: 512, sourceW: 384, sourceH: 512 },
+    "back-right": { x: 0, y: 0, w: 368, h: 512, sourceW: 384, sourceH: 512 },
     right: { x: 16, y: 0, w: 368, h: 512, sourceW: 384, sourceH: 512 },
   },
 };
