@@ -17,6 +17,7 @@ import { SeedEntry } from "../../components/menu/SeedEntry";
 import { PauseMenu } from "../../components/game/PauseMenu";
 import { PauseSaveSlots } from "../../components/game/PauseSaveSlots";
 import { PauseLoadSlots } from "../../components/game/PauseLoadSlots";
+import { CommandHeader } from "../../components/game/CommandHeader";
 import type { ArchiveEntry, SlotMeta } from "../../lib/persist/save";
 import { MissionConfirmation } from "../../components/game/MissionConfirmation";
 import { BriefingActions } from "../../components/briefing/BriefingActions";
@@ -113,6 +114,17 @@ describe("mobile command controls", () => {
     );
     expect(screen.getByTestId("mobile-select-mode")).toBeVisible();
     expect(screen.queryByTestId("mobile-command-move")).toBeNull();
+  });
+});
+
+describe("command header", () => {
+  it("opens the main game menu rather than the options view", () => {
+    const onPause = vi.fn();
+    render(<CommandHeader factionName="Eastern Republic" onPause={onPause} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Open Shifting Front pause menu/ }));
+
+    expect(onPause).toHaveBeenCalledWith("main");
   });
 });
 

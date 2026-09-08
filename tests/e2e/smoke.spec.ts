@@ -761,6 +761,14 @@ test("pauses and resumes from the battlefield", async ({ page }) => {
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
 });
 
+test("opens the main pause menu from the command header", async ({ page }) => {
+  await deployToBattlefield(page);
+  await page.getByRole("button", { name: "Open Shifting Front pause menu. F1 for controls" }).click();
+
+  await expect(page.getByRole("dialog", { name: "Game paused" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Game options" })).toHaveCount(0);
+});
+
 function saveEnvelope(state: SimState): string {
   return JSON.stringify({ version: SAVE_VERSION, contentVersion: SAVE_CONTENT_VERSION, savedAt: Date.now(), state });
 }

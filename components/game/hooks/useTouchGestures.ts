@@ -10,15 +10,17 @@ export function useTouchGestures({
   selectionModeRef,
   boxRef,
   issueContextOrder,
+  setSelectionMode,
 }: {
   camRef: MutableRefObject<Camera>;
   stateRef: MutableRefObject<SimState>;
   selectionModeRef: MutableRefObject<boolean>;
   boxRef: MutableRefObject<SelectionBox | null>;
   issueContextOrder: (s: SimState, p: { x: number; y: number }) => void;
+  setSelectionMode?: (active: boolean) => void;
 }) {
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
-  const touchGesture = useRef<{ center: { x: number; y: number }; distance: number } | null>(null);
+  const touchSelection = useRef(false);
   const touchMultiTouch = useRef(false);
   const touchPan = useRef<{ pointerId: number; start: { x: number; y: number }; last: { x: number; y: number }; moved: boolean } | null>(null);
   const longPress = useRef<{ pointerId: number; timer: number; x: number; y: number; fired: boolean } | null>(null);
@@ -31,10 +33,18 @@ export function useTouchGestures({
     }
     touchPoints.current.set(e.pointerId, p);
     if (touchPoints.current.size >= 2) {
+      const points = [...touchPoints.current.values()];
       touchMultiTouch.current = true;
-      touchGesture.current = null;
+      touchSelection.current = true;
+      selectionModeRef.current = true;
+      setSelectionMode?.(true);
       touchPan.current = null;
-      boxRef.current = null;
+      boxRef.current = {
+        x0: points[0]!.x,
+        y0: points[0]!.y,
+        x1: points[1]!.x,
+        y1: points[1]!.y,
+      };
       if (longPress.current) window.clearTimeout(longPress.current.timer);
       longPress.current = null;
       return;
@@ -46,13 +56,13 @@ export function useTouchGestures({
     }
     const timer = window.setTimeout(() => {
       const held = longPress.current;
-      if (held && held.pointerId === e.pointerId && !held.fired && !touchGesture.current && !selectionModeRef.current) {
+      if (held && held.pointerId === e.pointerId && !held.fired && !touchSelection.current && !selectionModeRef.current) {
         held.fired = true;
         issueContextOrder(stateRef.current, { x: held.x, y: held.y });
       }
     }, 480);
     longPress.current = { pointerId: e.pointerId, timer, x: p.x, y: p.y, fired: false };
-  }, [boxRef, issueContextOrder, selectionModeRef, stateRef]);
+  }, [boxRef, issueContextOrder, selectionModeRef, setSelectionMode, stateRef]);
 
   const moveTouch = useCallback((e: PointerEvent<HTMLCanvasElement>, p: { x: number; y: number }): boolean => {
     const s = stateRef.current;
@@ -62,14 +72,12 @@ export function useTouchGestures({
     touchPoints.current.set(e.pointerId, p);
     if (touchPoints.current.size >= 2) {
       const points = [...touchPoints.current.values()];
-      const center = { x: (points[0]!.x + points[1]!.x) / 2, y: (points[0]!.y + points[1]!.y) / 2 };
-      const distance = Math.hypot(points[0]!.x - points[1]!.x, points[0]!.y - points[1]!.y);
-      const previous = touchGesture.current;
-      if (previous) {
-        panCamera(camRef.current, center.x - previous.center.x, center.y - previous.center.y, bounds);
-        camRef.current.zoom = Math.max(0.55, Math.min(1.8, camRef.current.zoom * (distance / Math.max(1, previous.distance))));
+      if (touchSelection.current && boxRef.current) {
+        boxRef.current.x0 = points[0]!.x;
+        boxRef.current.y0 = points[0]!.y;
+        boxRef.current.x1 = points[1]!.x;
+        boxRef.current.y1 = points[1]!.y;
       }
-      touchGesture.current = { center, distance };
       return true;
     }
     const held = longPress.current;
@@ -96,7 +104,17 @@ export function useTouchGestures({
     return false;
   }, [boxRef, camRef, selectionModeRef, stateRef]);
 
-  const endTouch = useCallback((e: PointerEvent<HTMLCanvasElement>): boolean => {
+  const endTouch = useCallback((e: PointerEvent<HTMLCanvasElement>, p?: { x: number; y: number }): boolean => {
+    if (p) touchPoints.current.set(e.pointerId, p);
+    if (touchSelection.current && boxRef.current) {
+      const points = [...touchPoints.current.values()];
+      if (points.length >= 2) {
+        boxRef.current.x0 = points[0]!.x;
+        boxRef.current.y0 = points[0]!.y;
+        boxRef.current.x1 = points[1]!.x;
+        boxRef.current.y1 = points[1]!.y;
+      }
+    }
     const held = longPress.current;
     touchPoints.current.delete(e.pointerId);
     if (held?.pointerId === e.pointerId) {
@@ -104,18 +122,21 @@ export function useTouchGestures({
       longPress.current = null;
     }
     if (touchPoints.current.size > 0) return true;
-    const wasGesture = !!touchGesture.current || touchMultiTouch.current || !!touchPan.current?.moved;
-    touchGesture.current = null;
+    const wasSelection = touchSelection.current;
+    const wasGesture = touchMultiTouch.current || !!touchPan.current?.moved;
+    touchSelection.current = false;
     touchMultiTouch.current = false;
     touchPan.current = null;
-    return Boolean(held?.fired || wasGesture);
-  }, []);
+    // Leave the final two-finger pointer-up for the normal input resolver so
+    // the marquee is committed as a unit selection.
+    return wasSelection ? false : Boolean(held?.fired || wasGesture);
+  }, [boxRef]);
 
   const cancelTouch = useCallback(() => {
     if (longPress.current) window.clearTimeout(longPress.current.timer);
     longPress.current = null;
     touchPoints.current.clear();
-    touchGesture.current = null;
+    touchSelection.current = false;
     touchMultiTouch.current = false;
     touchPan.current = null;
   }, []);

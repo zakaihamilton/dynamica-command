@@ -23,6 +23,7 @@ export const SFX_MAKEUP_GAIN = 1.35;
 
 let levels: AudioLevels = { ...DEFAULT_LEVELS };
 let enabled: Record<AudioBus, boolean> = { music: true, sfx: true };
+let foreground = true;
 let master: GainNode | null = null;
 let music: GainNode | null = null;
 let sfx: GainNode | null = null;
@@ -41,14 +42,14 @@ function applyLevels(audio: AudioContext): void {
   if (!activeDuck) musicDuck = null;
   music?.gain.cancelScheduledValues?.(now);
   music?.gain.setTargetAtTime(
-    enabled.music ? levels.musicVolume * (activeDuck?.depth ?? 1) : 0,
+    enabled.music && foreground ? levels.musicVolume * (activeDuck?.depth ?? 1) : 0,
     now,
     activeDuck ? 0.018 : RAMP_S,
   );
   if (activeDuck) {
-    music?.gain.setTargetAtTime(enabled.music ? levels.musicVolume : 0, activeDuck.until, 0.08);
+    music?.gain.setTargetAtTime(enabled.music && foreground ? levels.musicVolume : 0, activeDuck.until, 0.08);
   }
-  sfx?.gain.setTargetAtTime(enabled.sfx ? levels.sfxVolume : 0, now, RAMP_S);
+  sfx?.gain.setTargetAtTime(enabled.sfx && foreground ? levels.sfxVolume : 0, now, RAMP_S);
 }
 
 function disconnectNode(node: AudioNode | null): void {
@@ -152,6 +153,16 @@ export function setAudioBusEnabled(bus: AudioBus, value: boolean): void {
   }
 }
 
+/** Mute both buses while the game is not the active foreground page. */
+export function setAudioForeground(value: boolean): void {
+  foreground = value;
+  const audio = peekAudioContext();
+  if (audio) {
+    ensureMixer(audio);
+    applyLevels(audio);
+  }
+}
+
 /** Briefly make room for nearby heavy battlefield cues, then recover the saved music level. */
 export function duckMusic(depth = 0.78, duration = 0.16): void {
   const audio = peekAudioContext();
@@ -179,6 +190,7 @@ export function getAudioLevels(): AudioLevels {
 export function resetAudioMixerForTests(): void {
   levels = { ...DEFAULT_LEVELS };
   enabled = { music: true, sfx: true };
+  foreground = true;
   musicDuck = null;
   teardownMixer();
 }

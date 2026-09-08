@@ -14,7 +14,7 @@ import {
   saveAudibleMusicPosition,
 } from "@/lib/audio/music";
 import { setSfxEnabled } from "@/lib/audio/synth";
-import { setAudioLevels } from "@/lib/audio/mixer";
+import { setAudioForeground, setAudioLevels } from "@/lib/audio/mixer";
 import { cachedLocalStorage } from "@/lib/persist/save";
 import { readSettings } from "@/lib/persist/settings";
 import { parseSeed } from "@/lib/seed/rng";
@@ -48,10 +48,27 @@ function AudioRootInner() {
   useEffect(() => {
     const unlockEvents = ["pointerdown", "keydown", "touchstart"] as const;
     const unlock = () => unlockAudio();
-    const onVisibility = () => {
-      if (!document.hidden && isAudioUnlocked()) unlockAudio();
-      else if (document.hidden) saveAudibleMusicPosition();
+    let documentVisible = !document.hidden;
+    let windowFocused = document.hasFocus();
+    const setForeground = (value: boolean) => {
+      setAudioForeground(value);
+      if (value && isAudioUnlocked()) unlockAudio();
+      else if (!value) saveAudibleMusicPosition();
     };
+    const updateForeground = () => setForeground(documentVisible && windowFocused);
+    const onVisibility = () => {
+      documentVisible = !document.hidden;
+      updateForeground();
+    };
+    const onBlur = () => {
+      windowFocused = false;
+      updateForeground();
+    };
+    const onFocus = () => {
+      windowFocused = true;
+      updateForeground();
+    };
+    updateForeground();
     // Capture input before game controls can stop propagation. Keep these
     // listeners for the lifetime of the root so a suspended or failed context
     // can be retried by a later user gesture.
@@ -59,11 +76,15 @@ function AudioRootInner() {
       document.addEventListener(eventName, unlock, true);
     }
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
     return () => {
       for (const eventName of unlockEvents) {
         document.removeEventListener(eventName, unlock, true);
       }
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 

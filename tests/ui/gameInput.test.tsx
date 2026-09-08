@@ -218,6 +218,42 @@ describe("touch gesture lifecycle", () => {
 
     expect(commitSelection).toHaveBeenCalledOnce();
   });
+
+  it("uses two fingers for marquee selection without changing camera zoom", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const selectionModeRef = { current: false };
+    const boxRef = { current: null };
+    const setSelectionMode = vi.fn();
+    const { result } = renderHook(() => useTouchGestures({
+      camRef: { current: cam },
+      stateRef: { current: state },
+      selectionModeRef,
+      boxRef,
+      issueContextOrder: vi.fn(),
+      setSelectionMode,
+    }));
+    const canvas = testCanvas();
+    const touch = (pointerId: number, overrides: Partial<PointerEvent<HTMLCanvasElement>> = {}) => pointerEvent(canvas, {
+      pointerType: "touch",
+      pointerId,
+      ...overrides,
+    });
+
+    act(() => {
+      result.current.beginTouch(touch(1), { x: 100, y: 100 });
+      result.current.beginTouch(touch(2), { x: 200, y: 200 });
+      result.current.moveTouch(touch(2, { clientX: 240, clientY: 220 }), { x: 240, y: 220 });
+    });
+
+    expect(cam.zoom).toBe(1);
+    expect(selectionModeRef.current).toBe(true);
+    expect(setSelectionMode).toHaveBeenCalledWith(true);
+    expect(boxRef.current).toEqual({ x0: 100, y0: 100, x1: 240, y1: 220 });
+
+    expect(result.current.endTouch(touch(1, { clientX: 100, clientY: 100 }), { x: 100, y: 100 })).toBe(true);
+    expect(result.current.endTouch(touch(2, { clientX: 240, clientY: 220 }), { x: 240, y: 220 })).toBe(false);
+  });
 });
 
 describe("command markers", () => {

@@ -8,6 +8,7 @@ const unlockAudio = vi.hoisted(() => vi.fn(() => {
   audioState.unlocked = true;
 }));
 const isAudioUnlocked = vi.hoisted(() => vi.fn(() => audioState.unlocked));
+const setAudioForeground = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/play",
@@ -27,7 +28,7 @@ vi.mock("../../lib/audio/music", () => ({
 }));
 
 vi.mock("../../lib/audio/synth", () => ({ setSfxEnabled: vi.fn() }));
-vi.mock("../../lib/audio/mixer", () => ({ setAudioLevels: vi.fn() }));
+vi.mock("../../lib/audio/mixer", () => ({ setAudioForeground, setAudioLevels: vi.fn() }));
 
 import { AudioRoot } from "../../components/audio/AudioRoot";
 
@@ -36,6 +37,7 @@ afterEach(() => {
   audioState.unlocked = false;
   unlockAudio.mockClear();
   isAudioUnlocked.mockClear();
+  setAudioForeground.mockClear();
 });
 
 describe("AudioRoot unlock handling", () => {
@@ -48,5 +50,18 @@ describe("AudioRoot unlock handling", () => {
     });
 
     expect(unlockAudio).toHaveBeenCalledTimes(2);
+  });
+
+  it("mutes both audio buses on blur and restores them on focus", () => {
+    render(<AudioRoot />);
+
+    act(() => window.dispatchEvent(new Event("blur")));
+    // A visible page can still be blurred. Visibility must not undo the blur.
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    expect(setAudioForeground).toHaveBeenLastCalledWith(false);
+    act(() => window.dispatchEvent(new Event("focus")));
+
+    expect(setAudioForeground).toHaveBeenCalledWith(false);
+    expect(setAudioForeground).toHaveBeenLastCalledWith(true);
   });
 });

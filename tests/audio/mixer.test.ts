@@ -158,4 +158,22 @@ describe("sfx mixer graph", () => {
       { value: 0.3, start: 0.2, constant: 0.08 },
     ]);
   });
+
+  it("mutes both buses while the page is out of the foreground", async () => {
+    const audio = new FakeAudioContext();
+    const { getAudioBus, setAudioForeground, setAudioLevels } = await loadMixer(audio);
+    setAudioLevels({ musicVolume: 0.8, sfxVolume: 0.7 });
+    const music = getAudioBus("music") as unknown as FakeNode;
+    const sfx = getAudioBus("sfx") as unknown as FakeNode;
+
+    setAudioForeground(false);
+
+    expect(music.gain.value).toBe(0);
+    expect(sfx.gain.value).toBe(0);
+
+    setAudioForeground(true);
+
+    expect(music.gain.value).toBe(0.8);
+    expect(sfx.gain.value).toBe(0.7);
+  });
 });

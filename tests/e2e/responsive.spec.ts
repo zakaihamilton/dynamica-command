@@ -637,6 +637,30 @@ test.describe("mobile-first layouts", () => {
     await expect.poll(() => persistedUnitOrder(page, infantryEntity.id)).toMatchObject({ orderMode: "move" });
   });
 
+  test("uses two fingers for marquee selection instead of camera zoom", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/play?seed=${String(TEST_SEED).padStart(4, "0")}&mission=0&fresh=1`);
+    await waitForBattlefield(page);
+
+    const state = createMission({ seed: TEST_SEED, missionIndex: 0 });
+    const infantryEntity = playerUnits(state).find((entity) => entity.kind === "infantry");
+    if (!infantryEntity) throw new Error("Mission has no player infantry");
+    const infantry = await pointForEntity(page, infantryEntity);
+    const start = { x: infantry.x - 60, y: infantry.y - 60 };
+    const end = { x: infantry.x + 60, y: infantry.y + 60 };
+
+    await dispatchTouch(page, "pointerdown", start, 1);
+    await dispatchTouch(page, "pointerdown", end, 2);
+    await dispatchTouch(page, "pointermove", end, 2);
+    await dispatchTouch(page, "pointerup", start, 1);
+    await dispatchTouch(page, "pointerup", end, 2);
+    await waitForStableSelection(page);
+
+    await page.getByTestId("mobile-command-toggle").click();
+    await page.getByTestId("tab-selected").click();
+    await expect(page.getByTestId("selected-panel")).toContainText("Health");
+  });
+
   test("keeps tutorial controls above the battlefield and reachable on small phones", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto("/tutorial");

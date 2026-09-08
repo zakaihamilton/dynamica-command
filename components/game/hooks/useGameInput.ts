@@ -123,6 +123,7 @@ export function useGameInput({
     selectionModeRef,
     boxRef,
     issueContextOrder,
+    setSelectionMode,
   });
 
   const { applyPointerUp } = usePointerUpHandler({
@@ -218,10 +219,10 @@ export function useGameInput({
         // Synthetic pointer events used by accessibility and browser tests may not support capture.
       }
     }
+    const p = canvasPointerPos(e);
     const s = stateRef.current;
     if (!s) return;
-    if (e.pointerType === "touch" && endTouch(e)) return;
-    const p = canvasPointerPos(e);
+    if (e.pointerType === "touch" && endTouch(e, p)) return;
     const cam = camRef.current;
     const drag = Boolean(boxRef.current && selectionBoxDistance(boxRef.current, cam) > 8);
     const nowMs = performance.now();

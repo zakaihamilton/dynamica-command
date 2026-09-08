@@ -1,14 +1,15 @@
 import { SHORTCUT } from "@/lib/ui/shortcuts";
+import type { PauseView } from "@/lib/ui/shortcuts";
 import styles from "./CommandSidebar.module.css";
 
-export function CommandHeader({ factionName, onPause }: { factionName: string; onPause: () => void }) {
+export function CommandHeader({ factionName, onPause }: { factionName: string; onPause: (view?: PauseView) => void }) {
   return (
     <button
       type="button"
       className={styles.header}
       data-tooltip="Pause menu · F1 for controls"
       data-shortcut={SHORTCUT.pause}
-      onClick={onPause}
+      onClick={() => onPause("main")}
       aria-label="Open Shifting Front pause menu. F1 for controls"
       aria-keyshortcuts="Escape F1"
     >
