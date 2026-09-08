@@ -18,6 +18,58 @@ export type MissionProfileContract = {
   maxRecoveryDelay: number;
 };
 
+export type MissionObjectiveContract = {
+  targetLabel: string;
+  pressureAlert: string;
+  repairPolicy: "nonTarget" | "none";
+  assaultDelay: number;
+  productionScale: number;
+  startingSupport: boolean;
+};
+
+const OBJECTIVE_CONTRACTS: Partial<Record<MissionKind, MissionObjectiveContract>> = {
+  destroyMarked: {
+    targetLabel: "the marked targets",
+    pressureAlert: "Enemy reserves are regrouping around the marked targets.",
+    repairPolicy: "nonTarget",
+    assaultDelay: 0,
+    productionScale: 1,
+    startingSupport: true,
+  },
+  sabotage: {
+    targetLabel: "the remaining systems",
+    pressureAlert: "Enemy response is tightening around the remaining systems.",
+    repairPolicy: "nonTarget",
+    assaultDelay: 0,
+    productionScale: 1,
+    startingSupport: true,
+  },
+  decapitate: {
+    targetLabel: "the enemy Command HQ",
+    pressureAlert: "Enemy command is exposed — expect a counterattack.",
+    repairPolicy: "none",
+    assaultDelay: 600,
+    productionScale: 1.5,
+    startingSupport: false,
+  },
+  razeAll: {
+    targetLabel: "the remaining enemy structures",
+    pressureAlert: "The defensive ring is tightening around the remaining structures.",
+    repairPolicy: "none",
+    assaultDelay: 600,
+    productionScale: 1.4,
+    startingSupport: true,
+  },
+  annihilate: {
+    targetLabel: "the last hostiles",
+    pressureAlert: "Final enemy resistance is forming around the last hostiles.",
+    repairPolicy: "none",
+    assaultDelay: 120,
+    productionScale: 1.25,
+    startingSupport: true,
+  },
+};
+
 export function missionFamilyFor(kind: MissionKind): MissionFamily {
   if (kind === "harvestQuota" || kind === "forceQuota" || kind === "structureQuota") return "economy";
   if (kind === "destroyMarked" || kind === "razeAll" || kind === "decapitate" || kind === "annihilate") return "assault";
@@ -179,6 +231,10 @@ export function missionProfileFor(seed: number, missionIndex: number, kind: Miss
 
 export function profileContractFor(profile: MissionProfile): MissionProfileContract {
   return PROFILE_CONTRACTS[profile.variant];
+}
+
+export function objectiveContractFor(kind: MissionKind): MissionObjectiveContract | undefined {
+  return OBJECTIVE_CONTRACTS[kind];
 }
 
 export function resolveMissionProfile(

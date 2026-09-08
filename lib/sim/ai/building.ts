@@ -49,9 +49,9 @@ export function tryBuildRefinery(state: SimState, yardX: number, yardY: number):
   return tryPlaceBuilding(state, "refinery", findBuildSite(state, "refinery", yardX + 3, yardY, 12, 1));
 }
 
-export function tryBuildForwardInfrastructure(state: SimState, yard: Entity): boolean {
+export function tryBuildForwardInfrastructure(state: SimState, yard: Entity, knownPlayers?: Entity[]): boolean {
   if (directorPhase(state) === "opening" || powerFor(state, 1) < 0) return false;
-  const point = contestedResourcePoint(state, yard);
+  const point = contestedResourcePoint(state, yard, knownPlayers);
   if (!point) return false;
 
   const refineries = livingView(state).filter(

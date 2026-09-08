@@ -2,11 +2,12 @@ import { BUILDING_STATS, UNIT_STATS, footprintOf, isSupportUnit, isUnitAvailable
 import { isUnitEntity, type Entity, type MissionDirectorPhase, type SimState, type UnitKind } from "../../types";
 import { rngFromState } from "../../seed/rng";
 import { missionDifficulty } from "../difficulty";
-import { profileContractFor, resolveMissionProfile } from "../../gen/profile";
-import { byId, closestApproach, distToEntity, findBuildSite, livingView, nearest, powerFor, spawnBuilding, trySpawnUnit } from "../world";
+import { objectiveContractFor, profileContractFor, resolveMissionProfile } from "../../gen/profile";
+import { byId, closestApproach, distToEntity, findBuildSite, livingView, powerFor, spawnBuilding, trySpawnUnit } from "../world";
 import { tryBuildForwardInfrastructure, tryBuildPower, tryBuildRefinery, tryBuildTurret } from "./building";
 import { assignAttack, assignAssault, assignMove, sendHome } from "./combat";
 import { contestedResourcePoint, distance, queueUnit, shouldAutoRepair, shouldRetreat } from "./helpers";
+import { enemyKnownPlayerEntities, nearestKnownPlayer } from "./visibility";
 
 const YARD_DEFENSE_RANGE = 14;
 
@@ -61,9 +62,9 @@ export function guardScenarioObjectives(state: SimState, units: Entity[]): void 
   });
 }
 
-export function guardResourceLane(state: SimState, units: Entity[], yard: Entity): void {
+export function guardResourceLane(state: SimState, units: Entity[], yard: Entity, knownPlayers?: Entity[]): void {
   if (directorPhase(state) === "opening") return;
-  const point = contestedResourcePoint(state, yard);
+  const point = contestedResourcePoint(state, yard, knownPlayers);
   const guardIndex = homeGuardCount(state.missionIndex);
   if (!point || units.length <= guardIndex) return;
 
@@ -81,6 +82,7 @@ export function tickAi(state: SimState): void {
   // used views in one pass instead of repeatedly filtering the same entity
   // list during production, repair, and assault decisions.
   const active = livingView(state);
+  const knownPlayers = enemyKnownPlayerEntities(state);
   const { enemyBuildings, enemyUnits } = buffersFor(state);
   let hasHarvester = false;
   let playerTanks = 0;
@@ -89,6 +91,10 @@ export function tickAi(state: SimState): void {
   let woundedVehicles = false;
   let medicCount = 0;
   let repairTruckCount = 0;
+  for (const entity of knownPlayers) {
+    if (entity.kind === "tank") playerTanks += 1;
+    if (entity.kind === "infantry") playerInfantry += 1;
+  }
   for (const entity of active) {
     if (entity.owner === 1 && entity.class === "building") enemyBuildings.push(entity);
     if (entity.owner === 1 && isUnitEntity(entity)) {
@@ -99,8 +105,6 @@ export function tickAi(state: SimState): void {
       if (!isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "human" && entity.hp < entity.maxHp) woundedHumans = true;
       if (!isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].domain === "vehicle" && entity.hp < entity.maxHp) woundedVehicles = true;
     }
-    if (entity.owner === 0 && entity.kind === "tank") playerTanks += 1;
-    if (entity.owner === 0 && entity.kind === "infantry") playerInfantry += 1;
   }
   const yard = enemyBuildings.find((e) => e.kind === "constructionYard");
   if (!yard) {
@@ -114,14 +118,17 @@ export function tickAi(state: SimState): void {
     ? resolveMissionProfile(state.seed, state.missionIndex, state.win.kind)
     : undefined;
   const profileContract = profile ? profileContractFor(profile) : undefined;
+  const objectiveContract = objectiveContractFor(state.win.kind);
   const phase = directorPhase(state);
   const timedScenario = state.runtime?.director !== undefined && state.missionIndex >= 4 && (
     state.runtime.kind === "escort" || state.runtime.kind === "rescue" || state.runtime.kind === "extraction"
   );
   const openingOffensive = state.win.kind === "decapitate" && state.missionIndex < 2;
+  const timedProductionScale = state.runtime?.kind === "extraction" ? 2.5 : 2;
   const productionEvery = timedScenario
-    ? Math.round(difficulty.enemyProductionEvery * 2)
-    : openingOffensive ? Math.round(difficulty.enemyProductionEvery * 4) : difficulty.enemyProductionEvery;
+    ? Math.round(difficulty.enemyProductionEvery * timedProductionScale)
+    : openingOffensive ? Math.round(difficulty.enemyProductionEvery * 4)
+      : Math.round(difficulty.enemyProductionEvery * (objectiveContract?.productionScale ?? 1));
   const productionWindow =
     state.tick >= difficulty.enemyProductionStart &&
     (state.tick - difficulty.enemyProductionStart) % productionEvery === 0;
@@ -141,7 +148,7 @@ export function tickAi(state: SimState): void {
     const power = powerFor(state, 1);
     if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
       // Restore the grid before expanding.
-    } else if (phase !== "opening" && tryBuildForwardInfrastructure(state, yard)) {
+    } else if (phase !== "opening" && tryBuildForwardInfrastructure(state, yard, knownPlayers)) {
       // Contest a remote resource lane before committing to another assault wave.
     } else if (!hasRefinery && tryBuildRefinery(state, yard.x, yard.y)) {
       // Keep ore income before spending on combat.
@@ -179,27 +186,24 @@ export function tickAi(state: SimState): void {
     }
   }
 
-  const playerYard = nearest(
-    state,
-    yard,
-    (e) => e.owner === 0 && e.kind === "constructionYard",
-  );
+  const playerYard = knownPlayers.find((entity) => entity.kind === "constructionYard");
   const pressureScale = timedScenario ? 2 : state.win.kind === "decapitate" && state.missionIndex < 2 ? 4 : 1;
-  const waveEvery = Math.max(240, Math.round((difficulty.enemyAssaultEvery + (profileContract?.assaultEveryOffset ?? 0)) * pressureScale));
+  const waveEvery = Math.max(240, Math.round((difficulty.enemyAssaultEvery
+    + (profileContract?.assaultEveryOffset ?? 0)
+    + (objectiveContract?.assaultDelay ?? 0)) * pressureScale));
   for (const b of enemyBuildings) {
     if (b.constructing > 0 || b.hp <= 0) continue;
     if (b.hp < b.maxHp && shouldAutoRepair(state, b)) b.repairing = true;
     else if (!shouldAutoRepair(state, b)) b.repairing = false;
   }
 
-  const threat = nearest(
+  const threat = nearestKnownPlayer(
     state,
     yard,
     (e) => e.owner === 0 && isUnitEntity(e) && e.kind !== "harvester" && !isSupportUnit(e.kind) && (
       (!e.neutral || e.scenarioRole === "convoy")
-    ) && !(
-      e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined
-    ),
+    ) && !(e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined),
+    knownPlayers,
   );
   const units = enemyUnits;
   const averageHealth = units.length ? units.reduce((sum, unit) => sum + unit.hp / unit.maxHp, 0) / units.length : 1;
@@ -216,7 +220,7 @@ export function tickAi(state: SimState): void {
       assignAttack(state, u, threat);
     }
   } else if (state.aiState === "assault" && playerYard && state.tick > 0) {
-    assignAssault(state, units, yard, playerYard, state.tick % waveEvery === 0);
+    assignAssault(state, units, yard, playerYard, state.tick % waveEvery === 0, knownPlayers);
   } else if (state.aiState === "retreat") {
     for (const u of units) sendHome(state, u, yard);
   } else if (state.aiState === "economy" || state.aiState === "regroup") {
@@ -229,7 +233,7 @@ export function tickAi(state: SimState): void {
     }
     guardScenarioObjectives(state, units);
     if (!state.runtime || (state.runtime.kind !== "sabotage" && state.runtime.kind !== "destroyMarked")) {
-      guardResourceLane(state, units, yard);
+      guardResourceLane(state, units, yard, knownPlayers);
     }
   }
   state.rngState = rng.state;

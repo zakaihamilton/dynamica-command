@@ -148,6 +148,7 @@ function normalizeState(value: unknown): SimState {
     delete s.aiRetreatTick;
   }
   if (s.aiRetreatLocked !== true) delete s.aiRetreatLocked;
+  if (!s.aiContacts || typeof s.aiContacts !== "object" || Array.isArray(s.aiContacts)) s.aiContacts = {};
   delete (s as { appliedUpgrades?: unknown }).appliedUpgrades;
   compactDestroyedEntities(s);
   return s;

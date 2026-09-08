@@ -51,6 +51,16 @@ export type ArmorType = "light" | "heavy" | "structure";
 export type TutorialStage = "select" | "move" | "harvest" | "build" | "produce" | "attack" | "repair" | "complete";
 export type AiBehavior = "economy" | "defense" | "assault" | "retreat" | "regroup";
 
+/** Last-known information the enemy may use after a player entity leaves sight. */
+export type AiContact = {
+  id: number;
+  class: EntityClass;
+  kind: UnitKind | BuildingKind;
+  x: number;
+  y: number;
+  lastSeenTick: number;
+};
+
 export type SecondaryObjective = {
   id: string;
   label: string;
@@ -406,6 +416,8 @@ export type SimState = {
   aiRetreatTick?: number;
   /** After a timed-out retreat, stay out until average HP recovers to the leave threshold. */
   aiRetreatLocked?: boolean;
+  /** Deterministic, serializable last-known player contacts used by enemy AI. */
+  aiContacts?: Record<string, AiContact>;
   /** Increments whenever a building footprint changes the static navigation grid. */
   navigationRevision: number;
 };

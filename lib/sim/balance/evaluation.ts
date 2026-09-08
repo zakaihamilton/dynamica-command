@@ -24,6 +24,10 @@ export type BalanceRecord = {
   failureReason?: string;
   firstCombatTick?: number;
   firstPressureTick?: number;
+  firstHqThreatTick?: number;
+  hqHealthAtPressure?: number;
+  hqHealthAtEnd?: number;
+  assaultTransitions?: number;
   primaryCompletedTick?: number;
   repairCommands?: number;
   openingCredits?: number;
@@ -54,6 +58,10 @@ export type BalanceKindSummary = {
   commandRejectionRate: number;
   averageFirstCombatTick: number | null;
   averageFirstPressureTick: number | null;
+  averageFirstHqThreatTick: number | null;
+  averageHqHealthAtPressure: number | null;
+  averageHqHealthAtEnd: number | null;
+  averageAssaultTransitions: number;
   averagePrimaryCompletedTick: number | null;
   averageRepairCommands: number;
   averageOpeningCredits: number | null;
@@ -184,6 +192,10 @@ function summarizeKind(records: BalanceRecord[]): BalanceKindSummary {
     commandRejectionRate: commandRejectionRate(records),
     averageFirstCombatTick: averageOptional(records, (record) => record.firstCombatTick),
     averageFirstPressureTick: averageOptional(records, (record) => record.firstPressureTick),
+    averageFirstHqThreatTick: averageOptional(records, (record) => record.firstHqThreatTick),
+    averageHqHealthAtPressure: averageOptional(records, (record) => record.hqHealthAtPressure),
+    averageHqHealthAtEnd: averageOptional(records, (record) => record.hqHealthAtEnd),
+    averageAssaultTransitions: average(records, (record) => record.assaultTransitions ?? 0),
     averagePrimaryCompletedTick: averageOptional(records, (record) => record.primaryCompletedTick),
     averageRepairCommands: average(records, (record) => record.repairCommands ?? 0),
     averageOpeningCredits: averageOptional(records, (record) => record.openingCredits),

@@ -10,7 +10,7 @@ import { assignAssault } from "../../lib/sim/ai/combat";
 
 describe("enemy AI", () => {
   it("builds toward a contested resource lane before committing another wave", () => {
-    const s = makeFixture({ width: 36, height: 36, win: { kind: "annihilate" } });
+    const s = makeFixture({ width: 36, height: 36, win: { kind: "destroyMarked", targetCount: 1 } });
     addBuilding(s, 1, "constructionYard", 4, 4);
     addBuilding(s, 1, "power", 7, 4);
     addBuilding(s, 1, "refinery", 4, 8);
@@ -19,7 +19,7 @@ describe("enemy AI", () => {
     s.credits[1] = 5000;
     const difficulty = missionDifficulty(0);
     s.runtime = {
-      kind: "annihilate",
+      kind: "destroyMarked",
       phase: "active",
       targetIds: [],
       rescued: 0,
@@ -128,13 +128,13 @@ describe("enemy AI", () => {
   });
 
   it("sends assault raiders at a player harvester and leaves a home guard", () => {
-    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "destroyMarked", targetCount: 1 } });
     addBuilding(s, 1, "constructionYard", 2, 2);
     addBuilding(s, 0, "constructionYard", 18, 18);
     const guard = addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "infantry", 8, 8);
     const extra = addUnit(s, 1, "tank", 9, 9);
-    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    const harvester = addUnit(s, 0, "harvester", 12, 12);
     const playerYard = s.entities.find((e) => e.owner === 0 && e.kind === "constructionYard")!;
     s.tick = missionDifficulty(0).enemyAssaultEvery;
 
@@ -148,13 +148,13 @@ describe("enemy AI", () => {
   });
 
   it("splits two assault raiders between a harvester and the player yard", () => {
-    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "destroyMarked", targetCount: 1 } });
     addBuilding(s, 1, "constructionYard", 2, 2);
     const playerYard = addBuilding(s, 0, "constructionYard", 18, 18);
     addUnit(s, 1, "infantry", 5, 2);
     const even = addUnit(s, 1, "infantry", 8, 8);
     const odd = addUnit(s, 1, "infantry", 9, 9);
-    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    const harvester = addUnit(s, 0, "harvester", 12, 12);
     s.tick = missionDifficulty(0).enemyAssaultEvery;
 
     tickAi(s);
@@ -297,12 +297,12 @@ describe("enemy AI", () => {
   });
 
   it("assigns an idle raider between assault waves", () => {
-    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "destroyMarked", targetCount: 1 } });
     addBuilding(s, 1, "constructionYard", 2, 2);
     addBuilding(s, 0, "constructionYard", 18, 18);
     const guard = addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "infantry", 8, 8);
-    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    const harvester = addUnit(s, 0, "harvester", 12, 12);
     s.tick = missionDifficulty(0).enemyAssaultEvery + 1;
 
     tickAi(s);
@@ -314,12 +314,12 @@ describe("enemy AI", () => {
   });
 
   it("leaves retreat after HP recovers and recommits raiders", () => {
-    const s = makeFixture({ width: 24, height: 24, win: { kind: "annihilate" } });
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "destroyMarked", targetCount: 1 } });
     addBuilding(s, 1, "constructionYard", 2, 2);
     addBuilding(s, 0, "constructionYard", 18, 18);
     const guard = addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "tank", 9, 9);
-    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    const harvester = addUnit(s, 0, "harvester", 12, 12);
     s.tick = missionDifficulty(0).enemyAssaultEvery;
     raider.hp = 10;
     guard.hp = 10;
@@ -345,7 +345,7 @@ describe("enemy AI", () => {
     addBuilding(s, 0, "constructionYard", 18, 18);
     const guard = addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "tank", 9, 9);
-    const harvester = addUnit(s, 0, "harvester", 16, 16);
+    const harvester = addUnit(s, 0, "harvester", 12, 12);
     raider.hp = 10;
     guard.hp = 10;
     s.tick = missionDifficulty(0).enemyAssaultEvery;
@@ -379,8 +379,8 @@ describe("enemy AI", () => {
     addBuilding(s, 1, "barracks", 8, 12);
     addBuilding(s, 1, "refinery", 12, 16);
     addUnit(s, 1, "harvester", 18, 16);
-    addUnit(s, 0, "tank", 2, 2);
-    addUnit(s, 0, "tank", 3, 2);
+    addUnit(s, 0, "tank", 8, 8);
+    addUnit(s, 0, "tank", 9, 8);
     s.credits[1] = 5000;
     s.tick = missionDifficulty(0).enemyProductionStart;
 

@@ -57,6 +57,10 @@ function runScenario(
   let commandRejections = 0;
   let firstCombatTick: number | undefined;
   let firstPressureTick: number | undefined;
+  let firstHqThreatTick: number | undefined;
+  let hqHealthAtPressure: number | undefined;
+  let previousAiState: SimState["aiState"];
+  let assaultTransitions = 0;
   let primaryCompletedTick: number | undefined;
   let repairCommands = 0;
   let openingCredits: number | undefined;
@@ -79,8 +83,16 @@ function runScenario(
     commandsIssued += commands?.length ?? 0;
     const result = tick(state, commands, { collectEvents: false, updateFog: false });
     commandRejections += result.commandRejections;
+    const playerYard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard" && entity.hp > 0);
+    const hqThreatened = playerYard !== undefined && state.entities.some((entity) =>
+      entity.owner === 1 && entity.class === "unit" && entity.attackTarget === playerYard.id,
+    );
+    if (firstHqThreatTick === undefined && hqThreatened) firstHqThreatTick = state.tick;
+    if (state.aiState === "assault" && previousAiState !== "assault") assaultTransitions += 1;
+    previousAiState = state.aiState;
     if (firstPressureTick === undefined && state.runtime?.director?.phase !== undefined && state.runtime.director.phase !== "opening") {
       firstPressureTick = state.tick;
+      if (playerYard) hqHealthAtPressure = playerYard.hp / Math.max(1, playerYard.maxHp);
     }
     if (primaryCompletedTick === undefined && result.state.result === "won") primaryCompletedTick = state.tick;
     if (openingCredits === undefined && state.tick >= openingCutoff) {
@@ -96,6 +108,13 @@ function runScenario(
     truncated: state.result === "playing" && tickLimit < missionHorizon,
     firstCombatTick,
     firstPressureTick,
+    firstHqThreatTick,
+    hqHealthAtPressure,
+    hqHealthAtEnd: (() => {
+      const playerYard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
+      return playerYard ? playerYard.hp / Math.max(1, playerYard.maxHp) : 0;
+    })(),
+    assaultTransitions,
     primaryCompletedTick,
     repairCommands,
     openingCredits,
@@ -179,6 +198,10 @@ export function runOne(
     }),
     firstCombatTick: run.firstCombatTick,
     firstPressureTick: run.firstPressureTick,
+    firstHqThreatTick: run.firstHqThreatTick,
+    hqHealthAtPressure: run.hqHealthAtPressure,
+    hqHealthAtEnd: run.hqHealthAtEnd,
+    assaultTransitions: run.assaultTransitions,
     primaryCompletedTick: run.primaryCompletedTick,
     repairCommands: run.repairCommands,
     openingCredits: run.openingCredits,

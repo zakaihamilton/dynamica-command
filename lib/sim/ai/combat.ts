@@ -2,9 +2,10 @@ import { isSupportUnit, UNIT_STATS } from "../../catalog";
 import { isUnitEntity, type Entity, type SimState } from "../../types";
 import { tryFindPathDetailed } from "../pathBudget";
 import { routePendingFor } from "../pathfinding";
-import { byId, closestApproach, distToEntity, livingView, nearest } from "../world";
+import { byId, closestApproach, distToEntity, livingView } from "../world";
 import { contestedResourcePoint } from "./helpers";
 import { homeGuardCount } from "./director";
+import { nearestKnownPlayer } from "./visibility";
 
 function sameTile(a: { x: number; y: number } | undefined, b: { x: number; y: number }): boolean {
   return !!a && Math.round(a.x) === Math.round(b.x) && Math.round(a.y) === Math.round(b.y);
@@ -87,6 +88,7 @@ export function assignAssault(
   yard: Entity,
   playerYard: Entity,
   retarget: boolean,
+  knownPlayers?: Entity[],
 ): void {
   const guards = homeGuardCount(state.missionIndex);
   if (!retarget) {
@@ -109,13 +111,13 @@ export function assignAssault(
   }
   const sorted = [...units].sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id);
   const raiders = sorted.slice(guards);
-  const resourcePoint = contestedResourcePoint(state, yard);
+  const resourcePoint = contestedResourcePoint(state, yard, knownPlayers);
   const laneHarvester = resourcePoint
-    ? nearest(state, resourcePoint, (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0)
+    ? nearestKnownPlayer(state, resourcePoint, (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0, knownPlayers)
     : undefined;
   const harvester = laneHarvester && resourcePoint && distToEntity(resourcePoint, laneHarvester) <= 12
     ? laneHarvester
-    : nearest(state, yard, (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0);
+    : nearestKnownPlayer(state, yard, (e) => e.owner === 0 && e.kind === "harvester" && e.hp > 0, knownPlayers);
   raiders.forEach((u, index) => {
     if (!retarget && u.attackTarget !== undefined && byId(state, u.attackTarget)) return;
     const objectiveTarget = scenarioAssaultTarget(state, u);

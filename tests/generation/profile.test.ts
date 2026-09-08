@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createCampaign } from "../../lib/gen/campaign";
 import { generateMap } from "../../lib/gen/map";
-import { missionFamilyFor, missionProfileFor, profileContractFor, resolveMissionProfile } from "../../lib/gen/profile";
+import { missionFamilyFor, missionProfileFor, objectiveContractFor, profileContractFor, resolveMissionProfile } from "../../lib/gen/profile";
 import { createMission } from "../../lib/sim/api";
 import { scenarioAffordances } from "../../lib/sim/scenarios";
 import { NEW_MISSION_KINDS } from "../../lib/catalog";
@@ -80,6 +80,27 @@ describe("mission profiles", () => {
       expect(contract.finaleRatio).toBeGreaterThan(0.6);
       expect(contract.finaleRatio).toBeLessThan(0.9);
     }
+  });
+
+  it("defines distinct objective contracts for offensive missions", () => {
+    expect(objectiveContractFor("destroyMarked")).toMatchObject({
+      targetLabel: "the marked targets",
+      repairPolicy: "nonTarget",
+      assaultDelay: 0,
+      productionScale: 1,
+    });
+    expect(objectiveContractFor("sabotage")).toMatchObject({
+      targetLabel: "the remaining systems",
+      repairPolicy: "nonTarget",
+    });
+    expect(objectiveContractFor("decapitate")).toMatchObject({
+      targetLabel: "the enemy Command HQ",
+      repairPolicy: "none",
+      startingSupport: false,
+    });
+    expect(objectiveContractFor("razeAll")?.productionScale).toBeGreaterThan(1);
+    expect(objectiveContractFor("annihilate")?.pressureAlert).toContain("last hostiles");
+    expect(objectiveContractFor("harvestQuota")).toBeUndefined();
   });
 
   it("exposes stable profiles and family-specific briefing hooks", () => {

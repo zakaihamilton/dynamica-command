@@ -1,7 +1,9 @@
 import { isUnitAvailable, UNIT_STATS } from "../../catalog";
 import { TILE_RESOURCE } from "../../types";
 import type { Entity, SimState, UnitKind, Vec2 } from "../../types";
-import { BUILDING_PLACEMENT_RADIUS, canPlaceBuilding, findBuildSite, livingView, nearest, powerFor } from "../world";
+import { BUILDING_PLACEMENT_RADIUS, canPlaceBuilding, findBuildSite, livingView, powerFor } from "../world";
+import { objectiveContractFor } from "../../gen/profile";
+import { nearestKnownPlayer } from "./visibility";
 
 export const RETREAT_ENTER_HEALTH = 0.35;
 export const RETREAT_RECOVER_HEALTH = 0.5;
@@ -14,14 +16,15 @@ export function distance(a: { x: number; y: number }, b: { x: number; y: number 
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-export function contestedResourcePoint(state: SimState, yard: Entity): Vec2 | undefined {
+export function contestedResourcePoint(state: SimState, yard: Entity, knownPlayers?: Entity[]): Vec2 | undefined {
   const cached = resourcePointCache.get(state);
   if (cached && state.tick - cached.tick < RESOURCE_SCAN_INTERVAL) return cached.point;
 
-  const playerYard = nearest(
+  const playerYard = nearestKnownPlayer(
     state,
     yard,
     (entity) => entity.owner === 0 && entity.kind === "constructionYard",
+    knownPlayers,
   );
   let best: Vec2 | undefined;
   let bestScore = Infinity;
@@ -109,9 +112,9 @@ export function queueUnit(state: SimState, producer: Entity, kind: UnitKind): bo
 }
 
 export function shouldAutoRepair(state: SimState, building: Entity): boolean {
+  const policy = objectiveContractFor(state.win.kind)?.repairPolicy ?? "nonTarget";
+  if (policy === "none") return false;
   if (building.marked || building.kind === "objective") return false;
-  if (state.win.kind === "razeAll" || state.win.kind === "annihilate") return false;
-  if (state.win.kind === "decapitate" && building.kind === "constructionYard") return false;
   return true;
 }
 

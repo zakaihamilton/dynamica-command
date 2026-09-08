@@ -139,6 +139,10 @@ async function main() {
       diagnostics: {
         firstCombatTick: record.firstCombatTick ?? null,
         firstPressureTick: record.firstPressureTick ?? null,
+        firstHqThreatTick: record.firstHqThreatTick ?? null,
+        hqHealthAtPressure: record.hqHealthAtPressure ?? null,
+        hqHealthAtEnd: record.hqHealthAtEnd ?? null,
+        assaultTransitions: record.assaultTransitions ?? 0,
         primaryCompletedTick: record.primaryCompletedTick ?? null,
         repairCommands: record.repairCommands ?? 0,
         openingCredits: record.openingCredits ?? null,

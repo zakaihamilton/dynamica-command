@@ -2,7 +2,7 @@ import { footprintOf, labelFor } from "../catalog";
 import type { MissionDirectorPhase, MissionRuntime, SimEvent, SimState, UnitKind } from "../types";
 import { missionDifficulty } from "./difficulty";
 import { powerBreakdown, trySpawnUnit } from "./world";
-import { profileContractFor, resolveMissionProfile } from "../gen/profile";
+import { objectiveContractFor, profileContractFor, resolveMissionProfile } from "../gen/profile";
 
 const CLASSIC_DIRECTOR_DURATION = 3600;
 const CLASSIC_DURATION_STEP = 480;
@@ -128,12 +128,15 @@ function delayForRecovery(
 function phaseAlert(state: SimState, runtime: MissionRuntime, phase: MissionDirectorPhase): string {
   const profile = resolveMissionProfile(state.seed, state.missionIndex, runtime.kind);
   const profileAlert = profileContractFor(profile).alert;
+  const objective = objectiveContractFor(runtime.kind);
   if (phase === "pressure") {
+    if (objective) return `${objective.pressureAlert} Pressure is rising around ${objective.targetLabel}.`;
     if (runtime.kind === "escort") return `${profileAlert} Enemy reserves are moving on the convoy route.`;
     if (runtime.kind === "rescue") return `${profileAlert} Enemy patrols are closing on the rescue zone.`;
     if (runtime.kind === "extraction") return `${profileAlert} Enemy patrols are converging on the extraction route.`;
     return `${profileAlert} Enemy activity is rising — secure the resource lanes.`;
   }
+  if (objective) return `${objective.pressureAlert} Final push — secure ${objective.targetLabel}.`;
   if (runtime.kind === "holdTheLine") return `${profileAlert} Final enemy push detected — hold the ${labelFor("constructionYard")}.`;
   if (runtime.kind === "sabotage" || runtime.kind === "destroyMarked") return `${profileAlert} Enemy reserves are regrouping around the marked targets.`;
   return `${profileAlert} Final enemy push detected — finish the operation now.`;

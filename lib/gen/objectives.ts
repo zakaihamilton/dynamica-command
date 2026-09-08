@@ -15,6 +15,7 @@ import {
   minutesToTicks,
   missionDurationMinutes,
 } from "./pacing";
+import { objectiveContractFor } from "./profile";
 
 // Structure quotas may ask for several copies, so do not generate a quota for
 // the producer buildings that are capped at one per mission.
@@ -89,9 +90,17 @@ export function secondaryObjectivesForMission(mission: Pick<MissionDef, "win">, 
     ];
   }
 
+  const objective = objectiveContractFor(mission.win.kind);
   const secondary: SecondaryObjective = rng.chance(0.5)
     ? { id: "survivors", kind: "keepUnits", label: "Keep at least one combat unit alive", target: 1 }
-    : { id: "tempo", kind: "completeBefore", label: "Complete the operation before the final push", target: (mission.win.ticks ?? 3600) + 1 };
+    : {
+      id: "tempo",
+      kind: "completeBefore",
+      label: objective
+        ? `Secure ${objective.targetLabel} before the final push`
+        : "Complete the operation before the final push",
+      target: (mission.win.ticks ?? 3600) + 1,
+    };
   return [yard, secondary];
 }
 
