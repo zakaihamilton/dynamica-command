@@ -279,7 +279,7 @@ describe("MenuOverlay", () => {
       settings: defaultSettings(),
       onChange: vi.fn(),
       onRandomize: vi.fn(),
-      onToday: vi.fn(),
+      onThisWeek: vi.fn(),
       onCopyLink: vi.fn(),
       onLaunch: vi.fn(),
       onToggleSound: vi.fn(),
@@ -308,7 +308,7 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
-        onToday={vi.fn()}
+        onThisWeek={vi.fn()}
         onCopyLink={vi.fn()}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
@@ -334,7 +334,7 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
-        onToday={vi.fn()}
+        onThisWeek={vi.fn()}
         onCopyLink={onCopyLink}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
@@ -357,7 +357,7 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
-        onToday={vi.fn()}
+        onThisWeek={vi.fn()}
         onCopyLink={onCopyLink}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
@@ -378,7 +378,7 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
-        onToday={vi.fn()}
+        onThisWeek={vi.fn()}
         onCopyLink={vi.fn()}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
@@ -403,7 +403,7 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
-        onToday={vi.fn()}
+        onThisWeek={vi.fn()}
         onCopyLink={vi.fn()}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
@@ -414,8 +414,8 @@ describe("NewGameSetup", () => {
     expect(screen.getByText(`${campaign.factions[0].name} vs ${campaign.factions[1].name}`)).toBeVisible();
   });
 
-  it("restores the daily seed from Today", () => {
-    const onToday = vi.fn();
+  it("restores the weekly seed from This Week", () => {
+    const onThisWeek = vi.fn();
     render(
       <NewGameSetup
         code="0421"
@@ -426,15 +426,15 @@ describe("NewGameSetup", () => {
         inputRef={createRef<HTMLInputElement>()}
         onChange={vi.fn()}
         onRandomize={vi.fn()}
-        onToday={onToday}
+        onThisWeek={onThisWeek}
         onCopyLink={vi.fn()}
         onLaunch={vi.fn()}
         onBack={vi.fn()}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Today" }));
-    expect(onToday).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "This Week" }));
+    expect(onThisWeek).toHaveBeenCalledOnce();
   });
 });
 

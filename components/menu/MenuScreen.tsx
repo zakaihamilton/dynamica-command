@@ -60,7 +60,7 @@ export function MenuScreen() {
         settings={controller.settings}
         onChange={controller.setCode}
         onRandomize={controller.randomize}
-        onToday={controller.restoreDaily}
+        onThisWeek={controller.restoreWeekly}
         onCopyLink={controller.copyLink}
         onLaunch={controller.launch}
         onToggleSound={controller.toggleSound}

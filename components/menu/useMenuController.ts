@@ -58,7 +58,7 @@ export function useMenuController() {
     setCopied(false);
   }, []);
 
-  const restoreDaily = useCallback(() => {
+  const restoreWeekly = useCallback(() => {
     setCode(weeklySeed());
     setError("");
     setCopied(false);
@@ -130,7 +130,7 @@ export function useMenuController() {
     openLoadMission,
     openOptions,
     randomize,
-    restoreDaily,
+    restoreWeekly,
     copyLink,
     launch,
     toggleSound,

@@ -104,10 +104,10 @@ describe("useMenuController", () => {
     });
   });
 
-  it("restores today's weekly seed", () => {
+  it("restores this week's seed", () => {
     const { result } = renderHook(() => useMenuController());
     act(() => result.current.setCode("0421"));
-    act(() => result.current.restoreDaily());
+    act(() => result.current.restoreWeekly());
     expect(result.current.code).toBe(weeklySeed());
   });
 });

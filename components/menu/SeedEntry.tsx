@@ -10,8 +10,8 @@ export function SeedEntry({
   inputRef,
   onChange,
   onRandomize,
-  onToday,
-  todayDisabled = false,
+  onThisWeek,
+  thisWeekDisabled = false,
   onLaunch,
 }: {
   code: string;
@@ -20,8 +20,8 @@ export function SeedEntry({
   inputRef: RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onRandomize: () => void;
-  onToday?: () => void;
-  todayDisabled?: boolean;
+  onThisWeek?: () => void;
+  thisWeekDisabled?: boolean;
   onLaunch: () => void;
 }) {
   return (
@@ -69,15 +69,15 @@ export function SeedEntry({
           >
             Roll
           </ConsoleButton>
-          {onToday && (
+          {onThisWeek && (
             <ConsoleButton
               muted
-              className={styles.today}
-              tooltip={todayDisabled ? "Already on this week's campaign" : "Return to this week's campaign"}
-              onClick={onToday}
-              disabled={todayDisabled}
+              className={styles.thisWeek}
+              tooltip={thisWeekDisabled ? "Already on this week's campaign" : "Return to this week's campaign"}
+              onClick={onThisWeek}
+              disabled={thisWeekDisabled}
             >
-              Today
+              This Week
             </ConsoleButton>
           )}
         </div>

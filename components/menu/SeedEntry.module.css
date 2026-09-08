@@ -55,7 +55,7 @@
 }
 
 .roll,
-.today {
+.thisWeek {
   height: 4rem;
   flex-shrink: 0;
   padding-left: 1rem;
@@ -99,7 +99,7 @@
   }
 
   .roll,
-  .today {
+  .thisWeek {
     height: 3.25rem;
     padding-inline: 0.7rem;
   }

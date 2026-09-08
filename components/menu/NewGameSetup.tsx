@@ -22,7 +22,7 @@ export function NewGameSetup({
   inputRef,
   onChange,
   onRandomize,
-  onToday,
+  onThisWeek,
   onCopyLink,
   onLaunch,
   onBack,
@@ -35,7 +35,7 @@ export function NewGameSetup({
   inputRef: RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onRandomize: () => void;
-  onToday: () => void;
+  onThisWeek: () => void;
   onCopyLink: () => void;
   onLaunch: () => void;
   onBack: () => void;
@@ -120,8 +120,8 @@ export function NewGameSetup({
           inputRef={inputRef}
           onChange={onChange}
           onRandomize={onRandomize}
-          onToday={onToday}
-          todayDisabled={isSynchronized}
+          onThisWeek={onThisWeek}
+          thisWeekDisabled={isSynchronized}
           onLaunch={onLaunch}
         />
         <div className={styles.actions}>
@@ -153,7 +153,7 @@ export function NewGameSetup({
             Back
           </ConsoleButton>
         </div>
-        <p className={styles.hint}>R rolls a new campaign · Today restores the weekly seed · Enter launches · Escape returns</p>
+        <p className={styles.hint}>R rolls a new campaign · This Week restores the weekly seed · Enter launches · Escape returns</p>
       </div>
     </MetalPanel>
   );
