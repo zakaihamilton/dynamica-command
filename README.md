@@ -1,179 +1,126 @@
 # Shifting Front
 
-Shifting Front is a browser **seeded isometric RTS**. Enter a **4-digit seed** (`0000`–`9999`) to create a full campaign: factions, characters, story, maps, and objectives. The same code always creates the same campaign. Progress saves in this browser — no account required.
+> A seeded isometric RTS — one 4-digit code writes the war.
 
-**[Play from source](#run)** · [github.com/zakaihamilton/shiftingfront](https://github.com/zakaihamilton/shiftingfront)
+[Play now](https://shiftingfront.com) · [Run locally](#run-locally) · [View source](https://github.com/zakaihamilton/shiftingfront)
+
+Shifting Front is a browser-based real-time strategy game about building a force, reading the ground, and surviving the next push. Enter a 4-digit campaign code and the game writes a complete theater around it: factions, commanders, conflict, story, maps, and objectives.
+
+The same code always creates the same campaign. Share a code to share a universe, return to a saved theater without an account, or start a new war with the roll of a button.
 
 ![Desktop mission gameplay](docs/mission-desktop.png)
 
-## Run
+## Why play
 
-Requires Node.js and [Yarn 1](https://classic.yarnpkg.com/) (`packageManager`: `yarn@1.22.22`).
+- **Every code is a theater.** Each seed creates its own world, rival factions, named characters, briefings, six-operation campaign, and changing battlefield.
+- **The objective keeps moving.** Build an economy, train combined-arms forces, destroy enemy positions, hold your HQ, or escort, rescue, sabotage, and extract under pressure.
+- **The ground is part of the fight.** Advance through valleys, plains, hills, and mountains across seeded biomes such as ash plains, crystal flats, rust canyons, and the volcanic shelf. Choose routes, protect resource lines, and make every approach count.
+- **Your army has more than one job.** Field Medics keep infantry alive, Repair Trucks keep vehicles moving, Harvesters fund the war, and Convoy Trucks become the mission when the objective changes.
+- **The enemy reacts.** Rival forces expand, fortify, raid your harvesters, pressure your lines, and retreat when battered. A plan that works once may not survive the next theater.
+
+## How a campaign works
+
+1. **Choose a code.** Enter any seed from `0000` to `9999`, roll a random campaign, or join the synchronized weekly operation.
+2. **Read the briefing.** Meet your commander, advisor, and enemy leader, then study the operation and its secondary objectives.
+3. **Build your foothold.** Harvest ore, manage credits and power, place infrastructure, and open production lines.
+4. **Command the battle.** Move, attack, defend, repair, support, and reposition your force as the enemy and terrain reveal themselves.
+5. **Earn the record.** Complete the operation, improve your score and medals, unlock the next deployment, or replay the theater with a better plan.
+
+Every campaign contains six operations: three classic objectives and three scenario operations. Missions grow from compact early engagements into larger late-campaign battlefields, with typical play sessions ranging from a few minutes to longer timed operations.
+
+## The mission board
+
+| Mission style | The job |
+| --- | --- |
+| Build the advantage | Harvest resources, train a force, or construct the required infrastructure. |
+| Break the enemy | Destroy marked positions, raze the base, decapitate enemy command, or annihilate the opposing force. |
+| Hold under pressure | Keep your Command HQ standing while the clock and enemy attacks close in. |
+| Run the operation | Escort a convoy, sabotage marked structures, rescue stranded units, or extract cargo before time runs out. |
+
+Every mission also carries secondary objectives, such as protecting your Construction Yard, keeping combat units alive, or finishing before the final push. Lose your Command HQ and the theater is lost.
+
+## Command the front
+
+The core loop is simple to learn and difficult to master:
+
+```text
+harvest ore → manage credits and power → build → train → maneuver → fight
+```
+
+Use Barracks for Infantry, Anti-armor units, and Field Medics. Use a Vehicle Plant for Harvesters, Tanks, Repair Trucks, and mission Convoy Trucks. Repair damaged buildings, scrap what you no longer need, choose a stance and formation, and use the minimap to keep the whole front in view.
+
+The battlefield supports mouse, keyboard, and touch play. The HUD shows the complete shortcut list in-game; these are the essentials:
+
+| Input | Action |
+| --- | --- |
+| Left click / drag | Select units and buildings. |
+| Right click | Move while firing at enemies on the way; attack enemy targets, harvest ore, or assign support. |
+| Ctrl / Cmd + right click | Explicit attack-move order with the same attack-and-continue behavior. |
+| WASD / arrow keys | Pan the camera. |
+| `R` / `F` / `X` | Repair, scrap, or stop selected units. |
+| `Space` / `Esc` | Center on the selection, or pause and cancel. |
+| Touch under 800px | Use the mobile command tray. |
+
+## Start playing
+
+[**Launch Shifting Front at shiftingfront.com →**](https://shiftingfront.com)
+
+No account is required. Campaign progress, named save slots, audio settings, scores, and medals are stored in the browser on your device.
+
+## Run locally
+
+Shifting Front is an open-source browser game. To run it from source, you need [Node.js](https://nodejs.org/) `22.22.2` or newer and [Yarn 1](https://classic.yarnpkg.com/).
 
 ```bash
 yarn install --frozen-lockfile
 yarn dev
 ```
 
-Open the app, then choose **New Game** or type a seed such as `0421` and choose **Launch**. Progress autosaves under that seed. **Tutorial** opens a guided training range with no time limit. **Options** (welcome and pause) control **music and sound effects**, including volume sliders. Pause also opens named save slots, load, and briefing. Browse unit and building art at **`/assets`**.
+Open [http://localhost:3000](http://localhost:3000), choose **New Game**, enter a 4-digit code, and launch the briefing. Use **Tutorial** for a guided training range with no time limit.
 
-| Script | What it does |
+### Useful commands
+
+| Command | Purpose |
 | --- | --- |
-| `yarn dev` | Next.js dev server |
-| `yarn build` / `yarn start` | Production build and serve |
-| `yarn test` | Vitest (headless, no browser) |
-| `yarn typecheck` | TypeScript type checking without emitting files |
-| `yarn test:e2e` | Playwright browser smoke test; runs a browser preflight first |
-| `yarn inspect 0421` | Dump generated campaign JSON |
-| `yarn sim --seed 0421 --mission 0 --ticks 200` | Tick a mission without the UI |
-| `yarn balance --from 0 --to 39 --jobs 8 --check true` | Run the competent commander through the full mission horizon with bounded worker parallelism and enforce balance thresholds. `--jobs 1` is the serial reference; omit it for a bounded CPU-based default. CI samples seeds `0000`–`0039` (240 scenarios) with 8 workers. |
-| `yarn health:invariants` | Validate generated campaign topology and scenario reachability across representative seeds |
-| `yarn health:coverage` | Run focused V8 coverage; long generated-map and commander sweeps run in `health:invariants` |
-| `yarn health:performance` | Enforce terrain atlas, simulation, combat, and routing performance budgets |
-| `yarn health:balance` | Run the strict 240-scenario competent-commander acceptance sweep used by CI |
-| `yarn health:balance:archetypes` | Run the stratified rush, turtle, greed, infantry, and vehicles acceptance sweep used by CI |
-| `yarn playtest:manifest` | Print the deterministic two-scenario-per-profile manual playtest manifest from seeds `0000`–`0039` |
-| `yarn compress-art` | Convert PNG art plates to alpha WebP (`--dry-run`, `portraits` / `sprites` / `terrain` / `all`) |
+| `yarn dev` | Start the development server. |
+| `yarn build && yarn start` | Build and serve the production app. |
+| `yarn test` | Run the full Vitest suite. |
+| `yarn verify:fast` | Run type checking, linting, and the fast test tier. |
+| `yarn test:e2e` | Run the Playwright browser smoke tests. |
+| `yarn inspect 0421` | Inspect a generated campaign as JSON. |
+| `yarn sim --seed 0421 --mission 0 --ticks 200` | Run a mission through the headless simulation. |
 
-For local E2E runs, the preflight launches the same headless browser used by Playwright and reports an actionable install/path error before starting the app. Run `yarn playwright install chromium webkit`, or point at an installed browser with `PLAYWRIGHT_CHROME_PATH=/absolute/path/to/chrome yarn test:e2e`. Ubuntu CI runs bundled Chromium and WebKit; the iPhone touch suite uses WebKit.
+See [`package.json`](package.json) for the complete script catalog, including health, balance, performance, and asset tooling.
 
-## How a seed works
+For browser tests, install the required Playwright browsers once with `yarn playwright install chromium webkit`.
 
-A seed is a four-digit campaign code. Enter the same number later and you get the same world, factions, and six operations. Progress (units, credits, explored map, and build queues) autosaves on this device for that seed. Pause **Save Mission** also writes a named slot you can keep beside that autosave. Music and sound settings are saved separately.
+## For contributors
 
-```text
-seed 0421
-  ├─ world setting, tone, conflict
-  ├─ two factions (names, palettes)
-  ├─ commander, advisor, enemy leader (faces + copy)
-  └─ 6 operations
-       ├─ win category + parameters
-       ├─ briefing + tactical profile (opening plan and fallback)
-       └─ map (size, heightmap, resources, bases)
-```
+The project is built with Next.js 16, React 19, TypeScript, and a Canvas 2D isometric renderer. Campaign generation and gameplay simulation live in DOM-free modules, so the browser, tests, and headless tools exercise the same deterministic game logic.
 
-Share a seed to share a universe. **Load Mission** lists named save slots and autosaves on this device, and each campaign has an **operations map**. Select an operation to preview its primary and secondary objectives, expected duration, map scale, and unlocks before deploying. Unlocked operations launch from their briefing; completed operations can be replayed for better medals and scores.
+- `app/` contains the menu, briefing, campaign, tutorial, and play routes.
+- `components/` contains the HUD, Canvas shell, menus, briefings, and Asset Bay.
+- `lib/gen/` creates worlds, factions, characters, maps, stories, objectives, and visual specs from a seed.
+- `lib/sim/` runs economy, production, movement, combat, support, repair, AI, and objectives.
+- `public/art/` contains the game’s visual assets.
 
-## Campaign
+Read the [architecture guide](docs/architecture.md) before extending the runtime. The public Asset Bay is available at [`/assets`](https://shiftingfront.com/assets), with JSON asset routes under `/api/assets` for tools and experiments.
 
-Six operations across three distinct acts, about **5–20 minutes** each for classic and hold-the-line operations (later missions run longer). Timed operations (escort, sabotage, rescue, extraction) use a longer window: **10–30 minutes** of active time (sabotage **12–30**), plus a 7-minute wait before an escort convoy starts moving and a 2-minute final-approach buffer. Mission briefings show whole minutes; the battlefield clock counts down to the second. Each campaign combines three tactical scenario operations with three classic objectives:
-
-| Category | You win by… |
-| --- | --- |
-| Harvest quota | Earning a credit total (lifetime harvested, not current balance) |
-| Force quota | Training N units (any, or a specific role such as tanks) |
-| Structure quota | Completing N buildings |
-| Destroy marked | Destroying 1–3 tagged enemy structures |
-| Raze all | Destroying every enemy building |
-| Decapitate | Destroying the enemy Command HQ |
-| Annihilate | Wiping out enemy units and buildings |
-| Hold the line | Surviving a timer with your Command HQ standing |
-| Escort | Walking marked allies into a zone |
-| Sabotage | Destroying marked structures before a deadline |
-| Rescue | Freeing stranded units by reaching them |
-| Extraction | Bringing cargo units back to your HQ |
-
-Lose if your Command HQ falls. Hold, escort, sabotage, rescue, and extraction also fail when their timer expires. Escort, extraction, and rescue fail immediately if a Convoy Truck, unextracted cargo unit, or unrescued stranded unit is destroyed. Briefings show portraits of your commander, advisor, and the enemy leader, and name the objective.
-
-### Loop
-
-Harvest ore → spend credits and power → place buildings → train units → fight. From the first mission, Barracks can train Field Medics and Vehicle Plants can produce Repair Trucks. Escort missions use durable, unarmed Convoy Trucks as their marked targets. Medics heal infantry and Repair Trucks repair vehicles on their own, or you can send them with a right-click. Stop holds them in place. Damaged buildings can be repaired from the sidebar wrench for a fraction of their build cost, or **sold** with the scrap tool (`F`) for a partial refund. The enemy expands, guards its HQ, raids Harvesters, uses support units, and falls back when battered. Maps grow from small early campaigns to large late ones, with **valleys, plains, hills, and mountains**. Units can climb one height step; a two-level drop is a cliff. Buildings need flat ground (no water, no overlap, one height).
-
-Each mission allows at most one Barracks and one Vehicle Plant. Hover a unit or building for health, faction, and extras such as Harvester cargo or a marked target.
-
-### Controls
-
-| Input | Action |
-| --- | --- |
-| Left click / drag | Select |
-| Two-finger drag (mobile) | Select friendly units in a box |
-| Double-click unit | Select all visible units of that type |
-| Right click | Move, attack, or harvest |
-| Right click / touch friendly target | Assign a selected support unit to heal that compatible human or vehicle |
-| Ctrl / Cmd + right click | Attack-move (Harvesters still gather on ore) |
-| Repair wrench / R | Click a damaged friendly building to start or stop repairs |
-| Sell / F | Click a finished friendly building to scrap it for credits |
-| Stop / X | Halt selected units |
-| Selection panel | Stance (Aggressive / Defend / Hold) and formation (Line / Column / Wedge) |
-| Minimap click / drag | Move the camera |
-| WASD / arrows | Pan |
-| Q / E / T | Construction / production / selected tabs |
-| 1–5 | Sidebar cameo (Ctrl+1–5 cancels) |
-| H / Home | Jump to Command HQ |
-| Space | Center camera on selection |
-| Esc | Pause, or cancel place/repair/sell |
-| Hover | Tooltip on the unit or building under the cursor (shortcuts appear in HUD tips) |
-| Sidebar left click | Place buildings and train units from the command tabs |
-| Sidebar right click | Cancel construction or a queued unit and refund its cost |
-| Touch (under 800px) | Command tray for move, attack-move, harvest, stop, stance, and formation |
-
-## For developers
-
-### Architecture
-
-Next.js (App Router) + TypeScript + Canvas 2D. The browser is a renderer and input adapter. **`lib/gen` and `lib/sim` import nothing from the DOM** so tests and CLIs use the same functions as the UI. See [`docs/architecture.md`](docs/architecture.md) for the runtime state flow and extension boundaries.
-
-The **battlefield draws sprites** (procedural specs and `public/art` rasters). CPU-projected 3D meshes (`draw3dModel`) are used for turret heads and the Asset Bay preview lab, not for units in play.
-
-```text
-app/           menu, briefing, play, tutorial, campaign, campaign-complete
-components/    HUD, canvas, talking heads
-lib/seed       4-digit seed → mulberry32 forks
-lib/gen        world, factions, maps, story, sprite specs
-lib/sim        tick, pathfinding, economy, combat, support, repair, AI, objectives
-lib/iso        tile ↔ screen projection (DOM-free; used by render and audio)
-lib/render     sprites, minimap, camera pan, CPU 3D turret/preview
-lib/audio      generated SFX + seeded background music (Web Audio)
-lib/persist    save/load + audio settings (localStorage or in-memory)
-scripts/       inspect + headless sim
-tests/         Vitest
-```
-
-### Public asset API
-
-The Asset Bay is intentionally public and does not require an account or API key. The browser UI is available at `/assets`; JSON consumers can use these stable routes:
-
-| Route | Purpose |
-| --- | --- |
-| `GET /api/assets` | List all generated assets; optional `category` is `unit`, `building`, `wreck`, or `rubble`. |
-| `GET /api/assets/:id` | Return metadata, dimensions, source URL, and supported directions for one catalog ID such as `unit:infantry`. |
-| `GET /api/assets/:id/preview` | Return an SVG preview; units accept `facing=0`–`7`, while buildings, wrecks, and rubble accept the default facing `0` only. |
-| `OPTIONS /api/assets` | CORS preflight for the list endpoint. |
-
-Responses advertise `apiVersion: 1`, allow cross-origin reads, and use a one-hour public cache (`Cache-Control: public, max-age=3600, s-maxage=3600`). Consumers should pin the API version and treat catalog IDs as the stable asset identifiers; a future incompatible contract will increment the version.
-
-Units, buildings, portraits, biomes, and terrain plates are **seed-tinted rasters** under `public/art`, composited with procedural specs (cliffs, wrecks, damage overlays). SFX and **background music** are generated in Web Audio from the seed. Music adapts to mission pressure, while battlefield effects are rate-limited and subtly stereo-positioned. Welcome and pause **Options** expose independent toggles and volume controls.
-
-### Headless API
+The core headless surface is intentionally small:
 
 ```ts
 createCampaign(seed)
 createMission({ seed, missionIndex })
 tick(state, commands?)
-issue(state, command)   // move | attackMove | attack | support | harvest | build | produce
-                        // cancelBuild | cancelProduce | repair | sell | stop | stance | formation
-inspect(state)          // compact JSON: credits, counts, objective, result
+issue(state, command)
+inspect(state)
 ```
 
-`yarn sim` exit codes: `0` playing, `10` win, `11` lose.
+For deterministic bug reports and regression fixtures, the replay helpers in `lib/sim/replay.ts` run scheduled orders without a DOM.
 
-For deterministic bug reports and regression fixtures, `runReplay({ seed, missionIndex, orders, maxTicks })` in `lib/sim/replay.ts` runs the same scheduled-order format without a DOM and returns inspection data, events, command rejections, and a fog-independent gameplay fingerprint. `yarn test` remains the exhaustive suite; `yarn test:fast` skips only the heavyweight exhaustive balance, terrain, commander, profile, and all-seed cases for a quick edit loop. `yarn verify:fast` combines typecheck, lint, and that fast tier. CI continues to publish per-test timing JSON through `yarn ci:timed-tests`.
+## Project links
 
-Optional `--orders orders.json`:
-
-```json
-[{ "tick": 12, "command": { "type": "move", "unitIds": [4], "x": 10, "y": 8 } }]
-```
-
-The balance harness uses the same public command API as a player. The competent commander builds missing infrastructure, maintains power, produces counters and support units, and assigns objective-aware orders. The `rush`, `turtle`, `greed`, `infantry`, and `vehicles` strategies deliberately bias production and orders toward common player archetypes. The archetype sweep selects a deterministic minimum of eight scenarios for every generated mission kind from seeds `0000`–`0039`, and reports results by strategy, family, and mission kind. Each record also carries gameplay diagnostics such as first combat commitment, first pressure, primary completion, repair usage, opening economy, route affordances, reachable resource value, and target reachability.
-
-All strategies run through the full generated operation window by default (up to 30 minutes, or 39 with escort staging and its approach buffer); `--ticks` is an intentional shorter cap and `--check true` rejects truncated scenarios. `--jobs N` assigns deterministic seed/mission scenarios to a bounded, reusable worker pool; archetype sweeps treat it as the total worker budget and share generated campaign/map setup across strategies. Results are sorted by seed and mission so `--jobs 1` remains a serial reference. Omit `--jobs` for a bounded worker count based on available CPU parallelism. Progress is printed to stderr for long runs; use `--progress false` to suppress it or `--progress-every 8` to report every eighth scenario. `--max-elapsed-ms N` gives the sweep a shared monotonic deadline; workers stop cooperatively at the deadline and the command exits non-zero if it is reached. Use `--strategy baseline` to run the older harvest-and-attack baseline, `--strategy rush|turtle|greed|infantry|vehicles` for one archetype, or `--strategy archetypes` for the required five-strategy sweep. Balance runs use a headless TypeScript tick path that omits fog and presentation event allocation while retaining the same state transitions and command-rejection counts. Competent checks enforce the softened 60–97.5% win-rate and existing reliability/casualty thresholds. Archetype checks require valid, deterministic, rejection-free runs and reject universal wins in deliberately mismatched mission kinds; expected archetype failures are allowed. Every JSON report includes failed scenarios with exact seed, mission, kind, strategy, result, loss reason, simulation ticks, wall-clock timing, and diagnostics; `--details true` additionally includes every per-seed record. `yarn playtest:manifest` prints the first two seed/mission scenarios for each of the eight profile variants so human review covers every tactical contract. `yarn health:performance` measures late-game 96×96 commander-plus-simulation p95, terrain atlas cost, and blocked-LOS combat p95.
-
-HUD `data-testid`s for browser smoke tests: `seed`, `credits`, `objective`, `mission-result`.
-
-## Stack
-
-- Next.js 16, React 19, TypeScript
-- Canvas isometric renderer (no Phaser)
-- Vitest + `tsx` for tests and CLIs
-- CSS Modules for menu/HUD chrome
+- [Play the game](https://shiftingfront.com)
+- [GitHub repository](https://github.com/zakaihamilton/shiftingfront)
+- [Architecture guide](docs/architecture.md)
+- [Asset Bay](https://shiftingfront.com/assets)

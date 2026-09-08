@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { issue } from "../../lib/sim/api";
+import { issue, tick } from "../../lib/sim/api";
 import { tickCombat } from "../../lib/sim/combat";
 import { createPendingAlerts, flushPlayerAlerts } from "../../lib/sim/combat/alerts";
 import { addBuilding, addUnit, makeFixture, setHeight } from "../../lib/sim/fixtures";
@@ -149,33 +149,52 @@ describe("combat targeting", () => {
     expect(attacker.idle).toBe(false);
   });
 
-  it("attack-move stops to engage a visible threat and leaves the route", () => {
+  it("attack-move fires at an in-range threat without abandoning the route", () => {
+    const s = makeFixture({ width: 20, height: 12, win: { kind: "annihilate" } });
+    const attacker = addUnit(s, 0, "infantry", 4, 4);
+    const foe = addUnit(s, 1, "infantry", 6, 4);
+    issue(s, { type: "attackMove", unitIds: [attacker.id], x: 15, y: 4 });
+    const destination = attacker.path.at(-1);
+    const hp = foe.hp;
+
+    tickCombat(s);
+
+    expect(attacker.orderMode).toBe("attackMove");
+    expect(attacker.attackTarget).toBeUndefined();
+    expect(attacker.path.at(-1)).toEqual(destination);
+    expect(foe.hp).toBeLessThan(hp);
+  });
+
+  it("attack-move does not chase a visible threat that is outside weapon range", () => {
     const s = makeFixture({ width: 20, height: 12, win: { kind: "annihilate" } });
     const attacker = addUnit(s, 0, "infantry", 4, 4);
     const foe = addUnit(s, 1, "infantry", 8, 4);
     issue(s, { type: "attackMove", unitIds: [attacker.id], x: 15, y: 4 });
+    const destination = attacker.path.at(-1);
+    const hp = foe.hp;
 
     tickCombat(s);
 
-    expect(attacker.orderMode).toBe("attackMove");
-    expect(attacker.attackTarget).toBe(foe.id);
-    expect(attacker.path.at(-1)).toEqual({ x: foe.x, y: foe.y });
-  });
-
-  it("attack-move resumes its destination after destroying a threat", () => {
-    const s = makeFixture({ width: 20, height: 12, win: { kind: "annihilate" } });
-    const attacker = addUnit(s, 0, "tank", 4, 4);
-    const foe = addUnit(s, 1, "infantry", 5, 4);
-    foe.hp = 1;
-    issue(s, { type: "attackMove", unitIds: [attacker.id], x: 15, y: 4 });
-
-    tickCombat(s);
-
-    expect(foe.hp).toBe(0);
     expect(attacker.orderMode).toBe("attackMove");
     expect(attacker.attackTarget).toBeUndefined();
     expect(attacker.path.length).toBeGreaterThan(0);
-    expect(attacker.path.at(-1)).toEqual({ x: 15, y: 4 });
+    expect(attacker.path.at(-1)).toEqual(destination);
+    expect(foe.hp).toBe(hp);
+  });
+
+  it("keeps moving toward the destination while firing at a surviving threat", () => {
+    const s = makeFixture({ width: 24, height: 12, win: { kind: "annihilate" } });
+    const attacker = addUnit(s, 0, "tank", 4, 4);
+    const foe = addUnit(s, 1, "harvester", 6, 4);
+    const initialX = attacker.x;
+
+    tick(s, [{ type: "attackMove", unitIds: [attacker.id], x: 15, y: 4 }]);
+    for (let i = 0; i < 20; i++) tick(s);
+
+    expect(attacker.x).toBeGreaterThan(initialX);
+    expect(attacker.orderDestination).toEqual({ x: 15, y: 4 });
+    expect(attacker.attackTarget).toBeUndefined();
+    expect(foe.hp).toBeLessThan(foe.maxHp);
   });
 
   it("keeps walking through a unit already in weapon range", () => {

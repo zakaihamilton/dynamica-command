@@ -154,6 +154,9 @@ describe("pathfinding", () => {
     expect(groundOrders(s, [infantry.id], 4, 4, true)).toEqual([
       { type: "attackMove", unitIds: [infantry.id], x: 4, y: 4 },
     ]);
+    expect(groundOrders(s, [harvester.id], 1, 7, true)).toEqual([
+      { type: "move", unitIds: [harvester.id], x: 1, y: 7 },
+    ]);
   });
 
   it("keeps two units from entering the same square", () => {

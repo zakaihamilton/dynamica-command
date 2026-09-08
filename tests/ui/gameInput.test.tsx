@@ -257,7 +257,7 @@ describe("touch gesture lifecycle", () => {
 });
 
 describe("command markers", () => {
-  it("pings a move order when selected units receive it, and stays quiet with no selection", () => {
+  it("pings an attack-and-continue order when selected units receive it, and stays quiet with no selection", () => {
     const canvas = testCanvas();
     const { result: empty } = renderInput(canvas);
     act(() => {
@@ -275,7 +275,7 @@ describe("command markers", () => {
     act(() => {
       armed.current.onUp(pointerEvent(canvas, { button: 2, buttons: 0 }));
     });
-    expect(armed.current.commandMarkerRef.current?.kind).toBe("move");
+    expect(armed.current.commandMarkerRef.current?.kind).toBe("attack");
   });
 });
 

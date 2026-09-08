@@ -66,7 +66,7 @@ describe("tutorial", () => {
   it("returns the attack prompt for the attack stage", () => {
     const state = createTutorialMission();
     state.tutorialStage = "attack";
-    expect(tutorialPrompt(state)).toBe("Use attack-move (Ctrl + right click) to advance while fighting, or attack an enemy unit.");
+    expect(tutorialPrompt(state)).toBe("Send your combat units to ground to advance while fighting, or attack an enemy unit directly.");
   });
 
   it("returns the repair prompt for the repair stage", () => {

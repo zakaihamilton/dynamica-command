@@ -45,7 +45,7 @@ export function friendlySupportOrders(s: SimState, ids: number[], target: SimSta
   if (!supportIds.length) return [];
   const commands: Command[] = [{ type: "support", unitIds: supportIds, targetId: target.id }];
   const otherIds = ids.filter((id) => !supportIds.includes(id));
-  if (otherIds.length) commands.push(...groundOrders(s, otherIds, x, y));
+  if (otherIds.length) commands.push(...groundOrders(s, otherIds, x, y, true));
   return commands;
 }
 
@@ -53,7 +53,7 @@ export function contextOrders(s: SimState, ids: number[], target: SimState["enti
   const supportOrders = target ? friendlySupportOrders(s, ids, target, x, y) : [];
   if (supportOrders.length) return supportOrders;
   if (target && target.owner === 1) return [{ type: "attack", unitIds: ids, targetId: target.id }];
-  return groundOrders(s, ids, x, y, attackMove);
+  return groundOrders(s, ids, x, y, attackMove || target === undefined);
 }
 
 export function mobileCommandOrders(
@@ -66,8 +66,8 @@ export function mobileCommandOrders(
 ): Command[] {
   const supportOrders = target ? friendlySupportOrders(s, ids, target, x, y) : [];
   if (supportOrders.length) return supportOrders;
-  if (command === "move") return [{ type: "move", unitIds: ids, x, y }];
-  if (command === "attackMove") return [{ type: "attackMove", unitIds: ids, x, y }];
+  if (command === "move") return groundOrders(s, ids, x, y, true);
+  if (command === "attackMove") return groundOrders(s, ids, x, y, true);
   if (command === "attack" && target?.owner === 1) return [{ type: "attack", unitIds: ids, targetId: target.id }];
   if (command === "harvest" && s.tiles[y * s.width + x] === 2) return [{ type: "harvest", unitIds: ids, x, y }];
   return [];

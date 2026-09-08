@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { buildingCameoStatus, buildingLimitReached, isSupportUnit, unitCameoStatus } from "@/lib/catalog";
 import { beep } from "@/lib/audio/synth";
+import { groundOrders } from "@/lib/sim/orders";
 import { beepForCommands } from "@/lib/audio/uiOrders";
 import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
 import { terrainAccess } from "@/lib/sim/world";
@@ -94,12 +95,15 @@ export function useGameActions({
     });
     const access = terrainAccess(state, tx, ty);
     if (!unitIds.length || !Number.isInteger(tx) || !Number.isInteger(ty) || !access.traversable || (command === "harvest" && access.label !== "Ore field")) return false;
-    const nextCommand = { type: command, unitIds, x: tx, y: ty } satisfies Command;
-    enqueue(nextCommand);
-    const kind = beepForCommands([nextCommand]);
+    const commands = command === "move"
+      ? groundOrders(state, unitIds, tx, ty, true)
+      : [{ type: command, unitIds, x: tx, y: ty } satisfies Command];
+    if (!commands.length) return false;
+    resolvedCommandPort.enqueueMany(commands);
+    const kind = beepForCommands(commands);
     if (kind) beep(kind);
     return true;
-  }, [enqueue, selected, selectedIds, stateRef]);
+  }, [resolvedCommandPort, selected, selectedIds, stateRef]);
 
   const issueTargetCommand = useCallback((command: "attack" | "support", targetId: number) => {
     const selectedUnitIds = [...(selectedIds.length > 0 ? selectedIds : selected.current)];

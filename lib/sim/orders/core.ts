@@ -182,7 +182,11 @@ export function groundOrders(state: SimState, ids: number[], x: number, y: numbe
   }
   const targetResource = harvesters.length > 0 ? findNearbyResourceTile(state, tx, ty, 2) : undefined;
   if (!targetResource) {
-    return [travelOrder(ids, tx, ty, attackMove)];
+    if (!attackMove || harvesters.length === 0) return [travelOrder(ids, tx, ty, attackMove)];
+    const commands: Command[] = [];
+    if (harvesters.length) commands.push({ type: "move", unitIds: harvesters, x: tx, y: ty });
+    if (movers.length) commands.push({ type: "attackMove", unitIds: movers, x: tx, y: ty });
+    return commands;
   }
   const commands: Command[] = [];
   if (harvesters.length) commands.push({ type: "harvest", unitIds: harvesters, x: targetResource.x, y: targetResource.y });

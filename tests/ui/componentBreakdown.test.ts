@@ -162,8 +162,8 @@ describe("pointer-up policy", () => {
       sellMode: false,
     })).toMatchObject({
       clearMobileCommand: true,
-      beep: "ack",
-      commands: [{ type: "move", unitIds: [unit.id], x: 4, y: 5 }],
+      beep: "ackAttack",
+      commands: [{ type: "attackMove", unitIds: [unit.id], x: 4, y: 5 }],
     });
   });
 

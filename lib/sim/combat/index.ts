@@ -2,7 +2,7 @@ import { distToEntity, livingView } from "../world";
 import { rngFromState } from "../../seed/rng";
 import { buildGrid, statsFor, isCombatThreat, acquire, acquirePreferred, closestEnemy } from "./grid";
 import { lineOfSight, firingPosition } from "./targeting";
-import { strike, chase, resumeAttackMove } from "./damage";
+import { strike, chase } from "./damage";
 import { createPendingAlerts, flushPlayerAlerts } from "./alerts";
 import type { SimEvent, SimState } from "../../types";
 import { tryFindPath } from "../pathBudget";
@@ -22,12 +22,12 @@ export function tickCombat(state: SimState, eventSink?: SimEvent[], collectEvent
     if (e.cooldown > 0) e.cooldown -= 1;
 
     const ordered = e.class === "unit" && !e.idle;
-    if (ordered && e.attackTarget !== undefined) {
+    if (ordered && e.orderMode === "attackMove") e.attackTarget = undefined;
+    if (ordered && e.attackTarget !== undefined && e.orderMode !== "attackMove") {
       const assignedCandidate = grid.byId[e.attackTarget];
       const assigned = assignedCandidate && assignedCandidate.hp > 0 ? assignedCandidate : undefined;
       if (!assigned) {
         e.attackTarget = undefined;
-        resumeAttackMove(state, e);
       } else {
         const d = distToEntity(e, assigned);
         if (d <= st.range) {
@@ -43,7 +43,6 @@ export function tickCombat(state: SimState, eventSink?: SimEvent[], collectEvent
               if (path !== undefined) e.path = path;
             }
           }
-          if (e.attackTarget === undefined) resumeAttackMove(state, e);
         } else {
           const intercept = e.owner === 1 && !isCombatThreat(state, assigned)
             ? closestEnemy(grid, e, st.range, true)
@@ -63,25 +62,11 @@ export function tickCombat(state: SimState, eventSink?: SimEvent[], collectEvent
     }
 
     if (ordered && e.path.length > 0) {
-      if (e.orderMode === "attackMove") {
-        const visible = acquire(grid, e, false);
-        if (visible && lineOfSight(state, e, visible)) {
-          e.attackTarget = visible.id;
-          e.path = [];
-          e.routePending = false;
-          e.flowGoal = undefined;
-          if (distToEntity(e, visible) <= st.range) {
-            strike(state, e, visible, st, rng, events, pending);
-            if (e.attackTarget === undefined) resumeAttackMove(state, e);
-          } else chase(state, e, visible);
-        } else {
-          const opportunity = closestEnemy(grid, e, st.range, false);
-          if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
-        }
-      } else {
-        const opportunity = closestEnemy(grid, e, st.range, false);
-        if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
-      }
+      // Travel orders may fire at targets already in weapon range, but they
+      // never replace the route with a combat chase. Direct attack orders
+      // retain the committed-target behavior above.
+      const opportunity = closestEnemy(grid, e, st.range, false);
+      if (opportunity && lineOfSight(state, e, opportunity)) strike(state, e, opportunity, st, rng, events, pending);
       continue;
     }
 

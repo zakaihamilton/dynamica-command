@@ -73,20 +73,6 @@ export function chase(state: SimState, e: Entity, target: Entity): void {
   }
 }
 
-export function resumeAttackMove(state: SimState, e: Entity): void {
-  if (e.orderMode !== "attackMove" || !e.orderDestination) {
-    e.flowGoal = undefined;
-    e.idle = true;
-    return;
-  }
-  const result = tryFindPathDetailed(state, e, e.orderDestination);
-  if (result) {
-    e.path = result.path;
-    e.routePending = routePendingFor(result.status);
-  }
-  e.idle = false;
-}
-
 function pathDest(path: { x: number; y: number }[]): { x: number; y: number } | undefined {
   return path[path.length - 1];
 }

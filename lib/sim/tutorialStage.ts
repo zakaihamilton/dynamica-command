@@ -8,7 +8,7 @@ export function tutorialPrompt(state: SimState): string {
     case "harvest": return "Select the Harvester, then order it to an ore field.";
     case "build": return "Open Construction (Q) and place a Power Plant.";
     case "produce": return "Open Production (E) and train Infantry.";
-    case "attack": return "Use attack-move (Ctrl + right click) to advance while fighting, or attack an enemy unit.";
+    case "attack": return "Send your combat units to ground to advance while fighting, or attack an enemy unit directly.";
     case "repair": return "Use Repair (R) on a damaged structure.";
     default: return "Training complete. Return to the command desk when ready.";
   }

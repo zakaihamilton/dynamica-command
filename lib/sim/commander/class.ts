@@ -171,7 +171,11 @@ export class CompetentCommander {
             ? extractionEscortTarget ?? objective
             : objective;
           if (responseForce.length && escortTarget) {
-            combatCommands.push({ type: "attackMove", unitIds: responseForce.map((entity) => entity.id), x: escortTarget.x, y: escortTarget.y, formation: "wedge" });
+            // A threatened scenario target takes priority over escort travel.
+            // The force will receive its route to the target again once the
+            // threat clears, while direct attack keeps the response force
+            // from walking past the attacker.
+            combatCommands.push({ type: "attack", unitIds: responseForce.map((entity) => entity.id), targetId: threat.id });
           }
         } else {
           // Keep the rescue guard assigned to local defense instead of sending it with the rescue force.
