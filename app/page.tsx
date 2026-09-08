@@ -20,8 +20,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const campaign = createCampaign(activeSeed);
 
   const title = isWeekly
-    ? `Week ${week} Campaign (Seed ${seedStr}) | Dynamica Command`
-    : `Seed ${seedStr} // ${campaign.world.name} | Dynamica Command`;
+    ? `Week ${week} Campaign (Seed ${seedStr}) | Shifting Front`
+    : `Seed ${seedStr} // ${campaign.world.name} | Shifting Front`;
 
   const description = `${campaign.world.name} (${biomeLabel(campaign.world.biome)}). ${campaign.world.conflict}. ${campaign.factions[0].name} vs ${campaign.factions[1].name}. 6 operations — Wordle for RTS.`;
 
@@ -38,7 +38,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
           url: ogUrl,
           width: 1200,
           height: 630,
-          alt: `Dynamica Command Seed ${seedStr} Preview`,
+          alt: `Shifting Front Seed ${seedStr} Preview`,
         },
       ],
     },

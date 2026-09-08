@@ -14,7 +14,7 @@ import { migrateSaveContent } from "./migrations";
 import { listSaves } from "./api";
 import { safeGetItem, safeKeys, safeRemoveItem, safeSetItem, type StorageAdapter } from "./storage";
 
-export const SLOT_PREFIX = "dynamica-command:slot:";
+export const SLOT_PREFIX = "shiftingfront:slot:";
 export const SLOT_VERSION = 1;
 export const SLOT_NAME_MAX = 40;
 export const SLOT_ID_PATTERN = /^[a-z0-9]{8,32}$/i;

@@ -84,10 +84,10 @@ export function CampaignArchiveScreen() {
       <div className={styles.scanlines} />
 
       <div className={styles.uiLayer}>
-        <header className={styles.topbar} aria-label="Dynamica campaign archive status">
+        <header className={styles.topbar} aria-label="Shifting Front campaign archive status">
           <div className={styles.topbarBrand}>
-            <span className={styles.brandMark}>DC</span>
-            <span>DYNAMICA COMMAND</span>
+            <span className={styles.brandMark}>SF</span>
+            <span>SHIFTING FRONT</span>
             <span className={styles.topbarDivider}>/</span>
             <span className={styles.topbarMuted}>SAVE SLOTS</span>
           </div>
@@ -100,7 +100,7 @@ export function CampaignArchiveScreen() {
         <div className={styles.content}>
           <MetalPanel as="section" className={styles.panel} data-testid="campaign-archive" aria-labelledby="load-mission-title">
             <header className={styles.header}>
-              <ConsoleLabel>Dynamica command // Save slots</ConsoleLabel>
+              <ConsoleLabel>Shifting Front // Save slots</ConsoleLabel>
               <h1 id="load-mission-title" className={styles.title}>Load mission</h1>
               <p className={styles.subtitle}>SELECT A SAVE SLOT</p>
               <p className={styles.copy}>Resume a named save or an autosave, inspect its operations map, or remove a slot you no longer need.</p>

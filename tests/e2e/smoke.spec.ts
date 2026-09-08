@@ -335,9 +335,9 @@ test("returns from the operations map with Escape", async ({ page }) => {
 test("keeps the unified menu and operations chrome inside the desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "DYNAMICA" })).toBeVisible();
-  await expect(page.getByText("Dynamica command", { exact: true })).toHaveCount(0);
-  await expect(page.locator("header").getByText("DYNAMICA COMMAND")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "SHIFTING" })).toBeVisible();
+  await expect(page.getByText("Shifting Front", { exact: true })).toHaveCount(0);
+  await expect(page.locator("header").getByText("SHIFTING FRONT")).toHaveCount(0);
   await expect(page.getByTestId("menu-dashboard")).toBeVisible();
   await expect(page.getByTestId("menu-signal-overlay")).toBeAttached();
   await expect(page.getByRole("navigation", { name: "Main menu" })).toBeVisible();

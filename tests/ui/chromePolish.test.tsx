@@ -24,11 +24,11 @@ describe("product chrome", () => {
   });
 
   it("sets the document title and restores the previous title on unmount", () => {
-    document.title = "Dynamica Command";
-    const { unmount } = render(<DocumentTitle title="Seed 0421 · Operation 1 | Dynamica Command" />);
-    expect(document.title).toBe("Seed 0421 · Operation 1 | Dynamica Command");
+    document.title = "Shifting Front";
+    const { unmount } = render(<DocumentTitle title="Seed 0421 · Operation 1 | Shifting Front" />);
+    expect(document.title).toBe("Seed 0421 · Operation 1 | Shifting Front");
     unmount();
-    expect(document.title).toBe("Dynamica Command");
+    expect(document.title).toBe("Shifting Front");
   });
 
   it("labels the HUD as an operation instead of a level", () => {

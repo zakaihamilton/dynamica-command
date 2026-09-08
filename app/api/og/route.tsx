@@ -55,10 +55,10 @@ export async function GET(request: Request) {
                   letterSpacing: "2px",
                 }}
               >
-                DC
+                SF
               </div>
               <div style={{ fontSize: "28px", fontWeight: 900, color: "#e8f2f6", letterSpacing: "3px" }}>
-                DYNAMICA COMMAND
+                SHIFTING FRONT
               </div>
             </div>
 

@@ -25,8 +25,8 @@ export function GameClient({
 }) {
   const { palette, playField, overlays } = useGameRuntime({ seed, mission, resume, fresh, slot, tutorial });
   const title = tutorial
-    ? "Training Range | Dynamica Command"
-    : `Seed ${formatSeed(seed)} · Operation ${mission + 1} | Dynamica Command`;
+    ? "Training Range | Shifting Front"
+    : `Seed ${formatSeed(seed)} · Operation ${mission + 1} | Shifting Front`;
 
   return (
     <div

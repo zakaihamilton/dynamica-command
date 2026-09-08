@@ -7,7 +7,7 @@ export function AssetsBayHeader({ onClose }: { onClose: () => void }) {
   return (
     <div className={styles.header}>
       <div>
-        <ConsoleLabel>Dynamica Command</ConsoleLabel>
+        <ConsoleLabel>Shifting Front</ConsoleLabel>
         <h2 id="assets-title" className={styles.title}>
           Asset bay
         </h2>

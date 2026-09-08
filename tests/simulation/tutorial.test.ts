@@ -9,7 +9,7 @@ describe("tutorial", () => {
     const state = createTutorialMission();
     expect(state.seed).toBe(0);
     expect(state.tutorialStage).toBe("select");
-    expect(state.missionName).toBe("Dynamica Training Range");
+    expect(state.missionName).toBe("Shifting Front Training Range");
     expect(state.missionKind).toBe("holdTheLine");
     expect(state.win).toEqual({ kind: "holdTheLine" });
     expect(state.win.ticks).toBeUndefined();

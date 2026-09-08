@@ -6,7 +6,7 @@ export { tutorialPrompt, tutorialMoveTile, enterTutorialStage } from "./tutorial
 
 export function createTutorialMission(): SimState {
   const state = createMission({ seed: TUTORIAL_SEED, missionIndex: 0 });
-  state.missionName = "Dynamica Training Range";
+  state.missionName = "Shifting Front Training Range";
   state.missionKind = "holdTheLine";
   state.tutorialStage = "select";
   state.win = { kind: "holdTheLine" };

@@ -1,8 +1,8 @@
-# Dynamica Command
+# Shifting Front
 
-Dynamica Command is a browser **seeded isometric RTS**. Enter a **4-digit seed** (`0000`–`9999`) to create a full campaign: factions, characters, story, maps, and objectives. The same code always creates the same campaign. Progress saves in this browser — no account required.
+Shifting Front is a browser **seeded isometric RTS**. Enter a **4-digit seed** (`0000`–`9999`) to create a full campaign: factions, characters, story, maps, and objectives. The same code always creates the same campaign. Progress saves in this browser — no account required.
 
-**[Play from source](#run)** · [github.com/zakaihamilton/dynamica-command](https://github.com/zakaihamilton/dynamica-command)
+**[Play from source](#run)** · [github.com/zakaihamilton/shiftingfront](https://github.com/zakaihamilton/shiftingfront)
 
 ![Desktop mission gameplay](docs/mission-desktop.png)
 

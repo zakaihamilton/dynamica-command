@@ -15,7 +15,7 @@ import { isRecord } from "../utils";
 import { migrateSaveContent } from "./migrations";
 export { SAVE_CONTENT_VERSION } from "./validation";
 
-export const SAVE_PREFIX = "dynamica-command:save:";
+export const SAVE_PREFIX = "shiftingfront:save:";
 export const SAVE_VERSION = 2;
 const LEGACY_SAVE_VERSION = 1;
 const LEGACY_SAVE_CONTENT_VERSION = 1;

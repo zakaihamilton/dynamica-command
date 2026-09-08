@@ -178,7 +178,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
       className={`${styles.screen} ${operations ? styles.operationsScreen : ""}`}
       style={{ "--scene-art": `url("${RASTER_ART.victory}")` } as React.CSSProperties}
     >
-      <DocumentTitle title={`Seed ${formatSeed(seed)} · ${operations ? "Operations" : "Campaign Record"} | Dynamica Command`} />
+      <DocumentTitle title={`Seed ${formatSeed(seed)} · ${operations ? "Operations" : "Campaign Record"} | Shifting Front`} />
       <div className={styles.vignette} />
       <div className={styles.content}>
         <MetalPanel

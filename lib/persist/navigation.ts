@@ -1,4 +1,4 @@
-const FRESH_LAUNCH_INTENT_KEY = "dynamica-command:fresh-launch";
+const FRESH_LAUNCH_INTENT_KEY = "shiftingfront:fresh-launch";
 
 type FreshLaunchIntent = {
   seed: number;

@@ -758,7 +758,7 @@ test.describe("mobile-first layouts", () => {
     await confirmation.getByRole("button", { name: "Leave mission" }).click();
     await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0&from=menu/);
     const savedAt = await page.evaluate(() => {
-      const raw = localStorage.getItem("dynamica-command:save:0421");
+      const raw = localStorage.getItem("shiftingfront:save:0421");
       return raw ? JSON.parse(raw).savedAt as number : 0;
     });
     expect(savedAt).toBeGreaterThanOrEqual(leavingAt);

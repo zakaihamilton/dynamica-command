@@ -1,5 +1,5 @@
-export const APP_NAME = "Dynamica Command";
-export const APP_SHORT_NAME = "Dynamica";
+export const APP_NAME = "Shifting Front";
+export const APP_SHORT_NAME = "Shifting Front";
 export const APP_DESCRIPTION = "A seeded isometric RTS — one 4-digit code writes the war.";
 export const APP_THEME_COLOR = "#05080e";
 

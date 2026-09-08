@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
 
-const MISSION_BACK_SENTINEL = "__dynamicaCommandMissionBackSentinel";
+const MISSION_BACK_SENTINEL = "__shiftingFrontMissionBackSentinel";
 
 function isMissionBackSentinel(state: unknown): state is Record<string, unknown> {
   return Boolean(state && typeof state === "object" && MISSION_BACK_SENTINEL in state);

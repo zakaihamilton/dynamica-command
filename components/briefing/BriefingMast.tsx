@@ -20,7 +20,7 @@ export function BriefingMast({
     <header className={styles.mast}>
       <div>
         <ConsoleLabel data-testid="seed">
-          Dynamica Command · Seed {formatSeed(seed)} · Mission {mission + 1}/8
+          Shifting Front · Seed {formatSeed(seed)} · Mission {mission + 1}/8
         </ConsoleLabel>
         <h1 className={styles.title}>{def.name}</h1>
         <p className={styles.world}>

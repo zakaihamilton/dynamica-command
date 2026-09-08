@@ -442,10 +442,10 @@ describe("MenuHero", () => {
   it("renders the product title once without repeating it as an eyebrow", () => {
     render(<MenuHero />);
 
-    expect(screen.getByRole("heading", { name: "DYNAMICA" })).toBeVisible();
-    expect(screen.getByText("COMMAND")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "SHIFTING" })).toBeVisible();
+    expect(screen.getByText("FRONT")).toBeVisible();
     expect(screen.getByText("Harvest. Build. Conquer.")).toBeInTheDocument();
-    expect(screen.queryByText("Dynamica command")).toBeNull();
+    expect(screen.queryByText("Shifting Front")).toBeNull();
   });
 });
 

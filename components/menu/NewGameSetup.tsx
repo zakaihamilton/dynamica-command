@@ -50,7 +50,7 @@ export function NewGameSetup({
   return (
     <MetalPanel as="section" className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-game-title" data-testid="deploy-screen">
       <div className={styles.intro}>
-        <ConsoleLabel>{isSynchronized ? "Dynamica command // Campaign of the Week" : "Dynamica command // Custom Campaign"}</ConsoleLabel>
+        <ConsoleLabel>{isSynchronized ? "Shifting Front // Campaign of the Week" : "Shifting Front // Custom Campaign"}</ConsoleLabel>
         <h2 id="new-game-title" className={styles.title}>New campaign</h2>
         <p className={styles.copy}>
           This week&apos;s synchronized campaign seed is active for all commanders. Launch to deploy into the shared theater, or enter any code to play a different campaign.

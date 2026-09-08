@@ -75,7 +75,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
       data-testid="briefing-screen"
       style={{ "--scene-art": `url("${biomeArt(def.biome)}")` } as CSSProperties}
     >
-      <DocumentTitle title={`Briefing · Seed ${formatSeed(seed)} · Operation ${mission + 1} | Dynamica Command`} />
+      <DocumentTitle title={`Briefing · Seed ${formatSeed(seed)} · Operation ${mission + 1} | Shifting Front`} />
       <div className={styles.inner}>
         <div className={styles.mast}>
           <BriefingMast seed={seed} mission={mission} campaign={campaign} def={def} />

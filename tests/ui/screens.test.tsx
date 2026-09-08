@@ -19,7 +19,7 @@ vi.mock("@/lib/audio/music", () => ({ setMusicEnabled: vi.fn(), clearMusicPositi
 vi.mock("@/lib/audio/synth", () => ({ setSfxEnabled: vi.fn(), beep: vi.fn() }));
 vi.mock("@/lib/audio/mixer", () => ({ setAudioLevels: vi.fn() }));
 vi.mock("@/components/menu/MenuBackdrop", () => ({ MenuBackdrop: () => <div data-testid="menu-backdrop" /> }));
-vi.mock("@/components/menu/MenuHero", () => ({ MenuHero: () => <h1>Dynamica Command</h1> }));
+vi.mock("@/components/menu/MenuHero", () => ({ MenuHero: () => <h1>Shifting Front</h1> }));
 vi.mock("@/components/menu/MenuMainPanel", () => ({
   MenuMainPanel: ({ onNewGame, onTutorial, onLoadMission, onOptions }: { onNewGame: () => void; onTutorial: () => void; onLoadMission: () => void; onOptions: () => void }) => (
     <div>
@@ -90,7 +90,7 @@ describe("MenuScreen", () => {
     render(<MenuScreen />);
 
     expect(screen.getByText("COMMAND DESK")).toBeVisible();
-    expect(screen.queryByText("DYNAMICA COMMAND")).toBeNull();
+    expect(screen.queryByText("SHIFTING FRONT")).toBeNull();
   });
 
   it("does not render a welcome footer", () => {

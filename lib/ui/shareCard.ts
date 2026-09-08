@@ -7,7 +7,7 @@ function shareUrl(seedStr: string): string {
   if (typeof window !== "undefined" && window.location?.origin) {
     return `${window.location.origin}/?seed=${seedStr}`;
   }
-  return `https://dynamica-command.vercel.app/?seed=${seedStr}`;
+  return `/?seed=${seedStr}`;
 }
 
 export function formatMissionShareCard(state: SimState): string {
@@ -21,8 +21,8 @@ export function formatMissionShareCard(state: SimState): string {
   const enemyLost = debrief.forces.enemy.unitsLost;
   const isWeekly = seedStr === weeklySeed();
   const header = isWeekly
-    ? `DYNAMICA COMMAND Week ${weeklyIndex()} · Mission ${missionNumber}/6`
-    : `DYNAMICA COMMAND · Mission ${missionNumber}/6`;
+    ? `SHIFTING FRONT Week ${weeklyIndex()} · Mission ${missionNumber}/6`
+    : `SHIFTING FRONT · Mission ${missionNumber}/6`;
 
   return [
     header,
@@ -54,8 +54,8 @@ export function formatCampaignShareCard(campaign: Campaign, progress: CampaignPr
 
   const isWeekly = seedStr === weeklySeed();
   const header = isWeekly
-    ? `DYNAMICA COMMAND Week ${weeklyIndex()} // Theater Dossier`
-    : `DYNAMICA COMMAND // Theater Dossier`;
+    ? `SHIFTING FRONT Week ${weeklyIndex()} // Theater Dossier`
+    : `SHIFTING FRONT // Theater Dossier`;
 
   return [
     header,
