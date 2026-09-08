@@ -140,6 +140,12 @@ export function terrainPropLightFactor(world: SceneryWorld, x: number, y: number
   );
 }
 
+/** Shared low-contrast alpha response for all terrain extras. */
+export function terrainPropLightGain(world: SceneryWorld, x: number, y: number): number {
+  const light = terrainPropLightFactor(world, x, y);
+  return clamp(0.9 + (light - 0.9) * 0.42, 0.82, 1.02);
+}
+
 export function gradeTerrainColor(color: Rgb, factor: number, rig: TerrainLightRig, tint = 0): Rgb {
   let out = {
     r: color.r * factor,

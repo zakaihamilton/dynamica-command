@@ -12,14 +12,9 @@ import {
 } from "../../gen/blockerPropArt";
 import { blockerPropKind, type BlockerPropKind } from "./scatter";
 import { fillPoly, mixRgb, rgbOf, withAlpha } from "./style";
-import { terrainPropLightFactor } from "../terrainLighting";
+import { terrainPropLightGain } from "../terrainLighting";
 
 type PropWorld = SceneryWorld & { seed: number };
-
-function propLightGain(state: PropWorld, x: number, y: number): number {
-  const light = terrainPropLightFactor(state, x, y);
-  return Math.max(0.82, Math.min(1.02, 0.9 + (light - 0.9) * 0.42));
-}
 
 export function smoothFogGain(state: SimState, x: number, y: number): number {
   // Keep the unexplored center of the shroud opaque. Blending is useful for
@@ -102,7 +97,7 @@ export function drawBlockerProp(
   const ox = ((v % 7) - 3) * z * 0.4;
   const oy = ((Math.floor(v / 11) % 5) - 2) * z * 0.2;
   ctx.save();
-  ctx.globalAlpha *= propLightGain(state, x, y);
+  ctx.globalAlpha *= terrainPropLightGain(state, x, y);
   ctx.translate(sx + ox, sy + TILE_H * z * 0.42 + oy);
   paintBlocker(ctx, kind, propMaterialsFor(mats), z, v, state.biome);
   ctx.restore();
@@ -134,7 +129,7 @@ export function drawOreCrystals(
   const gemHi = rgbMix(mats.light, { r: 255, g: 246, b: 210 }, 0.42);
   ctx.save();
   ctx.translate(s.x, s.y);
-  const alpha = ctx.globalAlpha * cluster.intensity * propLightGain(state, x, y);
+  const alpha = ctx.globalAlpha * cluster.intensity * terrainPropLightGain(state, x, y);
   ctx.fillStyle = rgbOf(mats.dark);
   for (const burst of cluster.bursts) {
     ctx.globalAlpha = alpha * 0.32;

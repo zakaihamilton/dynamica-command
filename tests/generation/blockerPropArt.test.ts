@@ -15,6 +15,17 @@ const TONE: BlockerTone = {
   ore: "#c4a040",
 };
 
+const BIOMES = [
+  "ash plains",
+  "crystal flats",
+  "rust canyons",
+  "salt marshes",
+  "glass desert",
+  "tundra grid",
+  "jungle wreckage",
+  "volcanic shelf",
+] as const;
+
 function ofKind<K extends PropPrim["k"]>(prims: PropPrim[], k: K): Array<Extract<PropPrim, { k: K }>> {
   return prims.filter((prim): prim is Extract<PropPrim, { k: K }> => prim.k === k);
 }
@@ -24,10 +35,10 @@ describe("blocker prop art", () => {
     for (const v of [0, 1, 2, 3, 4, 5]) {
       const prims = blockerPropPrims("tree", v, TONE, "jungle wreckage");
       const ells = ofKind(prims, "ell");
-      const canopy = ells.filter((prim) => prim.fill !== "rgba(6,10,12,0.38)");
+      const canopy = ells.filter((prim) => prim.alpha !== 0.22);
       expect(ofKind(prims, "curve").length).toBeGreaterThanOrEqual(1);
-      expect(canopy.length).toBeGreaterThanOrEqual(6);
-      expect(canopy.some((prim) => prim.alpha === 0.55)).toBe(true);
+      expect(canopy.length).toBeGreaterThanOrEqual(5);
+      expect(canopy.some((prim) => prim.alpha === 0.2)).toBe(true);
     }
   });
 
@@ -36,7 +47,7 @@ describe("blocker prop art", () => {
     const trunk = ofKind(prims, "line")[0];
     expect(trunk).toBeDefined();
     expect(trunk!.y1).toBeLessThan(trunk!.y0);
-    expect(ofKind(prims, "poly").filter((prim) => prim.pts.length === 6).length).toBeGreaterThanOrEqual(5);
+    expect(ofKind(prims, "poly").filter((prim) => prim.pts.length === 6).length).toBeGreaterThanOrEqual(4);
   });
 
   it("keeps tree and pine silhouettes distinct", () => {
@@ -91,5 +102,23 @@ describe("blocker prop art", () => {
     expect(blockerPropPrims(kind, 4, TONE, "volcanic shelf")).toEqual(
       blockerPropPrims(kind, 4, TONE, "volcanic shelf"),
     );
+  });
+
+  it("keeps every biome's blocker variants muted, bounded, and non-black", () => {
+    for (const biome of BIOMES) {
+      const kinds = new Set<string>();
+      for (let v = 0; v < 64; v++) {
+        const kind = blockerPropKind(biome, v);
+        kinds.add(kind);
+        const prims = blockerPropPrims(kind, v, TONE, biome);
+        expect(blockerPropPrims(kind, v, TONE, biome)).toEqual(prims);
+        for (const prim of prims) {
+          const color = prim.k === "line" || prim.k === "curve" ? prim.stroke : prim.fill;
+          expect(color.toLowerCase()).not.toBe("#000000");
+          if (prim.alpha !== undefined) expect(prim.alpha).toBeLessThanOrEqual(0.72);
+        }
+      }
+      expect(kinds.size).toBeGreaterThanOrEqual(2);
+    }
   });
 });

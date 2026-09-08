@@ -2,11 +2,22 @@ import type { BiomeName } from "../../../types";
 import type { BiomeMaterials } from "../../terrainMaterials";
 import { fillPoly, mixRgb, rgbOf, withAlpha } from "../style";
 
-export function shadow(ctx: CanvasRenderingContext2D, z: number, rx: number, ry: number, dy = 5): void {
-  ctx.fillStyle = "rgba(6,10,12,0.16)";
-  ctx.beginPath();
-  ctx.ellipse(0, dy * z, rx * z, ry * z, 0, 0, Math.PI * 2);
-  ctx.fill();
+export function shadow(
+  ctx: CanvasRenderingContext2D,
+  z: number,
+  rx: number,
+  ry: number,
+  dy = 5,
+  tone?: { r: number; g: number; b: number },
+): void {
+  const paint = () => {
+    ctx.fillStyle = tone ? rgbOf(mixRgb(tone, { r: 14, g: 20, b: 20 }, 0.5)) : "rgba(6,10,12,0.14)";
+    ctx.beginPath();
+    ctx.ellipse(0, dy * z, rx * z, ry * z, 0, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  if (tone) withAlpha(ctx, 0.24, paint);
+  else paint();
 }
 
 export function drawPebble(
@@ -21,7 +32,7 @@ export function drawPebble(
   const body = mixRgb(mats.dark, mats.light, 0.3);
   const facet = mixRgb(mats.mid, mats.dark, 0.28);
   const hi = mixRgb(mats.light, mats.mid, 0.52);
-  shadow(ctx, s, 5.4, 2.0, 2.6);
+  shadow(ctx, s, 5.4, 2.0, 2.6, mats.dark);
   ctx.fillStyle = rgbOf(mats.dark);
   fillPoly(ctx, [
     -5.2 * s + lean, 1.4 * s,
@@ -45,7 +56,7 @@ export function drawPebble(
     4.6 * s + lean, -1.2 * s,
     3.4 * s, 1.6 * s,
   ]);
-  withAlpha(ctx, 0.5, () => {
+  withAlpha(ctx, 0.36, () => {
     ctx.fillStyle = rgbOf(hi);
     ctx.beginPath();
     ctx.ellipse(-0.4 * s, -1.6 * s, 2.0 * s, 1.05 * s, -0.45, 0, Math.PI * 2);
@@ -88,7 +99,7 @@ export function drawTuft(
   const stem = mixRgb(mats.dark, mats.blocked, 0.15);
   const tip = mixRgb(mats.light, mats.high, 0.45);
   const wind = ((variant % 5) - 2) * 0.55 * s;
-  shadow(ctx, s, 5.6, 1.8, 2.4);
+  shadow(ctx, s, 5.6, 1.8, 2.4, mats.dark);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   for (let i = 0; i < blades; i++) {
@@ -116,8 +127,8 @@ export function drawShrub(
   const mid = mixRgb(mats.high, mats.light, 0.35);
   const hi = mats.light;
   const lobes = 4 + (variant % 2);
-  shadow(ctx, s, 6.2, 2.0, 2.5);
-  ctx.strokeStyle = rgbOf(mixRgb(mats.dark, { r: 58, g: 40, b: 26 }, 0.52));
+  shadow(ctx, s, 6.2, 2.0, 2.5, mats.dark);
+  ctx.strokeStyle = rgbOf(mixRgb(mats.dark, mats.blocked, 0.52));
   ctx.lineWidth = Math.max(0.9, 1.2 * s);
   ctx.lineCap = "round";
   ctx.beginPath();
@@ -138,7 +149,7 @@ export function drawShrub(
     ctx.ellipse(lobe.x * s, lobe.y * s, lobe.rx * s, lobe.ry * s, lobe.rot, 0, Math.PI * 2);
     ctx.fill();
   }
-  withAlpha(ctx, 0.48, () => {
+  withAlpha(ctx, 0.32, () => {
     ctx.fillStyle = rgbOf(hi);
     ctx.beginPath();
     ctx.ellipse(0.4 * s, -4.6 * s, 2.1 * s, 1.3 * s, -0.25, 0, Math.PI * 2);
@@ -157,7 +168,7 @@ export function drawDebris(
   const rust = mixRgb(mats.ore, mats.blocked, 0.35);
   const iron = mixRgb(mats.dark, mats.blocked, 0.2);
   const seam = mixRgb(mats.light, rust, 0.58);
-  shadow(ctx, s, 6.8, 2.1, 2.6);
+  shadow(ctx, s, 6.8, 2.1, 2.6, mats.dark);
   ctx.fillStyle = rgbOf(iron);
   fillPoly(ctx, [
     -6.8 * s, 1.0 * s,
@@ -204,9 +215,9 @@ export function drawCrystalChip(
   const s = z * scale;
   const gem = mixRgb(mats.ore, mats.light, 0.4);
   const dark = mixRgb(mats.dark, mats.ore, 0.35);
-  const inner = mixRgb(gem, { r: 228, g: 255, b: 246 }, 0.3);
+  const inner = mixRgb(gem, mats.light, 0.22);
   const lean = ((variant % 5) - 2) * 0.5 * s;
-  shadow(ctx, s, 4.2, 1.6, 2.4);
+  shadow(ctx, s, 4.2, 1.6, 2.4, mats.dark);
   ctx.fillStyle = rgbOf(dark);
   fillPoly(ctx, [-3.0 * s, 2.0 * s, lean - 0.4 * s, -5.0 * s, 3.2 * s, 1.7 * s]);
   ctx.fillStyle = rgbOf(gem);
@@ -228,7 +239,7 @@ export function drawReed(
   const stem = mixRgb(mats.blocked, mats.dark, 0.15);
   const hi = mixRgb(mats.light, mats.high, 0.25);
   const wind = ((variant % 5) - 2) * 0.4 * s;
-  shadow(ctx, s, 5.8, 1.8, 2.4);
+  shadow(ctx, s, 5.8, 1.8, 2.4, mats.dark);
   ctx.lineCap = "round";
   const n = 5 + (variant % 2);
   for (let i = 0; i < n; i++) {
@@ -256,10 +267,10 @@ export function drawCinder(
   variant: number,
 ): void {
   const s = z * scale;
-  const ember = mixRgb(mats.ore, { r: 210, g: 90, b: 40 }, 0.45);
-  const glow = mixRgb(ember, { r: 255, g: 170, b: 70 }, 0.4);
+  const ember = mixRgb(mats.ore, mats.high, 0.22);
+  const glow = mixRgb(ember, mats.light, 0.24);
   const ash = mixRgb(mats.dark, mats.blocked, 0.3);
-  shadow(ctx, s, 4.4, 1.6, 2.4);
+  shadow(ctx, s, 4.4, 1.6, 2.4, mats.dark);
   ctx.fillStyle = rgbOf(ash);
   ctx.beginPath();
   ctx.ellipse(0, 0.55 * s, 4.2 * s, 2.2 * s, 0, 0, Math.PI * 2);
@@ -267,13 +278,13 @@ export function drawCinder(
   ctx.fillStyle = rgbOf(mixRgb(ash, mats.mid, 0.25));
   fillPoly(ctx, [-2.4 * s, 0.4 * s, 0.6 * s, -1.6 * s, 2.8 * s, 0.8 * s, -0.4 * s, 1.6 * s]);
   if (variant % 3 !== 0) {
-    withAlpha(ctx, 0.4, () => {
+    withAlpha(ctx, 0.28, () => {
       ctx.fillStyle = rgbOf(glow);
       ctx.beginPath();
       ctx.ellipse(0.2 * s, -0.1 * s, 2.3 * s, 1.35 * s, 0, 0, Math.PI * 2);
       ctx.fill();
     });
-    withAlpha(ctx, 0.8, () => {
+    withAlpha(ctx, 0.62, () => {
       ctx.fillStyle = rgbOf(ember);
       ctx.beginPath();
       ctx.ellipse(0.45 * s, -0.25 * s, 1.35 * s, 0.85 * s, 0, 0, Math.PI * 2);
@@ -290,10 +301,10 @@ export function drawIceChip(
   variant: number,
 ): void {
   const s = z * scale;
-  const ice = mixRgb(mats.light, { r: 220, g: 236, b: 238 }, 0.45);
+  const ice = mixRgb(mats.light, mats.high, 0.28);
   const edge = mixRgb(mats.dark, mats.high, 0.35);
-  const facet = mixRgb(ice, { r: 255, g: 255, b: 255 }, 0.35);
-  shadow(ctx, s, 5.0, 1.8, 2.5);
+  const facet = mixRgb(ice, mats.high, 0.28);
+  shadow(ctx, s, 5.0, 1.8, 2.5, mats.dark);
   ctx.fillStyle = rgbOf(edge);
   fillPoly(ctx, [
     -5.0 * s, 1.3 * s,
@@ -317,12 +328,14 @@ export function drawIceChip(
     2.0 * s, -1.2 * s,
   ]);
   if (variant % 2 === 0) {
-    ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.lineWidth = Math.max(0.5, 0.55 * s);
-    ctx.beginPath();
-    ctx.moveTo(-0.3 * s, -1.8 * s);
-    ctx.lineTo(1.6 * s, 0.5 * s);
-    ctx.stroke();
+    withAlpha(ctx, 0.34, () => {
+      ctx.strokeStyle = rgbOf(mixRgb(mats.light, mats.high, 0.24));
+      ctx.lineWidth = Math.max(0.5, 0.55 * s);
+      ctx.beginPath();
+      ctx.moveTo(-0.3 * s, -1.8 * s);
+      ctx.lineTo(1.6 * s, 0.5 * s);
+      ctx.stroke();
+    });
   }
 }
 
@@ -335,7 +348,7 @@ export function drawLandmark(
   variant: number,
 ): void {
   const s = z * scale;
-  shadow(ctx, s, 12.5, 3.4, 4.5);
+  shadow(ctx, s, 12.5, 3.4, 4.5, mats.dark);
   const lean = ((variant % 5) - 2) * 0.7 * s;
   if (biome === "jungle wreckage" || biome === "salt marshes") {
     const stem = rgbOf(mixRgb(mats.dark, mats.blocked, 0.24));
@@ -383,14 +396,16 @@ export function drawLandmark(
     fillPoly(ctx, [-13 * s, 3 * s, -6 * s, -13 * s, -1 * s, 2 * s, 5 * s, -17 * s, 13 * s, 3 * s]);
     ctx.fillStyle = rgbOf(mixRgb(mats.light, mats.high, 0.28));
     fillPoly(ctx, [-7 * s, 2 * s, -5 * s, -11 * s, -1 * s, 2 * s, 5 * s, -14 * s, 8 * s, 2 * s]);
-    ctx.strokeStyle = "rgba(255,244,210,0.42)";
-    ctx.lineWidth = Math.max(0.65, 0.85 * s);
-    ctx.beginPath();
-    ctx.moveTo(-4 * s, -9 * s);
-    ctx.lineTo(-1 * s, 1 * s);
-    ctx.moveTo(6 * s, -12 * s);
-    ctx.lineTo(7 * s, 0);
-    ctx.stroke();
+    withAlpha(ctx, 0.34, () => {
+      ctx.strokeStyle = rgbOf(mixRgb(mats.light, mats.high, 0.36));
+      ctx.lineWidth = Math.max(0.65, 0.85 * s);
+      ctx.beginPath();
+      ctx.moveTo(-4 * s, -9 * s);
+      ctx.lineTo(-1 * s, 1 * s);
+      ctx.moveTo(6 * s, -12 * s);
+      ctx.lineTo(7 * s, 0);
+      ctx.stroke();
+    });
     return;
   }
   const body = rgbOf(mixRgb(mats.blocked, mats.dark, 0.12));

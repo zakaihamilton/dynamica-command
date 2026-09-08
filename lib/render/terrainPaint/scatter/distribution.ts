@@ -78,9 +78,10 @@ function makeItem(pool: readonly ScatterKind[], v: number, slot: number, scaleBo
   const hashed = mix(v, 31 + slot * 17);
   return {
     kind: pool[hashed % pool.length]!,
-    ox: signed(v, 101 + slot, 10),
-    oy: signed(v, 151 + slot, 4),
-    scale: 0.95 + unit(v, 201 + slot) * 0.55 + scaleBoost,
+    ox: signed(v, 101 + slot, 8.5) + signed(v, 301 + slot, 2.2),
+    oy: signed(v, 151 + slot, 3.4) + signed(v, 331 + slot, 1.4),
+    rotation: signed(v, 361 + slot, 0.18),
+    scale: 0.9 + unit(v, 201 + slot) * 0.62 + scaleBoost,
     variant: mix(v, 251 + slot),
   };
 }
@@ -107,6 +108,7 @@ function roadItems(v: number): ScatterItem[] {
     kind: "pebble",
     ox: signed(v, 88, 8),
     oy: signed(v, 89, 3),
+    rotation: signed(v, 92, 0.1),
     scale: 0.65 + unit(v, 90) * 0.3,
     variant: mix(v, 91),
   }];

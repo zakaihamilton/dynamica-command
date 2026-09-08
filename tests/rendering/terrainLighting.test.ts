@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   gradeTerrainColor,
+  terrainPropLightGain,
   terrainPropLightFactor,
   restrainTerrainColor,
   terrainEdgeDarkening,
@@ -41,6 +42,8 @@ describe("terrain lighting", () => {
     expect(terrainPropLightFactor(world, 1, 1)).toBe(raised);
     expect(raised).toBeGreaterThan(flat);
     expect(raised - flat).toBeLessThan(0.25);
+    expect(terrainPropLightGain(world, 1, 1)).toBeGreaterThanOrEqual(0.82);
+    expect(terrainPropLightGain(world, 1, 1)).toBeLessThanOrEqual(1.02);
   });
 
   it("brightens the lit corner and restrains excessive ground chroma", () => {

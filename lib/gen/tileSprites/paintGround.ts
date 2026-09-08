@@ -90,8 +90,13 @@ export function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palet
     if (dry) {
       shapes.push(ell(cx + ox - 3, cy + oy, 6 + pick(v, 80 + i, 5), 3, i % 2 ? p.light : p.dark));
     } else {
-      shapes.push(ell(cx + ox - 2, cy + oy, 6 + pick(v, 80 + i, 6), 3 + pick(v, 90 + i, 2), i % 2 ? p.accent : p.dark));
-      if (pick(v, 100 + i, 3) !== 0) shapes.push(ell(cx + ox, cy + oy - 1, 4 + pick(v, 110 + i, 3), 2, p.light));
+      const w = 6 + pick(v, 80 + i, 6);
+      const h = 3 + pick(v, 90 + i, 2);
+      const fill = i % 2 ? mixHex(p.accent, p.primary, 0.38) : mixHex(p.dark, p.secondary, 0.34);
+      shapes.push(poly(irregularIso(cx + ox, cy + oy, w, h, 1), fill, mixHex(p.dark, p.secondary, 0.32), 0.5));
+      if (pick(v, 100 + i, 3) !== 0) {
+        shapes.push(poly(irregularIso(cx + ox + 1, cy + oy - 1, 4 + pick(v, 110 + i, 3), 2, 1), mixHex(p.light, p.primary, 0.42)));
+      }
     }
   }
   if (density >= 4 && pick(v, 120, 5) === 0) {
@@ -101,7 +106,7 @@ export function paintGroundCover(shapes: ShapeSpec[], biome: BiomeName, p: Palet
     shapes.push(ell(cx + ox - 2, cy + oy - 2, 5, 2, p.light));
   }
   if (dense && density >= 5 && pick(v, 4, 6) === 0) {
-    pushBush(shapes, cx + signed(v, 5, 8), cy + signed(v, 6, 3), v, biome);
+    pushBush(shapes, cx + signed(v, 5, 8), cy + signed(v, 6, 3), v, biome, p);
   }
   if (pick(v, 7, 14) === 0) {
     const lx = cx + signed(v, 8, 8);
@@ -149,7 +154,7 @@ function paintBiomeGroundMotif(
     } else if (biome === "volcanic shelf") {
       shapes.push(ell(cx + ox - 2, cy + oy, 5, 2, mixHex(p.dark, "#9f3024", i % 2 ? 0.35 : 0.08)));
     } else if (biome === "jungle wreckage" || biome === "salt marshes") {
-      if (i === 0 && pick(v, 348, 3) === 0) pushBush(shapes, cx + ox, cy + oy, v + i, biome);
+      if (i === 0 && pick(v, 348, 3) === 0) pushBush(shapes, cx + ox, cy + oy, v + i, biome, p);
       else shapes.push(ell(cx + ox - 2, cy + oy, 5 + pick(v, 350 + i, 4), 2, i % 2 ? p.accent : p.dark));
     } else if (biome === "rust canyons") {
       shapes.push(line(cx + ox - 5, cy + oy, cx + ox + 5, cy + oy + 1, mixHex(p.dark, "#c16f3d", 0.35), 2));

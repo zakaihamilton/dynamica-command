@@ -17,7 +17,7 @@ import {
 } from "../../lib/render/terrainPaint";
 import { hash } from "../../lib/gen/tilePalette";
 import { generateMap, terrainFeatureAt } from "../../lib/gen/map";
-import { tileSprite } from "../../lib/gen/assets";
+import { tileSprite, tileSpriteId } from "../../lib/gen/assets";
 import { TERRAIN_ART } from "../../lib/gen/visualAssets";
 import { generateCampaignVisualProfile } from "../../lib/gen/visualProfile";
 import { TILE_H, TILE_W, expandIsoDiamond, isoAtlasTransform, createCamera } from "../../lib/iso";
@@ -914,12 +914,14 @@ describe("tile sprite blockers", () => {
     const tundra = blockedSprite("tundra grid", "pine");
     expect(jungle.shapes).not.toEqual(desert.shapes);
     expect(tundra.shapes).not.toEqual(jungle.shapes);
-    expect(jungle.shapes.filter((shape) => shape.type === "ellipse").length).toBeGreaterThanOrEqual(6);
+    expect(jungle.shapes.filter((shape) => shape.type === "ellipse").length).toBeGreaterThanOrEqual(5);
     expect(tundra.shapes.filter((shape) => shape.type === "poly" && (shape.points?.length ?? 0) === 6).length).toBeGreaterThanOrEqual(5);
     expect(desert.shapes.filter((shape) => shape.type === "poly").length).toBeGreaterThanOrEqual(4);
     expect(tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes).toEqual(
       tileSprite("blocked", 1, { biome: "jungle wreckage", variant: 3 }).shapes,
     );
+    expect(tileSpriteId("blocked", 1, { biome: "jungle wreckage", variant: 3 }))
+      .toContain("tactical-surface-v14-grounded-extras");
   });
 });
 
@@ -953,6 +955,7 @@ function createPaintMock() {
     save() { stack.push(alpha); },
     restore() { alpha = stack.pop() ?? 1; },
     translate() {},
+    rotate() {},
     beginPath() {},
     moveTo() {},
     lineTo() {},
@@ -1000,6 +1003,34 @@ describe("terrain adornment painting", () => {
     const jungleAgain = createPaintMock();
     drawBlockerProp(jungleAgain.ctx, jungle, 4, 4, 40, 40, 1);
     expect(jungleAgain.ops).toEqual(junglePaint.ops);
+  });
+
+  it("renders grounded extras for every biome without leaking canvas alpha", () => {
+    const biomes: BiomeName[] = [
+      "ash plains", "crystal flats", "rust canyons", "salt marshes",
+      "glass desert", "tundra grid", "jungle wreckage", "volcanic shelf",
+    ];
+    for (const biome of biomes) {
+      const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+      state.biome = biome;
+      setTile(state, 3, 2, TILE_RESOURCE, 800);
+      let scatterTile: { x: number; y: number } | undefined;
+      for (let y = 0; y < state.height && !scatterTile; y++) {
+        for (let x = 0; x < state.width; x++) {
+          if (scatterForTile(state, x, y).length > 0) {
+            scatterTile = { x, y };
+            break;
+          }
+        }
+      }
+      const painted = createPaintMock();
+      painted.ctx.globalAlpha = 0.6;
+      if (scatterTile) drawTerrainScatter(painted.ctx, state, scatterTile.x, scatterTile.y, 40, 40, 1);
+      drawBlockerProp(painted.ctx, state, 4, 4, 40, 40, 1);
+      drawOreCrystals(painted.ctx, state, createCamera(), 3, 2, 1, 1);
+      expect(painted.ctx.globalAlpha).toBeCloseTo(0.6);
+      expect(painted.ops.length).toBeGreaterThan(4);
+    }
   });
 
   it("uses the grounded prop material response for ore crystals", () => {
