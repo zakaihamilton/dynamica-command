@@ -1,11 +1,11 @@
-import { UNIT_STATS, footprintOf } from "../catalog";
-import { isBuildingEntity, type SimEvent, type SimState } from "../types";
+import { BUILDING_DEFINITIONS, UNIT_STATS, footprintOf } from "../catalog";
+import { isBuildingEntity, type BuildingKind, type SimEvent, type SimState } from "../types";
 import { frontTileNear, invalidatePowerCache, openTileNear, powerFor, trySpawnUnit } from "./world";
 
 const playerPowerOk = new WeakMap<SimState, boolean>();
 
-function isUnitProducer(kind: string): kind is "barracks" | "factory" {
-  return kind === "barracks" || kind === "factory";
+function isUnitProducer(kind: string): kind is BuildingKind {
+  return BUILDING_DEFINITIONS[kind as BuildingKind]?.production !== undefined;
 }
 
 function producerKey(owner: number, kind: string): string {

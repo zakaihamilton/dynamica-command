@@ -2,6 +2,7 @@ import type { Rng } from "../../seed/rng";
 import type { GeneratedMap } from "../../gen/map";
 import type {
   MissionDef,
+  MissionKind,
   MissionRuntime,
   SimEvent,
   SimState,
@@ -14,9 +15,237 @@ import { spawnBuildingAt, spawnUnit } from "../world";
 import { enemyApproachPoint, reachableBuildingFilter, reachableScenarioCells, reachableScenarioPoint } from "./reachability";
 import { convoyStartPoint, convoyZonePoint, tickEscort } from "./escort";
 import { centerPoint, rescuePoint, tickRescueExtraction } from "./rescueExtraction";
+import type { ScenarioDefinition, ScenarioProgress, ScenarioSetupContext, ScenarioSetupResult } from "./contract";
 
 export { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS };
 export { scenarioAffordances, type ScenarioAffordances } from "./affordances";
+export type { ScenarioDefinition, ScenarioProgress, ScenarioSetupContext, ScenarioSetupResult } from "./contract";
+
+export const DEADLINE_SCENARIO_KINDS: readonly MissionKind[] = ["escort", "sabotage", "rescue", "extraction"];
+
+function setupClassicScenario({ state, mission }: ScenarioSetupContext): ScenarioSetupResult {
+  return { targetIds: state.win.targetIds ?? mission.win.targetIds ?? [] };
+}
+
+function setupDestroyMarkedScenario({ state, map, mission, rng, reachable }: ScenarioSetupContext): ScenarioSetupResult {
+  const ids: number[] = [];
+  const spots = map.markedSpots.length
+    ? map.markedSpots
+    : [enemyApproachPoint(map, 6, -2), enemyApproachPoint(map, 6, 2)];
+  const count = mission.win.targetCount ?? 1;
+  for (let i = 0; i < count; i++) {
+    const spot = spots[i] ?? enemyApproachPoint(map, 6 + i * 3, i % 2 === 0 ? -2 : 2);
+    const kind = rng.pick(["refinery", "factory", "objective"] as const);
+    const buildingKind = kind === "refinery" ? "objective" : kind;
+    const placed = spawnBuildingAt(
+      state,
+      1,
+      buildingKind,
+      spot.x,
+      spot.y,
+      0,
+      true,
+      reachableBuildingFilter(state, buildingKind, reachable),
+    );
+    if (placed) ids.push(placed.id);
+  }
+  return { targetIds: ids };
+}
+
+function setupTimedScenario({ state, map, mission, profile, reachable }: ScenarioSetupContext): ScenarioSetupResult {
+  const kind = mission.win.kind;
+  const targetIds: number[] = [];
+  const contestedRoute = profile.variant === "contestedRoute";
+  const count = mission.win.targetCount ?? 2;
+  const rescueRoute = kind === "rescue"
+    ? { start: map.playerStart, end: map.enemyStart, min: 0.55, max: 0.8 }
+    : undefined;
+
+  if (kind === "sabotage") {
+    for (let i = 0; i < count; i++) {
+      const depth = contestedRoute ? 6 : 4;
+      const spacing = contestedRoute ? 4 : 3;
+      const spot = map.markedSpots[i] ?? enemyApproachPoint(map, depth + i * spacing, i % 2 === 0 ? -2 : 2);
+      const objective = spawnBuildingAt(
+        state,
+        1,
+        "objective",
+        spot.x,
+        spot.y,
+        0,
+        true,
+        reachableBuildingFilter(state, "objective", reachable),
+      );
+      if (objective) targetIds.push(objective.id);
+    }
+  } else {
+    for (let i = 0; i < count; i++) {
+      const desired = kind === "escort"
+        ? convoyStartPoint(map, i)
+        : kind === "rescue"
+          ? rescuePoint(map, i, count)
+          : centerPoint(map, i, count, contestedRoute);
+      const point = reachableScenarioPoint(state, desired, reachable, rescueRoute);
+      const target = spawnUnit(state, 0, kind === "escort" ? "convoyTruck" : "infantry", point.x, point.y);
+      target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
+      target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
+      if (kind === "extraction") target.marked = true;
+      if (kind === "escort" || kind === "extraction") {
+        target.maxHp *= 12;
+        target.hp = target.maxHp;
+      }
+      targetIds.push(target.id);
+    }
+  }
+
+  return {
+    targetIds,
+    required: count,
+    convoyStartTick: kind === "escort" ? CONVOY_STAGING_TICKS : undefined,
+    zone: kind === "escort" ? convoyZonePoint(state, map, contestedRoute, reachable) : map.playerStart,
+    deadline: state.tick + (mission.win.ticks ?? 3600) + (kind === "escort" ? CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS : 0),
+  };
+}
+
+function entityAlive(state: SimState, id: number): boolean {
+  return state.entities.some((entity) => entity.id === id && entity.hp > 0);
+}
+
+function targetLostForScenario(state: SimState): boolean {
+  const runtime = state.runtime;
+  if (!runtime) return false;
+  if (runtime.kind === "escort") return runtime.targetIds.some((id) => !entityAlive(state, id));
+  if (runtime.kind === "extraction") {
+    const extracted = new Set(runtime.extractedIds ?? []);
+    return runtime.targetIds.some((id) => !extracted.has(id) && !entityAlive(state, id));
+  }
+  if (runtime.kind === "rescue") {
+    const required = state.win.targetCount ?? runtime.required ?? runtime.targetIds.length;
+    const remaining = runtime.targetIds.filter((id) =>
+      state.entities.some((entity) => entity.id === id && entity.hp > 0 && entity.neutral === true),
+    ).length;
+    return runtime.rescued + remaining < required;
+  }
+  return false;
+}
+
+function targetProgress(state: SimState, label: string, fallbackToCount = true): ScenarioProgress {
+  const ids = state.win.targetIds ?? state.runtime?.targetIds ?? [];
+  const current = ids.filter((id) => !entityAlive(state, id)).length;
+  const target = fallbackToCount ? ids.length || state.win.targetCount || 1 : ids.length;
+  return { current, target, label: `${label} ${current} / ${target}` };
+}
+
+function progressForScenario(state: SimState): ScenarioProgress | undefined {
+  switch (state.win.kind) {
+    case "destroyMarked":
+      return targetProgress(state, "Targets", false);
+    case "sabotage":
+      return targetProgress(state, "Systems");
+    case "escort":
+    case "rescue":
+    case "extraction": {
+      const runtime = state.runtime;
+      const current = runtime?.rescued ?? 0;
+      const target = state.win.targetCount ?? runtime?.required ?? 1;
+      const label = state.win.kind === "escort" ? `Convoy ${current} / ${target}` : state.win.kind === "rescue" ? `Rescued ${current} / ${target}` : `Extracted ${current} / ${target}`;
+      return { current, target, label };
+    }
+    default:
+      return undefined;
+  }
+}
+
+function completeForScenario(state: SimState): boolean | undefined {
+  switch (state.win.kind) {
+    case "destroyMarked":
+    case "sabotage": {
+      const ids = state.win.targetIds ?? [];
+      return ids.length > 0 && ids.every((id) => !entityAlive(state, id));
+    }
+    case "escort":
+    case "rescue":
+    case "extraction":
+      return (state.runtime?.rescued ?? 0) >= (state.win.targetCount ?? state.runtime?.required ?? Infinity);
+    default:
+      return undefined;
+  }
+}
+
+function deadlineForScenario(state: SimState): number | undefined {
+  if (!state.runtime || !DEADLINE_SCENARIO_KINDS.includes(state.runtime.kind)) return undefined;
+  return state.runtime.deadline ?? state.win.ticks;
+}
+
+function classicDefinition(kind: MissionKind, label: string, targetLabel: string): ScenarioDefinition {
+  return {
+    kind,
+    presentation: { label, targetLabel },
+    setup: setupClassicScenario,
+    tick: () => undefined,
+    progress: () => undefined,
+    isComplete: () => undefined,
+    targetLost: () => false,
+    deadline: () => undefined,
+  };
+}
+
+const scenarioDefinitions: Record<MissionKind, ScenarioDefinition> = {
+  harvestQuota: classicDefinition("harvestQuota", "Harvest quota", "Credits"),
+  forceQuota: classicDefinition("forceQuota", "Force quota", "Units"),
+  structureQuota: classicDefinition("structureQuota", "Structure quota", "Buildings"),
+  destroyMarked: {
+    ...classicDefinition("destroyMarked", "Destroy marked", "Targets"),
+    setup: setupDestroyMarkedScenario,
+    progress: progressForScenario,
+    isComplete: completeForScenario,
+  },
+  razeAll: classicDefinition("razeAll", "Raze all", "Buildings"),
+  decapitate: classicDefinition("decapitate", "Decapitate", "Command HQ"),
+  annihilate: classicDefinition("annihilate", "Annihilate", "Hostiles"),
+  holdTheLine: classicDefinition("holdTheLine", "Hold the line", "Time"),
+  escort: {
+    ...classicDefinition("escort", "Escort", "Convoy"),
+    setup: setupTimedScenario,
+    tick: tickEscort,
+    progress: progressForScenario,
+    isComplete: completeForScenario,
+    targetLost: targetLostForScenario,
+    deadline: deadlineForScenario,
+  },
+  sabotage: {
+    ...classicDefinition("sabotage", "Sabotage", "Systems"),
+    setup: setupTimedScenario,
+    progress: progressForScenario,
+    isComplete: completeForScenario,
+    targetLost: targetLostForScenario,
+    deadline: deadlineForScenario,
+  },
+  rescue: {
+    ...classicDefinition("rescue", "Rescue", "Units"),
+    setup: setupTimedScenario,
+    tick: tickRescueExtraction,
+    progress: progressForScenario,
+    isComplete: completeForScenario,
+    targetLost: targetLostForScenario,
+    deadline: deadlineForScenario,
+  },
+  extraction: {
+    ...classicDefinition("extraction", "Extraction", "Assets"),
+    setup: setupTimedScenario,
+    tick: tickRescueExtraction,
+    progress: progressForScenario,
+    isComplete: completeForScenario,
+    targetLost: targetLostForScenario,
+    deadline: deadlineForScenario,
+  },
+};
+
+export const SCENARIO_DEFINITIONS: Readonly<Record<MissionKind, ScenarioDefinition>> = scenarioDefinitions;
+
+export function scenarioDefinitionFor(kind: MissionKind): ScenarioDefinition {
+  return SCENARIO_DEFINITIONS[kind];
+}
 
 /** Adds scenario targets and common runtime metadata to a freshly spawned mission. */
 export function configureMissionScenario(
@@ -26,112 +255,27 @@ export function configureMissionScenario(
   rng: Rng,
 ): void {
   const profile = resolveMissionProfile(state.seed, mission.index, mission.win.kind, mission.profile);
-  const scenarioReachability = reachableScenarioCells(state);
+  const reachable = reachableScenarioCells(state);
+  const definition = scenarioDefinitionFor(mission.win.kind);
+  const setup = definition.setup({ state, map, mission, rng, profile, reachable });
+  const targetIds = setup.targetIds;
 
-  if (mission.win.kind === "destroyMarked") {
-    const ids: number[] = [];
-    const spots = map.markedSpots.length
-      ? map.markedSpots
-      : [
-          enemyApproachPoint(map, 6, -2),
-          enemyApproachPoint(map, 6, 2),
-        ];
-    const count = mission.win.targetCount ?? 1;
-    for (let i = 0; i < count; i++) {
-      const spot = spots[i] ?? enemyApproachPoint(map, 6 + i * 3, i % 2 === 0 ? -2 : 2);
-      const kind = rng.pick(["refinery", "factory", "objective"] as const);
-      const buildingKind = kind === "refinery" ? "objective" : kind;
-      const placed = spawnBuildingAt(
-        state,
-        1,
-        buildingKind,
-        spot.x,
-        spot.y,
-        0,
-        true,
-        reachableBuildingFilter(state, buildingKind, scenarioReachability),
-      );
-      if (placed) ids.push(placed.id);
-    }
-    state.win.targetIds = ids;
-  }
-
-  if (["escort", "sabotage", "rescue", "extraction"].includes(mission.win.kind)) {
-    const kind = mission.win.kind;
-    const targetIds: number[] = [];
-    const contestedRoute = profile.variant === "contestedRoute";
-    const count = mission.win.targetCount ?? 2;
-    const rescueRoute = kind === "rescue"
-      ? {
-          start: map.playerStart,
-          end: map.enemyStart,
-          min: 0.55,
-          max: 0.8,
-        }
-      : undefined;
-    if (kind === "sabotage") {
-      for (let i = 0; i < count; i++) {
-        const depth = contestedRoute ? 6 : 4;
-        const spacing = contestedRoute ? 4 : 3;
-        const spot = map.markedSpots[i] ?? enemyApproachPoint(map, depth + i * spacing, i % 2 === 0 ? -2 : 2);
-        const objective = spawnBuildingAt(
-          state,
-          1,
-          "objective",
-          spot.x,
-          spot.y,
-          0,
-          true,
-          reachableBuildingFilter(state, "objective", scenarioReachability),
-        );
-        if (objective) targetIds.push(objective.id);
-      }
-    } else {
-      for (let i = 0; i < count; i++) {
-        const desired = kind === "escort"
-          ? convoyStartPoint(map, i)
-          : kind === "rescue"
-            ? rescuePoint(map, i, count)
-          : centerPoint(map, i, count, contestedRoute);
-        const point = reachableScenarioPoint(state, desired, scenarioReachability, rescueRoute);
-        const target = spawnUnit(state, 0, kind === "escort" ? "convoyTruck" : "infantry", point.x, point.y);
-        target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
-        target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";
-        if (kind === "extraction") target.marked = true;
-        if (kind === "escort" || kind === "extraction") {
-          target.maxHp *= 12;
-          target.hp = target.maxHp;
-        }
-        targetIds.push(target.id);
-      }
-    }
-    const runtime: MissionRuntime = {
-      kind,
-      phase: "active",
-      targetIds,
-      convoyStartTick: kind === "escort" ? CONVOY_STAGING_TICKS : undefined,
-      zone: kind === "escort"
-        ? convoyZonePoint(state, map, contestedRoute, scenarioReachability)
-        : map.playerStart,
-      deadline: state.tick + (mission.win.ticks ?? 3600) + (kind === "escort" ? CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS : 0),
-      rescued: 0,
-      required: count,
-      secondary: secondaryObjectivesForMission(mission, rng),
-    };
-    state.runtime = runtime;
+  if (targetIds.length > 0 || mission.win.kind === "destroyMarked" || DEADLINE_SCENARIO_KINDS.includes(mission.win.kind)) {
     state.win.targetIds = targetIds;
   }
 
-  if (!state.runtime) {
-    state.runtime = {
-      kind: mission.win.kind,
-      phase: "active",
-      targetIds: state.win.targetIds ?? mission.win.targetIds ?? [],
-      rescued: 0,
-      required: mission.win.targetCount ?? 1,
-      secondary: secondaryObjectivesForMission(mission, rng),
-    };
-  }
+  const runtime: MissionRuntime = {
+    kind: mission.win.kind,
+    phase: "active",
+    targetIds: state.win.targetIds ?? mission.win.targetIds ?? [],
+    convoyStartTick: setup.convoyStartTick,
+    zone: setup.zone,
+    deadline: setup.deadline,
+    rescued: 0,
+    required: setup.required ?? mission.win.targetCount ?? 1,
+    secondary: secondaryObjectivesForMission(mission, rng),
+  };
+  state.runtime = runtime;
 }
 
 const EMPTY_EVENTS: SimEvent[] = [];
@@ -140,8 +284,7 @@ export function tickScenario(state: SimState): SimEvent[] {
   const runtime = state.runtime;
   if (!runtime || runtime.phase === "complete") return EMPTY_EVENTS;
 
-  tickRescueExtraction(state);
-  tickEscort(state);
+  scenarioDefinitionFor(runtime.kind).tick(state);
 
   if (runtime.kind === "escort") {
     const zone = runtime.zone;

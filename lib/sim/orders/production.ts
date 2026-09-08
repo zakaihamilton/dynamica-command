@@ -1,12 +1,12 @@
-import { MAX_PRODUCTION_QUEUE, UNIT_STATS, isUnitAvailable, producerFor, productionQueueSize } from "../../catalog";
-import { type Entity, type SimEvent, type SimState, type UnitKind } from "../../types";
+import { BUILDING_DEFINITIONS, MAX_PRODUCTION_QUEUE, UNIT_STATS, isUnitAvailable, productionQueueSize } from "../../catalog";
+import { type BuildingKind, type Entity, type SimEvent, type SimState, type UnitKind } from "../../types";
 import { byId, powerFor } from "../world";
 
 export function startProduce(state: SimState, fromId: number, unit: UnitKind): SimEvent[] {
   if (!isUnitAvailable(unit, state.missionIndex)) return [{ type: "commandRejected", reason: "unit unavailable" }];
   const b = byId(state, fromId);
   if (!b || b.class !== "building" || b.owner !== 0 || b.constructing > 0) return [{ type: "commandRejected", reason: "producer unavailable" }];
-  if (b.kind !== producerFor(unit)) return [{ type: "commandRejected", reason: "wrong producer" }];
+  if (!BUILDING_DEFINITIONS[b.kind as BuildingKind].production?.includes(unit)) return [{ type: "commandRejected", reason: "wrong producer" }];
   if (!b.queue) b.queue = [];
   if (productionQueueSize(b) >= MAX_PRODUCTION_QUEUE) return [{ type: "commandRejected", reason: "production queue full" }];
   const stats = UNIT_STATS[unit];

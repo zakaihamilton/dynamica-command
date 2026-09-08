@@ -12,6 +12,7 @@ import {
   assertSupportedContentVersion,
 } from "./validation";
 import { isRecord } from "../utils";
+import { migrateSaveContent } from "./migrations";
 export { SAVE_CONTENT_VERSION } from "./validation";
 
 export const SAVE_PREFIX = "dynamica-command:save:";
@@ -42,11 +43,12 @@ export function decodeSave(raw: string): { state: SimState; savedAt: number } {
     }
     const contentVersion = parsed.contentVersion ?? LEGACY_SAVE_CONTENT_VERSION;
     assertSupportedContentVersion(contentVersion);
-    value = parsed.state;
+    value = migrateSaveContent(parsed.state, contentVersion);
     savedAt = parsed.savedAt;
   } else if (isRecord(parsed) && isNumber(parsed.savedAt)) {
     // Legacy saves stored SimState and savedAt at the same level.
     assertSupportedContentVersion(LEGACY_SAVE_CONTENT_VERSION);
+    value = migrateSaveContent(parsed, LEGACY_SAVE_CONTENT_VERSION);
     savedAt = parsed.savedAt;
   }
   return { state: decodeSavedState(value), savedAt };

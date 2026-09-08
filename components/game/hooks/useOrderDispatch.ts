@@ -6,10 +6,12 @@ import type { Camera } from "@/lib/iso";
 import type { Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import { contextOrders, pickSelectableEntity, pointerTile } from "./gameInputOrders";
+import { createRuntimeCommandPort, type RuntimeCommandPort } from "./runtime/facade";
 
 export function useOrderDispatch({
   camRef,
   selectedRef,
+  commandPort,
   cmdQRef,
   repairRef,
   sellRef,
@@ -21,7 +23,9 @@ export function useOrderDispatch({
 }: {
   camRef: MutableRefObject<Camera>;
   selectedRef: MutableRefObject<Set<number>>;
-  cmdQRef: MutableRefObject<Command[]>;
+  commandPort?: RuntimeCommandPort;
+  /** Compatibility input for isolated hook consumers. */
+  cmdQRef?: MutableRefObject<Command[]>;
   repairRef: MutableRefObject<boolean>;
   sellRef: MutableRefObject<boolean>;
   clearTools: () => void;
@@ -30,6 +34,8 @@ export function useOrderDispatch({
   commandMarkerRef: MutableRefObject<CommandMarker | null>;
   syncCursor: () => void;
 }) {
+  const resolvedCommandPort = commandPort ?? (cmdQRef ? createRuntimeCommandPort(cmdQRef) : undefined);
+  if (!resolvedCommandPort) throw new Error("useOrderDispatch requires a runtime command port");
   const markUnitCommand = useCallback((s: SimState, p: { x: number; y: number }, commands: Command[]) => {
     const kind = commandMarkerKind(commands);
     if (!kind) return;
@@ -48,13 +54,13 @@ export function useOrderDispatch({
     const ids = [...selectedRef.current];
     const target = pickSelectableEntity(s, p.x, p.y, tx, ty, camRef.current);
     const commands = contextOrders(s, ids, target, tx, ty, attackMove);
-    cmdQRef.current.push(...commands);
+    resolvedCommandPort.enqueueMany(commands);
     markUnitCommand(s, p, commands);
     mobileCommandRef.current = null;
     setMobileCommandState(null);
     const kind = beepForCommands(commands);
     if (kind) beep(kind);
-  }, [camRef, clearTools, cmdQRef, markUnitCommand, mobileCommandRef, repairRef, selectedRef, sellRef, setMobileCommandState, syncCursor]);
+  }, [camRef, clearTools, markUnitCommand, mobileCommandRef, repairRef, resolvedCommandPort, selectedRef, sellRef, setMobileCommandState, syncCursor]);
 
   return { markUnitCommand, issueContextOrder };
 }

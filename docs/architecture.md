@@ -16,6 +16,7 @@ Next.js routes
 
 runtime hooks
   ├─ useGameRuntimeState  — campaign, initial state, refs, save session
+  ├─ GameRuntimeFacade     — authoritative refs, command port, loop lifecycle
   ├─ useGameActions       — converts UI actions into queued Commands
   ├─ useGameInput         — pointer/touch selection and ground targeting
   ├─ useGameKeyboard      — keyboard shortcut adapter
@@ -24,6 +25,7 @@ runtime hooks
   └─ useGameRenderer      — Canvas frame rendering and effects
 
 runtime controllers
+  ├─ GameRuntimeFacade     — stable browser runtime boundary and adapters
   ├─ RuntimeController     — fixed-step loop lifecycle and command/state wiring
   ├─ persistence coordinator — autosave, conflict retry, campaign progress, telemetry
   ├─ presentation coordinator — simulation events to audio, alerts, and FX
@@ -50,6 +52,9 @@ Generated content is not saved. A save contains the current simulation state, in
 pointer / touch / keyboard / sidebar
                 │
                 ▼
+        GameRuntimeFacade command port
+                │
+                ▼
         Command[] queue (ref)
                 │
                 ▼
@@ -57,12 +62,10 @@ requestAnimationFrame → lib/game/loop.ts
                 │
                 ├─ drains commands
                 ├─ tick(state, commands)
-                │    ├─ production and economy
-                │    ├─ movement and pathfinding
-                │    ├─ combat, repair, and support
-                │    ├─ mission director / scenario
-                │    ├─ AI and fog
-                │    └─ objectives and lifecycle cleanup
+                │    ├─ production → economy → movement
+                │    ├─ combat → repair → support
+                │    ├─ director → AI → fog → clock
+                │    └─ scenario → objectives → cleanup
                 │
                 ├─ updates the authoritative state ref
                 ├─ emits simulation events
@@ -100,6 +103,7 @@ Unit-test timing is published by `yarn ci:timed-tests` as `artifacts/test-timing
 ## Persistence boundaries
 
 - `lib/persist/save`: versioned simulation serialization, per-seed autosaves, and named save slots.
+- `lib/persist/save/migrations.ts`: pure content-version migrations shared by autosaves and named slots.
 - `lib/persist/campaign`: unlocks, medals, and best scores.
 - `lib/persist/settings`: audio and UI preferences.
 - `lib/persist/telemetry`: bounded local mission metrics.
@@ -114,10 +118,10 @@ Mission navigation, including confirmed browser Back, saves the latest state bef
 ## Adding a feature
 
 1. Add or update the domain type in `lib/types.ts`.
-2. Put deterministic generation in `lib/gen` and simulation rules in `lib/sim`.
-3. Add commands/events rather than reaching into UI state from the simulation.
-4. Add focused unit tests, plus a determinism or generated-seed invariant when the feature affects seeded content.
-5. Connect the UI through a hook or surface component, keeping Canvas rendering and browser APIs out of the domain layer.
-6. Run typecheck, lint, targeted tests, the full suite, build, and the relevant health scripts.
+2. Add a catalog or scenario definition.
+3. Add simulation commands/events rather than reaching into UI state from the simulation.
+4. Add focused unit tests, replay fingerprints, and invariants.
+5. Connect the UI through `GameRuntimeFacade` and a surface adapter, keeping Canvas rendering and browser APIs out of the domain layer.
+6. Add E2E coverage only for user-visible behavior, then run typecheck, lint, the full suite, build, and relevant health scripts.
 
 For reproducible gameplay bugs, add a scheduled-order replay fixture using `lib/sim/replay.ts` and the existing `scripts/sim.ts --orders` format. Replay fingerprints exclude fog and normalize entity ordering, so they describe simulation behavior rather than renderer state.

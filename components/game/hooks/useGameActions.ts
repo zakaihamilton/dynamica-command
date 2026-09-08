@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { buildingCameoStatus, buildingLimitReached, isSupportUnit, unitCameoStatus } from "@/lib/catalog";
 import { beep } from "@/lib/audio/synth";
 import { beepForCommands } from "@/lib/audio/uiOrders";
@@ -6,20 +6,32 @@ import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } fro
 import { terrainAccess } from "@/lib/sim/world";
 import type { MobileCommand } from "../mobileCommandTypes";
 import { PLACEABLE, PRODUCIBLE, leastLoadedProducer } from "./gameActions";
+import { createRuntimeCommandPort, type RuntimeCommandPort } from "./runtime/facade";
 
 export { PLACEABLE, PRODUCIBLE } from "./gameActions";
 
 export function useGameActions({
   stateRef,
+  commandPort,
   cmdQ,
   selected,
   selectedIds,
 }: {
   stateRef: MutableRefObject<SimState>;
-  cmdQ: MutableRefObject<Command[]>;
+  commandPort?: RuntimeCommandPort;
+  /** Compatibility input for isolated hook consumers. */
+  cmdQ?: MutableRefObject<Command[]>;
   selected: MutableRefObject<Set<number>>;
   selectedIds: readonly number[];
 }) {
+  const resolvedCommandPort = useMemo(() => {
+    if (commandPort) return commandPort;
+    if (!cmdQ) throw new Error("useGameActions requires a runtime command port");
+    return createRuntimeCommandPort(cmdQ);
+  }, [cmdQ, commandPort]);
+  const enqueue = useCallback((command: Command) => {
+    resolvedCommandPort.enqueue(command);
+  }, [resolvedCommandPort]);
   const place = useRef<BuildingKind | null>(null);
   const [placeKind, setPlaceKind] = useState<BuildingKind | null>(null);
   const repair = useRef(false);
@@ -60,13 +72,13 @@ export function useGameActions({
   const issueSelectedCommand = useCallback((command: "stop" | "stance" | "formation", value?: Stance | Formation) => {
     const unitIds = [...(selectedIds.length > 0 ? selectedIds : selected.current)];
     if (unitIds.length === 0) return;
-    if (command === "stop") cmdQ.current.push({ type: "stop", unitIds });
-    else if (command === "stance" && value) cmdQ.current.push({ type: "stance", unitIds, stance: value as Stance });
-    else if (command === "formation" && value) cmdQ.current.push({ type: "formation", unitIds, formation: value as Formation });
+    if (command === "stop") enqueue({ type: "stop", unitIds });
+    else if (command === "stance" && value) enqueue({ type: "stance", unitIds, stance: value as Stance });
+    else if (command === "formation" && value) enqueue({ type: "formation", unitIds, formation: value as Formation });
     mobileCommand.current = null;
     setMobileCommandState(null);
     beep("ack");
-  }, [cmdQ, selected, selectedIds]);
+  }, [enqueue, selected, selectedIds]);
 
   const issueCoordinateCommand = useCallback((command: "move" | "attackMove" | "harvest", x: number, y: number) => {
     const tx = Math.round(x);
@@ -82,11 +94,12 @@ export function useGameActions({
     });
     const access = terrainAccess(state, tx, ty);
     if (!unitIds.length || !Number.isInteger(tx) || !Number.isInteger(ty) || !access.traversable || (command === "harvest" && access.label !== "Ore field")) return false;
-    cmdQ.current.push({ type: command, unitIds, x: tx, y: ty });
-    const kind = beepForCommands([{ type: command, unitIds, x: tx, y: ty }]);
+    const nextCommand = { type: command, unitIds, x: tx, y: ty } satisfies Command;
+    enqueue(nextCommand);
+    const kind = beepForCommands([nextCommand]);
     if (kind) beep(kind);
     return true;
-  }, [cmdQ, selected, selectedIds, stateRef]);
+  }, [enqueue, selected, selectedIds, stateRef]);
 
   const issueTargetCommand = useCallback((command: "attack" | "support", targetId: number) => {
     const selectedUnitIds = [...(selectedIds.length > 0 ? selectedIds : selected.current)];
@@ -97,11 +110,12 @@ export function useGameActions({
       return isSupportUnit(entity.kind as UnitKind);
     });
     if (!unitIds.length) return false;
-    cmdQ.current.push({ type: command, unitIds, targetId });
-    const kind = beepForCommands([{ type: command, unitIds, targetId }]);
+    const nextCommand = { type: command, unitIds, targetId } satisfies Command;
+    enqueue(nextCommand);
+    const kind = beepForCommands([nextCommand]);
     if (kind) beep(kind);
     return true;
-  }, [cmdQ, selected, selectedIds, stateRef]);
+  }, [enqueue, selected, selectedIds, stateRef]);
 
   const togglePlace = useCallback((kind: BuildingKind) => {
     if (place.current !== kind && buildingLimitReached(stateRef.current.entities, 0, kind)) return;
@@ -148,24 +162,24 @@ export function useGameActions({
       return;
     }
     if (buildingCameoStatus(stateRef.current.entities, 0, kind).phase === "idle") return;
-    cmdQ.current.push({ type: "cancelBuild", building: kind });
+    enqueue({ type: "cancelBuild", building: kind });
     beep("cancel");
-  }, [cmdQ, stateRef]);
+  }, [enqueue, stateRef]);
 
   const availableProducer = useCallback((unit: UnitKind) => leastLoadedProducer(stateRef.current, 0, unit), [stateRef]);
 
   const queueUnit = useCallback((unit: UnitKind) => {
     const next = availableProducer(unit);
     if (!next) return;
-    cmdQ.current.push({ type: "produce", fromId: next.id, unit });
+    enqueue({ type: "produce", fromId: next.id, unit });
     beep("build");
-  }, [availableProducer, cmdQ]);
+  }, [availableProducer, enqueue]);
 
   const cancelUnit = useCallback((unit: UnitKind) => {
     if (unitCameoStatus(stateRef.current.entities, 0, unit).phase === "idle") return;
-    cmdQ.current.push({ type: "cancelProduce", unit });
+    enqueue({ type: "cancelProduce", unit });
     beep("cancel");
-  }, [cmdQ, stateRef]);
+  }, [enqueue, stateRef]);
 
   const activateCameo = useCallback((tab: "construction" | "production", index: number, cancel: boolean) => {
     if (tab === "construction") {

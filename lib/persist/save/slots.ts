@@ -10,6 +10,7 @@ import {
   assertSupportedContentVersion,
 } from "./validation";
 import { decodeSavedState } from "./serialize";
+import { migrateSaveContent } from "./migrations";
 import { listSaves } from "./api";
 import { safeGetItem, safeKeys, safeRemoveItem, safeSetItem, type StorageAdapter } from "./storage";
 
@@ -104,7 +105,7 @@ export function decodeSlot(raw: string): Omit<ParsedSlot, "id"> {
   const name = typeof parsed.name === "string" ? normalizeSlotName(parsed.name) : null;
   if (!name) throw new Error("Invalid save slot name");
   if (!isCampaignProgressShape(parsed.campaign)) throw new Error("Invalid campaign progress");
-  const state = decodeSavedState(parsed.state);
+  const state = decodeSavedState(migrateSaveContent(parsed.state, parsed.contentVersion));
   if (state.seed !== parsed.campaign.seed) throw new Error("Save and campaign seeds must match");
   return { name, savedAt: parsed.savedAt, state, campaign: parsed.campaign };
 }

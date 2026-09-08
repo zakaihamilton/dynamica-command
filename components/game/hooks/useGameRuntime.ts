@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useCombatAlert } from "./useCombatAlert";
 import { useGameActions } from "./useGameActions";
 import { useGameAudioLifecycle } from "./useGameAudioLifecycle";
@@ -16,6 +16,7 @@ import { useGameRuntimeState } from "./useGameRuntimeState";
 import { clearRenderSessionCaches } from "@/lib/render/sessionCache";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { GameRuntimeSurfaces } from "./runtime/surfaces";
+import { createRuntimeCommandPort } from "./runtime/facade";
 
 export function useGameRuntime({
   seed,
@@ -67,6 +68,7 @@ export function useGameRuntime({
     setAudioSettings,
     cmdQ,
   } = chrome;
+  const commandPort = useMemo(() => createRuntimeCommandPort(cmdQ), [cmdQ]);
 
   const selection = useGameSelection({ stateRef, setState });
   const { selected, selectedIds, selectionMode, selectionModeRef, commitSelection, setSelectionMode } = selection;
@@ -87,7 +89,7 @@ export function useGameRuntime({
     resetCamera,
   } = camera;
 
-  const actions = useGameActions({ stateRef, cmdQ, selected, selectedIds });
+  const actions = useGameActions({ stateRef, commandPort, selected, selectedIds });
   const {
     place,
     placeKind,
@@ -116,7 +118,7 @@ export function useGameRuntime({
     selectedRef: selected,
     selectedIds,
     commitSelection,
-    cmdQRef: cmdQ,
+    commandPort,
     placeRef: place,
     placeKind,
     setPlaceKind,
@@ -168,6 +170,7 @@ export function useGameRuntime({
     stateRef,
     setState,
     commitSelection,
+    commandPort,
     cmdQRef: cmdQ,
     fxRef,
     clearTools,

@@ -4,7 +4,7 @@ import type { FxBurst } from "@/lib/render/fx";
 import type { PanAvailability, PanDir } from "@/lib/render/camera";
 import type { Command, SimState } from "@/lib/types";
 import type { SaveSession } from "@/lib/persist/save";
-import { createRuntimeController } from "./runtime/controller";
+import { createGameRuntimeFacade } from "./runtime/facade";
 import type { RuntimeLifecycleState, RuntimePersistenceState, RuntimePorts, RuntimeRefs } from "./runtime/types";
 
 export function useGameLoop({
@@ -91,9 +91,9 @@ export function useGameLoop({
       saveSession,
       persistCampaign,
     };
-    const controller = createRuntimeController(refs, ports);
-    controller.start();
-    return () => controller.stop();
+    const runtime = createGameRuntimeFacade(refs, ports);
+    runtime.start();
+    return () => runtime.stop();
   }, [
     applyEdgePan,
     campaignRecordedRef,

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const root = join(process.cwd(), "lib");
 const domainRoots = ["gen", "sim"];
-const forbidden = /(?:from\s+|import\s*\(\s*)["'](?:react|react-dom|next(?:\/[^"']*)?|@\/components(?:\/[^"']*)?)["']|\b(?:window|document|navigator|localStorage|sessionStorage|HTMLCanvasElement|CanvasRenderingContext2D|AudioContext|ImageData)\b/;
+const forbidden = /(?:from\s+|import\s*\(\s*)["'](?:react|react-dom|next(?:\/[^"']*)?|@\/components(?:\/[^"']*)?|@\/lib\/(?:render|audio|game|ui)(?:\/[^"']*)?|(?:\.\.\/)+(?:render|audio|game|ui)(?:\/[^"']*)?)["']|\b(?:window|document|navigator|localStorage|sessionStorage|HTMLCanvasElement|CanvasRenderingContext2D|AudioContext|ImageData)\b/;
 
 function sourceFiles(directory: string): string[] {
   const files: string[] = [];

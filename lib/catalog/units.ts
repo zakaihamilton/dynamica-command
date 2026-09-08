@@ -33,8 +33,24 @@ export type UnitStats = {
   scenarioOnly?: boolean;
 };
 
-export const UNIT_STATS: Record<UnitKind, UnitStats> = {
+export type UnitAiRole = "economy" | "combat" | "support" | "objective";
+
+export type UnitDefinition = UnitStats & {
+  label: string;
+  renderKey: string;
+  aiRole: UnitAiRole;
+  producer?: "barracks" | "factory";
+};
+
+/**
+ * Authoritative unit catalog. UNIT_STATS and UNIT_LABELS below are retained as
+ * compatibility views for the simulation, renderer, and existing consumers.
+ */
+export const UNIT_DEFINITIONS: Record<UnitKind, UnitDefinition> = {
   harvester: {
+    label: "Harvester",
+    renderKey: "harvester",
+    aiRole: "economy",
     hp: 160,
     speed: 0.07,
     damage: 0,
@@ -51,6 +67,10 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     domain: "vehicle",
   },
   infantry: {
+    label: "Infantry",
+    renderKey: "infantry",
+    aiRole: "combat",
+    producer: "barracks",
     hp: 70,
     speed: 0.09,
     damage: 5,
@@ -67,6 +87,10 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     domain: "human",
   },
   antiArmor: {
+    label: "Anti-armor",
+    renderKey: "antiArmor",
+    aiRole: "combat",
+    producer: "barracks",
     hp: 95,
     speed: 0.08,
     damage: 10,
@@ -83,6 +107,10 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     domain: "human",
   },
   tank: {
+    label: "Tank",
+    renderKey: "tank",
+    aiRole: "combat",
+    producer: "factory",
     hp: 320,
     speed: 0.065,
     damage: 12,
@@ -99,6 +127,10 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     domain: "vehicle",
   },
   medic: {
+    label: "Field Medic",
+    renderKey: "medic",
+    aiRole: "support",
+    producer: "barracks",
     hp: 80,
     speed: 0.085,
     damage: 0,
@@ -119,6 +151,10 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     supportInterval: 24,
   },
   repairTruck: {
+    label: "Repair Truck",
+    renderKey: "repairTruck",
+    aiRole: "support",
+    producer: "factory",
     hp: 220,
     speed: 0.07,
     damage: 0,
@@ -139,6 +175,9 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
     supportInterval: 24,
   },
   convoyTruck: {
+    label: "Convoy Truck",
+    renderKey: "convoyTruck",
+    aiRole: "objective",
     hp: 320,
     speed: 0.065,
     damage: 0,
@@ -157,22 +196,20 @@ export const UNIT_STATS: Record<UnitKind, UnitStats> = {
   },
 };
 
-export const UNIT_LABELS: Record<UnitKind, string> = {
-  harvester: "Harvester",
-  infantry: "Infantry",
-  antiArmor: "Anti-armor",
-  tank: "Tank",
-  medic: "Field Medic",
-  repairTruck: "Repair Truck",
-  convoyTruck: "Convoy Truck",
-};
+/** Compatibility view containing only simulation statistics. */
+export const UNIT_STATS: Record<UnitKind, UnitStats> = UNIT_DEFINITIONS;
+
+/** Compatibility view for UI and generated copy. */
+export const UNIT_LABELS: Record<UnitKind, string> = Object.fromEntries(
+  UNIT_KINDS.map((kind) => [kind, UNIT_DEFINITIONS[kind].label]),
+) as Record<UnitKind, string>;
 
 export function isUnitKind(kind: UnitKind | import("../types").BuildingKind): kind is UnitKind {
   return (UNIT_KINDS as readonly string[]).includes(kind);
 }
 
 export function isSupportUnit(kind: UnitKind): boolean {
-  return UNIT_STATS[kind].supportRole !== undefined;
+  return UNIT_DEFINITIONS[kind].supportRole !== undefined;
 }
 
 /** Entity-level companion to isSupportUnit; false for buildings. */
@@ -181,11 +218,11 @@ export function isSupportEntity(e: Entity): boolean {
 }
 
 export function isUnitAvailable(kind: UnitKind, missionIndex: number): boolean {
-  return !UNIT_STATS[kind].scenarioOnly && (!isSupportUnit(kind) || missionIndex >= 0);
+  return !UNIT_DEFINITIONS[kind].scenarioOnly && (!isSupportUnit(kind) || missionIndex >= 0);
 }
 
 export function supportTargetDomain(kind: UnitKind): UnitDomain | undefined {
-  const role = UNIT_STATS[kind].supportRole;
+  const role = UNIT_DEFINITIONS[kind].supportRole;
   if (role === "medic") return "human";
   if (role === "repairTruck") return "vehicle";
   return undefined;
@@ -193,5 +230,5 @@ export function supportTargetDomain(kind: UnitKind): UnitDomain | undefined {
 
 export function canSupportTarget(provider: UnitKind, target: UnitKind): boolean {
   const domain = supportTargetDomain(provider);
-  return domain !== undefined && domain === UNIT_STATS[target].domain && !isSupportUnit(target);
+  return domain !== undefined && domain === UNIT_DEFINITIONS[target].domain && !isSupportUnit(target);
 }
