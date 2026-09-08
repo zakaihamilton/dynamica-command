@@ -24,12 +24,15 @@ import { formatSeed } from "@/lib/seed/rng";
 import type { Command, SimState } from "@/lib/types";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import type { FxBurst } from "@/lib/render/fx";
+import type { RuntimeCommandPort } from "./runtime/facade";
 
 export type MissionPersistenceParams = {
   seed: number;
   stateRef: MutableRefObject<SimState>;
   setState: Dispatch<SetStateAction<SimState>>;
   commitSelection: (ids: number[]) => void;
+  commandPort?: RuntimeCommandPort;
+  /** Compatibility input for isolated hook consumers. */
   cmdQRef: MutableRefObject<Command[]>;
   fxRef: MutableRefObject<FxBurst[]>;
   clearTools: () => void;
@@ -50,6 +53,7 @@ export function useMissionPersistence({
   stateRef,
   setState,
   commitSelection,
+  commandPort,
   cmdQRef,
   fxRef,
   clearTools,
@@ -73,7 +77,8 @@ export function useMissionPersistence({
     terminalSaveRef.current = loaded.result !== "playing";
     setState({ ...loaded, entities: [...loaded.entities] });
     commitSelection([]);
-    cmdQRef.current = [];
+    if (commandPort) commandPort.clear();
+    else cmdQRef.current = [];
     fxRef.current = [];
     clearTools();
     resetInput();
@@ -84,6 +89,7 @@ export function useMissionPersistence({
     campaignRecordedRef,
     clearTools,
     cmdQRef,
+    commandPort,
     commitSelection,
     fxRef,
     resetCamera,
@@ -192,7 +198,8 @@ export function useMissionPersistence({
     campaignRecordedRef.current = false;
     setState({ ...fresh, entities: [...fresh.entities] });
     commitSelection([]);
-    cmdQRef.current = [];
+    if (commandPort) commandPort.clear();
+    else cmdQRef.current = [];
     fxRef.current = [];
     clearTools();
     resetInput();
@@ -206,6 +213,7 @@ export function useMissionPersistence({
     campaignRecordedRef,
     clearTools,
     cmdQRef,
+    commandPort,
     commitSelection,
     fxRef,
     pausedRef,

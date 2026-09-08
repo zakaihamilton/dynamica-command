@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, type MutableRefObject, type PointerEvent } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, type MutableRefObject, type PointerEvent } from "react";
 import { pickTile } from "@/lib/render/renderer";
 import type { CommandMarker } from "@/lib/render/renderOverlays";
 import { panDirFromPointer, EDGE_PAN_BAND, type PanAvailability, type PanDir } from "@/lib/render/camera";
@@ -13,6 +13,7 @@ import { selectionBoxDistance, selectionProjectionPoint, type SelectionBox } fro
 import { useTouchGestures } from "./useTouchGestures";
 import { useOrderDispatch } from "./useOrderDispatch";
 import { usePointerUpHandler } from "./usePointerUpHandler";
+import { createRuntimeCommandPort, type RuntimeCommandPort } from "./runtime/facade";
 
 export function useGameInput({
   stateRef,
@@ -20,6 +21,7 @@ export function useGameInput({
   selectedRef,
   selectedIds,
   commitSelection,
+  commandPort,
   cmdQRef,
   placeRef,
   placeKind,
@@ -44,7 +46,9 @@ export function useGameInput({
   selectedRef: MutableRefObject<Set<number>>;
   selectedIds?: readonly number[];
   commitSelection: (ids: number[]) => void;
-  cmdQRef: MutableRefObject<Command[]>;
+  commandPort?: RuntimeCommandPort;
+  /** Compatibility input for isolated hook consumers. */
+  cmdQRef?: MutableRefObject<Command[]>;
   placeRef: MutableRefObject<BuildingKind | null>;
   placeKind?: BuildingKind | null;
   setPlaceKind: (v: BuildingKind | null) => void;
@@ -63,6 +67,11 @@ export function useGameInput({
   selectionModeRef: MutableRefObject<boolean>;
   setSelectionMode: (active: boolean) => void;
 }) {
+  const resolvedCommandPort = useMemo(() => {
+    if (commandPort) return commandPort;
+    if (!cmdQRef) throw new Error("useGameInput requires a runtime command port");
+    return createRuntimeCommandPort(cmdQRef);
+  }, [cmdQRef, commandPort]);
   const hoverRef = useRef<{ x: number; y: number } | null>(null);
   const cursorRef = useRef<{ x: number; y: number } | null>(null);
   const boxRef = useRef<SelectionBox | null>(null);
@@ -98,7 +107,7 @@ export function useGameInput({
   const { markUnitCommand, issueContextOrder } = useOrderDispatch({
     camRef,
     selectedRef,
-    cmdQRef,
+    commandPort: resolvedCommandPort,
     repairRef,
     sellRef,
     clearTools,
@@ -118,7 +127,7 @@ export function useGameInput({
 
   const { applyPointerUp } = usePointerUpHandler({
     stateRef,
-    cmdQRef,
+    commandPort: resolvedCommandPort,
     boxRef,
     commitSelection,
     setSelectionMode,

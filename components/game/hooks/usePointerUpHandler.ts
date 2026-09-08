@@ -1,13 +1,15 @@
-import { useCallback, type MutableRefObject, type PointerEvent } from "react";
+import { useCallback, useMemo, type MutableRefObject, type PointerEvent } from "react";
 import { beep } from "@/lib/audio/synth";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import { canvasPointerPos } from "./canvasPointer";
 import type { SelectionBox } from "./selectionBox";
 import type { PointerUpEffect } from "./gamePointerUp";
+import { createRuntimeCommandPort, type RuntimeCommandPort } from "./runtime/facade";
 
 export function usePointerUpHandler({
   stateRef,
+  commandPort,
   cmdQRef,
   boxRef,
   commitSelection,
@@ -24,7 +26,9 @@ export function usePointerUpHandler({
   syncCursor,
 }: {
   stateRef: MutableRefObject<SimState>;
-  cmdQRef: MutableRefObject<Command[]>;
+  commandPort?: RuntimeCommandPort;
+  /** Compatibility input for isolated hook consumers. */
+  cmdQRef?: MutableRefObject<Command[]>;
   boxRef: MutableRefObject<SelectionBox | null>;
   commitSelection: (ids: number[]) => void;
   setSelectionMode: (active: boolean) => void;
@@ -39,11 +43,16 @@ export function usePointerUpHandler({
   markUnitCommand: (s: SimState, p: { x: number; y: number }, commands: Command[]) => void;
   syncCursor: (canvas?: HTMLCanvasElement | null) => void;
 }) {
+  const resolvedCommandPort = useMemo(() => {
+    if (commandPort) return commandPort;
+    if (!cmdQRef) throw new Error("usePointerUpHandler requires a runtime command port");
+    return createRuntimeCommandPort(cmdQRef);
+  }, [cmdQRef, commandPort]);
   const applyPointerUp = useCallback((effect: PointerUpEffect, event: PointerEvent<HTMLCanvasElement>) => {
     if (effect.preventDefault) event.preventDefault();
     if (effect.clearBox) boxRef.current = null;
     if (effect.commands?.length) {
-      cmdQRef.current.push(...effect.commands);
+      resolvedCommandPort.enqueueMany(effect.commands);
       markUnitCommand(stateRef.current, canvasPointerPos(event), effect.commands);
     }
     if (effect.select) commitSelection(effect.select);
@@ -66,7 +75,7 @@ export function usePointerUpHandler({
     syncCursor(event.currentTarget);
   }, [
     boxRef,
-    cmdQRef,
+    resolvedCommandPort,
     commitSelection,
     markUnitCommand,
     mobileCommandRef,

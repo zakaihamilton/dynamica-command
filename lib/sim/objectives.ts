@@ -1,8 +1,9 @@
 import { labelFor, TICKS_PER_SECOND } from "../catalog";
-import type { InspectReport, MissionKind, MissionRuntime, SimEvent, SimState } from "../types";
+import type { InspectReport, MissionRuntime, SimEvent, SimState } from "../types";
 import { formatSeed } from "../seed/rng";
 import { formatMissionClock, formatMissionClockFromTicks } from "../gen/pacing";
 import { livingView } from "./world";
+import { DEADLINE_SCENARIO_KINDS, scenarioDefinitionFor } from "./scenarios";
 
 export function formatHoldClock(seconds: number): string {
   return formatMissionClock(seconds);
@@ -23,7 +24,11 @@ export type SecondaryProgress = {
 };
 
 function timeRemainingTicks(state: SimState): number | undefined {
-  if (state.runtime?.deadline !== undefined) return Math.max(0, state.runtime.deadline - state.tick);
+  if (state.runtime) {
+    if (state.runtime.deadline !== undefined) return Math.max(0, state.runtime.deadline - state.tick);
+    const deadline = scenarioDefinitionFor(state.runtime.kind).deadline(state);
+    if (deadline !== undefined) return Math.max(0, deadline - state.tick);
+  }
   if (["escort", "sabotage", "rescue", "extraction"].includes(state.win.kind) && state.win.ticks !== undefined) {
     return Math.max(0, state.win.ticks - state.tick);
   }
@@ -31,35 +36,10 @@ function timeRemainingTicks(state: SimState): number | undefined {
   return undefined;
 }
 
-const LOSS_DEADLINE_KINDS: MissionKind[] = ["escort", "sabotage", "rescue", "extraction"];
 const DEADLINE_WARNING_SECONDS = [60, 30, 10] as const;
 
-function entityAlive(state: SimState, id: number): boolean {
-  return state.entities.some((entity) => entity.id === id && entity.hp > 0);
-}
-
-function scenarioObjectiveTargetLost(state: SimState): boolean {
-  const runtime = state.runtime;
-  if (!runtime) return false;
-  if (runtime.kind === "escort") {
-    return runtime.targetIds.some((id) => !entityAlive(state, id));
-  }
-  if (runtime.kind === "extraction") {
-    const extracted = new Set(runtime.extractedIds ?? []);
-    return runtime.targetIds.some((id) => !extracted.has(id) && !entityAlive(state, id));
-  }
-  if (runtime.kind === "rescue") {
-    const required = state.win.targetCount ?? runtime.required ?? runtime.targetIds.length;
-    const remaining = runtime.targetIds.filter((id) =>
-      state.entities.some((entity) => entity.id === id && entity.hp > 0 && entity.neutral === true),
-    ).length;
-    return runtime.rescued + remaining < required;
-  }
-  return false;
-}
-
 function deadlineWarningEvent(state: SimState): SimEvent | undefined {
-  if (!state.runtime || !LOSS_DEADLINE_KINDS.includes(state.runtime.kind)) return undefined;
+  if (!state.runtime || !DEADLINE_SCENARIO_KINDS.includes(state.runtime.kind)) return undefined;
   const remaining = timeRemainingTicks(state);
   if (remaining === undefined) return undefined;
   if (!DEADLINE_WARNING_SECONDS.some((seconds) => remaining === seconds * TICKS_PER_SECOND)) return undefined;
@@ -76,6 +56,10 @@ export function secondaryProgress(state: SimState): SecondaryProgress[] {
 
 export function objectiveProgress(state: SimState): ObjectiveProgress {
   const w = state.win;
+  const scenarioProgress = scenarioDefinitionFor(w.kind).progress(state);
+  if (scenarioProgress) {
+    return { ...scenarioProgress, timeRemainingTicks: timeRemainingTicks(state), phase: state.runtime?.phase };
+  }
   let progress: { current: number; target: number; label: string };
   switch (w.kind) {
     case "harvestQuota":
@@ -109,13 +93,6 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
       };
       break;
     }
-    case "destroyMarked": {
-      const ids = w.targetIds ?? [];
-      const remaining = ids.filter((id) => state.entities.some((e) => e.id === id && e.hp > 0)).length;
-      const current = ids.length - remaining;
-      progress = { current, target: ids.length, label: `Targets ${current} / ${ids.length}` };
-      break;
-    }
     case "razeAll": {
   const left = livingView(state).filter((e) => e.owner === 1 && e.class === "building").length;
       progress = { current: left === 0 ? 1 : 0, target: 1, label: left === 0 ? "All structures down" : `Enemy buildings left ${left}` };
@@ -143,22 +120,6 @@ export function objectiveProgress(state: SimState): ObjectiveProgress {
         target: t,
         label: left <= 0 ? "Held" : `Hold ${formatMissionClockFromTicks(left)} remaining`,
       };
-      break;
-    }
-    case "escort":
-    case "rescue":
-    case "extraction": {
-      const runtime = state.runtime;
-      const current = runtime?.rescued ?? 0;
-      const target = w.targetCount ?? runtime?.required ?? 1;
-      const label = w.kind === "escort" ? `Convoy ${current} / ${target}` : w.kind === "rescue" ? `Rescued ${current} / ${target}` : `Extracted ${current} / ${target}`;
-      progress = { current, target, label };
-      break;
-    }
-    case "sabotage": {
-      const ids = w.targetIds ?? [];
-      const current = ids.filter((id) => !state.entities.some((e) => e.id === id && e.hp > 0)).length;
-      progress = { current, target: ids.length || w.targetCount || 1, label: `Systems ${current} / ${ids.length || w.targetCount || 1}` };
       break;
     }
     default:
@@ -189,8 +150,9 @@ export function evaluateObjectives(state: SimState, eventSink?: SimEvent[], coll
   }
 
   const w = state.win;
-  let won = false;
-  switch (w.kind) {
+  const scenarioComplete = scenarioDefinitionFor(w.kind).isComplete(state);
+  let won = scenarioComplete ?? false;
+  if (scenarioComplete === undefined) switch (w.kind) {
     case "harvestQuota":
       won = state.creditsEarned[0] >= (w.target ?? Infinity);
       break;
@@ -206,11 +168,6 @@ export function evaluateObjectives(state: SimState, eventSink?: SimEvent[], coll
       won = current >= (w.target ?? Infinity);
       break;
     }
-    case "destroyMarked": {
-      const ids = w.targetIds ?? [];
-      won = ids.length > 0 && ids.every((id) => !state.entities.some((e) => e.id === id && e.hp > 0));
-      break;
-    }
     case "razeAll":
       won = !livingView(state).some((e) => e.owner === 1 && e.class === "building");
       break;
@@ -223,16 +180,6 @@ export function evaluateObjectives(state: SimState, eventSink?: SimEvent[], coll
     case "holdTheLine":
       if (state.tick >= (w.ticks ?? Infinity) && playerCy) won = true;
       break;
-    case "escort":
-    case "extraction":
-      won = (state.runtime?.rescued ?? 0) >= (w.targetCount ?? state.runtime?.required ?? Infinity);
-      break;
-    case "rescue":
-      won = (state.runtime?.rescued ?? 0) >= (w.targetCount ?? state.runtime?.required ?? Infinity);
-      break;
-    case "sabotage":
-      won = (w.targetIds ?? []).length > 0 && (w.targetIds ?? []).every((id) => !state.entities.some((e) => e.id === id && e.hp > 0));
-      break;
     default:
       break;
   }
@@ -243,14 +190,14 @@ export function evaluateObjectives(state: SimState, eventSink?: SimEvent[], coll
     return objectiveEvents(eventSink, [{ type: "won" }], collectEvents);
   }
 
-  if (state.runtime && LOSS_DEADLINE_KINDS.includes(state.runtime.kind)) {
-    if (scenarioObjectiveTargetLost(state)) {
+  if (state.runtime && DEADLINE_SCENARIO_KINDS.includes(state.runtime.kind)) {
+    if (scenarioDefinitionFor(state.runtime.kind).targetLost(state)) {
       state.result = "lost";
       state.lossReason = "objectiveTargetLost";
       state.runtime.phase = "complete";
       return objectiveEvents(eventSink, [{ type: "lost" }], collectEvents);
     }
-    const deadline = state.runtime.deadline ?? w.ticks;
+    const deadline = scenarioDefinitionFor(state.runtime.kind).deadline(state) ?? w.ticks;
     if (deadline !== undefined && state.tick >= deadline) {
       state.result = "lost";
       state.lossReason = "deadline";
