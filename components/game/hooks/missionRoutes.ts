@@ -1,10 +1,10 @@
 import { formatSeed } from "@/lib/seed/rng";
 import type { SimState } from "@/lib/types";
 
-export type NavigationOrigin = "menu" | "campaign" | "result";
+export type NavigationOrigin = "menu" | "newGame" | "campaign" | "result";
 
 export function navigationOrigin(value: string | null | undefined): NavigationOrigin {
-  return value === "campaign" || value === "result" ? value : "menu";
+  return value === "newGame" || value === "campaign" || value === "result" ? value : "menu";
 }
 
 export function menuPath(): string {
@@ -32,6 +32,7 @@ export function briefingBackPath(
   origin: NavigationOrigin,
 ): string {
   if (returnToGame || origin === "result") return playResumePath(seed, mission);
+  if (origin === "newGame") return `/?seed=${formatSeed(seed)}`;
   if (origin === "campaign") return campaignPath(seed);
   return menuPath();
 }

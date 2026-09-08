@@ -24,6 +24,7 @@ export function BriefingActions({
         <ConsoleButton
           muted
           tooltip={backLabel}
+          shortcut={SHORTCUT.back}
           onClick={onBack}
         >
           {backLabel}

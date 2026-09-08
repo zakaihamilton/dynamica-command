@@ -14,8 +14,8 @@ const TEST_SEED = 421;
 async function openBriefingSkippingTutorial(page: import("@playwright/test").Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
-  await page.getByLabel("Four digit campaign seed").fill("0421");
-  await page.getByRole("button", { name: "Launch" }).click();
+  await page.getByLabel("Four digit campaign code").fill("0421");
+  await page.getByTestId("deploy-screen").getByRole("button", { name: "Start" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
 }
 
@@ -682,24 +682,25 @@ test.describe("mobile-first layouts", () => {
     await page.getByRole("button", { name: "NEW GAME" }).click();
     await expectNoHorizontalOverflow(page);
     await expect(page.getByTestId("deploy-screen")).toBeVisible();
-    await expect(page.getByLabel("Four digit campaign seed")).toBeVisible();
-    const mobileCampaignActions = await page.getByRole("button", { name: "Launch" }).evaluate((button) => {
-      const group = button.parentElement;
-      if (!group) throw new Error("Missing campaign action group");
-      const groupRect = group.getBoundingClientRect();
-      const buttons = [...group.querySelectorAll("button")].map((action) => {
-        const rect = action.getBoundingClientRect();
-        return {
-          left: rect.left,
-          right: rect.right,
-          groupLeft: groupRect.left,
-          groupRight: groupRect.right,
-        };
-      });
-      return buttons;
+    await expect(page.getByLabel("Four digit campaign code")).toBeVisible();
+    const mobileCampaignLayout = await page.getByTestId("deploy-screen").evaluate((dialog) => {
+      const codePane = dialog.querySelector<HTMLElement>('[data-testid="campaign-code-pane"]');
+      const infoPane = dialog.querySelector<HTMLElement>('[data-testid="campaign-info-pane"]');
+      if (!codePane || !infoPane) throw new Error("Missing campaign panes");
+      const codeRect = codePane.getBoundingClientRect();
+      const infoRect = infoPane.getBoundingClientRect();
+      return {
+        code: { top: codeRect.top, bottom: codeRect.bottom, left: codeRect.left, right: codeRect.right },
+        info: { top: infoRect.top, bottom: infoRect.bottom, left: infoRect.left, right: infoRect.right },
+      };
     });
-    expect(mobileCampaignActions).toHaveLength(3);
-    expect(mobileCampaignActions.every(({ left, right, groupLeft, groupRight }) => left >= groupLeft && right <= groupRight)).toBe(true);
+    expect(mobileCampaignLayout.code.bottom).toBeLessThanOrEqual(mobileCampaignLayout.info.top + 1);
+    expect(mobileCampaignLayout.code.left).toBeGreaterThanOrEqual(0);
+    expect(mobileCampaignLayout.code.right).toBeLessThanOrEqual(320);
+    expect(mobileCampaignLayout.info.left).toBeGreaterThanOrEqual(0);
+    expect(mobileCampaignLayout.info.right).toBeLessThanOrEqual(320);
+    await page.getByTestId("campaign-info-pane").getByRole("button", { name: "Start" }).scrollIntoViewIfNeeded();
+    await expect(page.getByTestId("campaign-info-pane").getByRole("button", { name: "Start" })).toBeVisible();
 
     await page.goto("/briefing?seed=0421&mission=0");
     await expect(page.getByTestId("briefing-actions")).toBeVisible();
@@ -756,7 +757,7 @@ test.describe("mobile-first layouts", () => {
     await expect(confirmation).toBeVisible();
     const leavingAt = await page.evaluate(() => Date.now());
     await confirmation.getByRole("button", { name: "Leave mission" }).click();
-    await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0&from=menu/);
+    await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0&from=newGame/);
     const savedAt = await page.evaluate(() => {
       const raw = localStorage.getItem("shiftingfront:save:0421");
       return raw ? JSON.parse(raw).savedAt as number : 0;

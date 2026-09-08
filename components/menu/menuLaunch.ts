@@ -1,5 +1,5 @@
 import { formatSeed, hash32, parseSeed } from "@/lib/seed/rng";
-import { briefingPath } from "../game/hooks/missionRoutes";
+import { briefingPath, type NavigationOrigin } from "../game/hooks/missionRoutes";
 
 const MS_PER_DAY = 86_400_000;
 const MS_PER_WEEK = 86_400_000 * 7;
@@ -40,8 +40,8 @@ export function rollSeed(): string {
   return formatSeed(Math.floor(Math.random() * 10000));
 }
 
-export function menuLaunchPath(code: string): string | null {
+export function menuLaunchPath(code: string, origin: NavigationOrigin = "menu"): string | null {
   const seed = parseSeed(code);
   if (seed === null || code.length < 4) return null;
-  return briefingPath(seed, 0, false, "menu");
+  return briefingPath(seed, 0, false, origin);
 }

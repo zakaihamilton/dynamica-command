@@ -1,20 +1,29 @@
-import { createMission } from "./api";
-import type { SimState } from "../types";
+import { createCampaign } from "../gen/campaign";
+import { generateMap } from "../gen/map";
+import type { MissionDef, SimState } from "../types";
+import { createMissionFromData } from "./api";
 
 export const TUTORIAL_SEED = 0;
 export { tutorialPrompt, tutorialMoveTile, enterTutorialStage } from "./tutorialStage";
 
 export function createTutorialMission(): SimState {
-  const state = createMission({ seed: TUTORIAL_SEED, missionIndex: 0 });
-  state.missionName = "Shifting Front Training Range";
-  state.missionKind = "holdTheLine";
+  const campaign = createCampaign(TUTORIAL_SEED);
+  const campaignMission = campaign.missions[0]!;
+  const mission: MissionDef = {
+    ...campaignMission,
+    name: "Shifting Front Training Range",
+    kind: "holdTheLine",
+    win: { kind: "holdTheLine" },
+    profile: undefined,
+  };
+  const state = createMissionFromData({
+    seed: TUTORIAL_SEED,
+    missionIndex: 0,
+    campaign,
+    mission,
+    map: generateMap(TUTORIAL_SEED, mission),
+  });
   state.tutorialStage = "select";
-  state.win = { kind: "holdTheLine" };
-  if (state.runtime) {
-    state.runtime.kind = "holdTheLine";
-    delete state.runtime.deadline;
-    delete state.runtime.director;
-    delete state.runtime.convoyStartTick;
-  }
+  if (state.runtime) delete state.runtime.director;
   return state;
 }

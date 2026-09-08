@@ -72,7 +72,7 @@ describe("useMenuController", () => {
     const { result } = renderHook(() => useMenuController());
     act(() => result.current.setCode("12"));
     act(() => result.current.launch());
-    expect(result.current.error).toContain("4-digit seed");
+    expect(result.current.error).toContain("4-digit campaign code");
 
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(result.current.view).toBe("main");
@@ -147,6 +147,23 @@ describe("useBriefingController", () => {
 
     expect(router.push).toHaveBeenCalledWith("/play?seed=0421&mission=0&fresh=1");
     expect(consumeFreshLaunchIntent(421, 0)).toBe(true);
+  });
+
+  it("uses Escape to return from a New Campaign briefing", () => {
+    const { result } = renderHook(() => useBriefingController({
+      seed: 421,
+      mission: 0,
+      returnToGame: false,
+      origin: "newGame",
+      isComplete: true,
+      replayTransmission: vi.fn(),
+      skipToEnd: vi.fn(),
+    }));
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+
+    expect(router.push).toHaveBeenCalledWith("/?seed=0421");
+    expect(result.current.back).toBeTypeOf("function");
   });
 });
 

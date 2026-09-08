@@ -138,6 +138,23 @@ describe("MobileCommandLauncher", () => {
 });
 
 describe("BriefingActions", () => {
+  it("shows Escape on the briefing back action", () => {
+    render(
+      <BriefingActions
+        campaign={createCampaign(421)}
+        returnToGame={false}
+        onReplay={vi.fn()}
+        onLaunch={vi.fn()}
+        onBack={vi.fn()}
+        backLabel="Back to menu"
+      />,
+    );
+
+    const backButton = screen.getByRole("button", { name: "Back to menu" });
+    expect(backButton).toHaveAttribute("data-shortcut", "Esc");
+    expect(backButton).toHaveAttribute("data-tooltip", "Back to menu");
+  });
+
   it("removes the duplicate back button when returning to a mission", () => {
     render(
       <BriefingActions
@@ -215,7 +232,7 @@ describe("SeedEntry", () => {
   it("selects an existing seed so typing replaces it", async () => {
     const user = userEvent.setup();
     render(<ControlledSeedEntry />);
-    const input = screen.getByLabelText<HTMLInputElement>("Four digit campaign seed");
+    const input = screen.getByLabelText<HTMLInputElement>("Four digit campaign code");
 
     await user.click(input);
     expect(input.selectionStart).toBe(0);
@@ -241,7 +258,7 @@ describe("SeedEntry", () => {
         onLaunch={onLaunch}
       />,
     );
-    const input = screen.getByLabelText("Four digit campaign seed");
+    const input = screen.getByLabelText("Four digit campaign code");
     fireEvent.change(input, { target: { value: "a1b23456" } });
     expect(onChange).toHaveBeenCalledWith("1234");
     fireEvent.keyDown(input, { key: "Enter" });
@@ -318,6 +335,9 @@ describe("NewGameSetup", () => {
     expect(screen.getByRole("dialog", { name: "New campaign" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Operations map" })).toBeNull();
     expect(screen.getByRole("button", { name: "Copy link" })).toBeDisabled();
+    expect(screen.getByTestId("campaign-code-pane")).toBeVisible();
+    expect(screen.getByTestId("campaign-info-pane")).toHaveTextContent("Choose a code");
+    expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
     expect(screen.queryByTestId("campaign-backdrop")).toBeNull();
   });
 
@@ -342,6 +362,15 @@ describe("NewGameSetup", () => {
     );
 
     expect(screen.getByTestId("campaign-backdrop")).toBeVisible();
+    expect(screen.getByTestId("campaign-info-pane")).toContainElement(screen.getByRole("button", { name: "Start" }));
+    const codePane = screen.getByTestId("campaign-code-pane");
+    expect(codePane).toContainElement(screen.getByRole("button", { name: "Copy link" }));
+    expect(codePane).not.toHaveTextContent(campaign.world.name);
+    const copyButton = screen.getByRole("button", { name: "Copy link" });
+    expect(copyButton).toHaveAttribute("data-tooltip", "Copy campaign link to clipboard");
+    expect(copyButton.querySelector("svg")).not.toBeNull();
+    expect(copyButton.parentElement).toContainElement(screen.getByRole("button", { name: "Roll" }));
+    expect(copyButton.parentElement).toContainElement(screen.getByRole("button", { name: "This Week" }));
     expect(screen.getByText(campaign.world.name)).toBeVisible();
     expect(screen.getByText(campaign.characters.commander.name)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
@@ -411,7 +440,9 @@ describe("NewGameSetup", () => {
     );
 
     expect(screen.getByTestId("campaign-details")).not.toHaveAttribute("data-wide");
-    expect(screen.getByText(`${campaign.factions[0].name} vs ${campaign.factions[1].name}`)).toBeVisible();
+    expect(screen.getByText(campaign.factions[0].name)).toBeVisible();
+    expect(screen.getByText(campaign.factions[1].name)).toBeVisible();
+    expect(screen.getByText("VS")).toBeVisible();
   });
 
   it("restores the weekly seed from This Week", () => {

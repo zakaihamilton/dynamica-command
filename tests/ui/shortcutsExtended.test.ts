@@ -73,6 +73,10 @@ describe("shortcuts uncovered branches", () => {
     expect(briefingCommandFromKey({ key: "Enter", ctrlKey: true }, { typing: false, revealed: false })).toBeNull();
   });
 
+  it("briefing Escape backs out when it was opened from a menu destination", () => {
+    expect(briefingCommandFromKey({ key: "Escape" }, { typing: false, revealed: true })).toEqual({ type: "back" });
+  });
+
   it("menuCommandFromKey ignores repeats and modified keys", () => {
     expect(menuCommandFromKey({ key: "n", repeat: true }, { typing: false, setupOpen: false })).toBeNull();
     expect(menuCommandFromKey({ key: "n", ctrlKey: true }, { typing: false, setupOpen: false })).toBeNull();

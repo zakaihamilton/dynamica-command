@@ -77,7 +77,7 @@ describe("MenuScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "NEW GAME" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("newGame");
     fireEvent.click(screen.getByRole("button", { name: "Launch" }));
-    expect(router.push).toHaveBeenCalledWith(expect.stringMatching(/^\/briefing\?seed=\d{4}&mission=0&from=menu$/));
+    expect(router.push).toHaveBeenCalledWith(expect.stringMatching(/^\/briefing\?seed=\d{4}&mission=0&from=newGame$/));
   });
 
   it("opens the training range from the welcome tutorial action", () => {
@@ -108,6 +108,7 @@ describe("MenuScreen", () => {
     const overlay = screen.getByTestId("menu-signal-overlay");
     expect(overlay).toBeInTheDocument();
     expect(overlay).toHaveAttribute("data-reduced-motion", "false");
+    expect(overlay).toHaveAttribute("data-paused", "false");
     expect(overlay).not.toHaveClass(overlayStyles.static);
     expect(overlay.querySelectorAll("[data-lock]")).toHaveLength(3);
     expect(overlay.querySelectorAll("canvas")).toHaveLength(3);
@@ -135,6 +136,22 @@ describe("MenuScreen", () => {
         value: originalMatchMedia,
       });
     }
+  });
+
+  it("pauses the signal overlay while a menu page is open", () => {
+    render(<MenuScreen />);
+
+    const overlay = screen.getByTestId("menu-signal-overlay");
+    fireEvent.click(screen.getByRole("button", { name: "NEW GAME" }));
+    expect(overlay).toHaveAttribute("data-paused", "true");
+    expect(overlay).toHaveClass(overlayStyles.paused);
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(overlay).toHaveAttribute("data-paused", "false");
+    expect(overlay).not.toHaveClass(overlayStyles.paused);
+
+    fireEvent.click(screen.getByRole("button", { name: "OPTIONS" }));
+    expect(overlay).toHaveAttribute("data-paused", "true");
   });
 });
 

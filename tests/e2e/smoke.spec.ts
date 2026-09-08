@@ -13,9 +13,9 @@ import { isBuildingEntity, type Entity, type SimState } from "../../lib/types";
 async function openBriefing(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "NEW GAME" }).click();
-  const seed = page.getByLabel("Four digit campaign seed");
+  const seed = page.getByLabel("Four digit campaign code");
   await seed.fill("0421");
-  await page.getByRole("button", { name: "Launch" }).click();
+  await page.getByTestId("deploy-screen").getByRole("button", { name: "Start" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
 }
 
@@ -165,6 +165,15 @@ test("new game launch goes to briefing without training", async ({ page }) => {
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&mission=0&fresh=1/);
   await expect(page.getByRole("dialog", { name: "Leave mission?" })).toHaveCount(0);
+});
+
+test("Escape returns a New Campaign briefing to its launcher", async ({ page }) => {
+  await openBriefing(page);
+
+  await page.keyboard.press("Escape");
+
+  await expect(page).toHaveURL(/\/\?seed=0421/);
+  await expect(page.getByRole("dialog", { name: "New campaign" })).toBeVisible();
 });
 
 test("launches a seeded campaign from menu to battlefield", async ({ page }) => {
@@ -419,32 +428,34 @@ test("keeps the unified menu and operations chrome inside the desktop viewport",
   await expect(page.getByTestId("deploy-screen")).toBeVisible();
   await expect(page.getByRole("heading", { name: "New campaign" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Operations map" })).toHaveCount(0);
-  await expect(page.getByLabel("Four digit campaign seed")).toHaveValue(/^\d{4}$/);
+  await expect(page.getByLabel("Four digit campaign code")).toHaveValue(/^\d{4}$/);
   await expect(page.getByTestId("campaign-backdrop")).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy link" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "This Week" })).toBeDisabled();
 
-  const campaignActions = await page.getByRole("button", { name: "Launch" }).evaluate((button) => {
-    const group = button.parentElement;
-    if (!group) throw new Error("Missing campaign action group");
-    const groupRect = group.getBoundingClientRect();
-    const groupStyle = getComputedStyle(group);
-    const buttons = [...group.querySelectorAll("button")].map((action) => {
-      const rect = action.getBoundingClientRect();
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-    });
+  const campaignLayout = await page.getByTestId("deploy-screen").evaluate((dialog) => {
+    const codePane = dialog.querySelector<HTMLElement>('[data-testid="campaign-code-pane"]');
+    const infoPane = dialog.querySelector<HTMLElement>('[data-testid="campaign-info-pane"]');
+    const codeButtons = codePane ? [...codePane.querySelectorAll<HTMLButtonElement>("button")] : [];
+    const roll = codeButtons.find((button) => button.textContent?.trim() === "Roll");
+    const thisWeek = codeButtons.find((button) => button.textContent?.trim() === "This Week");
+    const copy = codePane?.querySelector<HTMLButtonElement>("[data-testid=\"copy-campaign-link\"]");
+    const start = infoPane?.querySelector("button");
+    if (!codePane || !infoPane || !roll || !thisWeek || !copy || !start) throw new Error("Missing campaign pane or action");
+    const codeRect = codePane.getBoundingClientRect();
+    const infoRect = infoPane.getBoundingClientRect();
     return {
-      display: groupStyle.display,
-      groupWidth: groupRect.width,
-      height: groupRect.height,
-      buttons,
+      code: { left: codeRect.left, right: codeRect.right },
+      info: { left: infoRect.left, right: infoRect.right },
+      copyInCodePane: codePane.contains(copy),
+      startInInfoPane: infoPane.contains(start),
+      actionHeights: [roll, thisWeek, copy].map((button) => button.getBoundingClientRect().height),
     };
   });
-  expect(campaignActions.display).toBe("flex");
-  expect(campaignActions.buttons).toHaveLength(3);
-  expect(Math.max(...campaignActions.buttons.map(({ y }) => y)) - Math.min(...campaignActions.buttons.map(({ y }) => y))).toBeLessThanOrEqual(1);
-  expect(campaignActions.height).toBeLessThanOrEqual(Math.max(...campaignActions.buttons.map(({ height }) => height)) + 1);
-  expect(campaignActions.buttons.every(({ width }) => width < campaignActions.groupWidth)).toBe(true);
+  expect(campaignLayout.code.right).toBeLessThanOrEqual(campaignLayout.info.left + 1);
+  expect(campaignLayout.copyInCodePane).toBe(true);
+  expect(campaignLayout.startInInfoPane).toBe(true);
+  expect(Math.max(...campaignLayout.actionHeights) - Math.min(...campaignLayout.actionHeights)).toBeLessThanOrEqual(1);
 
   const deployOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(deployOverflow).toBe(false);
@@ -470,10 +481,10 @@ test("copies a campaign link and opens a shared seed", async ({ page, context })
 
   await page.goto("/?seed=0777");
   await expect(page.getByTestId("deploy-screen")).toBeVisible();
-  await expect(page.getByLabel("Four digit campaign seed")).toHaveValue("0777");
+  await expect(page.getByLabel("Four digit campaign code")).toHaveValue("0777");
   await expect(page.getByTestId("campaign-backdrop")).toBeVisible();
   await page.getByRole("button", { name: "This Week" }).click();
-  await expect(page.getByLabel("Four digit campaign seed")).not.toHaveValue("0777");
+  await expect(page.getByLabel("Four digit campaign code")).not.toHaveValue("0777");
   await expect(page.getByRole("button", { name: "This Week" })).toBeDisabled();
 });
 
@@ -888,8 +899,8 @@ test("starts a new same-seed mission after reloading before a fresh launch", asy
   await expect(page.getByTestId("menu-dashboard")).toBeVisible();
 
   await page.getByRole("button", { name: "NEW GAME" }).click();
-  await page.getByLabel("Four digit campaign seed").fill("0421");
-  await page.getByRole("button", { name: "Launch" }).click();
+  await page.getByLabel("Four digit campaign code").fill("0421");
+  await page.getByTestId("deploy-screen").getByRole("button", { name: "Start" }).click();
   await expect(page).toHaveURL(/\/briefing\?seed=0421&mission=0/);
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&mission=0&fresh=1/);

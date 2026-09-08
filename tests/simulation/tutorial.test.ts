@@ -16,6 +16,8 @@ describe("tutorial", () => {
     expect(state.runtime?.kind).toBe("holdTheLine");
     expect(state.runtime?.deadline).toBeUndefined();
     expect(state.runtime?.director).toBeUndefined();
+    expect(state.runtime?.targetIds).toEqual([]);
+    expect(state.entities.some((entity) => entity.neutral || entity.scenarioRole)).toBe(false);
     expect(objectiveProgress(state).label).toBe("Training range — no time limit");
   });
 

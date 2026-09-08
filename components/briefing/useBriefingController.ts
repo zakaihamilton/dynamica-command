@@ -54,11 +54,15 @@ export function useBriefingController({
         replayTransmission();
         return;
       }
+      if (command.type === "back") {
+        back();
+        return;
+      }
       launch();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isComplete, launch, replayTransmission, returnToGame, skipToEnd]);
+  }, [back, isComplete, launch, replayTransmission, returnToGame, skipToEnd]);
 
   return {
     launch,

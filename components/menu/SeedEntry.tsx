@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import styles from "./SeedEntry.module.css";
@@ -12,6 +12,8 @@ export function SeedEntry({
   onRandomize,
   onThisWeek,
   thisWeekDisabled = false,
+  showPreviewLine = true,
+  trailingAction,
   onLaunch,
 }: {
   code: string;
@@ -22,6 +24,8 @@ export function SeedEntry({
   onRandomize: () => void;
   onThisWeek?: () => void;
   thisWeekDisabled?: boolean;
+  showPreviewLine?: boolean;
+  trailingAction?: ReactNode;
   onLaunch: () => void;
 }) {
   return (
@@ -56,7 +60,7 @@ export function SeedEntry({
             maxLength={4}
             inputMode="numeric"
             autoComplete="off"
-            aria-label="Four digit campaign seed"
+            aria-label="Four digit campaign code"
             className={styles.input}
           />
         </div>
@@ -80,10 +84,11 @@ export function SeedEntry({
               This Week
             </ConsoleButton>
           )}
+          {trailingAction}
         </div>
       </div>
-      <div className={styles.status}>
-        <p className={styles.preview}>{previewLine}</p>
+      <div className={`${styles.status} ${showPreviewLine ? "" : styles.statusCompact}`}>
+        {showPreviewLine ? <p className={styles.preview}>{previewLine}</p> : null}
         <p className={styles.error} aria-live="polite">{error || "\u00a0"}</p>
       </div>
     </div>

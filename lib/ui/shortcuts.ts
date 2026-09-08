@@ -45,7 +45,7 @@ export type MenuCommand =
   | { type: "back" }
   | { type: "toggleSound" }
   | { type: "toggleMusic" };
-export type BriefingCommand = { type: "launch" } | { type: "skip" } | { type: "replay" };
+export type BriefingCommand = { type: "launch" } | { type: "back" } | { type: "skip" } | { type: "replay" };
 export type AssetsCommand =
   | { type: "close" }
   | { type: "togglePlay" }
@@ -231,6 +231,7 @@ export function briefingCommandFromKey(
     if (isSpace(e) && !ctx.revealed) return { type: "skip" };
     return null;
   }
+  if (isEscape(e)) return { type: "back" };
   if (isEnter(e)) return { type: "launch" };
   if (isSpace(e)) return ctx.revealed ? { type: "launch" } : { type: "skip" };
   return null;

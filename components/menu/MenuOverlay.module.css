@@ -1,7 +1,8 @@
 .overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 20;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,6 +15,7 @@
 }
 
 .overlay[data-view="newGame"] {
+  align-items: flex-start;
   background:
     linear-gradient(90deg, rgba(3, 7, 12, 0.7) 0%, rgba(3, 7, 12, 0.38) 58%, rgba(3, 7, 12, 0.22) 100%);
   backdrop-filter: blur(3px) saturate(0.92);
@@ -21,6 +23,10 @@
 
 .deployStage {
   width: min(100%, 76rem);
+}
+
+.overlay[data-view="newGame"] .deployStage {
+  margin-block: auto;
 }
 
 @media (max-width: 639px) {

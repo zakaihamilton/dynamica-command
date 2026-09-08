@@ -23,6 +23,7 @@ import { useCampaignProgress } from "../campaign/useCampaignProgress";
 import { useBriefingController } from "./useBriefingController";
 import { useBriefingTypewriter } from "./useBriefingTypewriter";
 import type { NavigationOrigin } from "../game/hooks/missionRoutes";
+import { SHORTCUT } from "@/lib/ui/shortcuts";
 
 export function BriefingScreen({ seed, mission, returnToGame = false, origin = "menu" }: { seed: number; mission: number; returnToGame?: boolean; origin?: NavigationOrigin }) {
   const campaign = useMemo(() => createCampaign(seed), [seed]);
@@ -46,12 +47,20 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
   const profileContract = def
     ? profileContractFor(resolveMissionProfile(seed, def.index, def.win.kind, def.profile))
     : undefined;
-  const backLabel = returnToGame ? "Back to mission" : origin === "campaign" ? "Back to operations" : origin === "result" ? "Back to result" : "Back to menu";
+  const backLabel = returnToGame
+    ? "Back to mission"
+    : origin === "newGame"
+      ? "Back to New Campaign"
+      : origin === "campaign"
+        ? "Back to operations"
+        : origin === "result"
+          ? "Back to result"
+          : "Back to menu";
 
   if (!def) {
     return (
       <ConsoleNotice eyebrow="Transmission interrupted" title="This mission isn't available.">
-        <ConsoleButton muted onClick={controller.back}>{backLabel}</ConsoleButton>
+        <ConsoleButton muted onClick={controller.back} tooltip={backLabel} shortcut={SHORTCUT.back}>{backLabel}</ConsoleButton>
       </ConsoleNotice>
     );
   }
@@ -62,7 +71,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
         title="Mission locked"
         detail="Complete the previous operation first."
       >
-        <ConsoleButton muted onClick={controller.back}>{backLabel}</ConsoleButton>
+        <ConsoleButton muted onClick={controller.back} tooltip={backLabel} shortcut={SHORTCUT.back}>{backLabel}</ConsoleButton>
       </ConsoleNotice>
     );
   }

@@ -57,7 +57,7 @@ function previewChanged(a: PreviewPhase, b: PreviewPhase): boolean {
   );
 }
 
-export function MenuSignalOverlay() {
+export function MenuSignalOverlay({ paused = false }: { paused?: boolean }) {
   const reducedMotion = usePrefersReducedMotion();
   const [sessionOffset] = useState(() =>
     typeof window !== "undefined" && !navigator.userAgent.includes("jsdom")
@@ -69,16 +69,19 @@ export function MenuSignalOverlay() {
   );
   const previewRef = useRef<PreviewPhase>(preview);
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([null, null, null]);
+  const elapsedRef = useRef(0);
+  const animationTickRef = useRef(0);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (reducedMotion || paused) return;
 
     resetUnitTransformTracker();
-    const initialSeed = previewSeed(sessionOffset);
+    const initialCycleIndex = previewRef.current.cycleIndex;
+    const initialSeed = previewSeed(initialCycleIndex);
     let scene = createCinemaScene(
       initialSeed,
-      previewMissionIndex(sessionOffset, initialSeed),
-      previewScenarioKind(sessionOffset),
+      previewMissionIndex(initialCycleIndex, initialSeed),
+      previewScenarioKind(initialCycleIndex),
     );
     preloadTerrainAtlas(scene.ground);
     if (scene.state) preloadTerrainAtlas(scene.state);
@@ -86,16 +89,17 @@ export function MenuSignalOverlay() {
     preloadRasterSources(tacticalSources);
 
     let nextScene: CinemaScene | null = null;
-    let cycleIndex = sessionOffset;
+    let cycleIndex = previewRef.current.cycleIndex;
     const shots: Shot[] = [];
     let raf = 0;
-    let t = 0;
-    const started = performance.now();
+    const started = performance.now() - elapsedRef.current;
 
     const frame = (now: number) => {
-      t += 1;
+      const t = animationTickRef.current + 1;
+      animationTickRef.current = t;
+      elapsedRef.current = Math.max(0, now - started);
       const next = previewAt(
-        now - started,
+        elapsedRef.current,
         PREVIEW_LOCK_COUNT,
         PREVIEW_SHOT_COUNT,
         PREVIEW_INITIAL_DELAY_MS,
@@ -165,13 +169,14 @@ export function MenuSignalOverlay() {
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [reducedMotion, sessionOffset]);
+  }, [paused, reducedMotion, sessionOffset]);
 
   return (
     <div
-      className={cx(styles.overlay, reducedMotion && styles.static)}
+      className={cx(styles.overlay, reducedMotion && styles.static, paused && styles.paused)}
       data-testid="menu-signal-overlay"
       data-reduced-motion={reducedMotion ? "true" : "false"}
+      data-paused={paused ? "true" : "false"}
       aria-hidden
     >
       <div className={styles.crt} />

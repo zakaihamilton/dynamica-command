@@ -166,6 +166,11 @@
   transition: none;
 }
 
+.paused .sweep,
+.paused .lock {
+  animation-play-state: paused;
+}
+
 @keyframes radar-scan {
   from { transform: translateY(-75%); }
   to { transform: translateY(75%); }

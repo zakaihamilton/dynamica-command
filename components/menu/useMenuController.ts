@@ -82,14 +82,14 @@ export function useMenuController() {
   }, [code]);
 
   const launch = useCallback(() => {
-    const path = menuLaunchPath(code);
+    const path = menuLaunchPath(code, view === "newGame" ? "newGame" : "menu");
     if (!path) {
-      setError("Enter a 4-digit seed (0000–9999), or roll a random campaign.");
+      setError("Enter a 4-digit campaign code (0000–9999), or roll a random campaign.");
       return;
     }
     setError("");
     router.push(path);
-  }, [code, router]);
+  }, [code, router, view]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
