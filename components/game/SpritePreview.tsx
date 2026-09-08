@@ -83,7 +83,9 @@ export function SpritePreview({
 
       drawSprite(ctx, spec, image, renderDx, renderDy, layout.width, layout.height, bounds);
       if (!isUnitKind(kind)) {
-        paintBuildingAssetOverlay(ctx, kind, logicalWidth / 2, logicalHeight / 2, layout.scale, 0, 0, false, palette);
+        const overlayScale = kind === "turret" ? layout.scale * 2 : layout.scale;
+        const overlayY = logicalHeight / 2 - (kind === "turret" ? 8 : 0);
+        paintBuildingAssetOverlay(ctx, kind, logicalWidth / 2, overlayY, overlayScale, 0, 3, false, palette);
       }
     };
     paint(0);

@@ -123,11 +123,27 @@ describe("SpritePreview", () => {
       SPRITE_PREVIEW_HEIGHT / 2,
       expect.any(Number),
       0,
-      0,
+      3,
       false,
       palette,
     );
     expect(setIntervalSpy).not.toHaveBeenCalled();
+  });
+
+  it("scales the default turret overlay to match its base", () => {
+    render(<SpritePreview kind="turret" palette={palette} profile={profile} />);
+
+    expect(mocks.paintBuildingAssetOverlay).toHaveBeenCalledWith(
+      expect.anything(),
+      "turret",
+      SPRITE_PREVIEW_WIDTH / 2,
+      SPRITE_PREVIEW_HEIGHT / 2 - 8,
+      expect.closeTo(3.44 * 2, 5),
+      0,
+      3,
+      false,
+      palette,
+    );
   });
 
   it("keeps unit animation and shadow rendering while cleaning up its timer", () => {
