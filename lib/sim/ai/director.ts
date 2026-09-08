@@ -115,9 +115,16 @@ export function tickAi(state: SimState): void {
     : undefined;
   const profileContract = profile ? profileContractFor(profile) : undefined;
   const phase = directorPhase(state);
+  const timedScenario = state.runtime?.director !== undefined && state.missionIndex >= 4 && (
+    state.runtime.kind === "escort" || state.runtime.kind === "rescue" || state.runtime.kind === "extraction"
+  );
+  const openingOffensive = state.win.kind === "decapitate" && state.missionIndex < 2;
+  const productionEvery = timedScenario
+    ? Math.round(difficulty.enemyProductionEvery * 2)
+    : openingOffensive ? Math.round(difficulty.enemyProductionEvery * 4) : difficulty.enemyProductionEvery;
   const productionWindow =
     state.tick >= difficulty.enemyProductionStart &&
-    (state.tick - difficulty.enemyProductionStart) % difficulty.enemyProductionEvery === 0;
+    (state.tick - difficulty.enemyProductionStart) % productionEvery === 0;
   const powerDeficit = powerFor(state, 1) < 0;
   if (productionWindow || powerDeficit) {
     const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0 && !e.producing);
@@ -177,7 +184,8 @@ export function tickAi(state: SimState): void {
     yard,
     (e) => e.owner === 0 && e.kind === "constructionYard",
   );
-  const waveEvery = Math.max(240, difficulty.enemyAssaultEvery + (profileContract?.assaultEveryOffset ?? 0));
+  const pressureScale = timedScenario ? 2 : state.win.kind === "decapitate" && state.missionIndex < 2 ? 4 : 1;
+  const waveEvery = Math.max(240, Math.round((difficulty.enemyAssaultEvery + (profileContract?.assaultEveryOffset ?? 0)) * pressureScale));
   for (const b of enemyBuildings) {
     if (b.constructing > 0 || b.hp <= 0) continue;
     if (b.hp < b.maxHp && shouldAutoRepair(state, b)) b.repairing = true;

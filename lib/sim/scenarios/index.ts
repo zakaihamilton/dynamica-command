@@ -292,7 +292,20 @@ export function tickScenario(state: SimState): SimEvent[] {
       let rescued = 0;
       for (const id of runtime.targetIds) {
         const e = state.entities.find((item) => item.id === id && item.hp > 0);
-        if (e && inObjectiveZone(e.x, e.y, zone)) rescued += 1;
+        if (e && inObjectiveZone(e.x, e.y, zone)) {
+          rescued += 1;
+          // Convoys are neutral units, so they do not receive a normal move
+          // order. Once a truck reaches the extraction zone, hold its exact
+          // position instead of letting routing/avoidance pull it back out of
+          // the radius on the next tick.
+          if (e.scenarioRole === "convoy") {
+            e.orderDestination = { x: e.x, y: e.y };
+            e.path = [];
+            e.flowGoal = undefined;
+            e.routePending = false;
+            e.idle = true;
+          }
+        }
       }
       runtime.rescued = rescued;
     }

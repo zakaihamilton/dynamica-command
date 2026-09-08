@@ -72,7 +72,9 @@ export function assaultReady(state: SimState, target: Entity, combat: Entity[]):
   if (!OFFENSIVE_KINDS.has(objectiveKind(state)) || target.owner !== 1) return true;
   const minimumUnits = objectiveKind(state) === "annihilate" || objectiveKind(state) === "razeAll"
     ? 10 + Math.floor(state.missionIndex / 2)
-    : 8 + Math.floor(state.missionIndex / 3);
+    : objectiveKind(state) === "decapitate" && state.missionIndex < 2
+      ? 18
+      : 8 + Math.floor(state.missionIndex / 3);
   if (combat.length < minimumUnits) return false;
 
   const playerStrength = combat.reduce((sum, entity) => sum + combatValue(entity), 0);

@@ -1,17 +1,41 @@
-import { BUILDING_STATS } from "../../catalog";
+import { BUILDING_STATS, footprintOf } from "../../catalog";
 import type { BuildingKind, Entity, SimState } from "../../types";
-import { findBuildSite, livingView, powerFor, spawnBuilding } from "../world";
+import { findBuildSite, isStaticWalkable, livingView, powerFor, spawnBuilding } from "../world";
+import { findPathDetailed } from "../pathfinding";
 import { contestedResourcePoint, forwardRefinerySite, forwardRelaySite, hasBuildingNear } from "./helpers";
 import { directorPhase } from "./director";
+
+function reachableConstructionSite(state: SimState, kind: BuildingKind, spot: { x: number; y: number }, from: Entity): boolean {
+  const footprint = footprintOf(kind);
+  const approachTiles = new Set<string>();
+  for (let oy = 0; oy < footprint.h; oy++) {
+    for (let ox = 0; ox < footprint.w; ox++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const x = spot.x + ox + dx;
+          const y = spot.y + oy + dy;
+          const key = `${x}:${y}`;
+          if (approachTiles.has(key) || !isStaticWalkable(state, x, y)) continue;
+          approachTiles.add(key);
+          if (findPathDetailed(state, from, { x, y }).status === "complete") return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 
 function tryPlaceBuilding(
   state: SimState,
   kind: BuildingKind,
   spot: { x: number; y: number } | null | undefined,
+  reachableFrom?: Entity,
 ): boolean {
   if (!spot) return false;
   const stats = BUILDING_STATS[kind];
   if (state.credits[1] < stats.cost) return false;
+  if (reachableFrom && !reachableConstructionSite(state, kind, spot, reachableFrom)) return false;
   spawnBuilding(state, 1, kind, spot.x, spot.y, stats.buildTicks);
   state.credits[1] -= stats.cost;
   return true;
@@ -36,10 +60,10 @@ export function tryBuildForwardInfrastructure(state: SimState, yard: Entity): bo
   if (refineries.length >= 2 || hasBuildingNear(state, "refinery", point, 8)) return false;
 
   if (!hasBuildingNear(state, "power", point, 8)) {
-    return tryPlaceBuilding(state, "power", forwardRelaySite(state, yard, point));
+    return tryPlaceBuilding(state, "power", forwardRelaySite(state, yard, point), yard);
   }
 
-  return tryPlaceBuilding(state, "refinery", forwardRefinerySite(state, yard, point));
+  return tryPlaceBuilding(state, "refinery", forwardRefinerySite(state, yard, point), yard);
 }
 
 export function tryBuildTurret(state: SimState, yard: Entity, threat: Entity): boolean {

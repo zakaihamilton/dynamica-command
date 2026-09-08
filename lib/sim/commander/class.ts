@@ -9,6 +9,8 @@ import {
   combatUnits,
   objectiveKind,
   playerBuildingsView,
+  isCombatEntity,
+  enemyEntitiesView,
 } from "./queries";
 import {
   planBuilding,
@@ -24,7 +26,7 @@ import {
 } from "./combat";
 import type { CommanderMetrics } from "./queries";
 
-const COMMANDER_REPAIR_CREDIT_RESERVE = 40;
+const COMMANDER_REPAIR_CREDIT_RESERVE = 0;
 const COMMANDER_YARD_REPAIR_THRESHOLD = 0.92;
 const COMMANDER_STRUCTURE_REPAIR_THRESHOLD = 0.6;
 
@@ -77,7 +79,13 @@ export class CompetentCommander {
       if (!building) commands.push(...planProduction(state));
     }
 
-    const threat = defensiveThreat(state, yard) ?? scenarioThreat(state);
+    const emergency = yard.hp / Math.max(1, yard.maxHp) < 0.78;
+    const emergencyThreat = emergency
+      ? enemyEntitiesView(state)
+        .filter(isCombatEntity)
+        .sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id)[0]
+      : undefined;
+    const threat = defensiveThreat(state, yard) ?? scenarioThreat(state) ?? emergencyThreat;
     const objective = objectiveEntity(state);
     const extractionCargo = objectiveKind(state) === "extraction"
       ? (state.runtime?.targetIds ?? []).map((id) => state.entities.find((entity) => entity.id === id && entity.hp > 0)).filter((entity): entity is Entity => !!entity && !entity.neutral && !inObjectiveZone(entity.x, entity.y, state.runtime?.zone))
@@ -91,7 +99,7 @@ export class CompetentCommander {
       : combat;
     const scenarioObjective = ["escort", "rescue", "extraction"].includes(objectiveKind(state)) && (
       objective?.neutral === true || extractionCargo.length > 0
-    );
+    ) && (objectiveKind(state) !== "escort" || state.runtime?.convoyStartTick === undefined);
 
     if (extractionCargo.length) {
       commands.push({ type: "move", unitIds: extractionCargo.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
@@ -116,7 +124,9 @@ export class CompetentCommander {
       }
       const assaultCommitted = offensiveObjective && this.assaultTargetId !== undefined;
       const defenderLimit = Math.min(4, Math.max(2, Math.floor(combat.length / 3)));
-      const scenarioDefenderLimit = objectiveKind(state) === "rescue" ? 3 : 1;
+      const scenarioDefenderLimit = ["rescue", "extraction"].includes(objectiveKind(state))
+        ? Math.max(objectiveKind(state) === "rescue" ? 3 : 2, Math.min(8, Math.ceil(objectiveCombat.length / 2)))
+        : 1;
       const reservedDefenders = scenarioObjective
         ? Math.min(scenarioDefenderLimit, Math.max(0, objectiveCombat.length - 1))
         : offensiveObjective
@@ -132,7 +142,9 @@ export class CompetentCommander {
         ? objectiveCombat.filter((entity) => !defenderIds.has(entity.id))
         : combat;
 
-      if (offensiveObjective && objective) {
+      if (emergency && emergencyThreat) {
+        combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: emergencyThreat.id });
+      } else if (offensiveObjective && objective) {
         if (threat) {
           combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: threat.id });
         } else if (assaultCommitted && assaultForce.length) {
@@ -150,11 +162,17 @@ export class CompetentCommander {
           combatCommands.push({ type: "move", unitIds: combat.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
         }
       } else if (threat) {
-        if (objectiveKind(state) === "escort" && objectiveCombat.length) {
-          combatCommands.push({ type: "attack", unitIds: objectiveCombat.map((entity) => entity.id), targetId: threat.id });
-        } else if (objectiveKind(state) === "extraction" && objective && objectiveCombat.length) {
-          const escortTarget = objectiveKind(state) === "extraction" ? extractionEscortTarget ?? objective : objective;
-          combatCommands.push({ type: "attackMove", unitIds: objectiveCombat.map((entity) => entity.id), x: escortTarget.x, y: escortTarget.y, formation: "wedge" });
+        if (["escort", "extraction"].includes(objectiveKind(state)) && objectiveCombat.length) {
+          if (defenders.length) {
+            combatCommands.push({ type: "attack", unitIds: defenders.map((entity) => entity.id), targetId: threat.id });
+          }
+          const responseForce = assaultForce;
+          const escortTarget = objectiveKind(state) === "extraction"
+            ? extractionEscortTarget ?? objective
+            : objective;
+          if (responseForce.length && escortTarget) {
+            combatCommands.push({ type: "attackMove", unitIds: responseForce.map((entity) => entity.id), x: escortTarget.x, y: escortTarget.y, formation: "wedge" });
+          }
         } else {
           // Keep the rescue guard assigned to local defense instead of sending it with the rescue force.
           const rescueDefense = objectiveKind(state) === "rescue" && scenarioObjective;

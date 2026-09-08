@@ -187,6 +187,12 @@ export function tickEconomy(state: SimState, eventSink?: SimEvent[], collectEven
 
     const currentTileX = Math.round(e.x);
     const currentTileY = Math.round(e.y);
+    const lateEconomicScenario = state.missionIndex >= 4 && (state.win.kind === "harvestQuota" || state.win.kind === "extraction");
+    const refineryPreference = lateEconomicScenario
+      ? state.entities.find(
+        (entity) => entity.owner === e.owner && entity.class === "building" && entity.kind === "refinery" && entity.constructing === 0,
+      )
+      : undefined;
     if (resourceTileAt(state, currentTileX, currentTileY)) {
       gx = currentTileX;
       gy = currentTileY;
@@ -201,7 +207,7 @@ export function tickEconomy(state: SimState, eventSink?: SimEvent[], collectEven
       const preferred =
         gx !== undefined && gy !== undefined && inBounds(state, gx, gy)
           ? { x: gx, y: gy }
-          : e.orderDestination ?? { x: currentTileX, y: currentTileY };
+          : e.orderDestination ?? refineryPreference ?? { x: currentTileX, y: currentTileY };
       const n = bestResource(state, e, claims, preferred);
       if (!n) continue;
       gx = n.x;

@@ -117,15 +117,10 @@ export function planBuilding(state: SimState, yard: Entity): Command | undefined
     (entity) => entity.class === "unit" && entity.kind !== "harvester" && distToEntity(yard, entity) <= YARD_THREAT_RADIUS,
   );
   const turretCount = completedOrBuilding(state, "turret");
-  if (threat && turretCount < 1 && !pending) {
+  const turretTarget = 1 + Math.min(2, Math.ceil(state.missionIndex / 2));
+  if (threat && turretCount < turretTarget && !pending) {
     const turret = buildCommand(state, "turret", yard);
     if (turret) return turret;
-  }
-
-  const objectiveBuilding = missingStructureQuota(state) ?? structureQuotaBuilding(state);
-  if (objectiveBuilding && !playerBuildingsView(state, objectiveBuilding).some((entity) => entity.constructing > 0)) {
-    const objectiveBuild = buildCommand(state, objectiveBuilding, yard);
-    if (objectiveBuild) return objectiveBuild;
   }
 
   if (!playerBuildingsView(state, "barracks").length && !pending) {
@@ -144,12 +139,24 @@ export function planBuilding(state: SimState, yard: Entity): Command | undefined
   const defensiveObjective = objectiveKind(state) === "rescue" || objectiveKind(state) === "holdTheLine";
   const defensiveTurretNeeded = power.surplus >= 15 && (
     threat !== undefined ||
+    state.missionIndex >= 1 ||
     OFFENSIVE_KINDS.has(objectiveKind(state)) ||
     defensiveObjective
   );
-  if (defensiveTurretNeeded && turretCount < 1 + Math.floor(state.missionIndex / 3) && !pending) {
+  if (defensiveTurretNeeded && turretCount < turretTarget && !pending) {
     const turret = buildCommand(state, "turret", yard);
     if (turret) return turret;
+  }
+
+  const objectiveBuilding = missingStructureQuota(state) ?? structureQuotaBuilding(state);
+  const quotaCombatCount = playerUnitsView(
+    state,
+    (entity) => isUnitEntity(entity) && !isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].damage > 0,
+  ).length;
+  const quotaArmyReady = objectiveKind(state) !== "structureQuota" || quotaCombatCount >= 18;
+  if (objectiveBuilding && quotaArmyReady && !pending && !playerBuildingsView(state, objectiveBuilding).some((entity) => entity.constructing > 0)) {
+    const objectiveBuild = buildCommand(state, objectiveBuilding, yard);
+    if (objectiveBuild) return objectiveBuild;
   }
 
   if (!playerBuildingsView(state, "factory").length && state.tick < 1800 && !pending) {
@@ -161,9 +168,17 @@ export function planBuilding(state: SimState, yard: Entity): Command | undefined
 
 export function planProduction(state: SimState): Command[] {
   const commands: Command[] = [];
-  if (objectiveKind(state) === "structureQuota" && structureQuotaBuilding(state)) return commands;
   const support = supportNeed(state);
   const offensive = OFFENSIVE_KINDS.has(objectiveKind(state));
+  if (offensive) {
+    const combatCount = playerUnitsView(
+      state,
+      (entity) => isUnitEntity(entity) && !isSupportUnit(entity.kind) && UNIT_STATS[entity.kind].damage > 0,
+    ).length;
+    const queuedCombat = ["infantry", "antiArmor", "tank"] as const;
+    const queuedCount = queuedCombat.reduce((sum, kind) => sum + queuedUnitCount(state, kind), 0);
+    if (combatCount + queuedCount >= 32) return commands;
+  }
   const role = state.win.role && isUnitAvailable(state.win.role, state.missionIndex)
     && (state.unitsProducedByRole[state.win.role] ?? 0) + queuedUnitCount(state, state.win.role) < (state.win.target ?? Infinity)
     ? state.win.role
