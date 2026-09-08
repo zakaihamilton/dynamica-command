@@ -144,7 +144,7 @@ function overlayGrain(ctx: CanvasRenderingContext2D, state: AtlasWorld, width: n
   ctx.save();
   ctx.globalCompositeOperation = "overlay";
   if (biomeImg) {
-    ctx.globalAlpha = 0.42;
+    ctx.globalAlpha = 0.26;
     const tw = biomeImg.naturalWidth || biomeImg.width;
     const th = biomeImg.naturalHeight || biomeImg.height;
     for (let y = 0; y < height; y += th) {
@@ -152,7 +152,7 @@ function overlayGrain(ctx: CanvasRenderingContext2D, state: AtlasWorld, width: n
     }
   }
   if (plateImg) {
-    ctx.globalAlpha = 0.24;
+    ctx.globalAlpha = 0.14;
     const tw = plateImg.naturalWidth || plateImg.width;
     const th = plateImg.naturalHeight || plateImg.height;
     for (let y = 0; y < height; y += th) {

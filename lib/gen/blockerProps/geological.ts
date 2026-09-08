@@ -5,8 +5,8 @@ import { pe, pl, pp, shadow, liftGreen, SNOW } from "./primitives";
 export function boulderPrims(v: number, t: BlockerTone, lush: boolean, snowCap: boolean): PropPrim[] {
   const twist = ((v % 5) - 2) * 0.35;
   const body = lush ? liftGreen(t.blocked, 18) : t.blocked;
-  const facet = mixHex(body, t.dark, 0.28);
-  const cap = snowCap ? mixHex(t.light, SNOW, 0.55) : t.light;
+  const facet = mixHex(body, t.dark, 0.22);
+  const cap = snowCap ? mixHex(t.light, SNOW, 0.42) : mixHex(t.light, t.high, 0.18);
   const out: PropPrim[] = [
     shadow(16.5, 5.2),
     pp([-15, 2.2, 14, 3.1, 10, 9.2, -12, 8.4], t.dark),
@@ -19,7 +19,7 @@ export function boulderPrims(v: number, t: BlockerTone, lush: boolean, snowCap: 
       -10, 5.6,
     ], body),
     pp([-6, 1, -1, -12, 6, -3, 4, 4], facet),
-    pp([2, 2, 6, -3, 13 + twist * 0.4, -1.4, 9, 5.4], mixHex(body, t.dark, 0.45)),
+    pp([2, 2, 6, -3, 13 + twist * 0.4, -1.4, 9, 5.4], mixHex(body, t.dark, 0.36)),
     pl(-4, -4, 3, 3, mixHex(t.dark, body, 0.35), 0.85, { minWidth: 0.7 }),
   ];
   if (lush) {
@@ -28,7 +28,7 @@ export function boulderPrims(v: number, t: BlockerTone, lush: boolean, snowCap: 
       pe(4, 1.2, 3.2, 1.6, 0.2, liftGreen(t.high, 12), 0.55),
     );
   }
-  out.push(pp([-1, -13, 13 + twist * 0.4, -1.4, 5, 0.6, -7, -6.4], cap, snowCap ? 0.86 : 0.5));
+  out.push(pp([-1, -13, 13 + twist * 0.4, -1.4, 5, 0.6, -7, -6.4], cap, snowCap ? 0.68 : 0.36));
   return out;
 }
 
@@ -36,11 +36,10 @@ export function sandstonePrims(v: number, t: BlockerTone): PropPrim[] {
   const lean = ((v % 5) - 2) * 0.28;
   const base = mixHex(t.blocked, t.high, 0.22);
   const mid = mixHex(t.high, t.light, 0.28);
-  const hi = mixHex(t.light, "#e8d2a8", 0.35);
+  const hi = mixHex(t.light, t.high, 0.34);
   const bands = [
     { y: 4, h: 5.5, c: mixHex(base, t.dark, 0.2) },
-    { y: -1, h: 5.2, c: base },
-    { y: -6, h: 5.0, c: mid },
+    { y: -2, h: 7.4, c: mixHex(base, mid, 0.35) },
   ];
   const out: PropPrim[] = [
     shadow(15.5, 5),
@@ -65,13 +64,12 @@ export function sandstonePrims(v: number, t: BlockerTone): PropPrim[] {
 export function crystalPrims(v: number, t: BlockerTone): PropPrim[] {
   const gem = mixHex(t.ore, t.light, 0.42);
   const dark = mixHex(t.dark, t.ore, 0.38);
-  const inner = mixHex(gem, "#e6fff8", 0.4);
+  const inner = mixHex(gem, t.light, 0.22);
   const shards = [
     { lean: -7, rise: 13, half: 4.0, gem: false },
     { lean: -1, rise: 16, half: 3.2, gem: true },
     { lean: 3, rise: 20, half: 3.5, gem: true },
-    { lean: 9, rise: 12, half: 3.6, gem: false },
-    { lean: 5, rise: 10, half: 2.6, gem: false },
+    { lean: 8, rise: 12, half: 3.6, gem: false },
   ];
   const out: PropPrim[] = [
     shadow(13, 4.2),
@@ -86,14 +84,14 @@ export function crystalPrims(v: number, t: BlockerTone): PropPrim[] {
       shard.lean + shard.half, 2.6,
     ], shard.gem ? gem : dark));
   }
-  out.push(pp([1.2, -2, 2.4, -17, 5, -1.2], inner, 0.5));
+  out.push(pp([1.2, -2, 2.4, -17, 5, -1.2], inner, 0.34));
   return out;
 }
 
 export function wreckagePrims(v: number, t: BlockerTone): PropPrim[] {
   const rust = mixHex(t.ore, t.blocked, 0.28);
   const iron = mixHex(t.dark, t.blocked, 0.15);
-  const seam = mixHex(t.light, rust, 0.4);
+  const seam = mixHex(t.light, rust, 0.56);
   const out: PropPrim[] = [
     shadow(15, 4.6),
     pp([-13, 3.2, 3, -7.2, 14, 1.2, 9, 7.4, -10, 7.2], iron),
@@ -103,24 +101,24 @@ export function wreckagePrims(v: number, t: BlockerTone): PropPrim[] {
     pl(8, 1, 13, -8, seam, 1.6, { minWidth: 1.1, cap: "round" }),
   ];
   const rivet = mixHex(seam, t.dark, 0.3);
-  for (let i = 0; i < 4; i++) {
-    out.push(pe(-6 + i * 3.2, 1.4 + (i % 2) * 0.7, 0.55, 0.4, 0, rivet));
+  for (let i = 0; i < 3; i++) {
+    out.push(pe(-5 + i * 4.2, 1.4 + (i % 2) * 0.7, 0.5, 0.35, 0, rivet, 0.72));
   }
   return out;
 }
 
 export function spirePrims(v: number, t: BlockerTone): PropPrim[] {
   const rock = mixHex(t.blocked, t.dark, 0.2);
-  const glow = mixHex(t.ore, "#d25024", 0.4);
+  const glow = mixHex(t.ore, t.high, 0.28);
   const out: PropPrim[] = [
     shadow(11, 3.8),
-    pe(0, 5.4, 9.5, 3.2, 0, mixHex(t.dark, glow, 0.25), 0.45),
+    pe(0, 5.4, 9.5, 3.2, 0, mixHex(t.dark, glow, 0.25), 0.34),
     pp([-8, 5.2, -2.4, -17, 2.6, -9, 8.4, 5.2, -4.2, 7.2], rock),
-    pp([-1.2, 2.4, -1.6, -15, 1.8, -6.4], glow, 0.58),
-    pl(-0.4, 3, -1.2, -14, mixHex(glow, "#ff8c3c", 0.35), 0.85, { minWidth: 0.7 }),
+    pp([-1.2, 2.4, -1.6, -15, 1.8, -6.4], glow, 0.42),
+    pl(-0.4, 3, -1.2, -14, mixHex(glow, t.light, 0.28), 0.7, { minWidth: 0.6 }),
   ];
   if (v % 2 === 0) {
-    out.push(pp([-2.2, -10, -2.2, -17, 0.8, -11], t.light, 0.3));
+    out.push(pp([-2.2, -10, -2.2, -17, 0.8, -11], t.light, 0.22));
   }
   return out;
 }

@@ -10,7 +10,7 @@ import type { SceneryWorld } from "../gen/map";
 export const hash2 = hashNoise;
 
 export const ATLAS_CELL = 8;
-export const TERRAIN_ATLAS_REV = "world-atlas-v12-cinematic-lighting";
+export const TERRAIN_ATLAS_REV = "world-atlas-v13-grounded-surfaces";
 export const CONCRETE_STEEL = { r: 89, g: 104, b: 117 };
 export const CONCRETE_STEEL_LIGHT = { r: 154, g: 171, b: 186 };
 export const CONCRETE_STEEL_DARK = { r: 38, g: 50, b: 61 };
@@ -266,7 +266,7 @@ export function materialsFor(state: AtlasWorld): BiomeMaterials {
   if (cached) return cached;
   const base = BIOME_MATERIALS[state.biome];
   const tint = campaignTint(generateCampaignVisualProfile(state.seed));
-  const amount = 0.08;
+  const amount = 0.04;
   const mats = {
     ...base,
     light: mixRgb(base.light, tint, amount),
@@ -277,6 +277,38 @@ export function materialsFor(state: AtlasWorld): BiomeMaterials {
   };
   materialMemo.set(key, mats);
   return mats;
+}
+
+const propMaterialMemo = new WeakMap<object, BiomeMaterials>();
+
+/** Props inherit the biome without reading like brightly painted icons. */
+export function propMaterialsFor(mats: BiomeMaterials): BiomeMaterials {
+  const cached = propMaterialMemo.get(mats);
+  if (cached) return cached;
+  const soften = (color: Rgb, amount: number): Rgb => {
+    const luma = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+    return mixRgb(color, { r: luma, g: luma, b: luma }, amount);
+  };
+  const muted: BiomeMaterials = {
+    ...mats,
+    low: soften(mats.low, 0.1),
+    mid: soften(mats.mid, 0.1),
+    high: soften(mats.high, 0.1),
+    light: soften(mats.light, 0.08),
+    dark: mixRgb(soften(mats.dark, 0.1), mats.mid, 0.08),
+    waterDeep: soften(mats.waterDeep, 0.08),
+    waterMid: soften(mats.waterMid, 0.08),
+    waterHi: soften(mats.waterHi, 0.12),
+    shore: soften(mats.shore, 0.1),
+    road: soften(mats.road, 0.1),
+    concrete: soften(mats.concrete, 0.08),
+    ore: soften(mats.ore, 0.14),
+    blocked: mixRgb(soften(mats.blocked, 0.1), mats.mid, 0.06),
+    patchA: soften(mats.patchA, 0.12),
+    patchB: soften(mats.patchB, 0.12),
+  };
+  propMaterialMemo.set(mats, muted);
+  return muted;
 }
 
 export function terrainColors(biome: BiomeName): {

@@ -1,4 +1,5 @@
 import { generateCampaignVisualProfile } from "../gen/visualProfile";
+import { sceneryAt, type SceneryWorld } from "../gen/map";
 import type { BiomeName, CampaignVisualProfile } from "../types";
 import { mixRgb, type Rgb } from "./terrainMaterials";
 
@@ -72,9 +73,9 @@ export function terrainLightRigFor(
     // direction stable makes cliffs, props, and tile materials read as one scene.
     directionX: 0.72,
     directionY: 0.58,
-    ambient: 0.9 * familyContrast,
-    keyStrength: 0.18 * familyContrast,
-    occlusionStrength: 0.12,
+    ambient: 0.88 * familyContrast,
+    keyStrength: 0.13 * familyContrast,
+    occlusionStrength: 0.08,
     keyColor: colors.key,
     atmosphereColor: colors.atmosphere,
     phase: hash01(seed ^ 0x6d2b79f5) * Math.PI * 2,
@@ -116,12 +117,33 @@ export function terrainLightFactor(
   fx: number,
   fy: number,
 ): number {
-  const faceX = (0.5 - fx) * rig.directionX;
-  const faceY = (0.5 - fy) * rig.directionY;
-  const relief = (elev - eastElev) * rig.directionX * 0.07
-    + (elev - southElev) * rig.directionY * 0.09;
-  const faceLight = (faceX + faceY) * rig.keyStrength;
+  const faceX = Math.sin((0.5 - fx) * Math.PI) * rig.directionX;
+  const faceY = Math.sin((0.5 - fy) * Math.PI) * rig.directionY;
+  const relief = (elev - eastElev) * rig.directionX * 0.08
+    + (elev - southElev) * rig.directionY * 0.1;
+  const faceLight = (faceX + faceY) * rig.keyStrength * 0.72;
   return clamp(rig.ambient + faceLight + relief - terrainEdgeOcclusion(rig, fx, fy), 0.76, 1.12);
+}
+
+/** Shared low-contrast light response for terrain props and scatter. */
+export function terrainPropLightFactor(world: SceneryWorld, x: number, y: number): number {
+  const here = sceneryAt(world, x, y);
+  const east = sceneryAt(world, x + 1, y);
+  const south = sceneryAt(world, x, y + 1);
+  return terrainLightFactor(
+    terrainLightRigFor(world.seed ?? 0),
+    here.elev,
+    east.elev,
+    south.elev,
+    0.44,
+    0.38,
+  );
+}
+
+/** Shared low-contrast alpha response for all terrain extras. */
+export function terrainPropLightGain(world: SceneryWorld, x: number, y: number): number {
+  const light = terrainPropLightFactor(world, x, y);
+  return clamp(0.9 + (light - 0.9) * 0.42, 0.82, 1.02);
 }
 
 export function gradeTerrainColor(color: Rgb, factor: number, rig: TerrainLightRig, tint = 0): Rgb {

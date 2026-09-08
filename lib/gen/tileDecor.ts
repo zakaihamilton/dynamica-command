@@ -1,6 +1,6 @@
 import type { BiomeName, Palette, ShapeSpec } from "../types";
 import { ell, irregularIso, line, poly } from "./shapePrimitives";
-import { pick, signed } from "./tilePalette";
+import { mixHex, pick, signed } from "./tilePalette";
 
 const INK = "#202a32";
 
@@ -104,21 +104,39 @@ export function paintBiomeSignature(
   if (pick(v, 272, 5) === 0) shapes.push(ell(cx - ox * 0.4, cy - oy, 4, 2, p.light));
 }
 
-export function pushBush(shapes: ShapeSpec[], x: number, y: number, v: number, biome: BiomeName): void {
-  const canopy = canopyColors(biome);
+export function pushBush(shapes: ShapeSpec[], x: number, y: number, v: number, biome: BiomeName, p: Palette): void {
+  const canopy = canopyColors(biome, p);
   const w = 9 + pick(v, 16, 6);
-  shapes.push(ell(x - w / 2, y + 1, w, 4, "rgba(10,12,8,0.32)"));
-  shapes.push(ell(x - w / 2 - 1, y - 5, w * 0.7, 6, canopy.dark, INK));
-  shapes.push(ell(x - w / 2 + 3, y - 6, w * 0.55, 5, canopy.mid));
-  if (pick(v, 17, 2) === 0) shapes.push(ell(x + 1, y - 4, 4, 3, canopy.hi));
+  const lean = signed(v, 18, 2) * 0.8;
+  const edge = mixHex(canopy.dark, p.secondary, 0.32);
+  shapes.push(ell(x - w * 0.5, y + 1, w, 3.2, mixHex(p.dark, p.secondary, 0.4)));
+  shapes.push(poly([
+    x - w * 0.52, y,
+    x - w * 0.45 + lean, y - 5,
+    x - w * 0.12 + lean, y - 8,
+    x + w * 0.28 + lean, y - 7,
+    x + w * 0.52 + lean, y - 3,
+    x + w * 0.38, y + 1,
+  ], canopy.dark, edge, 0.65));
+  shapes.push(poly([
+    x - w * 0.26 + lean, y - 1,
+    x - w * 0.15 + lean, y - 6,
+    x + w * 0.3 + lean, y - 6,
+    x + w * 0.4 + lean, y - 2,
+    x + w * 0.16, y,
+  ], canopy.mid));
+  if (pick(v, 17, 2) === 0) shapes.push(ell(x + w * 0.08 + lean, y - 5, w * 0.25, 2.4, canopy.hi));
 }
 
-function canopyColors(biome: BiomeName): { dark: string; mid: string; hi: string } {
+function canopyColors(biome: BiomeName, p: Palette): { dark: string; mid: string; hi: string } {
+  const dark = mixHex(p.secondary, p.dark, 0.34);
+  const mid = mixHex(p.primary, p.secondary, biome === "salt marshes" ? 0.42 : 0.28);
+  const hi = mixHex(p.light, p.primary, biome === "jungle wreckage" ? 0.34 : 0.42);
   switch (biome) {
-    case "jungle wreckage": return { dark: "#1e3a22", mid: "#2f5a30", hi: "#5a8a40" };
-    case "salt marshes": return { dark: "#2a4030", mid: "#3e5a3c", hi: "#6a7a48" };
-    case "tundra grid": return { dark: "#3a4a44", mid: "#4e6058", hi: "#7a8a78" };
-    case "crystal flats": return { dark: "#2a3c32", mid: "#3e5844", hi: "#6a8a62" };
-    default: return { dark: "#2a3a26", mid: "#3c5234", hi: "#5a7044" };
+    case "jungle wreckage": return { dark, mid, hi };
+    case "salt marshes": return { dark, mid, hi };
+    case "tundra grid": return { dark, mid, hi };
+    case "crystal flats": return { dark, mid, hi };
+    default: return { dark, mid, hi };
   }
 }

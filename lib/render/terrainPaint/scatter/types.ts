@@ -20,6 +20,7 @@ export type ScatterItem = {
   kind: ScatterKind;
   ox: number;
   oy: number;
+  rotation: number;
   scale: number;
   variant: number;
 };

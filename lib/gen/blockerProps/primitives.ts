@@ -2,7 +2,8 @@ import type { ShapeSpec } from "../../types";
 import { ell, line, poly } from "../shapePrimitives";
 import type { PropPrim } from "./types";
 
-export const SHADOW = "rgba(6,10,12,0.24)";
+export const SHADOW = "#1a2523";
+export const SHADOW_ALPHA = 0.2;
 export const SNOW = "#ecf4f6";
 export const CURVE_SAMPLES = 6;
 
@@ -49,7 +50,7 @@ export function pc(
 }
 
 export function shadow(rx: number, ry: number, dy = 6): PropPrim {
-  return pe(0, dy, rx, ry, 0, SHADOW);
+  return pe(0, dy, rx, ry, 0, SHADOW, SHADOW_ALPHA);
 }
 
 function parseHex(value: string): [number, number, number] {
