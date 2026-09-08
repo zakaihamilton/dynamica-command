@@ -9,7 +9,9 @@ Next.js routes
   ├─ menu / tutorial / briefing / campaign screens
   ├─ play route
   │    └─ GameClient (client-only)
-  │         ├─ React chrome and overlays
+  │         ├─ TacticalScreen (presentational composition)
+  │         │    ├─ Battlefield / play-field surface
+  │         │    └─ React chrome and overlays
   │         ├─ Canvas input adapter
   │         └─ runtime hooks
   └─ public asset API
@@ -30,7 +32,8 @@ runtime controllers
   ├─ persistence coordinator — autosave, conflict retry, campaign progress, telemetry
   ├─ presentation coordinator — simulation events to audio, alerts, and FX
   ├─ frame coordinator      — camera pan, bounds, availability, and redraw timing
-  └─ surface adapter        — typed play-field and overlay props
+  ├─ surface adapter        — pure runtime-to-screen prop mapping
+  └─ TacticalScreen         — presentational shell for play-field and overlays
 
 lib/gen + lib/sim
   └─ DOM-free deterministic game domain used by the UI, tests, and CLIs
@@ -38,7 +41,7 @@ lib/gen + lib/sim
 
 The `lib/gen` and `lib/sim` layers must not import React, browser globals, or Canvas APIs. This keeps generated campaigns and simulation replays usable from Vitest and the headless scripts.
 
-The gameplay runtime is the browser-side composition boundary. `useGameRuntime` assembles typed refs and ports, while the runtime controllers own lifecycle effects. New gameplay behavior should not be added to a controller: extend the domain model and public command/event API first, then connect the behavior through the UI adapter.
+The gameplay runtime is the browser-side composition boundary. `useGameRuntime` assembles typed refs and ports, while the runtime controllers own lifecycle effects. `createGameRuntimeSurfaces` is a pure adapter from that runtime contract to screen props, and `TacticalScreen` only composes those presentational surfaces. New gameplay behavior should not be added to a controller: extend the domain model and public command/event API first, then connect the behavior through the UI adapter.
 
 ## Seed and generated content
 

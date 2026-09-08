@@ -43,6 +43,7 @@ vi.mock("../../components/game/renderFrame", () => ({ renderGameFrame }));
 import { useGameRenderer } from "../../components/game/hooks/useGameRenderer";
 import { initialMission } from "../../components/game/hooks/useGameSession";
 import { useGameRuntime } from "../../components/game/hooks/useGameRuntime";
+import { createGameRuntimeSurfaces } from "../../components/game/hooks/runtime/surfaces";
 
 afterEach(() => {
   cleanup();
@@ -273,8 +274,8 @@ describe("useGameRuntime", () => {
 
   it("saves the current state when the page is unloaded", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
-    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.playField.state) => void };
-    const current = { ...result.current.playField.state, tick: 120 };
+    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.state) => void };
+    const current = { ...result.current.state, tick: 120 };
 
     loopOptions.setState(current);
     act(() => {
@@ -286,8 +287,8 @@ describe("useGameRuntime", () => {
 
   it("does not replace a newer same-seed save during unload", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
-    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.playField.state) => void };
-    loopOptions.setState({ ...result.current.playField.state, tick: 120 });
+    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.state) => void };
+    loopOptions.setState({ ...result.current.state, tick: 120 });
 
     const replacement = makeFixture({ seed: 421, win: { kind: "annihilate" } });
     replacement.tick = 77;
@@ -304,8 +305,8 @@ describe("useGameRuntime", () => {
     expect(writeSave(localStorageAdapter(), saved)).toBe(true);
     const raw = window.localStorage.getItem(saveKey(421));
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: true, tutorial: false }));
-    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.playField.state) => void };
-    loopOptions.setState({ ...result.current.playField.state, tick: 120 });
+    const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.state) => void };
+    loopOptions.setState({ ...result.current.state, tick: 120 });
 
     act(() => {
       window.dispatchEvent(new StorageEvent("storage", {
@@ -319,35 +320,47 @@ describe("useGameRuntime", () => {
     expect(readSave(localStorageAdapter(), 421)?.tick).toBe(0);
   });
 
-  it("starts the sim loop and exposes play-field plus overlay props", () => {
+  it("starts the sim loop and exposes the gameplay runtime contract", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
 
     expect(startLoop).toHaveBeenCalledOnce();
     expect(result.current.campaign.seedNumber).toBe(421);
-    expect(result.current.playField.state.seed).toBe(421);
-    expect(result.current.playField.tutorial).toBe(false);
-    expect(result.current.overlays.paused).toBe(false);
-    expect(result.current.overlays.activeTab).toBe("construction");
+    expect(result.current.state.seed).toBe(421);
+    expect(result.current.tutorial).toBe(false);
+    expect(result.current.paused).toBe(false);
+    expect(result.current.activeTab).toBe("construction");
     expect(result.current.palette.primary).toBeTruthy();
 
     act(() => {
-      result.current.overlays.onToggleMobilePanel();
+      result.current.onToggleMobilePanel();
     });
-    expect(result.current.overlays.mobilePanelOpen).toBe(true);
+    expect(result.current.mobilePanelOpen).toBe(true);
     expect(startLoop).toHaveBeenCalledOnce();
 
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
-    expect(result.current.overlays.mobilePanelOpen).toBe(false);
-    expect(result.current.overlays.paused).toBe(false);
+    expect(result.current.mobilePanelOpen).toBe(false);
+    expect(result.current.paused).toBe(false);
 
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
-    expect(result.current.overlays.paused).toBe(true);
+    expect(result.current.paused).toBe(true);
 
-    act(() => result.current.overlays.session.resumeMission());
+    act(() => result.current.session.resumeMission());
     act(() => window.dispatchEvent(new Event("orientationchange")));
-    expect(result.current.overlays.actions.mobileCommandState).toBeNull();
-    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(result.current.actions.mobileCommandState).toBeNull();
+    expect(result.current.mobilePanelOpen).toBe(false);
     expect(startLoop).toHaveBeenCalledOnce();
+  });
+
+  it("adapts the runtime contract into independent screen surfaces", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const surfaces = createGameRuntimeSurfaces(result.current);
+
+    expect(surfaces.playField.state).toBe(result.current.state);
+    expect(surfaces.playField.onPointerDown).toBe(result.current.onPointerDown);
+    expect(surfaces.playField.onNextBriefing).toBe(result.current.onNextBriefing);
+    expect(surfaces.overlays.state).toBe(result.current.state);
+    expect(surfaces.overlays.actions).toBe(result.current.actions);
+    expect(surfaces.overlays.session).toBe(result.current.session);
   });
 
   it("wires runtime lifecycle callbacks and stops the loop on unmount", () => {
@@ -365,17 +378,17 @@ describe("useGameRuntime", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
     const launcher = document.createElement("button");
     document.body.append(launcher);
-    (result.current.overlays.mobileLauncherRef as { current: HTMLButtonElement | null }).current = launcher;
+    (result.current.mobileLauncherRef as { current: HTMLButtonElement | null }).current = launcher;
 
-    act(() => result.current.overlays.onToggleMobilePanel());
-    expect(result.current.overlays.mobilePanelOpen).toBe(true);
+    act(() => result.current.onToggleMobilePanel());
+    expect(result.current.mobilePanelOpen).toBe(true);
 
     const sidebarControl = document.createElement("button");
     document.body.append(sidebarControl);
     sidebarControl.focus();
-    act(() => result.current.overlays.onToggleMobilePanel());
+    act(() => result.current.onToggleMobilePanel());
 
-    expect(result.current.overlays.mobilePanelOpen).toBe(false);
+    expect(result.current.mobilePanelOpen).toBe(false);
     expect(document.activeElement).toBe(launcher);
 
     launcher.remove();
@@ -398,11 +411,11 @@ describe("useGameRuntime", () => {
   it.each(["won", "lost"] as const)("pauses mission music immediately when the simulation reaches a %s result", async (outcome) => {
     const { pauseMusic } = await import("@/lib/audio/music");
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
-    const options = (startLoop.mock.calls[0] as unknown as [{ onTick: (state: typeof result.current.playField.state, events: SimEvent[], now: number) => void }] | undefined)?.[0];
+    const options = (startLoop.mock.calls[0] as unknown as [{ onTick: (state: typeof result.current.state, events: SimEvent[], now: number) => void }] | undefined)?.[0];
     expect(options).toBeDefined();
 
     vi.mocked(pauseMusic).mockClear();
-    const terminalState = { ...result.current.playField.state, tick: 1, result: outcome };
+    const terminalState = { ...result.current.state, tick: 1, result: outcome };
     act(() => options?.onTick(terminalState, [{ type: outcome }], 1_000));
 
     expect(pauseMusic).toHaveBeenCalledOnce();
@@ -412,7 +425,7 @@ describe("useGameRuntime", () => {
 describe("automatic save recovery", () => {
   it("retries a failed terminal save without duplicating telemetry", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
-    const state = { ...result.current.playField.state, result: "lost" as const };
+    const state = { ...result.current.state, result: "lost" as const };
     const options = (startLoop.mock.calls as unknown as [{ onFrame: (now: number, snapshot: typeof state, paused: boolean, alpha: number, frameMs: number) => void }][])[0]![0];
     const original = Storage.prototype.setItem;
     let attempts = 0;
@@ -422,12 +435,12 @@ describe("automatic save recovery", () => {
     });
     act(() => options.onFrame(1000, state, false, 0, 16));
     expect(readSave(localStorageAdapter(), 421)?.result).not.toBe("lost");
-    expect(result.current.playField.combatAlert).toContain("could not be saved");
+    expect(result.current.combatAlert).toContain("could not be saved");
     act(() => options.onFrame(1500, state, false, 0, 16));
     expect(attempts).toBe(1);
     act(() => options.onFrame(2000, state, false, 0, 16));
     expect(readSave(localStorageAdapter(), 421)?.result).toBe("lost");
-    expect(result.current.playField.combatAlert).toBe("Progress saved.");
+    expect(result.current.combatAlert).toBe("Progress saved.");
     act(() => options.onFrame(3000, state, false, 0, 16));
     expect(attempts).toBe(2);
     expect(JSON.parse(localStorage.getItem(TELEMETRY_KEY)!).records).toHaveLength(1);
@@ -436,14 +449,14 @@ describe("automatic save recovery", () => {
 
   it("does not overwrite an external save after a terminal conflict", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
-    const state = { ...result.current.playField.state, result: "lost" as const };
+    const state = { ...result.current.state, result: "lost" as const };
     const external = { ...state, tick: 123, result: "playing" as const };
     writeSave(localStorageAdapter(), external);
     const options = (startLoop.mock.calls as unknown as [{ onFrame: (now: number, snapshot: typeof state, paused: boolean, alpha: number, frameMs: number) => void }][])[0]![0];
     act(() => options.onFrame(1000, state, false, 0, 16));
     act(() => options.onFrame(3000, state, false, 0, 16));
     expect(readSave(localStorageAdapter(), 421)?.tick).toBe(123);
-    expect(result.current.playField.combatAlert).toContain("changed in another tab");
+    expect(result.current.combatAlert).toContain("changed in another tab");
   });
 });
 
@@ -458,8 +471,8 @@ describe("mission replacement in a mounted loop", () => {
       expect(readSave(localStorageAdapter(), 421)?.result).toBe("lost");
     };
     finish(1000);
-    act(() => result.current.overlays.session.restartMission());
-    act(() => result.current.overlays.session.confirmAction());
+    act(() => result.current.session.restartMission());
+    act(() => result.current.session.confirmAction());
     expect(options.getState().result).toBe("playing");
     expect(startLoop).toHaveBeenCalledOnce();
     finish(2000);
@@ -468,11 +481,11 @@ describe("mission replacement in a mounted loop", () => {
 
   it("does not replay terminal telemetry when loading a finished slot in place", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
-    const state = { ...result.current.playField.state, result: "lost" as const };
+    const state = { ...result.current.state, result: "lost" as const };
     const slot = writeSlot(localStorageAdapter(), { name: "Finished", state, campaign: freshCampaignProgress(421) });
     expect(slot.ok).toBe(true);
-    const entry = result.current.overlays.session.listLoadEntries().find((entry) => entry.kind === "slot")!;
-    act(() => result.current.overlays.session.loadArchiveEntry(entry));
+    const entry = result.current.session.listLoadEntries().find((entry) => entry.kind === "slot")!;
+    act(() => result.current.session.loadArchiveEntry(entry));
     const options = (startLoop.mock.calls as unknown as [LoopOptions][])[0]![0];
     act(() => options.onFrame!(1000, options.getState(), true, 0, 0));
     expect(localStorage.getItem(TELEMETRY_KEY)).toBeNull();
