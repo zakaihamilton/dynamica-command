@@ -29,18 +29,18 @@ export function drawElevationFaces(
   const southColor = light ? shadeHex(colors.south, 0.91 + light.directionY * 0.07) : colors.south;
   const eastColor = light ? shadeHex(colors.east, 0.96 + light.directionX * 0.07) : colors.east;
   if (geo.south) {
-    fillElevationPoly(ctx, originX, shadowY, geo.south.points, mixHex(southColor, "#0d1519", 0.34));
+    fillElevationPoly(ctx, originX, shadowY, geo.south.points, mixHex(southColor, "#0d1519", 0.24));
     fillElevationPoly(ctx, originX, originY, geo.south.points, southColor);
-    fillFaceStrata(ctx, originX, originY, geo.south.points, southColor, 0.26, 0.47, 0.24);
-    fillFaceStrata(ctx, originX, originY, geo.south.points, southColor, 0.58, 0.71, 0.12);
+    fillFaceStrata(ctx, originX, originY, geo.south.points, southColor, 0.28, 0.46, 0.11);
+    fillFaceStrata(ctx, originX, originY, geo.south.points, southColor, 0.6, 0.7, 0.06);
     strokeRim(ctx, originX, originY, geo.south.points, southColor);
     strokeCracks(ctx, originX, originY, geo.south.cracks, colors.southInk);
   }
   if (geo.east) {
-    fillElevationPoly(ctx, originX, shadowY, geo.east.points, mixHex(eastColor, "#0d1519", 0.34));
+    fillElevationPoly(ctx, originX, shadowY, geo.east.points, mixHex(eastColor, "#0d1519", 0.24));
     fillElevationPoly(ctx, originX, originY, geo.east.points, eastColor);
-    fillFaceStrata(ctx, originX, originY, geo.east.points, eastColor, 0.26, 0.47, 0.24);
-    fillFaceStrata(ctx, originX, originY, geo.east.points, eastColor, 0.58, 0.71, 0.12);
+    fillFaceStrata(ctx, originX, originY, geo.east.points, eastColor, 0.28, 0.46, 0.11);
+    fillFaceStrata(ctx, originX, originY, geo.east.points, eastColor, 0.6, 0.7, 0.06);
     strokeRim(ctx, originX, originY, geo.east.points, eastColor);
     strokeCracks(ctx, originX, originY, geo.east.cracks, colors.eastInk);
   }
@@ -113,9 +113,9 @@ function strokeRim(
   if (points.length < 8 || points.length % 4 !== 0) return;
   const samples = points.length / 4;
   const previousAlpha = typeof ctx.globalAlpha === "number" ? ctx.globalAlpha : 1;
-  ctx.globalAlpha = previousAlpha * 0.62;
+  ctx.globalAlpha = previousAlpha * 0.34;
   ctx.strokeStyle = mixHex(color, "#e2ebe4", 0.24);
-  ctx.lineWidth = 0.9;
+  ctx.lineWidth = 0.7;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.beginPath();
@@ -136,9 +136,9 @@ function strokeCracks(
 ): void {
   if (!cracks.length) return;
   const previousAlpha = typeof ctx.globalAlpha === "number" ? ctx.globalAlpha : 1;
-  ctx.globalAlpha = previousAlpha * 0.66;
+  ctx.globalAlpha = previousAlpha * 0.38;
   ctx.strokeStyle = stroke;
-  ctx.lineWidth = 0.85;
+  ctx.lineWidth = 0.6;
   for (const crack of cracks) {
     ctx.beginPath();
     ctx.moveTo(ox + crack[0]!, oy + crack[1]!);

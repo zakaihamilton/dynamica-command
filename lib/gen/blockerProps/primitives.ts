@@ -2,7 +2,7 @@ import type { ShapeSpec } from "../../types";
 import { ell, line, poly } from "../shapePrimitives";
 import type { PropPrim } from "./types";
 
-export const SHADOW = "rgba(6,10,12,0.24)";
+export const SHADOW = "rgba(6,10,12,0.16)";
 export const SNOW = "#ecf4f6";
 export const CURVE_SAMPLES = 6;
 

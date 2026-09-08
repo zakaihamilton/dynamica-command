@@ -1,7 +1,8 @@
 import { TILE_H } from "../../../iso";
 import type { BiomeName, SurfaceKind } from "../../../types";
 import { biomeMaterials } from "../../terrainAtlas";
-import type { BiomeMaterials } from "../../terrainMaterials";
+import { propMaterialsFor, type BiomeMaterials } from "../../terrainMaterials";
+import { terrainPropLightFactor } from "../../terrainLighting";
 import type { ScatterItem, ScatterWorld } from "./types";
 import { scatterForTile } from "./distribution";
 import {
@@ -78,8 +79,10 @@ export function drawTerrainScatter(
 ): void {
   const items = scatterForTile(state, x, y, tileKind, surface);
   if (items.length === 0) return;
-  const mats = biomeMaterials(state.biome);
+  const mats = propMaterialsFor(biomeMaterials(state.biome));
   ctx.save();
+  const light = terrainPropLightFactor(state, x, y);
+  ctx.globalAlpha *= Math.max(0.82, Math.min(1.02, 0.9 + (light - 0.9) * 0.42));
   ctx.translate(sx, sy + TILE_H * z * 0.42);
   for (const item of items) paintItem(ctx, mats, state.biome, item, z);
   ctx.restore();

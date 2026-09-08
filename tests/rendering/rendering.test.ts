@@ -8,7 +8,9 @@ import {
   LUSH_SCATTER,
   blockerPropKind,
   drawBlockerProp,
+  drawOreCrystals,
   drawTerrainScatter,
+  rgbMix,
   scatterForTile,
   smoothFogGain,
   withAlpha,
@@ -54,10 +56,11 @@ import {
 } from "../../lib/render/terrainWeather";
 import { spriteCacheKey, terrainContentKey } from "../../lib/render/renderer";
 import { minimapCacheKeys, MINIMAP_OVERLAY_TICK_SHIFT } from "../../lib/render/minimap";
-import { hash2 } from "../../lib/render/terrainMaterials";
+import { hash2, propMaterialsFor } from "../../lib/render/terrainMaterials";
 import { hashNoise, valueNoise } from "../../lib/gen/map/noise";
 import { isoDiamondPath, roundedIsoDiamondPath } from "../../lib/render/isoDiamond";
 import { paintShroudMaskTile, shroudCornerRadii } from "../../lib/render/terrainPaint/tile";
+import { rgbOf } from "../../lib/render/terrainPaint/style";
 import { SHROUD_COVER, SHROUD_CORE_COVER, SHROUD_CORNER_RADIUS_FRAC, SHROUD_FILL, SHROUD_RGB } from "../../lib/render/terrainPaint/constants";
 import { fogIndex, makeFog } from "../../lib/sim/fog";
 
@@ -151,6 +154,7 @@ describe("seeded terrain atlas", () => {
     const b = bakeTerrainAtlasData(second);
     const c = bakeTerrainAtlasData(other);
     expect(a.key).toBe(b.key);
+    expect(a.key).toContain("world-atlas-v13-grounded-surfaces");
     expect(a.data).toEqual(b.data);
     expect(terrainAtlasKey(first)).toBe(a.key);
     expect(c.key).not.toBe(a.key);
@@ -158,6 +162,17 @@ describe("seeded terrain atlas", () => {
     const generated = generateMap(832, { index: 0, win: { kind: "annihilate" }, mapSize: 48, biome: "ash plains" });
     const world = { ...generated, seed: 832, missionIndex: 0 };
     expect(sampleTerrainMaterial(world, 4, 4)).toEqual(sampleTerrainMaterial(world, 4, 4));
+  });
+
+  it("keeps derived prop materials matte without erasing biome identity", () => {
+    const base = biomeMaterials("glass desert");
+    const props = propMaterialsFor(base);
+    const again = propMaterialsFor(base);
+    const chroma = (color: { r: number; g: number; b: number }) => Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b);
+    expect(again).toBe(props);
+    expect(chroma(props.mid)).toBeLessThanOrEqual(chroma(base.mid));
+    expect(chroma(props.ore)).toBeLessThanOrEqual(chroma(base.ore));
+    expect(props.mid).not.toEqual(props.ore);
   });
 
   it("changes atlas pixels for water, road, ore, and elevation", () => {
@@ -985,5 +1000,17 @@ describe("terrain adornment painting", () => {
     const jungleAgain = createPaintMock();
     drawBlockerProp(jungleAgain.ctx, jungle, 4, 4, 40, 40, 1);
     expect(jungleAgain.ops).toEqual(junglePaint.ops);
+  });
+
+  it("uses the grounded prop material response for ore crystals", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" }, seed: 832 });
+    setTile(state, 3, 2, TILE_RESOURCE, 800);
+    const painted = createPaintMock();
+    drawOreCrystals(painted.ctx, state, createCamera(), 3, 2, 1, 1);
+    const mats = propMaterialsFor(biomeMaterials(state.biome));
+    const expectedHi = rgbMix(mats.light, { r: 255, g: 246, b: 210 }, 0.42);
+    expect(painted.ops).toContain(`fill:${expectedHi}`);
+    expect(painted.ops).toContain(`stroke:${expectedHi}`);
+    expect(painted.ops).toContain(`fill:${rgbOf(mats.dark)}`);
   });
 });

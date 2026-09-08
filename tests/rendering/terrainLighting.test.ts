@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   gradeTerrainColor,
+  terrainPropLightFactor,
   restrainTerrainColor,
   terrainEdgeDarkening,
   terrainLightFactor,
@@ -23,6 +24,23 @@ describe("terrain lighting", () => {
         expect(factor).toBeLessThanOrEqual(1.12);
       }
     }
+  });
+
+  it("shares deterministic low-contrast light response with props", () => {
+    const world = {
+      seed: 832,
+      biome: "ash plains" as const,
+      width: 4,
+      height: 4,
+      tiles: new Array(16).fill(0),
+      heights: new Array(16).fill(1),
+    };
+    const flat = terrainPropLightFactor(world, 1, 1);
+    world.heights[5] = 3;
+    const raised = terrainPropLightFactor(world, 1, 1);
+    expect(terrainPropLightFactor(world, 1, 1)).toBe(raised);
+    expect(raised).toBeGreaterThan(flat);
+    expect(raised - flat).toBeLessThan(0.25);
   });
 
   it("brightens the lit corner and restrains excessive ground chroma", () => {

@@ -1,8 +1,9 @@
 import { TILE_H } from "../../iso";
 import type { BiomeName, SimState } from "../../types";
+import type { SceneryWorld } from "../../gen/map";
 import { fogAt } from "../../sim/fog";
 import { biomeMaterials, fogTerrainGain, oreCrystalCluster, tileVariant } from "../terrainAtlas";
-import type { BiomeMaterials } from "../terrainMaterials";
+import { propMaterialsFor, type BiomeMaterials } from "../terrainMaterials";
 import { tileToScreen, type Camera } from "../../iso";
 import {
   blockerPropPrims,
@@ -11,6 +12,14 @@ import {
 } from "../../gen/blockerPropArt";
 import { blockerPropKind, type BlockerPropKind } from "./scatter";
 import { fillPoly, mixRgb, rgbOf, withAlpha } from "./style";
+import { terrainPropLightFactor } from "../terrainLighting";
+
+type PropWorld = SceneryWorld & { seed: number };
+
+function propLightGain(state: PropWorld, x: number, y: number): number {
+  const light = terrainPropLightFactor(state, x, y);
+  return Math.max(0.82, Math.min(1.02, 0.9 + (light - 0.9) * 0.42));
+}
 
 export function smoothFogGain(state: SimState, x: number, y: number): number {
   // Keep the unexplored center of the shroud opaque. Blending is useful for
@@ -80,7 +89,7 @@ function paintBlocker(
 
 export function drawBlockerProp(
   ctx: CanvasRenderingContext2D,
-  state: { seed: number; biome: BiomeName },
+  state: PropWorld,
   x: number,
   y: number,
   sx: number,
@@ -93,8 +102,9 @@ export function drawBlockerProp(
   const ox = ((v % 7) - 3) * z * 0.4;
   const oy = ((Math.floor(v / 11) % 5) - 2) * z * 0.2;
   ctx.save();
+  ctx.globalAlpha *= propLightGain(state, x, y);
   ctx.translate(sx + ox, sy + TILE_H * z * 0.42 + oy);
-  paintBlocker(ctx, kind, mats, z, v, state.biome);
+  paintBlocker(ctx, kind, propMaterialsFor(mats), z, v, state.biome);
   ctx.restore();
 }
 
@@ -117,15 +127,15 @@ export function drawOreCrystals(
 ): void {
   const cluster = oreCrystalCluster(state, x, y);
   if (!cluster) return;
-  const mats = biomeMaterials(state.biome);
+  const mats = propMaterialsFor(biomeMaterials(state.biome));
   const s = tileToScreen(x, y, cam, elev);
   const gemDark = rgbMix(mats.ore, mats.dark, 0.42);
   const gem = rgbMix(mats.ore, mats.light, 0.38);
-  const gemHi = rgbMix(mats.light, { r: 255, g: 246, b: 210 }, 0.62);
+  const gemHi = rgbMix(mats.light, { r: 255, g: 246, b: 210 }, 0.42);
   ctx.save();
   ctx.translate(s.x, s.y);
-  const alpha = ctx.globalAlpha * cluster.intensity;
-  ctx.fillStyle = `rgb(${mats.dark.r},${mats.dark.g},${mats.dark.b})`;
+  const alpha = ctx.globalAlpha * cluster.intensity * propLightGain(state, x, y);
+  ctx.fillStyle = rgbOf(mats.dark);
   for (const burst of cluster.bursts) {
     ctx.globalAlpha = alpha * 0.32;
     ctx.beginPath();
@@ -184,7 +194,7 @@ export function drawOreCrystals(
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = gemHi;
-    ctx.globalAlpha = alpha * 0.7;
+    ctx.globalAlpha = alpha * 0.5;
     const hx = bx + ux * len * 0.14;
     const hy = by + uy * len * 0.14;
     ctx.beginPath();
@@ -193,7 +203,7 @@ export function drawOreCrystals(
     ctx.lineTo(hx - px * half * 0.22, hy - py * half * 0.22);
     ctx.closePath();
     ctx.fill();
-    ctx.globalAlpha = alpha * 0.82;
+    ctx.globalAlpha = alpha * 0.64;
     ctx.strokeStyle = gemHi;
     ctx.lineWidth = Math.max(0.65, 0.55 * z);
     ctx.lineJoin = "round";
