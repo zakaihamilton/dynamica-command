@@ -86,20 +86,24 @@ describe("mission profiles", () => {
     expect(objectiveContractFor("destroyMarked")).toMatchObject({
       targetLabel: "the marked targets",
       repairPolicy: "nonTarget",
-      assaultDelay: 0,
-      productionScale: 1,
+      assaultDelay: 240,
+      productionScale: 1.1,
     });
     expect(objectiveContractFor("sabotage")).toMatchObject({
       targetLabel: "the remaining systems",
       repairPolicy: "nonTarget",
+      assaultDelay: 600,
+      productionScale: 1.55,
     });
     expect(objectiveContractFor("decapitate")).toMatchObject({
       targetLabel: "the enemy Command HQ",
       repairPolicy: "none",
+      assaultDelay: 720,
+      productionScale: 1.75,
       startingSupport: false,
     });
-    expect(objectiveContractFor("razeAll")?.productionScale).toBeGreaterThan(1);
-    expect(objectiveContractFor("annihilate")?.pressureAlert).toContain("last hostiles");
+    expect(objectiveContractFor("razeAll")).toMatchObject({ assaultDelay: 840, productionScale: 1.95, startingSupport: false });
+    expect(objectiveContractFor("annihilate")).toMatchObject({ assaultDelay: 480, productionScale: 1.65, startingSupport: false });
     expect(objectiveContractFor("harvestQuota")).toBeUndefined();
   });
 

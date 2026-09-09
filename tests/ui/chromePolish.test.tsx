@@ -4,9 +4,11 @@ import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import NotFound from "../../app/not-found";
+import { BriefingMast } from "../../components/briefing/BriefingMast";
 import { BattlefieldHud } from "../../components/game/BattlefieldHud";
 import { DocumentTitle } from "../../components/ui/DocumentTitle";
 import { PageFallback } from "../../components/ui/PageFallback";
+import { createCampaign } from "../../lib/gen/campaign";
 
 afterEach(() => cleanup());
 
@@ -32,18 +34,29 @@ describe("product chrome", () => {
   });
 
   it("labels the HUD as an operation instead of a level", () => {
+    const campaign = createCampaign(421);
     render(
       <BattlefieldHud
         seed={421}
         levelNumber={1}
-        levelCount={8}
+        levelCount={campaign.missions.length}
         missionName="System Failure"
         objective="Hold the line"
         profileLabel="Resource Race"
       />,
     );
-    expect(screen.getByTestId("level-progress")).toHaveTextContent("Operation 1 of 8");
+    expect(screen.getByTestId("level-progress")).toHaveTextContent("Operation 1 of 6");
     expect(screen.getByText("System Failure")).toBeVisible();
     expect(screen.getByTestId("mission-profile")).toHaveTextContent("Resource Race");
+  });
+
+  it("uses the generated campaign length in the briefing mast", () => {
+    const campaign = createCampaign(421);
+    const mission = campaign.missions[0]!;
+    const shorterCampaign = { ...campaign, missions: campaign.missions.slice(0, 3) };
+
+    render(<BriefingMast seed={421} mission={0} campaign={shorterCampaign} def={mission} />);
+
+    expect(screen.getByTestId("seed")).toHaveTextContent("Mission 1/3");
   });
 });

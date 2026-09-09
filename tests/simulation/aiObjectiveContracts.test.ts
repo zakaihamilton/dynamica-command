@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MissionKind, SimState, WinCategory } from "../../lib/types";
 import { createCampaign } from "../../lib/gen/campaign";
+import { objectiveContractFor } from "../../lib/gen/profile";
 import { missionDifficulty } from "../../lib/sim/difficulty";
 import { createMission } from "../../lib/sim/api";
 import { tickAi } from "../../lib/sim/ai";
@@ -56,21 +57,48 @@ describe("objective-specific enemy AI contracts", () => {
   it("applies objective production cadence instead of the generic cadence", () => {
     const base = missionDifficulty(2).enemyProductionEvery;
 
-    expect(producesAt("destroyMarked", base)).toBe(true);
+    expect(producesAt("destroyMarked", base)).toBe(false);
+    expect(producesAt("destroyMarked", Math.round(base * objectiveContractFor("destroyMarked")!.productionScale))).toBe(true);
     expect(producesAt("annihilate", base)).toBe(false);
-    expect(producesAt("annihilate", Math.round(base * 1.5))).toBe(true);
+    expect(producesAt("annihilate", Math.round(base * objectiveContractFor("annihilate")!.productionScale))).toBe(true);
     expect(producesAt("decapitate", base)).toBe(false);
-    expect(producesAt("decapitate", Math.round(base * 1.75))).toBe(true);
+    expect(producesAt("decapitate", Math.round(base * objectiveContractFor("decapitate")!.productionScale))).toBe(true);
   });
+
+  it.each(["sabotage", "razeAll", "decapitate", "annihilate"] as const)(
+    "stops fresh enemy production during the %s finale",
+    (kind) => {
+      const state = objectiveFixture(kind);
+      state.credits[1] = 5000;
+      state.runtime = {
+        kind,
+        phase: "active",
+        targetIds: [],
+        rescued: 0,
+        required: 1,
+        secondary: [],
+        director: { phase: "finale", pressureStart: 100, finaleStart: 1000, eventCount: 2 },
+      };
+      const difficulty = missionDifficulty(state.missionIndex);
+      state.tick = difficulty.enemyProductionStart + Math.round(
+        difficulty.enemyProductionEvery * objectiveContractFor(kind)!.productionScale,
+      );
+
+      tickAi(state);
+
+      expect(state.entities.some((entity) => entity.owner === 1 && entity.producing !== undefined)).toBe(false);
+    },
+  );
 
   it("delays assault waves according to the objective contract", () => {
     const base = missionDifficulty(2).enemyAssaultEvery;
     const cases = [
-      ["destroyMarked", base, true],
+      ["destroyMarked", base, false],
+      ["destroyMarked", base + objectiveContractFor("destroyMarked")!.assaultDelay, true],
       ["annihilate", base, false],
-      ["annihilate", base + 360, true],
+      ["annihilate", base + objectiveContractFor("annihilate")!.assaultDelay, true],
       ["decapitate", base, false],
-      ["decapitate", base + 720, true],
+      ["decapitate", base + objectiveContractFor("decapitate")!.assaultDelay, true],
     ] as const;
 
     for (const [kind, tick, expectedAssault] of cases) {
@@ -82,11 +110,16 @@ describe("objective-specific enemy AI contracts", () => {
     }
   });
 
-  it("skips generic turret and tank support for decapitate openings", () => {
-    const mission = createCampaign(1).missions.find((candidate) => candidate.win.kind === "decapitate");
+  it.each(["decapitate", "razeAll", "annihilate"] as const)("skips generic turret and tank support for %s openings", (kind) => {
+    const seed = Array.from({ length: 100 }, (_, candidateSeed) => candidateSeed).find((candidateSeed) =>
+      createCampaign(candidateSeed).missions.some((candidate) => candidate.win.kind === kind),
+    );
+    const mission = seed === undefined
+      ? undefined
+      : createCampaign(seed).missions.find((candidate) => candidate.win.kind === kind);
     expect(mission).toBeDefined();
 
-    const state = createMission({ seed: 1, missionIndex: mission!.index });
+    const state = createMission({ seed: seed!, missionIndex: mission!.index });
     const yard = state.entities.find((entity) => entity.owner === 1 && entity.kind === "constructionYard")!;
 
     expect(state.entities.some((entity) => entity.owner === 1 && entity.kind === "turret" && entity.x === yard.x + 2 && entity.y === yard.y)).toBe(false);

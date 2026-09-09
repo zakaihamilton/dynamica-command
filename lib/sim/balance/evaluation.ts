@@ -142,10 +142,12 @@ export const DEFAULT_BALANCE_THRESHOLDS: BalanceThresholds = {
   maxCommandRejectionRate: 0,
   maxAverageCasualties: 40,
   targetedKindWinRates: {
-    annihilate: 0.60,
-    decapitate: 0.60,
+    destroyMarked: 0.70,
+    sabotage: 0.70,
+    annihilate: 0.70,
+    decapitate: 0.70,
     rescue: 0.70,
-    razeAll: 0.60,
+    razeAll: 0.70,
     holdTheLine: 0.70,
   },
   maxKindAverageCasualties: {

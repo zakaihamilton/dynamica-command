@@ -150,9 +150,14 @@ export function tickAi(state: SimState): void {
     ? Math.round(difficulty.enemyProductionEvery * timedProductionScale)
     : openingOffensive ? Math.round(difficulty.enemyProductionEvery * 4)
       : Math.round(difficulty.enemyProductionEvery * (objectiveContract?.productionScale ?? 1));
+  // Objective closeout windows need finite pressure: once the finale begins,
+  // stop adding fresh enemy units or structures while keeping existing
+  // defenses active. Otherwise the player can chase a moving target to timeout.
+  const finiteCloseout = ["sabotage", "razeAll", "decapitate", "annihilate"].includes(state.win.kind) && phase === "finale";
   const productionWindow =
     state.tick >= difficulty.enemyProductionStart &&
-    (state.tick - difficulty.enemyProductionStart) % productionEvery === 0;
+    (state.tick - difficulty.enemyProductionStart) % productionEvery === 0 &&
+    !finiteCloseout;
   const powerDeficit = powerFor(state, 1) < 0;
   if (productionWindow || powerDeficit) {
     const factory = enemyBuildings.find((e) => e.kind === "factory" && e.constructing === 0 && !e.producing);

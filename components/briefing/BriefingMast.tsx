@@ -20,7 +20,7 @@ export function BriefingMast({
     <header className={styles.mast}>
       <div>
         <ConsoleLabel data-testid="seed">
-          Shifting Front · Seed {formatSeed(seed)} · Mission {mission + 1}/8
+          Shifting Front · Seed {formatSeed(seed)} · Mission {mission + 1}/{campaign.missions.length}
         </ConsoleLabel>
         <h1 className={styles.title}>{def.name}</h1>
         <p className={styles.world}>

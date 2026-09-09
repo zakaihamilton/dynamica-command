@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RETREAT_MAX_TICKS, RETREAT_RECOVER_HEALTH, tickAi } from "../../lib/sim/ai";
 import { createMission, tick } from "../../lib/sim/api";
+import { objectiveContractFor } from "../../lib/gen/profile";
 import { tickMissionDirector } from "../../lib/sim/director";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../../lib/sim/fixtures";
 import { missionDifficulty } from "../../lib/sim/difficulty";
@@ -32,7 +33,8 @@ describe("enemy AI", () => {
     tickAi(s);
     expect(s.entities.some((e) => e.owner === 1 && e.kind === "power" && e.constructing > 0 && e.x > 8)).toBe(true);
 
-    s.tick = difficulty.enemyProductionStart + difficulty.enemyProductionEvery;
+    const productionEvery = Math.round(difficulty.enemyProductionEvery * objectiveContractFor("destroyMarked")!.productionScale);
+    s.tick = difficulty.enemyProductionStart + productionEvery;
     tickAi(s);
     expect(s.entities.some((e) => e.owner === 1 && e.kind === "refinery" && e.constructing > 0 && e.x > 10)).toBe(true);
   });
@@ -136,7 +138,7 @@ describe("enemy AI", () => {
     const extra = addUnit(s, 1, "tank", 9, 9);
     const harvester = addUnit(s, 0, "harvester", 12, 12);
     const playerYard = s.entities.find((e) => e.owner === 0 && e.kind === "constructionYard")!;
-    s.tick = missionDifficulty(0).enemyAssaultEvery;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + objectiveContractFor("destroyMarked")!.assaultDelay;
 
     tickAi(s);
 
@@ -155,7 +157,7 @@ describe("enemy AI", () => {
     const even = addUnit(s, 1, "infantry", 8, 8);
     const odd = addUnit(s, 1, "infantry", 9, 9);
     const harvester = addUnit(s, 0, "harvester", 12, 12);
-    s.tick = missionDifficulty(0).enemyAssaultEvery;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + objectiveContractFor("destroyMarked")!.assaultDelay;
 
     tickAi(s);
 
@@ -303,7 +305,7 @@ describe("enemy AI", () => {
     const guard = addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "infantry", 8, 8);
     const harvester = addUnit(s, 0, "harvester", 12, 12);
-    s.tick = missionDifficulty(0).enemyAssaultEvery + 1;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + objectiveContractFor("destroyMarked")!.assaultDelay + 1;
 
     tickAi(s);
 
@@ -320,7 +322,7 @@ describe("enemy AI", () => {
     const guard = addUnit(s, 1, "infantry", 5, 2);
     const raider = addUnit(s, 1, "tank", 9, 9);
     const harvester = addUnit(s, 0, "harvester", 12, 12);
-    s.tick = missionDifficulty(0).enemyAssaultEvery;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + objectiveContractFor("destroyMarked")!.assaultDelay;
     raider.hp = 10;
     guard.hp = 10;
 
@@ -330,7 +332,7 @@ describe("enemy AI", () => {
     guard.hp = guard.maxHp;
     raider.hp = raider.maxHp;
     expect(raider.hp / raider.maxHp).toBeGreaterThanOrEqual(RETREAT_RECOVER_HEALTH);
-    s.tick = missionDifficulty(0).enemyAssaultEvery + 1;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + objectiveContractFor("destroyMarked")!.assaultDelay + 1;
     tickAi(s);
 
     expect(s.aiState).toBe("assault");

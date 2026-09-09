@@ -170,9 +170,11 @@ describe("checkBalance", () => {
 
     expect(DEFAULT_BALANCE_THRESHOLDS.maxWinRate).toBeUndefined();
     expect(DEFAULT_BALANCE_THRESHOLDS.targetedKindWinRates).toMatchObject({
-      annihilate: 0.6,
-      decapitate: 0.6,
-      razeAll: 0.6,
+      destroyMarked: 0.7,
+      sabotage: 0.7,
+      annihilate: 0.7,
+      decapitate: 0.7,
+      razeAll: 0.7,
     });
     expect(result.passed).toBe(true);
   });
