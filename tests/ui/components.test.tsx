@@ -15,6 +15,7 @@ import { MenuMainPanel } from "../../components/menu/MenuMainPanel";
 import { NewGameSetup } from "../../components/menu/NewGameSetup";
 import { SeedEntry } from "../../components/menu/SeedEntry";
 import { PauseMenu } from "../../components/game/PauseMenu";
+import { PauseOptions } from "../../components/game/PauseOptions";
 import { PauseSaveSlots } from "../../components/game/PauseSaveSlots";
 import { PauseLoadSlots } from "../../components/game/PauseLoadSlots";
 import { CommandHeader } from "../../components/game/CommandHeader";
@@ -587,6 +588,62 @@ describe("PauseMenu", () => {
     expect(onCommitSave).toHaveBeenCalledWith("Test · M1", null);
 
     expect(onBack).not.toHaveBeenCalled();
+  });
+});
+
+describe("PauseOptions telemetry controls", () => {
+  it("exports telemetry, confirms clearing, and reports status without touching saves", () => {
+    const onExportTelemetry = vi.fn(() => true);
+    const onClearTelemetry = vi.fn(() => true);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(
+      <PauseOptions
+        settings={defaultSettings()}
+        onToggleSound={vi.fn()}
+        onToggleMusic={vi.fn()}
+        onToggleTacticalRoster={vi.fn()}
+        onVolumeChange={vi.fn()}
+        onBack={vi.fn()}
+        telemetryRecordCount={3}
+        onExportTelemetry={onExportTelemetry}
+        onClearTelemetry={onClearTelemetry}
+      />,
+    );
+
+    expect(screen.getByText("Stored mission telemetry: 3 records")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Export Telemetry" }));
+    expect(onExportTelemetry).toHaveBeenCalledOnce();
+    expect(screen.getByText("Telemetry exported.", { exact: true })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear Telemetry" }));
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(onClearTelemetry).toHaveBeenCalledOnce();
+    expect(screen.getByText("Telemetry cleared.", { exact: true })).toBeVisible();
+
+    confirm.mockRestore();
+  });
+
+  it("does not clear telemetry when confirmation is cancelled", () => {
+    const onClearTelemetry = vi.fn(() => true);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(
+      <PauseOptions
+        settings={defaultSettings()}
+        onToggleSound={vi.fn()}
+        onToggleMusic={vi.fn()}
+        onVolumeChange={vi.fn()}
+        onBack={vi.fn()}
+        telemetryRecordCount={1}
+        onExportTelemetry={vi.fn(() => true)}
+        onClearTelemetry={onClearTelemetry}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear Telemetry" }));
+    expect(onClearTelemetry).not.toHaveBeenCalled();
+    confirm.mockRestore();
   });
 });
 

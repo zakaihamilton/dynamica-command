@@ -37,6 +37,14 @@ export type RuntimePorts = {
 export type RuntimeCounters = {
   commandsIssued: number;
   commandRejections: number;
+  firstCombatTick?: number;
+  firstPressureTick?: number;
+  firstHqThreatTick?: number;
+  hqHealthAtPressure?: number;
+  hqHealthAtEnd?: number;
+  primaryCompletedTick?: number;
+  assaultTransitions: number;
+  lastAiState?: SimState["aiState"];
 };
 
 export type RuntimeLifecycleState = {

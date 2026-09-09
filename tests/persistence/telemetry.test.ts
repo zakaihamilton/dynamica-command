@@ -4,6 +4,8 @@ import {
   normalizeTelemetry,
   readTelemetry,
   recordTelemetry,
+  clearTelemetry,
+  serializeTelemetry,
   summarizeTelemetry,
   TELEMETRY_KEY,
   TELEMETRY_MAX_RECORDS,
@@ -20,9 +22,13 @@ const record = (index: number) => ({
   casualties: 2,
   commandsIssued: 10,
   commandRejections: 1,
-  secondaryObjectivesCompleted: 1,
-  secondaryObjectivesTotal: 2,
-  recordedAt: index,
+      secondaryObjectivesCompleted: 1,
+      secondaryObjectivesTotal: 2,
+      assaultTransitions: 2,
+      firstPressureTick: 48,
+      firstHqThreatTick: 72,
+      hqHealthAtEnd: 0,
+      recordedAt: index,
 });
 
 describe("local telemetry", () => {
@@ -41,6 +47,7 @@ describe("local telemetry", () => {
     recordTelemetry(storage, record(0));
     recordTelemetry(storage, { ...record(1), result: "lost", deadlineOutcome: "timedOut", casualties: 6 });
     expect(readTelemetry(storage)).toHaveLength(2);
+    expect(readTelemetry(storage)[1]?.hqHealthAtEnd).toBe(0);
     expect(JSON.parse(storage.getItem(TELEMETRY_KEY)!)).not.toHaveProperty("coordinates");
     expect(summarizeTelemetry(readTelemetry(storage))).toMatchObject({
       missions: 2,
@@ -48,6 +55,31 @@ describe("local telemetry", () => {
       losses: 1,
       timeouts: 1,
       averageCasualties: 4,
+      averageTimeToPressureTicks: 48,
+      averageTimeToHqThreatTicks: 72,
     });
+  });
+
+  it("exports a versioned normalized envelope and clears only telemetry", () => {
+    const storage = memoryStorage({ "shiftingfront:save:421": "keep this save" });
+    recordTelemetry(storage, record(0));
+    storage.setItem(TELEMETRY_KEY, JSON.stringify({
+      version: 1,
+      records: [record(0), { missionIndex: "invalid" }],
+    }));
+
+    const exported = JSON.parse(serializeTelemetry(storage));
+    expect(exported).toMatchObject({ version: 1, records: [record(0)] });
+    expect(exported.records[0]).not.toHaveProperty("coordinates");
+
+    expect(clearTelemetry(storage)).toBe(true);
+    expect(storage.getItem(TELEMETRY_KEY)).toBeNull();
+    expect(storage.getItem("shiftingfront:save:421")).toBe("keep this save");
+  });
+
+  it("exports an empty envelope when telemetry storage is malformed", () => {
+    const storage = memoryStorage({ [TELEMETRY_KEY]: "not-json" });
+
+    expect(JSON.parse(serializeTelemetry(storage))).toEqual({ version: 1, records: [] });
   });
 });

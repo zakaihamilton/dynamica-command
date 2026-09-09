@@ -1,4 +1,4 @@
-import { safeSetItem, type StorageAdapter } from "./save";
+import { safeRemoveItem, safeSetItem, type StorageAdapter } from "./save";
 import type { MissionKind, SimState } from "../types";
 import { isRecord, readPersistedEnvelope } from "./utils";
 
@@ -18,6 +18,13 @@ export type MissionTelemetry = {
   casualties: number;
   commandsIssued: number;
   commandRejections: number;
+  firstCombatTick?: number;
+  firstPressureTick?: number;
+  firstHqThreatTick?: number;
+  hqHealthAtPressure?: number;
+  hqHealthAtEnd?: number;
+  primaryCompletedTick?: number;
+  assaultTransitions: number;
   secondaryObjectivesCompleted: number;
   secondaryObjectivesTotal: number;
   recordedAt: number;
@@ -40,6 +47,7 @@ function normalizeRecord(value: unknown): MissionTelemetry | null {
     ? value.deadlineOutcome
     : "notApplicable";
   const numberOrZero = (candidate: unknown) => typeof candidate === "number" && Number.isFinite(candidate) && candidate >= 0 ? candidate : 0;
+  const numberOrUndefined = (candidate: unknown) => typeof candidate === "number" && Number.isFinite(candidate) && candidate >= 0 ? candidate : undefined;
   return {
     missionIndex: value.missionIndex,
     missionKind: value.missionKind as MissionTelemetry["missionKind"],
@@ -54,6 +62,13 @@ function normalizeRecord(value: unknown): MissionTelemetry | null {
     casualties: numberOrZero(value.casualties),
     commandsIssued: numberOrZero(value.commandsIssued),
     commandRejections: numberOrZero(value.commandRejections),
+    firstCombatTick: finiteInteger(value.firstCombatTick) ? value.firstCombatTick : undefined,
+    firstPressureTick: finiteInteger(value.firstPressureTick) ? value.firstPressureTick : undefined,
+    firstHqThreatTick: finiteInteger(value.firstHqThreatTick) ? value.firstHqThreatTick : undefined,
+    hqHealthAtPressure: numberOrUndefined(value.hqHealthAtPressure),
+    hqHealthAtEnd: numberOrUndefined(value.hqHealthAtEnd),
+    primaryCompletedTick: finiteInteger(value.primaryCompletedTick) ? value.primaryCompletedTick : undefined,
+    assaultTransitions: numberOrZero(value.assaultTransitions),
     secondaryObjectivesCompleted: numberOrZero(value.secondaryObjectivesCompleted),
     secondaryObjectivesTotal: numberOrZero(value.secondaryObjectivesTotal),
     recordedAt: numberOrZero(value.recordedAt),
@@ -92,9 +107,34 @@ export function recordTelemetry(storage: StorageAdapter, record: MissionTelemetr
   return writeTelemetry(storage, [...readTelemetry(storage), record]);
 }
 
+/** Returns the bounded, normalized telemetry envelope for local export. */
+export function serializeTelemetry(storage: StorageAdapter): string {
+  const envelope: TelemetryEnvelope = {
+    version: TELEMETRY_VERSION,
+    records: readTelemetry(storage),
+  };
+  return JSON.stringify(envelope, null, 2);
+}
+
+/** Clears only the local mission telemetry key. */
+export function clearTelemetry(storage: StorageAdapter): boolean {
+  return safeRemoveItem(storage, TELEMETRY_KEY);
+}
+
 export function telemetryFromMission(
   state: SimState,
-  stats: Pick<MissionTelemetry, "commandsIssued" | "commandRejections"> = { commandsIssued: 0, commandRejections: 0 },
+  stats: Pick<
+    MissionTelemetry,
+    | "commandsIssued"
+    | "commandRejections"
+    | "firstCombatTick"
+    | "firstPressureTick"
+    | "firstHqThreatTick"
+    | "hqHealthAtPressure"
+    | "hqHealthAtEnd"
+    | "primaryCompletedTick"
+    | "assaultTransitions"
+  > = { commandsIssued: 0, commandRejections: 0, assaultTransitions: 0 },
 ): MissionTelemetry {
   const secondary = state.runtime?.secondary ?? [];
   const deadlineOutcome = state.result === "lost" && state.lossReason === "deadline"
@@ -112,6 +152,13 @@ export function telemetryFromMission(
     casualties: state.losses.units[0],
     commandsIssued: stats.commandsIssued,
     commandRejections: stats.commandRejections,
+    firstCombatTick: stats.firstCombatTick,
+    firstPressureTick: stats.firstPressureTick,
+    firstHqThreatTick: stats.firstHqThreatTick,
+    hqHealthAtPressure: stats.hqHealthAtPressure,
+    hqHealthAtEnd: stats.hqHealthAtEnd,
+    primaryCompletedTick: stats.primaryCompletedTick,
+    assaultTransitions: stats.assaultTransitions,
     secondaryObjectivesCompleted: secondary.filter((objective) => objective.completed === true).length,
     secondaryObjectivesTotal: secondary.length,
     recordedAt: Date.now(),
@@ -126,9 +173,13 @@ export function summarizeTelemetry(records: MissionTelemetry[] = []): {
   winRate: number;
   averageCasualties: number;
   commandRejectionRate: number;
+  averageTimeToPressureTicks: number;
+  averageTimeToHqThreatTicks: number;
 } {
   const normalized = normalizeTelemetry(records);
   const commands = normalized.reduce((sum, record) => sum + record.commandsIssued, 0);
+  const pressureRecords = normalized.filter((record) => record.firstPressureTick !== undefined);
+  const hqThreatRecords = normalized.filter((record) => record.firstHqThreatTick !== undefined);
   return {
     missions: normalized.length,
     wins: normalized.filter((record) => record.result === "won").length,
@@ -137,5 +188,11 @@ export function summarizeTelemetry(records: MissionTelemetry[] = []): {
     winRate: normalized.length ? normalized.filter((record) => record.result === "won").length / normalized.length : 0,
     averageCasualties: normalized.length ? normalized.reduce((sum, record) => sum + record.casualties, 0) / normalized.length : 0,
     commandRejectionRate: commands ? normalized.reduce((sum, record) => sum + record.commandRejections, 0) / commands : 0,
+    averageTimeToPressureTicks: pressureRecords.length
+      ? pressureRecords.reduce((sum, record) => sum + (record.firstPressureTick ?? 0), 0) / pressureRecords.length
+      : 0,
+    averageTimeToHqThreatTicks: hqThreatRecords.length
+      ? hqThreatRecords.reduce((sum, record) => sum + (record.firstHqThreatTick ?? 0), 0) / hqThreatRecords.length
+      : 0,
   };
 }

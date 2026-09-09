@@ -27,6 +27,7 @@ import {
   landEdgeDistFromMask,
   readShoreCell,
   sampleTerrainMaterial,
+  type TerrainMaterialContext,
   tintWater,
   waterShoreDist,
   waterNeighbor,
@@ -46,6 +47,7 @@ export type TerrainAtlasData = {
   cell: number;
   mapWidth: number;
   mapHeight: number;
+  waterCells: Uint8Array;
 };
 
 export function resourceSignature(amounts: number[]): number {
@@ -79,7 +81,8 @@ export function atlasRectForTile(x: number, y: number, _mapWidth: number): { sx:
 function bakeWaterShoreDist(state: AtlasWorld, cols: number, rows: number): Uint8Array {
   const dist = new Uint8Array(cols * rows);
   dist.fill(255);
-  const queue: number[] = [];
+  const queue = new Int32Array(cols * rows);
+  let tail = 0;
   let head = 0;
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
@@ -88,10 +91,10 @@ function bakeWaterShoreDist(state: AtlasWorld, cols: number, rows: number): Uint
       if (sceneryAt(state, gx, gy).kind === TILE_WATER) continue;
       const i = row * cols + col;
       dist[i] = 0;
-      queue.push(i);
+      queue[tail++] = i;
     }
   }
-  while (head < queue.length) {
+  while (head < tail) {
     const i = queue[head++]!;
     const d = dist[i]!;
     const col = i % cols;
@@ -107,7 +110,7 @@ function bakeWaterShoreDist(state: AtlasWorld, cols: number, rows: number): Uint
         const ni = nr * cols + nc;
         if (nd >= dist[ni]!) continue;
         dist[ni] = nd;
-        queue.push(ni);
+        queue[tail++] = ni;
       }
     }
   }
@@ -118,6 +121,7 @@ type AtlasSceneryGrid = {
   cols: number;
   rows: number;
   kind: Uint8Array;
+  elev: Uint8Array;
   waterNeighbors: Uint8Array;
 };
 
@@ -125,10 +129,12 @@ function bakeAtlasSceneryGrid(state: AtlasWorld, cols: number, rows: number): At
   const cachedCols = cols + 2;
   const cachedRows = rows + 2;
   const kind = new Uint8Array(cachedCols * cachedRows);
+  const elev = new Uint8Array(cachedCols * cachedRows);
   for (let row = 0; row < cachedRows; row++) {
     for (let col = 0; col < cachedCols; col++) {
       const sample = sceneryAt(state, col - MAP_SKIRT - 1, row - MAP_SKIRT - 1);
       kind[row * cachedCols + col] = sample.kind;
+      elev[row * cachedCols + col] = sample.elev;
     }
   }
 
@@ -148,11 +154,16 @@ function bakeAtlasSceneryGrid(state: AtlasWorld, cols: number, rows: number): At
       waterNeighbors[row * cols + col] = mask;
     }
   }
-  return { cols, rows, kind, waterNeighbors };
+  return { cols, rows, kind, elev, waterNeighbors };
 }
 
 function atlasKindAt(grid: AtlasSceneryGrid, col: number, row: number): number {
   return grid.kind[(row + 1) * (grid.cols + 2) + col + 1] ?? TILE_BLOCKED;
+}
+
+function atlasSceneryAt(grid: AtlasSceneryGrid, col: number, row: number): { kind: number; elev: number } {
+  const index = (row + 1) * (grid.cols + 2) + col + 1;
+  return { kind: grid.kind[index] ?? TILE_BLOCKED, elev: grid.elev[index] ?? 0 };
 }
 
 function atlasSize(state: AtlasWorld): { cols: number; rows: number; width: number; height: number } {
@@ -161,8 +172,8 @@ function atlasSize(state: AtlasWorld): { cols: number; rows: number; width: numb
   return { cols, rows, width: cols * ATLAS_CELL, height: rows * ATLAS_CELL };
 }
 
-function cellColor(state: AtlasWorld, gx: number, gy: number): Rgb {
-  const sample = sampleTerrainMaterial(state, gx, gy);
+function cellColor(state: AtlasWorld, gx: number, gy: number, context: TerrainMaterialContext): Rgb {
+  const sample = sampleTerrainMaterial(state, gx, gy, context);
   return { r: sample.r, g: sample.g, b: sample.b };
 }
 
@@ -171,6 +182,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
   const colors = new Float32Array(cols * rows * 3);
   const classes = new Uint8Array(cols * rows);
   const features = new Array<TerrainFeatureSample>(cols * rows);
+  const waterCells = new Uint8Array(cols * rows);
   const shoreDist = bakeWaterShoreDist(state, cols, rows);
   const sceneryGrid = bakeAtlasSceneryGrid(state, cols, rows);
   const salt = artSalt(state);
@@ -182,12 +194,22 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
       const gy = row - MAP_SKIRT;
       const kind = atlasKindAt(sceneryGrid, col, row);
       const feature = terrainFeatureAt(state, gx, gy);
-      const color = kind === TILE_WATER ? { r: 0, g: 0, b: 0 } : cellColor(state, gx, gy);
+      const scenery = atlasSceneryAt(sceneryGrid, col, row);
+      const color = kind === TILE_WATER ? { r: 0, g: 0, b: 0 } : cellColor(state, gx, gy, {
+        scenery,
+        east: atlasSceneryAt(sceneryGrid, col + 1, row),
+        south: atlasSceneryAt(sceneryGrid, col, row + 1),
+        mats,
+        rig,
+        salt,
+        waterNeighbor: (sceneryGrid.waterNeighbors[row * cols + col] ?? 0) !== 0,
+      });
       const i = (row * cols + col) * 3;
       colors[i] = color.r;
       colors[i + 1] = color.g;
       colors[i + 2] = color.b;
       features[row * cols + col] = feature;
+      waterCells[row * cols + col] = kind === TILE_WATER ? 1 : 0;
       const surface = surfaceAt(state, gx, gy);
       classes[row * cols + col] = kind === TILE_WATER
         ? WATER_CELL_CLASS
@@ -335,6 +357,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
     cell: ATLAS_CELL,
     mapWidth: state.width,
     mapHeight: state.height,
+    waterCells,
   };
 }
 

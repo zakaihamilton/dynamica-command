@@ -352,7 +352,7 @@ describe("enemy AI", () => {
     tickAi(s);
     expect(s.aiState).toBe("retreat");
 
-    s.tick = missionDifficulty(0).enemyAssaultEvery + RETREAT_MAX_TICKS;
+    s.tick = missionDifficulty(0).enemyAssaultEvery + RETREAT_MAX_TICKS + 360;
     tickAi(s);
 
     expect(s.aiState).toBe("assault");

@@ -3,6 +3,8 @@ import type { Command, Entity, SimState } from "../../types";
 import { distToEntity } from "../world";
 import {
   OFFENSIVE_KINDS,
+  OFFENSIVE_RESPONSE_RADIUS,
+  OFFENSIVE_RESPONSE_KINDS,
   YARD_THREAT_RADIUS,
   combatValue,
   enemyEntitiesView,
@@ -45,10 +47,11 @@ export function parallelOffensiveTargets(state: SimState): Entity[] {
 }
 
 export function defensiveThreat(state: SimState, yard: Entity): Entity | undefined {
+  const responseRadius = OFFENSIVE_RESPONSE_KINDS.has(objectiveKind(state)) ? OFFENSIVE_RESPONSE_RADIUS : YARD_THREAT_RADIUS;
   return enemyEntitiesView(state)
     .filter((entity) => isCombatEntity(entity))
     .sort((a, b) => distToEntity(yard, a) - distToEntity(yard, b) || a.id - b.id)
-    .find((entity) => distToEntity(yard, entity) <= YARD_THREAT_RADIUS);
+    .find((entity) => distToEntity(yard, entity) <= responseRadius);
 }
 
 export function scenarioThreat(state: SimState): Entity | undefined {
@@ -71,7 +74,7 @@ export function scenarioThreat(state: SimState): Entity | undefined {
 export function assaultReady(state: SimState, target: Entity, combat: Entity[]): boolean {
   if (!OFFENSIVE_KINDS.has(objectiveKind(state)) || target.owner !== 1) return true;
   const minimumUnits = objectiveKind(state) === "annihilate" || objectiveKind(state) === "razeAll"
-    ? 10 + Math.floor(state.missionIndex / 2)
+    ? 5 + Math.floor(state.missionIndex / 2)
     : objectiveKind(state) === "decapitate" && state.missionIndex < 2
       ? 18
       : 8 + Math.floor(state.missionIndex / 3);

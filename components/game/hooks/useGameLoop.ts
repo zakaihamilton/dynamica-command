@@ -56,7 +56,7 @@ export function useGameLoop({
     sessionState: null,
     terminalPresented: false,
     commandApplied: false,
-    counters: { commandsIssued: 0, commandRejections: 0 },
+    counters: { commandsIssued: 0, commandRejections: 0, assaultTransitions: 0 },
   });
   const persistenceRef = useRef<RuntimePersistenceState>({
     saveRetry: { state: null, retry: false, nextAttemptMs: 0, lastStatus: "saved" },

@@ -107,6 +107,45 @@ describe("checkBalance", () => {
     expect(result.failures.join(" ")).toContain("rescue targeted win rate");
   });
 
+  it("enforces targeted mission-kind casualty ceilings", () => {
+    const records = Array.from({ length: 4 }, () => makeRecord({ kind: "annihilate", casualties: 70 }));
+    const result = checkBalance(summarizeBalance(records), {
+      minWinRate: 0,
+      maxTimeoutRate: 1,
+      minKindSamples: 4,
+      minKindWinRate: 0,
+      maxKindTimeoutRate: 1,
+      maxTruncatedRate: 1,
+      maxMapFailureRate: 1,
+      maxPowerDeficitRate: 1,
+      maxCommandRejectionRate: 1,
+      maxAverageCasualties: 100,
+      maxKindAverageCasualties: { annihilate: 65 },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.failures.join(" ")).toContain("annihilate average casualties");
+  });
+
+  it("skips targeted casualty ceilings when below the minimum sample count", () => {
+    const records = Array.from({ length: 3 }, () => makeRecord({ kind: "decapitate", casualties: 100 }));
+    const result = checkBalance(summarizeBalance(records), {
+      minWinRate: 0,
+      maxTimeoutRate: 1,
+      minKindSamples: 4,
+      minKindWinRate: 0,
+      maxKindTimeoutRate: 1,
+      maxTruncatedRate: 1,
+      maxMapFailureRate: 1,
+      maxPowerDeficitRate: 1,
+      maxCommandRejectionRate: 1,
+      maxAverageCasualties: 100,
+      maxKindAverageCasualties: { decapitate: 0 },
+    });
+
+    expect(result.passed).toBe(true);
+  });
+
   it("passes with reasonable thresholds", () => {
     const records = Array.from({ length: 10 }, (_, i) => makeRecord({ result: i < 8 ? "won" : "lost" }));
     const result = checkBalance(summarizeBalance(records), {
@@ -130,6 +169,11 @@ describe("checkBalance", () => {
     const result = checkBalance(summarizeBalance(records), DEFAULT_BALANCE_THRESHOLDS);
 
     expect(DEFAULT_BALANCE_THRESHOLDS.maxWinRate).toBeUndefined();
+    expect(DEFAULT_BALANCE_THRESHOLDS.targetedKindWinRates).toMatchObject({
+      annihilate: 0.6,
+      decapitate: 0.6,
+      razeAll: 0.6,
+    });
     expect(result.passed).toBe(true);
   });
 

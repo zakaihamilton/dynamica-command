@@ -50,6 +50,14 @@ export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts):
     lifecycle.commandApplied = false;
     lifecycle.counters.commandsIssued = 0;
     lifecycle.counters.commandRejections = 0;
+    lifecycle.counters.firstCombatTick = undefined;
+    lifecycle.counters.firstPressureTick = undefined;
+    lifecycle.counters.firstHqThreatTick = undefined;
+    lifecycle.counters.hqHealthAtPressure = undefined;
+    lifecycle.counters.hqHealthAtEnd = undefined;
+    lifecycle.counters.primaryCompletedTick = undefined;
+    lifecycle.counters.assaultTransitions = 0;
+    lifecycle.counters.lastAiState = undefined;
     persistence.reset();
     presentation.reset();
   };
@@ -89,6 +97,28 @@ export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts):
     onTick(state: SimState, events: SimEvent[], now: number) {
       syncSession(state);
       lifecycle.counters.commandRejections += events.filter((event) => event.type === "commandRejected").length;
+      if (lifecycle.counters.firstCombatTick === undefined && events.some((event) => event.type === "combat" && event.owner === 0)) {
+        lifecycle.counters.firstCombatTick = state.tick;
+      }
+      const directorPhase = state.runtime?.director?.phase;
+      if (lifecycle.counters.firstPressureTick === undefined && directorPhase !== undefined && directorPhase !== "opening") {
+        lifecycle.counters.firstPressureTick = state.tick;
+        const yard = state.entities.find((entity) => entity.owner === 0 && entity.class === "building" && entity.kind === "constructionYard");
+        if (yard) lifecycle.counters.hqHealthAtPressure = yard.hp / Math.max(1, yard.maxHp);
+      }
+      if (lifecycle.counters.firstHqThreatTick === undefined) {
+        const yard = state.entities.find((entity) => entity.owner === 0 && entity.class === "building" && entity.kind === "constructionYard");
+        if (yard && state.entities.some((entity) => entity.owner === 1 && entity.attackTarget === yard.id)) {
+          lifecycle.counters.firstHqThreatTick = state.tick;
+        }
+      }
+      if (state.aiState === "assault" && lifecycle.counters.lastAiState !== "assault") {
+        lifecycle.counters.assaultTransitions += 1;
+      }
+      lifecycle.counters.lastAiState = state.aiState;
+      if (state.result === "won" && lifecycle.counters.primaryCompletedTick === undefined) {
+        lifecycle.counters.primaryCompletedTick = state.tick;
+      }
       if (state.tick % AUTOSAVE_INTERVAL_TICKS === 0) persistence.scheduleAutosave();
       if (lifecycle.commandApplied || state.tick % 6 === 0) {
         lifecycle.commandApplied = false;
@@ -101,6 +131,8 @@ export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts):
       frame.onFrame(state, now, paused, frameMs);
       if (state.result !== "playing" && !lifecycle.terminalPresented) {
         lifecycle.terminalPresented = true;
+        const yard = state.entities.find((entity) => entity.owner === 0 && entity.class === "building" && entity.kind === "constructionYard");
+        lifecycle.counters.hqHealthAtEnd = yard ? yard.hp / Math.max(1, yard.maxHp) : 0;
         persistence.onTerminal(state, now, lifecycle.counters);
         ports.setState({ ...state, entities: [...state.entities] });
       }

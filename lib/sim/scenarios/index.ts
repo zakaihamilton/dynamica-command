@@ -95,6 +95,22 @@ function setupTimedScenario({ state, map, mission, profile, reachable }: Scenari
         target.hp = target.maxHp;
       }
       targetIds.push(target.id);
+
+      // Rescue and extraction should create a tactical problem, not a safe
+      // waypoint check. A small defensive patrol near each stranded group
+      // makes the approach contestable while leaving the neutral target
+      // itself protected from automatic combat targeting.
+      if (kind === "rescue" || (kind === "extraction" && i === 0)) {
+        const patrolPoint = reachableScenarioPoint(
+          state,
+          { x: point.x + (i % 2 === 0 ? 4 : -4), y: point.y + (i % 2 === 0 ? -3 : 3) },
+          reachable,
+        );
+        const patrol = spawnUnit(state, 1, i % 2 === 0 ? "infantry" : "antiArmor", patrolPoint.x, patrolPoint.y);
+        patrol.stance = "defensive";
+        patrol.idle = true;
+        patrol.scenarioGuardTargetId = target.id;
+      }
     }
   }
 

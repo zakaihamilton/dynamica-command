@@ -10,6 +10,7 @@ import { powerBreakdown } from "../world";
 import { TILE_BLOCKED, TILE_WATER, type BalanceStrategy, type Campaign, type Command, type MissionDef, type SimState, type UnitKind } from "../../types";
 import { missionFamilyFor } from "../../gen/profile";
 import { scenarioAffordances, type ScenarioAffordances } from "../scenarios";
+import { COMMANDER_CADENCE } from "../commander/queries";
 import { balanceFailureReason } from "./evaluation";
 import { BalanceTimeBudgetExceeded, type BalanceRecordWithScenario, type BalanceRunJob, type BalanceSweepJob } from "./types";
 
@@ -72,10 +73,16 @@ function runScenario(
       : undefined;
   const missionHorizon = state.runtime?.deadline ?? state.win.ticks ?? MAX_MISSION_TICKS;
   const tickLimit = Math.min(maxTicks, missionHorizon);
+  // Balance telemetry is diagnostic rather than authoritative. Sampling the
+  // expensive world scans at a small fixed stride keeps long replay fixtures
+  // representative while avoiding a full entity scan on every tick.
+  const diagnosticStride = 6;
   const openingCutoff = Math.max(1, Math.floor(missionHorizon * 0.25));
   for (let i = 0; i < tickLimit && state.result === "playing"; i++) {
     assertWithinDeadline(deadlineAt);
-    const commands = commander?.plan(state) ?? baselineCommands(state, map);
+    const commands = commander
+      ? state.tick % COMMANDER_CADENCE === 0 ? commander.plan(state) : undefined
+      : baselineCommands(state, map);
     for (const command of commands ?? []) {
       if ((command.type === "attack" || command.type === "attackMove") && firstCombatTick === undefined) firstCombatTick = state.tick;
       if (command.type === "repair") repairCommands += 1;
@@ -83,23 +90,31 @@ function runScenario(
     commandsIssued += commands?.length ?? 0;
     const result = tick(state, commands, { collectEvents: false, updateFog: false });
     commandRejections += result.commandRejections;
-    const playerYard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard" && entity.hp > 0);
-    const hqThreatened = playerYard !== undefined && state.entities.some((entity) =>
-      entity.owner === 1 && entity.class === "unit" && entity.attackTarget === playerYard.id,
-    );
-    if (firstHqThreatTick === undefined && hqThreatened) firstHqThreatTick = state.tick;
-    if (state.aiState === "assault" && previousAiState !== "assault") assaultTransitions += 1;
-    previousAiState = state.aiState;
-    if (firstPressureTick === undefined && state.runtime?.director?.phase !== undefined && state.runtime.director.phase !== "opening") {
-      firstPressureTick = state.tick;
-      if (playerYard) hqHealthAtPressure = playerYard.hp / Math.max(1, playerYard.maxHp);
+    const shouldSampleDiagnostics = state.tick % diagnosticStride === 0 || state.result !== "playing";
+    if (shouldSampleDiagnostics) {
+      const playerYard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard" && entity.hp > 0);
+      const hqThreatened = playerYard !== undefined && state.entities.some((entity) =>
+        entity.owner === 1 && entity.class === "unit" && entity.attackTarget === playerYard.id,
+      );
+      if (firstHqThreatTick === undefined && hqThreatened) firstHqThreatTick = state.tick;
+      if (state.aiState === "assault" && previousAiState !== "assault") assaultTransitions += 1;
+      previousAiState = state.aiState;
+      if (firstPressureTick === undefined && state.runtime?.director?.phase !== undefined && state.runtime.director.phase !== "opening") {
+        firstPressureTick = state.tick;
+        if (playerYard) hqHealthAtPressure = playerYard.hp / Math.max(1, playerYard.maxHp);
+      }
     }
     if (primaryCompletedTick === undefined && result.state.result === "won") primaryCompletedTick = state.tick;
     if (openingCredits === undefined && state.tick >= openingCutoff) {
       openingCredits = state.credits[0];
       openingUnitsProducedByRole = { ...state.unitsProducedByRole };
     }
-    if (state.result === "playing" && state.losses.buildings[0] === 0) powerDeficit ||= powerBreakdown(state, 0).surplus < 0;
+    // Unlike the presentation diagnostics above, power health is an
+    // acceptance invariant. Sample it every tick so a short deficit cannot
+    // disappear between diagnostic samples or on the terminal tick.
+    if (state.losses.buildings[0] === 0) {
+      powerDeficit ||= powerBreakdown(state, 0).surplus < 0;
+    }
   }
   return {
     powerDeficit,

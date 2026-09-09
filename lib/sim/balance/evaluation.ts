@@ -116,6 +116,7 @@ export type BalanceThresholds = {
   maxCommandRejectionRate: number;
   maxAverageCasualties: number;
   targetedKindWinRates?: Record<string, number>;
+  maxKindAverageCasualties?: Record<string, number>;
 };
 
 export type BalanceCheck = {
@@ -141,8 +142,16 @@ export const DEFAULT_BALANCE_THRESHOLDS: BalanceThresholds = {
   maxCommandRejectionRate: 0,
   maxAverageCasualties: 40,
   targetedKindWinRates: {
+    annihilate: 0.60,
+    decapitate: 0.60,
     rescue: 0.70,
+    razeAll: 0.60,
     holdTheLine: 0.70,
+  },
+  maxKindAverageCasualties: {
+    annihilate: 65,
+    decapitate: 75,
+    razeAll: 70,
   },
 };
 
@@ -403,6 +412,13 @@ export function checkBalance(summary: BalanceSummary, thresholds: BalanceThresho
     if (!kindSummary || kindSummary.samples < thresholds.minKindSamples) continue;
     if (kindSummary.winRate < minimum) {
       failures.push(`${kind} targeted win rate ${(kindSummary.winRate * 100).toFixed(1)}% is below ${(minimum * 100).toFixed(1)}%`);
+    }
+  }
+  for (const [kind, maximum] of Object.entries(thresholds.maxKindAverageCasualties ?? {})) {
+    const kindSummary = summary.byMissionKind[kind];
+    if (!kindSummary || kindSummary.samples < thresholds.minKindSamples) continue;
+    if (kindSummary.averageCasualties > maximum) {
+      failures.push(`${kind} average casualties ${kindSummary.averageCasualties.toFixed(1)} exceeds ${maximum}`);
     }
   }
   for (const [mission, missionSummary] of Object.entries(summary.byMission)) {

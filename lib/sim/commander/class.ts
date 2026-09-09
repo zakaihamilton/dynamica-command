@@ -130,7 +130,7 @@ export class CompetentCommander {
       const reservedDefenders = scenarioObjective
         ? Math.min(scenarioDefenderLimit, Math.max(0, objectiveCombat.length - 1))
         : offensiveObjective
-          ? Math.min(state.missionIndex < 2 ? 0 : 1, Math.max(0, objectiveCombat.length - 1))
+          ? Math.min(state.missionIndex < 2 ? 0 : 2, Math.max(0, objectiveCombat.length - 1))
         : defenderLimit;
       const defenders = (threat || offensiveObjective || scenarioObjective)
         ? [...objectiveCombat]

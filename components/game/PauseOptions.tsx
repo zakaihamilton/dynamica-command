@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { AudioSettingsControls } from "@/components/audio/AudioSettingsControls";
@@ -13,6 +14,9 @@ export function PauseOptions({
   onToggleTacticalRoster,
   onVolumeChange,
   onBack,
+  telemetryRecordCount,
+  onExportTelemetry,
+  onClearTelemetry,
   titleId = "pause-title",
   backTooltip = "Return to the pause menu",
 }: {
@@ -22,9 +26,28 @@ export function PauseOptions({
   onToggleTacticalRoster?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
+  telemetryRecordCount?: number;
+  onExportTelemetry?: () => boolean;
+  onClearTelemetry?: () => boolean;
   titleId?: string;
   backTooltip?: string;
 }) {
+  const [telemetryNotice, setTelemetryNotice] = useState("");
+  const telemetryEnabled = onExportTelemetry !== undefined && onClearTelemetry !== undefined;
+
+  const exportTelemetry = () => {
+    const exported = onExportTelemetry?.() ?? false;
+    setTelemetryNotice(exported ? "Telemetry exported." : "Telemetry export unavailable.");
+  };
+
+  const clearMissionTelemetry = () => {
+    if (typeof window !== "undefined" && !window.confirm("Clear all locally stored mission telemetry? This does not affect saves or campaign progress.")) {
+      return;
+    }
+    const cleared = onClearTelemetry?.() ?? false;
+    setTelemetryNotice(cleared ? "Telemetry cleared." : "Telemetry could not be cleared.");
+  };
+
   return (
     <>
       <ConsoleLabel>Options</ConsoleLabel>
@@ -39,6 +62,19 @@ export function PauseOptions({
         <ConsoleButton className={styles.action} tooltip="Show a keyboard-friendly unit list beside the battlefield" onClick={onToggleTacticalRoster}>
           Tactical roster: {settings.tacticalRosterEnabled ? "On" : "Off"}
         </ConsoleButton>
+        {telemetryEnabled ? (
+          <div className={styles.group}>
+            <ConsoleLabel className={styles.groupLabel}>Diagnostics</ConsoleLabel>
+            <p className={styles.slotCopy}>Stored mission telemetry: {telemetryRecordCount ?? 0} records</p>
+            <ConsoleButton className={styles.action} tooltip="Download the bounded local telemetry envelope as JSON" onClick={exportTelemetry}>
+              Export Telemetry
+            </ConsoleButton>
+            <ConsoleButton className={styles.action} tooltip="Clear only locally stored mission telemetry" onClick={clearMissionTelemetry}>
+              Clear Telemetry
+            </ConsoleButton>
+            {telemetryNotice ? <p className={styles.notice} role="status">{telemetryNotice}</p> : null}
+          </div>
+        ) : null}
         <ConsoleButton muted className={styles.action} tooltip={backTooltip} shortcut={SHORTCUT.back} onClick={onBack}>Back</ConsoleButton>
       </div>
       <AudioSettingsControls settings={settings} onChange={onVolumeChange} />

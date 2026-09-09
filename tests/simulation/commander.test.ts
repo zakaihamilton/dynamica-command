@@ -3,6 +3,7 @@ import { createCampaign } from "../../lib/gen/campaign";
 import { BUILDING_STATS } from "../../lib/catalog";
 import { createMission, inspect, tick } from "../../lib/sim/api";
 import { CompetentCommander } from "../../lib/sim/commander";
+import { defensiveThreat } from "../../lib/sim/commander/combat";
 import { planBuilding } from "../../lib/sim/commander/production";
 import { missionDifficulty } from "../../lib/sim/difficulty";
 import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
@@ -10,6 +11,20 @@ import { enemyEntities, playerBuildings, playerUnits } from "../../lib/sim/comma
 import { invalidateEntityCaches, living, powerBreakdown, unitAt } from "../../lib/sim/world";
 
 describe("competent commander", () => {
+  it("keeps timed sabotage on the normal HQ response radius", () => {
+    const sabotage = makeFixture({ width: 40, height: 40, win: { kind: "sabotage", targetCount: 1, ticks: 1000 } });
+    const sabotageYard = addBuilding(sabotage, 0, "constructionYard", 5, 5);
+    addUnit(sabotage, 1, "infantry", 25, 5);
+
+    expect(defensiveThreat(sabotage, sabotageYard)).toBeUndefined();
+
+    const assault = makeFixture({ width: 40, height: 40, win: { kind: "annihilate" } });
+    const assaultYard = addBuilding(assault, 0, "constructionYard", 5, 5);
+    addUnit(assault, 1, "infantry", 25, 5);
+
+    expect(defensiveThreat(assault, assaultYard)).toBeDefined();
+  });
+
   it("returns snapshots instead of exposing cached query state", () => {
     const state = makeFixture({ width: 20, height: 20, win: { kind: "annihilate" } });
     const building = addBuilding(state, 0, "power", 2, 2);

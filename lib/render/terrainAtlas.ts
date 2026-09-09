@@ -1,7 +1,5 @@
 import { biomeArt, TERRAIN_ART } from "../gen/visualAssets";
 import { generateCampaignVisualProfile } from "../gen/visualProfile";
-import { MAP_SKIRT, sceneryAt } from "../gen/map";
-import { TILE_WATER } from "../types";
 import { ATLAS_CELL } from "./terrainMaterials";
 import { bakeTerrainAtlasData as bakeAtlas, makeAtlasKey, type TerrainAtlasData } from "./terrainAtlasBake";
 import type { AtlasWorld } from "./terrainMaterials";
@@ -162,13 +160,13 @@ function overlayGrain(ctx: CanvasRenderingContext2D, state: AtlasWorld, width: n
   ctx.restore();
 }
 
-function restoreWaterPixels(ctx: CanvasRenderingContext2D, state: AtlasWorld, baked: TerrainAtlasData): void {
-  const cols = state.width + MAP_SKIRT * 2;
-  const rows = state.height + MAP_SKIRT * 2;
+function restoreWaterPixels(ctx: CanvasRenderingContext2D, baked: TerrainAtlasData): void {
+  const cols = baked.width / baked.cell;
+  const rows = baked.height / baked.cell;
   const image = ctx.getImageData(0, 0, baked.width, baked.height);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      if (sceneryAt(state, col - MAP_SKIRT, row - MAP_SKIRT).kind !== TILE_WATER) continue;
+      if (baked.waterCells[row * cols + col] !== 1) continue;
       for (let ly = 0; ly < ATLAS_CELL; ly++) {
         const py = row * ATLAS_CELL + ly;
         for (let lx = 0; lx < ATLAS_CELL; lx++) {
@@ -203,7 +201,7 @@ export function getTerrainAtlas(state: AtlasWorld): TerrainAtlas {
       image.data.set(baked.data);
       ctx.putImageData(image, 0, 0);
       overlayGrain(ctx, state, baked.width, baked.height);
-      restoreWaterPixels(ctx, state, baked);
+      restoreWaterPixels(ctx, baked);
     }
   }
   atlasCache = { ...baked, canvas };

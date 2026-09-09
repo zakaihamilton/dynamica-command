@@ -3,7 +3,7 @@ import { cachedLocalStorage, saveKey, type SaveSession, type SaveWriteStatus } f
 import { recordTelemetry, telemetryFromMission } from "@/lib/persist/telemetry";
 import { missionMedals, missionScore } from "@/lib/sim/debrief";
 import type { SimState } from "@/lib/types";
-import type { RuntimePersistenceState } from "./types";
+import type { RuntimeCounters, RuntimePersistenceState } from "./types";
 
 const CAMPAIGN_SAVE_RETRY_MS = 1_000;
 
@@ -119,7 +119,7 @@ export function createPersistenceCoordinator({
         }
       }
     },
-    onTerminal(state: SimState, now: number, counters: { commandsIssued: number; commandRejections: number }) {
+    onTerminal(state: SimState, now: number, counters: RuntimeCounters) {
       if (!persistCampaign) return;
       cancelIdle();
       saveImplicit(state, now);

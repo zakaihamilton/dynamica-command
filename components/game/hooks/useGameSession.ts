@@ -8,6 +8,7 @@ import {
   readSave,
   readSlot,
 } from "@/lib/persist/save";
+import { clearTelemetry, readTelemetry, serializeTelemetry } from "@/lib/persist/telemetry";
 import { consumeFreshLaunchIntent } from "@/lib/persist/navigation";
 import { restoreSlot } from "@/lib/persist/save/restore";
 import type { SaveSession } from "@/lib/persist/save";
@@ -108,6 +109,8 @@ export function useGameSession({
   onBrowserBackLeave?: () => void;
 }) {
   const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
+  const [, setTelemetryRevision] = useState(0);
+  const telemetryRecordCount = tutorial ? 0 : readTelemetry(cachedLocalStorage()).length;
   const [canLeaveWithoutSave, setCanLeaveWithoutSave] = useState(false);
   const leaveWithoutSaveRef = useRef<(() => void) | null>(null);
   const onSaveError = useCallback((message: string, fallback: () => void) => {
@@ -206,6 +209,29 @@ export function useGameSession({
     return saved;
   }, [clearLeaveFallback, persistNamedSlot]);
 
+  const exportTelemetry = useCallback(() => {
+    if (tutorial || typeof window === "undefined") return false;
+    try {
+      const blob = new Blob([serializeTelemetry(cachedLocalStorage())], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `shifting-front-telemetry-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [tutorial]);
+
+  const clearMissionTelemetry = useCallback(() => {
+    if (tutorial) return false;
+    const cleared = clearTelemetry(cachedLocalStorage());
+    if (cleared) setTelemetryRevision((revision) => revision + 1);
+    return cleared;
+  }, [tutorial]);
+
   return {
     router: routes.router,
     confirmation: confirmation.confirmation,
@@ -239,6 +265,10 @@ export function useGameSession({
     goRetry: routes.goRetry,
     canLeaveWithoutSave,
     leaveWithoutSave,
+    telemetryEnabled: !tutorial,
+    telemetryRecordCount,
+    exportTelemetry,
+    clearTelemetry: clearMissionTelemetry,
   };
 }
 

@@ -58,9 +58,9 @@ describe("objective-specific enemy AI contracts", () => {
 
     expect(producesAt("destroyMarked", base)).toBe(true);
     expect(producesAt("annihilate", base)).toBe(false);
-    expect(producesAt("annihilate", Math.round(base * 1.25))).toBe(true);
+    expect(producesAt("annihilate", Math.round(base * 1.5))).toBe(true);
     expect(producesAt("decapitate", base)).toBe(false);
-    expect(producesAt("decapitate", Math.round(base * 1.5))).toBe(true);
+    expect(producesAt("decapitate", Math.round(base * 1.75))).toBe(true);
   });
 
   it("delays assault waves according to the objective contract", () => {
@@ -68,9 +68,9 @@ describe("objective-specific enemy AI contracts", () => {
     const cases = [
       ["destroyMarked", base, true],
       ["annihilate", base, false],
-      ["annihilate", base + 120, true],
+      ["annihilate", base + 360, true],
       ["decapitate", base, false],
-      ["decapitate", base + 600, true],
+      ["decapitate", base + 720, true],
     ] as const;
 
     for (const [kind, tick, expectedAssault] of cases) {

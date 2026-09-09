@@ -42,16 +42,36 @@ export function homeGuardCount(missionIndex: number): number {
 
 export function guardScenarioObjectives(state: SimState, units: Entity[]): void {
   const runtime = state.runtime;
-  if (!runtime || (runtime.kind !== "sabotage" && runtime.kind !== "destroyMarked")) return;
+  if (!runtime || !["sabotage", "destroyMarked", "rescue", "extraction"].includes(runtime.kind)) return;
   const targets = runtime.targetIds
     .map((id) => byId(state, id))
-    .filter((entity): entity is Entity => !!entity && entity.hp > 0 && entity.owner === 1);
+    .filter((entity): entity is Entity => {
+      if (!entity || entity.hp <= 0) return false;
+      return runtime.kind === "rescue" || runtime.kind === "extraction"
+        ? entity.owner === 0 && entity.neutral === true
+        : entity.owner === 1;
+    });
+
+  const activeTargetIds = new Set(targets.map((target) => target.id));
+  for (const unit of units) {
+    if (unit.scenarioGuardTargetId === undefined || activeTargetIds.has(unit.scenarioGuardTargetId)) continue;
+    unit.scenarioGuardTargetId = undefined;
+    if (unit.attackTarget === undefined) {
+      unit.orderDestination = undefined;
+      unit.path = [];
+      unit.flowGoal = undefined;
+      unit.routePending = false;
+      unit.idle = true;
+    }
+  }
   if (!targets.length || !units.length) return;
   // Assign each guard at most one objective. If there are more targets than
   // guards, repeatedly assigning the same unit would make it flip between
   // perimeter tiles every tick.
   targets.slice(0, units.length).forEach((target, index) => {
-    const guard = units[index % units.length]!;
+    const guard = units.find((unit) => unit.scenarioGuardTargetId === target.id)
+      ?? units.find((unit) => unit.scenarioGuardTargetId === undefined)
+      ?? units[index % units.length]!;
     if (guard.attackTarget !== undefined) return;
     // Keep the selected perimeter tile stable while the guard approaches the
     // same building. Recomputing the nearest tile from a sub-tile position
@@ -69,6 +89,7 @@ export function guardResourceLane(state: SimState, units: Entity[], yard: Entity
   if (!point || units.length <= guardIndex) return;
 
   const guard = [...units]
+    .filter((unit) => unit.scenarioGuardTargetId === undefined)
     .sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id)[guardIndex];
   if (!guard || guard.attackTarget !== undefined) return;
   if (guard.orderDestination && distance(guard.orderDestination, point) < 2 && guard.orderMode === "move") return;

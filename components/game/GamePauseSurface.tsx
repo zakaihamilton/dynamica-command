@@ -48,6 +48,9 @@ export function GamePauseSurface({
       onToggleMusic={session.toggleMusic}
       onToggleTacticalRoster={session.toggleTacticalRoster}
       onVolumeChange={session.updateVolume}
+      telemetryRecordCount={session.telemetryEnabled ? session.telemetryRecordCount : undefined}
+      onExportTelemetry={session.telemetryEnabled ? session.exportTelemetry : undefined}
+      onClearTelemetry={session.telemetryEnabled ? session.clearTelemetry : undefined}
       onBack={() => setView("main")}
     />
   );

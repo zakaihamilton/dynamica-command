@@ -37,6 +37,9 @@ export function PauseMenu({
   onToggleMusic,
   onToggleTacticalRoster,
   onVolumeChange,
+  telemetryRecordCount,
+  onExportTelemetry,
+  onClearTelemetry,
   onBack,
 }: {
   view: PauseView;
@@ -61,6 +64,9 @@ export function PauseMenu({
   onToggleMusic: () => void;
   onToggleTacticalRoster?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
+  telemetryRecordCount?: number;
+  onExportTelemetry?: () => boolean;
+  onClearTelemetry?: () => boolean;
   onBack: () => void;
 }) {
   const dialogRef = useModalFocus(true, view, "dialog");
@@ -109,6 +115,9 @@ export function PauseMenu({
             onToggleMusic={onToggleMusic}
             onToggleTacticalRoster={onToggleTacticalRoster}
             onVolumeChange={onVolumeChange}
+            telemetryRecordCount={telemetryRecordCount}
+            onExportTelemetry={onExportTelemetry}
+            onClearTelemetry={onClearTelemetry}
             onBack={onBack}
           />
         )}

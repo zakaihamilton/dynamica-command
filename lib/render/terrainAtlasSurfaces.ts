@@ -34,6 +34,16 @@ import {
 
 export const WATER_SHORE_MAX = 8;
 
+export type TerrainMaterialContext = {
+  scenery?: { kind: number; elev: number };
+  east?: { kind: number; elev: number };
+  south?: { kind: number; elev: number };
+  mats?: BiomeMaterials;
+  rig?: ReturnType<typeof terrainLightRigFor>;
+  salt?: number;
+  waterNeighbor?: boolean;
+};
+
 export function waterNeighbor(state: AtlasWorld, x: number, y: number): boolean {
   return sceneryAt(state, x, y).kind === TILE_WATER
     || sceneryAt(state, x + 1, y).kind === TILE_WATER
@@ -156,15 +166,22 @@ export function tintWater(mats: BiomeMaterials, dist: number, mapX: number, mapY
   return color;
 }
 
-export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: number): TerrainSample {
+export function sampleTerrainMaterial(
+  state: AtlasWorld,
+  mapX: number,
+  mapY: number,
+  context: TerrainMaterialContext = {},
+): TerrainSample {
   const x = Math.floor(mapX);
   const y = Math.floor(mapY);
   const fx = mapX - x;
   const fy = mapY - y;
-  const scenery = sceneryAt(state, x, y);
-  const mats = materialsFor(state);
-  const rig = terrainLightRigFor(state.seed);
-  const salt = artSalt(state);
+  const scenery = context.scenery ?? sceneryAt(state, x, y);
+  const east = context.east ?? sceneryAt(state, x + 1, y);
+  const south = context.south ?? sceneryAt(state, x, y + 1);
+  const mats = context.mats ?? materialsFor(state);
+  const rig = context.rig ?? terrainLightRigFor(state.seed);
+  const salt = context.salt ?? artSalt(state);
   const grain = fbm(mapX * 0.45, mapY * 0.45, salt);
   const micro = hash2(x * 13, y * 17, salt);
   const surface = surfaceAt(state, x, y);
@@ -183,29 +200,23 @@ export function sampleTerrainMaterial(state: AtlasWorld, mapX: number, mapY: num
   } else {
     const elev = scenery.elev;
     color = elev >= 3 ? mats.high : elev === 2 ? mixRgb(mats.mid, mats.high, 0.42) : elev <= 0 ? mats.low : mats.mid;
-    if (waterNeighbor(state, x, y)) color = mixRgb(color, mats.shore, 0.28);
+    if (context.waterNeighbor ?? waterNeighbor(state, x, y)) color = mixRgb(color, mats.shore, 0.28);
     if (ore) {
       color = mixRgb(color, mats.dark, 0.28);
       color = mixRgb(color, mats.ore, 0.22);
     }
     color = tintGroundPatches(color, mats, mapX, mapY, salt);
     if (scenery.kind === TILE_BLOCKED) color = mixRgb(color, mats.blocked, 0.42);
-    const east = sceneryAt(state, x + 1, y).elev;
-    const south = sceneryAt(state, x, y + 1).elev;
-    const slope = (scenery.elev - east) * 0.08 + (scenery.elev - south) * 0.12;
+    const slope = (scenery.elev - east.elev) * 0.08 + (scenery.elev - south.elev) * 0.12;
     color = scaleRgb(color, 0.88 + scenery.elev * 0.055 + slope + (grain - 0.5) * 0.1);
     color = restrainTerrainColor(color, scenery.kind === TILE_BLOCKED ? 0.2 : 0.16);
-    color = gradeTerrainColor(color, terrainLightFactor(rig, elev, east, south, fx, fy), rig);
+    color = gradeTerrainColor(color, terrainLightFactor(rig, elev, east.elev, south.elev, fx, fy), rig);
   }
   if (water) {
-    const east = sceneryAt(state, x + 1, y).elev;
-    const south = sceneryAt(state, x, y + 1).elev;
-    const light = terrainLightFactor(rig, scenery.elev, east, south, fx, fy);
+    const light = terrainLightFactor(rig, scenery.elev, east.elev, south.elev, fx, fy);
     color = gradeTerrainColor(color, 0.96 + (light - 0.96) * 0.34, rig, 0.005);
   } else if (surface === SURFACE_ROAD || surface === SURFACE_CONCRETE) {
-    const east = sceneryAt(state, x + 1, y).elev;
-    const south = sceneryAt(state, x, y + 1).elev;
-    const light = terrainLightFactor(rig, scenery.elev, east, south, fx, fy);
+    const light = terrainLightFactor(rig, scenery.elev, east.elev, south.elev, fx, fy);
     color = gradeTerrainColor(color, 0.98 + (light - 0.98) * 0.45, rig);
   }
   return {

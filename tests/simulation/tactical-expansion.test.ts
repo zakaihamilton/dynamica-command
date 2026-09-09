@@ -10,6 +10,7 @@ import { generateMap } from "../../lib/gen/map";
 import { tooltipLines, tileTooltipLines } from "../../lib/render/renderer";
 import { objectiveProgress } from "../../lib/sim/objectives";
 import { distToEntity } from "../../lib/sim/world";
+import { guardScenarioObjectives } from "../../lib/sim/ai/director";
 import type { MissionKind } from "../../lib/types";
 
 function missionOfKind(kind: MissionKind, missionIndex: number) {
@@ -177,6 +178,49 @@ describe("tactical expansion", () => {
       expect(distanceFromPlayer).toBeGreaterThanOrEqual(routeDistance * 0.55);
       expect(distanceFromPlayer).toBeLessThanOrEqual(routeDistance * 0.8);
     }
+  });
+
+  it("holds deterministic defensive patrols near rescue and extraction targets", () => {
+    for (const kind of ["rescue", "extraction"] as const) {
+      const mission = createCampaign(0).missions.find((candidate) => candidate.win.kind === kind);
+      expect(mission).toBeDefined();
+      const state = createMission({ seed: 0, missionIndex: mission!.index });
+      const targetIds = state.runtime?.targetIds ?? [];
+      expect(targetIds.length).toBeGreaterThan(0);
+      expect(targetIds.some((id) => state.entities.some((entity) => entity.scenarioGuardTargetId === id && entity.owner === 1))).toBe(true);
+      expect(state.entities.filter((entity) => entity.scenarioGuardTargetId !== undefined).every((entity) => entity.stance === "defensive")).toBe(true);
+    }
+  });
+
+  it("releases a scenario guard after its rescue target is contacted", () => {
+    const state = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 500 } });
+    const stranded = addUnit(state, 0, "infantry", 8, 8);
+    stranded.neutral = true;
+    const guard = addUnit(state, 1, "infantry", 10, 8);
+    guard.scenarioGuardTargetId = stranded.id;
+    guard.orderMode = "move";
+    guard.orderDestination = { x: stranded.x, y: stranded.y };
+    guard.path = [{ x: stranded.x, y: stranded.y }];
+    guard.idle = false;
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [stranded.id],
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    guardScenarioObjectives(state, [guard]);
+    expect(guard.scenarioGuardTargetId).toBe(stranded.id);
+
+    stranded.neutral = false;
+    guardScenarioObjectives(state, [guard]);
+
+    expect(guard.scenarioGuardTargetId).toBeUndefined();
+    expect(guard.orderDestination).toBeUndefined();
+    expect(guard.path).toEqual([]);
+    expect(guard.idle).toBe(true);
   });
 
   it("repaths a convoy after a partial route is consumed", () => {
