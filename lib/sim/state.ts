@@ -16,6 +16,7 @@ export function createBaseState(
     buildingsCompletedByKind: {},
     losses: { units: [0, 0], buildings: [0, 0] },
     result: "playing",
+    aiContacts: {},
     ...overrides,
   };
 }

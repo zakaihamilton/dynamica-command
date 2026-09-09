@@ -12,6 +12,7 @@ import { spawnBuildingAt, spawnUnit } from "./world";
 import { createBaseState } from "./state";
 import type { Command } from "../types";
 import { missionDifficulty } from "./difficulty";
+import { objectiveContractFor } from "../gen/profile";
 import {
   applyQueuedCommands,
   createSimulationTickContext,
@@ -130,7 +131,7 @@ export function createMissionFromData(opts: {
     mission.win.kind === "decapitate" ||
     mission.win.kind === "annihilate" ||
     mission.win.kind === "destroyMarked";
-  if (assault && difficulty.assaultSupport) {
+  if (assault && difficulty.assaultSupport && (objectiveContractFor(mission.win.kind)?.startingSupport ?? true)) {
     spawnBuildingAt(state, 1, "turret", e.x + 2, e.y);
     spawnUnit(state, 1, "tank", e.x - 2, e.y + 2);
   }

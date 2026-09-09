@@ -634,7 +634,9 @@ test.describe("mobile-first layouts", () => {
     const orderPoint = { x: 300, y: 600 };
     await dispatchTouch(page, "pointerdown", orderPoint);
     await dispatchTouch(page, "pointerup", orderPoint);
-    await expect.poll(() => persistedUnitOrder(page, infantryEntity.id)).toMatchObject({ orderMode: "move" });
+    // Ground commands for combat units are attack-move orders so they keep
+    // advancing while engaging threats along the route.
+    await expect.poll(() => persistedUnitOrder(page, infantryEntity.id)).toMatchObject({ orderMode: "attackMove" });
   });
 
   test("uses two fingers for marquee selection instead of camera zoom", async ({ page }) => {

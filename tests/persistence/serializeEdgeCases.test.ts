@@ -22,6 +22,28 @@ describe("serializeState / deserializeState", () => {
     expect(restored.seed).toBe(state.seed);
     expect(restored.width).toBe(state.width);
   });
+
+  it("round-trips AI contacts and defaults legacy saves to an empty contact map", () => {
+    const state = baseState(1000);
+    const scout = addUnit(state, 1, "infantry", 5, 5);
+    state.aiContacts = {
+      [scout.id]: {
+        id: scout.id,
+        class: "unit",
+        kind: "infantry",
+        x: scout.x,
+        y: scout.y,
+        lastSeenTick: 42,
+      },
+    };
+
+    const restored = deserializeState(serializeState(state));
+    expect(restored.aiContacts).toEqual(state.aiContacts);
+
+    const legacy = JSON.parse(serializeState(state)) as { aiContacts?: unknown };
+    delete legacy.aiContacts;
+    expect(deserializeState(JSON.stringify(legacy)).aiContacts).toEqual({});
+  });
 });
 
 describe("saveKey", () => {

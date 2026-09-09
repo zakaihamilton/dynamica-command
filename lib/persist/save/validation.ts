@@ -1,5 +1,5 @@
 import { BUILDING_KINDS, UNIT_KINDS } from "../../catalog";
-import type { BuildingKind, CampaignProgress, Entity, SimState, UnitKind } from "../../types";
+import type { AiContact, BuildingKind, CampaignProgress, Entity, SimState, UnitKind } from "../../types";
 import { fogGridHeight, fogGridWidth } from "../../sim/fog";
 import { MISSION_MAX, MISSION_MIN, SEED_MAX, SEED_MIN } from "../../seed/rng";
 import { isRecord } from "../utils";
@@ -122,6 +122,16 @@ export function isEntity(value: unknown): value is Entity {
   return true;
 }
 
+function isAiContact(value: unknown): value is AiContact {
+  if (!isRecord(value)) return false;
+  const validKind = value.class === "unit" ? isUnitKind(value.kind) : value.class === "building" ? isBuildingKind(value.kind) : false;
+  return validKind
+    && isIntegerInRange(value.id, 0, Number.MAX_SAFE_INTEGER)
+    && isFiniteNumber(value.x)
+    && isFiniteNumber(value.y)
+    && isIntegerInRange(value.lastSeenTick, 0, Number.MAX_SAFE_INTEGER);
+}
+
 export function isWin(value: unknown): boolean {
   if (!isRecord(value) || !isOneOf(value.kind, MISSION_KINDS)) return false;
   if (value.target !== undefined && !isNonNegativeNumber(value.target)) return false;
@@ -210,6 +220,9 @@ export function isStateShape(value: unknown): value is SimState {
   if (value.aiState !== undefined && !isOneOf(value.aiState, ["economy", "defense", "assault", "retreat", "regroup"] as const)) return false;
   if (value.aiRetreatTick !== undefined && !isIntegerInRange(value.aiRetreatTick, 0, Number.MAX_SAFE_INTEGER)) return false;
   if (value.aiRetreatLocked !== undefined && typeof value.aiRetreatLocked !== "boolean") return false;
+  if (value.aiContacts !== undefined && (!isRecord(value.aiContacts) || !Object.entries(value.aiContacts).every(([key, contact]) =>
+    isIntegerInRange(Number(key), 0, Number.MAX_SAFE_INTEGER) && isAiContact(contact),
+  ))) return false;
   return true;
 }
 
