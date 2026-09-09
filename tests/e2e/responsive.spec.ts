@@ -37,6 +37,54 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   return dimensions;
 }
 
+async function expectWelcomePreviewsBelowMenu(
+  page: import("@playwright/test").Page,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  await page.goto("/");
+  await expect(page.getByTestId("menu-dashboard")).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const menu = document.querySelector<HTMLElement>("[data-testid='menu-dashboard']");
+    const overlay = document.querySelector<HTMLElement>("[data-testid='menu-signal-overlay']");
+    const effects = overlay?.querySelector<HTMLElement>("[class*='viewportEffects']");
+    const screen = document.querySelector<HTMLElement>("[class*='screen']");
+    if (!menu || !overlay || !effects || !screen) throw new Error("Missing welcome layout elements");
+
+    const menuRect = menu.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
+    return {
+      menuBottom: menuRect.bottom,
+      overlay: {
+        top: overlayRect.top,
+        bottom: overlayRect.bottom,
+        width: overlayRect.width,
+        position: getComputedStyle(overlay).position,
+      },
+      effectsPosition: getComputedStyle(effects).position,
+      screen: {
+        clientHeight: screen.clientHeight,
+        scrollHeight: screen.scrollHeight,
+      },
+    };
+  });
+
+  expect(layout.overlay.position).toBe("relative");
+  expect(layout.overlay.top).toBeGreaterThanOrEqual(layout.menuBottom - 1);
+  expect(layout.overlay.width).toBeLessThanOrEqual(viewport.width);
+  expect(layout.effectsPosition).toBe("fixed");
+
+  for (const lock of await page.locator("[data-testid='menu-signal-overlay'] [data-lock]").all()) {
+    const bounds = await lock.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
+  }
+
+  return layout;
+}
+
 async function expectOperationsMapFit(
   page: import("@playwright/test").Page,
   viewport: { width: number; height: number },
@@ -737,6 +785,33 @@ test.describe("mobile-first layouts", () => {
     expect(launchBounds!.x).toBeGreaterThanOrEqual(0);
     expect(launchBounds!.x + launchBounds!.width).toBeLessThanOrEqual(320);
     await expect(page.getByRole("button", { name: "Back to menu" })).toBeVisible();
+  });
+
+  test("places welcome previews below the menu on phones", async ({ page }) => {
+    const shortPhone = await expectWelcomePreviewsBelowMenu(page, { width: 320, height: 568 });
+    expect(shortPhone.screen.scrollHeight).toBeGreaterThan(shortPhone.screen.clientHeight);
+
+    const expandedLock = page.locator("[data-testid='menu-signal-overlay'] [data-lock][data-expanded='true']");
+    await expect(expandedLock).toHaveCount(1, { timeout: 10_000 });
+    const expandedBounds = await expandedLock.boundingBox();
+    expect(expandedBounds).not.toBeNull();
+    expect(expandedBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(expandedBounds!.x + expandedBounds!.width).toBeLessThanOrEqual(320);
+
+    const scrollState = await page.locator("[class*='screen']").evaluate((element) => {
+      const screen = element as HTMLElement;
+      screen.scrollTo({ top: screen.scrollHeight, behavior: "instant" });
+      return {
+        scrollTop: screen.scrollTop,
+        clientHeight: screen.clientHeight,
+        scrollHeight: screen.scrollHeight,
+      };
+    });
+    expect(scrollState.scrollTop).toBeGreaterThan(0);
+    expect(scrollState.scrollHeight).toBeGreaterThan(scrollState.clientHeight);
+
+    await expectWelcomePreviewsBelowMenu(page, { width: 390, height: 844 });
+    await expectNoHorizontalOverflow(page);
   });
 
   test("preserves selection through rotation and cancels the open portrait panel", async ({ page }) => {

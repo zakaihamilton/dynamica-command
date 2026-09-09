@@ -179,33 +179,37 @@ export function MenuSignalOverlay({ paused = false }: { paused?: boolean }) {
       data-paused={paused ? "true" : "false"}
       aria-hidden
     >
-      <div className={styles.crt} />
-      <div className={styles.grid} />
-      <div className={styles.sweep} />
-      {PREVIEW_LOCK_IDS.map((id, index) => {
-        const expanded = !reducedMotion && preview.expanded && preview.lockIndex === index;
-        return (
-          <span
-            key={id}
-            className={styles.lock}
-            data-lock={id}
-            data-expanded={expanded ? "true" : "false"}
-            data-shot={expanded ? String(preview.shotIndex) : undefined}
-            data-seed={expanded ? String(previewSeed(preview.cycleIndex)) : undefined}
-          >
-            {!reducedMotion ? (
-              <canvas
-                ref={(node) => {
-                  canvasRefs.current[index] = node;
-                }}
-                className={styles.feed}
-                width={FEED_WIDTH}
-                height={FEED_HEIGHT}
-              />
-            ) : null}
-          </span>
-        );
-      })}
+      <div className={styles.viewportEffects}>
+        <div className={styles.crt} />
+        <div className={styles.grid} />
+        <div className={styles.sweep} />
+      </div>
+      <div className={styles.previewRegion}>
+        {PREVIEW_LOCK_IDS.map((id, index) => {
+          const expanded = !reducedMotion && preview.expanded && preview.lockIndex === index;
+          return (
+            <span
+              key={id}
+              className={styles.lock}
+              data-lock={id}
+              data-expanded={expanded ? "true" : "false"}
+              data-shot={expanded ? String(preview.shotIndex) : undefined}
+              data-seed={expanded ? String(previewSeed(preview.cycleIndex)) : undefined}
+            >
+              {!reducedMotion ? (
+                <canvas
+                  ref={(node) => {
+                    canvasRefs.current[index] = node;
+                  }}
+                  className={styles.feed}
+                  width={FEED_WIDTH}
+                  height={FEED_HEIGHT}
+                />
+              ) : null}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

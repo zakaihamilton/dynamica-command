@@ -360,8 +360,28 @@
 }
 
 @media (max-width: 639px) {
+  .screen {
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   .uiLayer {
+    display: flex;
+    height: auto;
+    min-height: 0;
+    flex-direction: column;
     padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.65rem, env(safe-area-inset-bottom));
+  }
+
+  .content {
+    flex: 0 0 auto;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 1.15rem 0 1rem;
+    overflow: visible;
   }
 
   .topbar {
@@ -380,11 +400,6 @@
 
   .topbarStatus {
     gap: 0.4rem;
-  }
-
-  .content {
-    align-items: stretch;
-    padding: 1.15rem 0 1rem;
   }
 
   .commandColumn {

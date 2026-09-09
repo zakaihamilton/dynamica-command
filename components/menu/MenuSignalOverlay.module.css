@@ -6,11 +6,24 @@
   overflow: hidden;
 }
 
+.viewportEffects,
 .crt,
 .grid,
 .sweep,
 .lock {
   position: absolute;
+}
+
+.viewportEffects {
+  pointer-events: none;
+  inset: 0;
+  z-index: 0;
+}
+
+.previewRegion {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
 }
 
 .crt {
@@ -225,6 +238,30 @@
   .lock[data-lock="c"] {
     left: 12%;
     top: 42%;
+  }
+}
+
+@media (max-width: 639px) {
+  .overlay {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 12rem;
+    flex: 0 0 12rem;
+  }
+
+  .viewportEffects {
+    position: fixed;
+  }
+
+  .lock {
+    --lock-feed-w: min(15rem, calc(100vw - 1.5rem));
+    --lock-feed-h: calc(var(--lock-feed-w) * 2 / 3);
+  }
+
+  .lock[data-expanded="true"] {
+    left: calc(50% - 1.175rem);
+    top: calc(50% - 1.175rem);
   }
 }
 

@@ -20,7 +20,6 @@ export function MenuScreen() {
     >
       <DocumentTitle title="Shifting Front" />
       <div className={styles.scene} />
-      <MenuSignalOverlay paused={controller.view !== "main"} />
       <div className={styles.vignette} />
 
       <div className={styles.uiLayer}>
@@ -48,6 +47,8 @@ export function MenuScreen() {
           </div>
         </main>
       </div>
+
+      <MenuSignalOverlay paused={controller.view !== "main"} />
 
       <MenuOverlay
         view={controller.view}
