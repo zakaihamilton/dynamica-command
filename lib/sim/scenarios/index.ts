@@ -97,19 +97,36 @@ function setupTimedScenario({ state, map, mission, profile, reachable }: Scenari
       targetIds.push(target.id);
 
       // Rescue and extraction should create a tactical problem, not a safe
-      // waypoint check. A small defensive patrol near each stranded group
-      // makes the approach contestable while leaving the neutral target
-      // itself protected from automatic combat targeting.
-      if (kind === "rescue" || (kind === "extraction" && i === 0)) {
-        const patrolPoint = reachableScenarioPoint(
-          state,
-          { x: point.x + (i % 2 === 0 ? 4 : -4), y: point.y + (i % 2 === 0 ? -3 : 3) },
-          reachable,
-        );
-        const patrol = spawnUnit(state, 1, i % 2 === 0 ? "infantry" : "antiArmor", patrolPoint.x, patrolPoint.y);
-        patrol.stance = "defensive";
-        patrol.idle = true;
-        patrol.scenarioGuardTargetId = target.id;
+      // waypoint check. Contestable routes get a second guard at each stop;
+      // late extraction missions add that second guard at the extraction
+      // approach while keeping one perimeter guard at later return stops.
+      // The extra guards share the target assignment but use opposite
+      // perimeter offsets, forcing the player to choose an approach and keep
+      // an escort nearby instead of sending a single click-to-contact force.
+      if (kind === "rescue" || kind === "extraction") {
+        const patrolCount = kind === "rescue"
+          ? contestedRoute ? 2 : 1
+          : contestedRoute ? mission.index >= 4 ? i === 0 ? 2 : 1 : 2 : i === 0 ? 1 : 0;
+        for (let patrolIndex = 0; patrolIndex < patrolCount; patrolIndex++) {
+          const side = (i + patrolIndex) % 2 === 0 ? 1 : -1;
+          const patrolPoint = reachableScenarioPoint(
+            state,
+            { x: point.x + side * 4, y: point.y - side * 3 },
+            reachable,
+          );
+          const patrol = spawnUnit(
+            state,
+            1,
+            patrolIndex === 0
+              ? (i % 2 === 0 ? "infantry" : "antiArmor")
+              : kind === "extraction" ? "infantry" : "antiArmor",
+            patrolPoint.x,
+            patrolPoint.y,
+          );
+          patrol.stance = "defensive";
+          patrol.idle = true;
+          patrol.scenarioGuardTargetId = target.id;
+        }
       }
     }
   }

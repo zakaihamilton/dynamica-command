@@ -192,6 +192,58 @@ describe("tactical expansion", () => {
     }
   });
 
+  it("adds a second guard to contested rescue and extraction stops", () => {
+    for (const kind of ["rescue", "extraction"] as const) {
+      let sample: { seed: number; missionIndex: number } | undefined;
+      for (let seed = 0; seed < 200 && !sample; seed++) {
+        const mission = createCampaign(seed).missions.find((candidate) =>
+          candidate.win.kind === kind && candidate.profile?.variant === "contestedRoute" &&
+            candidate.index >= 4,
+        );
+        if (mission) sample = { seed, missionIndex: mission.index };
+      }
+
+      expect(sample).toBeDefined();
+      const state = createMission(sample!);
+      for (const targetId of state.runtime?.targetIds ?? []) {
+        expect(state.entities.filter((entity) =>
+          entity.owner === 1 && entity.scenarioGuardTargetId === targetId,
+        )).toHaveLength(kind === "extraction" && state.runtime!.targetIds.indexOf(targetId) > 0 ? 1 : 2);
+      }
+    }
+  });
+
+  it("lets the extra perimeter guard engage an approaching player unit", () => {
+    for (const kind of ["rescue", "extraction"] as const) {
+      let sample: { seed: number; missionIndex: number } | undefined;
+      for (let seed = 0; seed < 200 && !sample; seed++) {
+        const mission = createCampaign(seed).missions.find((candidate) =>
+          candidate.win.kind === kind && candidate.profile?.variant === "contestedRoute" && candidate.index >= 4,
+        );
+        if (mission) sample = { seed, missionIndex: mission.index };
+      }
+
+      expect(sample).toBeDefined();
+      const state = createMission(sample!);
+      const targetId = state.runtime?.targetIds[0];
+      const guards = state.entities.filter((entity) =>
+        entity.owner === 1 && entity.scenarioGuardTargetId === targetId,
+      );
+      expect(guards).toHaveLength(2);
+      const perimeterGuard = guards[1]!;
+      const intruder = addUnit(state, 0, "infantry", perimeterGuard.x + 1, perimeterGuard.y);
+
+      tickCombat(state);
+
+      expect(perimeterGuard.attackTarget).toBe(intruder.id);
+
+      if (kind === "extraction") {
+        const laterTargetId = state.runtime?.targetIds[1];
+        expect(state.entities.filter((entity) => entity.scenarioGuardTargetId === laterTargetId)).toHaveLength(1);
+      }
+    }
+  });
+
   it("releases a scenario guard after its rescue target is contacted", () => {
     const state = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 500 } });
     const stranded = addUnit(state, 0, "infantry", 8, 8);

@@ -29,6 +29,14 @@ import type { CommanderMetrics } from "./queries";
 const COMMANDER_REPAIR_CREDIT_RESERVE = 0;
 const COMMANDER_YARD_REPAIR_THRESHOLD = 0.92;
 const COMMANDER_STRUCTURE_REPAIR_THRESHOLD = 0.6;
+const COMMANDER_FINAL_PUSH_RATIO = 0.72;
+
+function finalPushActive(state: SimState): boolean {
+  const director = state.runtime?.director;
+  if (director && (director.phase === "finale" || state.tick >= director.finaleStart)) return true;
+  const deadline = state.runtime?.deadline ?? state.win.ticks;
+  return deadline !== undefined && state.tick >= deadline * COMMANDER_FINAL_PUSH_RATIO;
+}
 
 function repairPriority(kind: Entity["kind"]): number {
   if (kind === "constructionYard") return 0;
@@ -97,6 +105,7 @@ export class CompetentCommander {
     const objectiveCombat = objectiveKind(state) === "extraction"
       ? combat.filter((entity) => !extractionCargoIds.has(entity.id))
       : combat;
+    const finalPush = finalPushActive(state);
     const scenarioObjective = ["escort", "rescue", "extraction"].includes(objectiveKind(state)) && (
       objective?.neutral === true || extractionCargo.length > 0
     ) && (objectiveKind(state) !== "escort" || state.runtime?.convoyStartTick === undefined);
@@ -118,7 +127,10 @@ export class CompetentCommander {
         this.assaultTargetId = undefined;
       }
       if (offensiveObjective && objective && (this.assaultTargetId === undefined || this.assaultTargetId !== objective.id)) {
-        if (this.assaultTargetId !== undefined || assaultReady(state, objective, combat)) {
+        // A late objective is a closeout, not another staging cycle. Commit
+        // the force that exists so a partially depleted army can still finish
+        // a marked target before the deadline.
+        if (this.assaultTargetId !== undefined || finalPush || assaultReady(state, objective, combat)) {
           this.assaultTargetId = objective.id;
         }
       }
@@ -130,8 +142,11 @@ export class CompetentCommander {
       const reservedDefenders = scenarioObjective
         ? Math.min(scenarioDefenderLimit, Math.max(0, objectiveCombat.length - 1))
         : offensiveObjective
-          ? Math.min(state.missionIndex < 2 ? 0 : 2, Math.max(0, objectiveCombat.length - 1))
-        : defenderLimit;
+          ? Math.min(
+            finalPush ? (threat ? 1 : 0) : state.missionIndex < 2 ? 0 : 2,
+            Math.max(0, objectiveCombat.length - 1),
+          )
+          : defenderLimit;
       const defenders = (threat || offensiveObjective || scenarioObjective)
         ? [...objectiveCombat]
           .sort((a, b) => distToEntity(a, yard) - distToEntity(b, yard) || a.id - b.id)
@@ -146,7 +161,22 @@ export class CompetentCommander {
         combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: emergencyThreat.id });
       } else if (offensiveObjective && objective) {
         if (threat) {
-          combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: threat.id });
+          const splitFinalPush = finalPush && defenders.length > 0 && assaultForce.length > 0;
+          if (splitFinalPush) {
+            // Keep one close defender on the immediate threat while the rest
+            // continue the committed objective assault. A final push should
+            // tolerate local pressure without abandoning the win condition.
+            combatCommands.push({ type: "attack", unitIds: defenders.map((entity) => entity.id), targetId: threat.id });
+            for (let index = 0; index < assaultTargets.length; index++) {
+              const target = assaultTargets[index]!;
+              const unitIds = assaultForce.filter((_, unitIndex) => unitIndex % assaultTargets.length === index).map((entity) => entity.id);
+              if (unitIds.length) {
+                combatCommands.push({ type: "attackMove", unitIds, x: target.x, y: target.y, formation: "wedge" });
+              }
+            }
+          } else {
+            combatCommands.push({ type: "attack", unitIds: combat.map((entity) => entity.id), targetId: threat.id });
+          }
         } else if (assaultCommitted && assaultForce.length) {
           if (defenders.length) {
             combatCommands.push({ type: "move", unitIds: defenders.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });

@@ -12,6 +12,7 @@ export function resourcePatch(
   center: Vec2,
   radius: number,
   rng: Rng,
+  amountScale = 1,
 ): void {
   for (let y = center.y - radius; y <= center.y + radius; y++) {
     for (let x = center.x - radius; x <= center.x + radius; x++) {
@@ -21,7 +22,9 @@ export function resourcePatch(
       if (tiles[i] !== TILE_CLEAR || surfaces[i] === SURFACE_CONCRETE) continue;
       tiles[i] = TILE_RESOURCE;
       surfaces[i] = SURFACE_NONE;
-      resourceAmount[i] = 480 + rng.int(421);
+      // Economy-focused missions can request a smaller budget while using
+      // the same deterministic random stream and patch geometry.
+      resourceAmount[i] = Math.round((480 + rng.int(421)) * amountScale);
     }
   }
 }

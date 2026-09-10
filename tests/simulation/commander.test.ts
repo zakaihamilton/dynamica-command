@@ -173,6 +173,70 @@ describe("competent commander", () => {
     expect(state.result).toBe("won");
   });
 
+  it("commits an undersized offensive force during the final push", () => {
+    const state = makeFixture({ width: 24, height: 24, win: { kind: "sabotage", targetCount: 1, ticks: 5000 } });
+    addBuilding(state, 0, "constructionYard", 2, 2);
+    addBuilding(state, 0, "power", 5, 2);
+    const attacker = addUnit(state, 0, "infantry", 5, 5);
+    addBuilding(state, 1, "constructionYard", 18, 18);
+    const marked = addBuilding(state, 1, "objective", 12, 12, 0, true);
+    state.win.targetIds = [marked.id];
+    state.runtime = {
+      kind: "sabotage",
+      phase: "active",
+      targetIds: [marked.id],
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+    state.tick = 72;
+
+    const commands = new CompetentCommander().plan(state);
+
+    expect(commands).toContainEqual(expect.objectContaining({
+      type: "attackMove",
+      unitIds: [attacker.id],
+      x: marked.x,
+      y: marked.y,
+    }));
+  });
+
+  it("keeps a final-push assault moving while one defender answers a threat", () => {
+    const state = makeFixture({ width: 24, height: 24, win: { kind: "sabotage", targetCount: 1, ticks: 5000 } });
+    addBuilding(state, 0, "constructionYard", 2, 2);
+    addBuilding(state, 0, "power", 5, 2);
+    const attackers = [
+      addUnit(state, 0, "infantry", 5, 5),
+      addUnit(state, 0, "antiArmor", 6, 5),
+      addUnit(state, 0, "infantry", 5, 6),
+    ];
+    addBuilding(state, 1, "constructionYard", 18, 18);
+    const marked = addBuilding(state, 1, "objective", 12, 12, 0, true);
+    const threat = addUnit(state, 1, "infantry", 7, 2);
+    state.win.targetIds = [marked.id];
+    state.runtime = {
+      kind: "sabotage",
+      phase: "active",
+      targetIds: [marked.id],
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+    state.tick = 72;
+
+    const commands = new CompetentCommander().plan(state);
+
+    expect(commands).toContainEqual({ type: "attack", unitIds: [attackers[0]!.id], targetId: threat.id });
+    expect(commands).toContainEqual(expect.objectContaining({
+      type: "attackMove",
+      unitIds: expect.arrayContaining([attackers[1]!.id, attackers[2]!.id]),
+      x: marked.x,
+      y: marked.y,
+    }));
+  });
+
   it("moves a rescue force toward neutral scenario targets", () => {
     const state = makeFixture({ width: 20, height: 20, win: { kind: "rescue", targetCount: 1, ticks: 5000 } });
     state.missionIndex = 2;
