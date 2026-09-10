@@ -36,6 +36,8 @@ export function strike(
       if (splash.hp <= 0) {
         splash.hp = 0;
         invalidateLivingCache(state);
+        if (isUnitEntity(splash)) state.losses.units[splash.owner] += 1;
+        else state.losses.buildings[splash.owner] += 1;
         events?.push({
           type: "destroyed",
           id: splash.id,

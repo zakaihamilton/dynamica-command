@@ -56,13 +56,13 @@ describe("objective-specific enemy AI contracts", () => {
 
   it("applies objective production cadence instead of the generic cadence", () => {
     const base = missionDifficulty(2).enemyProductionEvery;
+    const cadenceFor = (kind: MissionKind) => Math.max(1, Math.round(base * objectiveContractFor(kind)!.productionScale));
 
-    expect(producesAt("destroyMarked", base - 1)).toBe(false);
-    expect(producesAt("destroyMarked", Math.round(base * (objectiveContractFor("destroyMarked")!.productionScale + 3)))).toBe(true);
-    expect(producesAt("annihilate", base)).toBe(false);
-    expect(producesAt("annihilate", Math.round(base * (objectiveContractFor("annihilate")!.productionScale + 3)))).toBe(true);
-    expect(producesAt("decapitate", base)).toBe(false);
-    expect(producesAt("decapitate", Math.round(base * (objectiveContractFor("decapitate")!.productionScale + 3)))).toBe(true);
+    for (const kind of ["destroyMarked", "annihilate", "decapitate"] as const) {
+      const cadence = cadenceFor(kind);
+      expect(producesAt(kind, cadence - 1), `${kind} before cadence`).toBe(false);
+      expect(producesAt(kind, cadence), `${kind} at cadence`).toBe(true);
+    }
   });
 
   it.each(["sabotage", "razeAll", "decapitate", "annihilate"] as const)(
@@ -81,7 +81,7 @@ describe("objective-specific enemy AI contracts", () => {
       };
       const difficulty = missionDifficulty(state.missionIndex);
       state.tick = difficulty.enemyProductionStart + Math.round(
-        difficulty.enemyProductionEvery * (objectiveContractFor(kind)!.productionScale + 3),
+        difficulty.enemyProductionEvery * objectiveContractFor(kind)!.productionScale,
       );
 
       tickAi(state);
@@ -110,7 +110,8 @@ describe("objective-specific enemy AI contracts", () => {
     }
   });
 
-  it.each(["decapitate", "razeAll", "annihilate"] as const)("skips generic turret and tank support for %s openings", (kind) => {
+  it("skips generic turret and tank support for decapitate openings", () => {
+    const kind = "decapitate" as const;
     const seed = Array.from({ length: 100 }, (_, candidateSeed) => candidateSeed).find((candidateSeed) =>
       createCampaign(candidateSeed).missions.some((candidate) => candidate.win.kind === kind),
     );

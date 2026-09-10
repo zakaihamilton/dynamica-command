@@ -136,6 +136,21 @@ describe("combat targeting", () => {
     expect(s.losses.buildings).toEqual([0, 1]);
   });
 
+  it("records splash-destroyed units and structures as losses", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, "tank", 4, 4);
+    const primary = addUnit(s, 1, "infantry", 5, 4);
+    const splashStructure = addBuilding(s, 1, "power", 5.8, 4);
+    primary.hp = 1;
+    splashStructure.hp = 1;
+
+    const events = tickCombat(s);
+
+    expect(events.filter((event) => event.type === "destroyed")).toHaveLength(2);
+    expect(s.losses.units).toEqual([0, 1]);
+    expect(s.losses.buildings).toEqual([0, 1]);
+  });
+
   it("keeps a move order instead of chasing a spotted enemy", () => {
     const s = makeFixture({ width: 16, height: 12, win: { kind: "annihilate" } });
     const attacker = addUnit(s, 0, "infantry", 4, 4);

@@ -105,6 +105,7 @@ export type BalanceSummary = {
   mapFailureRate: number;
   powerDeficitRate: number;
   commandRejectionRate: number;
+  nonFiniteStateRate: number;
   averageDuration: number;
   averageCredits: number;
   averageCasualties: number;
@@ -321,6 +322,7 @@ export function summarizeBalance(records: BalanceRecord[]): BalanceSummary {
     mapFailureRate: rate(records, (record) => !record.mapValid),
     powerDeficitRate: rate(records, (record) => record.powerDeficit),
     commandRejectionRate: commandRejectionRate(records),
+    nonFiniteStateRate: rate(records, (record) => record.nonFiniteState === true),
     averageDuration: average(records, (record) => record.duration),
     averageCredits: average(records, (record) => record.credits),
     averageCasualties: average(records, (record) => record.casualties),
@@ -486,6 +488,9 @@ export function checkBalance(summary: BalanceSummary, thresholds: BalanceThresho
   }
   if (summary.commandRejectionRate > thresholds.maxCommandRejectionRate) {
     failures.push(`command rejection rate ${(summary.commandRejectionRate * 100).toFixed(1)}% exceeds ${(thresholds.maxCommandRejectionRate * 100).toFixed(1)}%`);
+  }
+  if (summary.nonFiniteStateRate > 0) {
+    failures.push(`non-finite state rate ${(summary.nonFiniteStateRate * 100).toFixed(1)}% exceeds 0.0%`);
   }
   if (summary.averageCasualties > thresholds.maxAverageCasualties) {
     failures.push(`average casualties ${summary.averageCasualties.toFixed(1)} exceeds ${thresholds.maxAverageCasualties}`);

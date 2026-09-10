@@ -189,10 +189,8 @@ export function generateMap(
   const center = { x: Math.round(width / 2), y: Math.round(height / 2) };
   const resourceRace = profile.variant === "resourceRace";
   const forwardIndustry = profile.variant === "forwardIndustry";
-  const economyMission = ["harvestQuota", "forceQuota", "structureQuota"].includes(mission.win.kind);
-  const resourceAmountScale = economyMission ? 0.8 : 1;
-  resourcePatch(tiles, resourceAmount, surfaces, width, height, playerResourceCenter, resourceRace ? 2 : 3, rng, resourceAmountScale);
-  resourcePatch(tiles, resourceAmount, surfaces, width, height, enemyResourceCenter, resourceRace ? 2 : 3, rng, resourceAmountScale);
+  resourcePatch(tiles, resourceAmount, surfaces, width, height, playerResourceCenter, resourceRace ? 2 : 3, rng);
+  resourcePatch(tiles, resourceAmount, surfaces, width, height, enemyResourceCenter, resourceRace ? 2 : 3, rng);
   resourcePatch(
     tiles,
     resourceAmount,
@@ -202,7 +200,6 @@ export function generateMap(
     center,
     3 + (mission.index >= 4 ? 1 : 0) + (forwardIndustry ? 1 : 0),
     rng,
-    resourceAmountScale,
   );
 
   const extraPatches = 3 + mission.index
@@ -216,7 +213,7 @@ export function generateMap(
       const i = idx(cx, cy, width);
       if (tiles[i] !== TILE_CLEAR || surfaces[i] === SURFACE_CONCRETE) continue;
       if (Math.min(Math.hypot(cx - playerStart.x, cy - playerStart.y), Math.hypot(cx - enemyStart.x, cy - enemyStart.y)) < 9) continue;
-      resourcePatch(tiles, resourceAmount, surfaces, width, height, { x: cx, y: cy }, 2 + rng.int(2), rng, resourceAmountScale);
+      resourcePatch(tiles, resourceAmount, surfaces, width, height, { x: cx, y: cy }, 2 + rng.int(2), rng);
       break;
     }
   }

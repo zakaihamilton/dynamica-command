@@ -25,7 +25,12 @@ export function assertProfileMapsValid(startSeed: number, endSeed: number): Set<
 
       const state = createMission({ seed, missionIndex: mission.index });
       const scenario = scenarioAffordances(state);
-      const expectedScenarioTargets = (state.runtime?.targetIds.length ?? 0) || 1;
+      const implicitTargetCount = mission.win.kind === "razeAll"
+        ? state.entities.filter((entity) => entity.owner === 1 && entity.class === "building" && entity.hp > 0).length
+        : mission.win.kind === "annihilate"
+          ? state.entities.filter((entity) => entity.owner === 1 && entity.hp > 0).length
+          : 1;
+      const expectedScenarioTargets = state.runtime?.targetIds.length || implicitTargetCount;
       expect(scenario.targetReachable).toBe(true);
       expect(scenario.allTargetsReachable).toBe(true);
       expect(scenario.materiallyFair).toBe(true);

@@ -31,8 +31,12 @@ export function scenarioAffordances(state: SimState): ScenarioAffordances {
   const targetIds = state.runtime?.targetIds ?? [];
   const targets = targetIds.length
     ? targetIds.map((id) => state.entities.find((entity) => entity.id === id))
-    : [enemyYard];
-  if (!playerYard || targets.some((target) => !target)) {
+    : state.win.kind === "razeAll"
+      ? state.entities.filter((entity) => entity.owner === 1 && entity.class === "building" && entity.hp > 0)
+      : state.win.kind === "annihilate"
+        ? state.entities.filter((entity) => entity.owner === 1 && entity.hp > 0)
+        : [enemyYard];
+  if (!playerYard || targets.length === 0 || targets.some((target) => !target)) {
     return {
       targetDepth: 0,
       routeLength: 0,

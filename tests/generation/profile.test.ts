@@ -102,8 +102,8 @@ describe("mission profiles", () => {
       productionScale: 1.45,
       startingSupport: false,
     });
-    expect(objectiveContractFor("razeAll")).toMatchObject({ assaultDelay: 960, productionScale: 1.7, startingSupport: false });
-    expect(objectiveContractFor("annihilate")).toMatchObject({ assaultDelay: 600, productionScale: 1.4, startingSupport: false });
+    expect(objectiveContractFor("razeAll")).toMatchObject({ assaultDelay: 960, productionScale: 1.7, startingSupport: true });
+    expect(objectiveContractFor("annihilate")).toMatchObject({ assaultDelay: 600, productionScale: 1.4, startingSupport: true });
     expect(objectiveContractFor("harvestQuota")).toBeUndefined();
   });
 

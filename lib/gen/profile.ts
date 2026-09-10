@@ -23,6 +23,7 @@ export type MissionObjectiveContract = {
   pressureAlert: string;
   repairPolicy: "nonTarget" | "none";
   assaultDelay: number;
+  /** Enemy production cadence multiplier; values above one space out production. */
   productionScale: number;
   startingSupport: boolean;
 };
@@ -58,7 +59,7 @@ const OBJECTIVE_CONTRACTS: Partial<Record<MissionKind, MissionObjectiveContract>
     repairPolicy: "none",
     assaultDelay: 960,
     productionScale: 1.7,
-    startingSupport: false,
+    startingSupport: true,
   },
   annihilate: {
     targetLabel: "the last hostiles",
@@ -66,7 +67,7 @@ const OBJECTIVE_CONTRACTS: Partial<Record<MissionKind, MissionObjectiveContract>
     repairPolicy: "none",
     assaultDelay: 600,
     productionScale: 1.4,
-    startingSupport: false,
+    startingSupport: true,
   },
 };
 

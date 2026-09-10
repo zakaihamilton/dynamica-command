@@ -3,18 +3,18 @@ import { describe, expect, it } from "vitest";
 import { runReplay } from "../../lib/sim/replay";
 
 const BASELINES = [
-  { kind: "annihilate", seed: 1, missionIndex: 2, digest: "76b8629c4bae4d449aa7bd7661a632b6be53d3a4c491887d81da74ec223d4d4e" },
+  { kind: "annihilate", seed: 1, missionIndex: 2, digest: "b3681507b20b0118eb8de21993f5133cd71458cf6a04d7907bb4f8b2544b6bb7" },
   { kind: "decapitate", seed: 1, missionIndex: 4, digest: "ecb5e56f0bfb0dee67ff47bad3a3f8a6116d062c4f6ad635777db0069f0201a8" },
   { kind: "destroyMarked", seed: 0, missionIndex: 3, digest: "e0ade930976a05b828a0e50069720925a3cc5de00da2bcdae6d2c21aae226a89" },
   { kind: "escort", seed: 0, missionIndex: 2, digest: "66223e200534bb0e3d2ff8810b17488f76b09213b13b77ef4cb29dc2bfb0445d" },
   { kind: "extraction", seed: 0, missionIndex: 1, digest: "0f5b8676fbc5a99c77da9dd1672067cbf3318dd1745f68d5dafd06c080077cd9" },
-  { kind: "forceQuota", seed: 0, missionIndex: 4, digest: "83e99ec4b81b94bffc7aaaebac1563a1bbdc1a3b0a7fba0dc408fbcb4d49c141" },
-  { kind: "harvestQuota", seed: 7, missionIndex: 3, digest: "c03a108b7573486bb2b773e2b4c911edbf97545e0d24887a18e8854d0caaadf3" },
+  { kind: "forceQuota", seed: 0, missionIndex: 4, digest: "8ee9b7f0f55348be0a37aa0dff143f31c97c3bc5e038e21a72842a53654cb224" },
+  { kind: "harvestQuota", seed: 7, missionIndex: 3, digest: "11ee3254605d96cfb71862caa42cc6ae7d8c6d446160e5deda266451bc3a1971" },
   { kind: "holdTheLine", seed: 0, missionIndex: 5, digest: "9bbf331ea885ff967c231e22ca4aa3009a4177256fba87a60eb43665addb5bac" },
-  { kind: "razeAll", seed: 3, missionIndex: 2, digest: "ec708d8352b04cf4645ffca37358567fb3629a1a1ecef53a3ca507671a7ddf79" },
+  { kind: "razeAll", seed: 3, missionIndex: 2, digest: "07b7984626528519d55affc793b27b6632f6ad7f042f5e54dbc98039ae89c151" },
   { kind: "rescue", seed: 0, missionIndex: 0, digest: "f1e03345c3736314e988851adfd1ca3cac2ea229a02d836c795c1b7f651f80bf" },
   { kind: "sabotage", seed: 1, missionIndex: 0, digest: "855f0f9eed4ba21e86117f53e34253189efb09deb7873d2d1580bb12da113762" },
-  { kind: "structureQuota", seed: 2, missionIndex: 0, digest: "b3eabb157fdcf77b746fa247e9202ff46d06145a49794a54a930429e22463681" },
+  { kind: "structureQuota", seed: 2, missionIndex: 0, digest: "d90a775c64185a5c298a243a09fd1bc949bbc249b668b1267e0469f5532f1697" },
 ] as const;
 
 describe("replay compatibility baselines", () => {

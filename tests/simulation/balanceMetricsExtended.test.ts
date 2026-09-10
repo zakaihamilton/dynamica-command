@@ -53,6 +53,16 @@ describe("summarizeBalance", () => {
     expect(summary.averageCommandRejections).toBeCloseTo(1.5);
     expect(summary.commandRejectionRate).toBeCloseTo(3 / 30);
     expect(summary.powerDeficitRate).toBe(0);
+    expect(summary.nonFiniteStateRate).toBe(0);
+  });
+
+  it("counts non-finite state records", () => {
+    const summary = summarizeBalance([
+      makeRecord(),
+      makeRecord({ nonFiniteState: true }),
+    ]);
+
+    expect(summary.nonFiniteStateRate).toBe(0.5);
   });
 
   it("summarizes gameplay diagnostics without requiring legacy fixtures to provide them", () => {
@@ -197,6 +207,24 @@ describe("checkBalance", () => {
     expect(result.passed).toBe(false);
     expect(result.failures.join(" ")).toContain("win rate");
     expect(result.failures.join(" ")).toContain("exceeds");
+  });
+
+  it("rejects non-finite state records", () => {
+    const result = checkBalance(summarizeBalance([makeRecord({ nonFiniteState: true })]), {
+      minWinRate: 0,
+      maxTimeoutRate: 1,
+      minKindSamples: 1,
+      minKindWinRate: 0,
+      maxKindTimeoutRate: 1,
+      maxTruncatedRate: 1,
+      maxMapFailureRate: 1,
+      maxPowerDeficitRate: 1,
+      maxCommandRejectionRate: 1,
+      maxAverageCasualties: 100,
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.failures.join(" ")).toContain("non-finite state rate");
   });
 
   it("skips kind-level checks when below minKindSamples", () => {

@@ -196,6 +196,7 @@ async function main() {
   mapFailures: Math.round(summary.mapFailureRate * summary.samples),
   commandRejectionRate: summary.commandRejectionRate,
   powerDeficitRate: summary.powerDeficitRate,
+  nonFiniteStateRate: summary.nonFiniteStateRate,
   averages: {
     duration: summary.averageDuration,
     credits: summary.averageCredits,
