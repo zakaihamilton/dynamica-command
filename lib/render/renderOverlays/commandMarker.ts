@@ -4,13 +4,14 @@ import type { SimState } from "../../types";
 import type { CommandMarker, CommandMarkerKind } from "./types";
 
 export const COMMAND_MARKER_INTRO_MS = 220;
+export const COMMAND_MARKER_INVALID_MS = 900;
 
 export const COMMAND_MARKER_COLORS: Record<CommandMarkerKind, { stroke: string; shadow: string; fill: string }> = {
   move: { stroke: "#8dffc8", shadow: "#43e69a", fill: "#d7ffe9" },
   attack: { stroke: "#ff7a6e", shadow: "#e04538", fill: "#ffd4ce" },
   harvest: { stroke: "#ffd07a", shadow: "#e0a040", fill: "#ffe9c4" },
   support: { stroke: "#7ad4ff", shadow: "#3aa0e0", fill: "#d4f2ff" },
-  invalid: { stroke: "#ffb36b", shadow: "#e06a3a", fill: "#ffe4c4" },
+  invalid: { stroke: "#ffd34d", shadow: "#e09b18", fill: "#fff1a6" },
 };
 
 function ordersUnits(command: { type: string; unitIds?: number[] }): boolean {
@@ -35,6 +36,7 @@ export function drawCommandMarker(
   reducedMotion = false,
 ): void {
   if (!marker) return;
+  if (marker.expiresMs !== undefined && nowMs >= marker.expiresMs) return;
   const progress = Math.max(0, Math.min(1, (nowMs - marker.bornMs) / COMMAND_MARKER_INTRO_MS));
   if (nowMs < marker.bornMs) return;
 
@@ -42,10 +44,10 @@ export function drawCommandMarker(
   const s = tileToScreen(marker.x, marker.y, cam, heightAt(state, marker.x, marker.y));
   const groundY = s.y + (TILE_H / 2) * z;
   const fade = 0.92;
-  const pulse = reducedMotion ? 0 : Math.sin(nowMs / 260) * 2;
+  const kind = marker.kind ?? "move";
+  const pulse = reducedMotion ? 0 : kind === "invalid" ? Math.sin(nowMs / 180) * 3 : Math.sin(nowMs / 260) * 2;
   const radius = (reducedMotion ? 15 : 12 + progress * 5 + pulse) * z;
   const colors = COMMAND_MARKER_COLORS[marker.kind ?? "move"];
-  const kind = marker.kind ?? "move";
 
   ctx.save();
   ctx.globalCompositeOperation = "lighter";

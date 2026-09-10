@@ -46,6 +46,7 @@ function renderInput(
   overrides: {
     repairMode?: boolean;
     repairRef?: { current: boolean };
+    placeKind?: BuildingKind;
     selected?: Set<number>;
     setup?: (state: SimState) => void;
   } = {},
@@ -63,7 +64,7 @@ function renderInput(
       selectedRef: useRef(overrides.selected ?? new Set<number>()),
       commitSelection,
       cmdQRef: useRef<Command[]>([]),
-      placeRef: useRef<BuildingKind | null>(null),
+      placeRef: useRef<BuildingKind | null>(overrides.placeKind ?? null),
       setPlaceKind: vi.fn(),
       repairRef,
       repairMode: props.repairMode,
@@ -257,6 +258,23 @@ describe("touch gesture lifecycle", () => {
 });
 
 describe("command markers", () => {
+  it("does not leave a marker after an invalid building placement", () => {
+    const canvas = testCanvas();
+    const { result, state } = renderInput(canvas, { placeKind: "power" });
+    const cam = createCamera();
+    const p = tileToScreen(0, 0, cam, heightAt(state, 0, 0));
+
+    act(() => {
+      result.current.onUp(pointerEvent(canvas, {
+        clientX: p.x + 10,
+        clientY: p.y + 20,
+        buttons: 0,
+      }));
+    });
+
+    expect(result.current.commandMarkerRef.current).toBeNull();
+  });
+
   it("pings an attack-and-continue order when selected units receive it, and stays quiet with no selection", () => {
     const canvas = testCanvas();
     const { result: empty } = renderInput(canvas);

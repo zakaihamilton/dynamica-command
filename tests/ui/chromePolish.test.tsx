@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import NotFound from "../../app/not-found";
 import { BriefingMast } from "../../components/briefing/BriefingMast";
 import { BattlefieldHud } from "../../components/game/BattlefieldHud";
+import { CommandTabs } from "../../components/game/CommandTabs";
 import { DocumentTitle } from "../../components/ui/DocumentTitle";
 import { PageFallback } from "../../components/ui/PageFallback";
 import { createCampaign } from "../../lib/gen/campaign";
@@ -75,6 +76,50 @@ describe("product chrome", () => {
     expect(screen.getByTestId("objective")).toHaveTextContent("1 / 2");
     expect(screen.getByTestId("secondary-objectives")).toHaveTextContent("Optional directives 0/1");
     expect(screen.getByTestId("mission-phase")).toHaveTextContent("Extraction phase");
+  });
+
+  it("allows the mission directive to collapse without losing its accessible control", () => {
+    render(
+      <BattlefieldHud
+        seed={421}
+        levelNumber={1}
+        levelCount={6}
+        missionName="Recovery Zone"
+        objective="Return the convoy"
+        objectiveCards={[{ id: "primary", label: "Return the convoy", current: 0, target: 1, status: "active", primary: true }]}
+      />,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Collapse mission directive" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("objective")).toBeVisible();
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Expand mission directive" })).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("mission-directive-body")).toHaveAttribute("hidden");
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand mission directive" }));
+    expect(screen.getByTestId("objective")).toBeVisible();
+  });
+
+  it("keeps command tabs accessible without rendering shortcut badges", () => {
+    render(
+      <CommandTabs
+        activeTab="construction"
+        repairMode={false}
+        sellMode={false}
+        onConstruction={() => undefined}
+        onProduction={() => undefined}
+        onSelected={() => undefined}
+        onRepair={() => undefined}
+        onSell={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("toolbar").querySelectorAll("kbd")).toHaveLength(0);
+    expect(screen.getByRole("tab", { name: "Construction" })).not.toHaveTextContent("Construction");
+    expect(screen.getByTestId("tab-selected")).toHaveAttribute("aria-keyshortcuts", "t");
+    expect(screen.getByTestId("tab-selected")).not.toHaveAttribute("data-shortcut");
   });
 
   it("uses the generated campaign length in the briefing mast", () => {

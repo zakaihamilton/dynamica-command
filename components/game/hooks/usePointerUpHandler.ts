@@ -71,7 +71,8 @@ export function usePointerUpHandler({
       }
     }
     if (effect.commandNotice) {
-      if (effect.commandNotice.kind === "error") markInvalidCommand(stateRef.current, canvasPointerPos(event));
+      const isBuildPlacement = effect.commands?.some((command) => command.type === "build") ?? false;
+      if (effect.commandNotice.kind === "error" && !isBuildPlacement) markInvalidCommand(stateRef.current, canvasPointerPos(event));
       if (effect.commandNotice.kind === "error" && !effect.commands?.length) onCommandRejection?.(effect.commandNotice.text);
       onCommandNotice?.(effect.commandNotice.text, effect.commandNotice.kind);
     }

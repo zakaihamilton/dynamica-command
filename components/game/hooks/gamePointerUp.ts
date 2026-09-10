@@ -156,6 +156,10 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
     };
   }
 
+  if (button === 2 && placeKind) {
+    return { preventDefault: true, clearPlace: true, beep: "cancel" };
+  }
+
   if (button === 2) {
     if (repairMode || sellMode) {
       return { preventDefault: true, clearRepairAndSell: true, beep: "cancel" };

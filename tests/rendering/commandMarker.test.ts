@@ -51,6 +51,21 @@ describe("command markers", () => {
       expect(ctx.fillStyle).toBe(COMMAND_MARKER_COLORS[kind].fill);
     }
   });
+
+  it("draws invalid placement feedback as a transient yellow marker", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const cam = createCamera();
+    const ctx = mockCtx();
+
+    drawCommandMarker(ctx, state, cam, { x: 2, y: 2, bornMs: 0, kind: "invalid" }, 90);
+
+    expect(ctx.strokeStyle).toBe(COMMAND_MARKER_COLORS.invalid.stroke);
+    expect(ctx.ellipse).toHaveBeenCalledTimes(2);
+
+    const expiredCtx = mockCtx();
+    drawCommandMarker(expiredCtx, state, cam, { x: 2, y: 2, bornMs: 0, expiresMs: 900, kind: "invalid" }, 900);
+    expect(expiredCtx.ellipse).not.toHaveBeenCalled();
+  });
 });
 
 describe("combat tracers", () => {

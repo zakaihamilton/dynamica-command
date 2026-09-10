@@ -36,13 +36,29 @@
   font-family: var(--font-mono);
   font-size: 0.75rem;
   text-transform: uppercase;
+  isolation: isolate;
+  text-shadow: 1px 1px #000;
+}
+
+.statusBackdrop {
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 auto;
+  height: var(--status-backdrop-height, 5.25rem);
   background: linear-gradient(180deg, rgba(5, 8, 14, 0.86), rgba(5, 8, 14, 0.58) 82%, transparent);
   backdrop-filter: blur(8px) saturate(0.8);
-  text-shadow: 1px 1px #000;
+}
+
+.operationBar,
+.objectiveStack {
+  position: relative;
+  z-index: 1;
 }
 
 .operationBar {
   min-width: 0;
+  align-self: start;
   padding: 0.35rem 0.55rem 0.45rem;
   border-left: 2px solid var(--chrome-cyan-dim);
   background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-steel-lo) 82%, transparent), transparent);
@@ -75,6 +91,9 @@
 
 .level {
   position: relative;
+  display: grid;
+  gap: 0.2rem;
+  align-items: start;
   padding-left: 0.85rem;
   color: var(--chrome-gold);
   letter-spacing: 0.16em;
@@ -119,7 +138,7 @@
   display: flex;
   gap: 3px;
   align-items: center;
-  margin-top: 0.25rem;
+  margin-top: 0;
 }
 
 .operationTick,
@@ -218,7 +237,11 @@
 
 .objectiveStack {
   min-width: 0;
-  max-width: none;
+  margin-left: auto;
+  width: min(100%, 30rem);
+  max-width: 30rem;
+  align-self: start;
+  justify-self: end;
   text-align: left;
 }
 
@@ -228,6 +251,49 @@
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.28rem;
+}
+
+.directiveToggle {
+  pointer-events: auto;
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-left: auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.directiveToggle:hover,
+.directiveToggle:focus-visible {
+  color: var(--chrome-text);
+}
+
+.directiveToggleIcon {
+  display: inline-grid;
+  width: 1rem;
+  height: 1rem;
+  place-items: center;
+  border: 1px solid var(--chrome-cyan-dim);
+  color: var(--chrome-cyan);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+@media (max-width: 799px) {
+  .directiveToggle {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.directiveBody {
+  min-width: 0;
 }
 
 .directiveKicker {
@@ -464,6 +530,7 @@
 
 @media (max-width: 799px) and (orientation: portrait) {
   .status {
+    --status-backdrop-height: 9rem;
     padding: max(0.55rem, env(safe-area-inset-top)) 0.6rem 0.45rem;
     font-size: 0.56rem;
   }
@@ -477,7 +544,9 @@
   }
 
   .objectiveStack {
+    width: auto;
     max-width: none;
+    margin-left: 0;
     margin-top: 0.35rem;
     padding-top: 0.35rem;
     border-top: 1px solid color-mix(in srgb, var(--chrome-cyan) 20%, transparent);
@@ -493,7 +562,7 @@
     letter-spacing: 0.14em;
   }
 
-  .objectiveStack { max-width: none; }
+  .objectiveStack { width: auto; max-width: none; }
 
   .operationBar {
     padding: 0.25rem 0.4rem 0.3rem;

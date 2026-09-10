@@ -1,12 +1,11 @@
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
-import { SHORTCUT, type CommandTab } from "@/lib/ui/shortcuts";
+import type { CommandTab } from "@/lib/ui/shortcuts";
 import { CommandTabIcon } from "./CommandTabIcon";
 import styles from "./CommandTabs.module.css";
 
 function CommandBarButton({
   icon,
   label,
-  shortcut,
   keyshortcuts,
   testId,
   tooltip,
@@ -16,7 +15,6 @@ function CommandBarButton({
 }: {
   icon: CommandTab | "repair" | "sell";
   label: string;
-  shortcut: string;
   keyshortcuts: string;
   testId?: string;
   tooltip: string;
@@ -33,7 +31,6 @@ function CommandBarButton({
       aria-label={label}
       data-testid={testId}
       tooltip={tooltip}
-      shortcut={shortcut}
       aria-keyshortcuts={keyshortcuts}
       muted={!on}
       className={styles.tab}
@@ -41,8 +38,6 @@ function CommandBarButton({
     >
       <span className={styles.tabContent}>
         <CommandTabIcon type={icon} />
-        <span className={styles.tabLabel}>{label}</span>
-        <kbd>{shortcut}</kbd>
       </span>
     </ConsoleButton>
   );
@@ -72,7 +67,6 @@ export function CommandTabs({
       <CommandBarButton
         icon="construction"
         label="Construction"
-        shortcut={SHORTCUT.construction}
         keyshortcuts="q"
         tooltip="Build structures"
         selected={activeTab === "construction"}
@@ -81,7 +75,6 @@ export function CommandTabs({
       <CommandBarButton
         icon="production"
         label="Production"
-        shortcut={SHORTCUT.production}
         keyshortcuts="e"
         tooltip="Train units"
         selected={activeTab === "production"}
@@ -90,7 +83,6 @@ export function CommandTabs({
       <CommandBarButton
         icon="selected"
         label="Selected"
-        shortcut={SHORTCUT.selected}
         keyshortcuts="t"
         testId="tab-selected"
         tooltip="Selected units"
@@ -100,7 +92,6 @@ export function CommandTabs({
       <CommandBarButton
         icon="repair"
         label="Repair structures"
-        shortcut={SHORTCUT.repair}
         keyshortcuts="r"
         testId="repair-mode"
         tooltip="Repair structures. Click a damaged building to start or stop."
@@ -110,7 +101,6 @@ export function CommandTabs({
       <CommandBarButton
         icon="sell"
         label="Sell structures"
-        shortcut={SHORTCUT.sell}
         keyshortcuts="f"
         testId="sell-mode"
         tooltip="Sell structures. Click a finished building to scrap it for credits."

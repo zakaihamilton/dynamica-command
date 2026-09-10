@@ -161,6 +161,8 @@
 
 .caption {
   display: grid;
+  box-sizing: border-box;
+  min-height: 2.55rem;
   gap: 2px;
   border-top: 1px solid var(--chrome-inset);
   background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));

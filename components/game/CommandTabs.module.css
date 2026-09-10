@@ -13,35 +13,13 @@
   min-height: 2.5rem;
   align-items: center;
   justify-content: center;
-  padding: 0.45rem;
+  padding: 0.35rem 0.28rem;
 }
 
 .tabContent {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
   width: 100%;
-  align-items: center;
-  gap: 0.28rem;
-}
-
-.tabLabel {
-  overflow: hidden;
-  font-size: 0.48rem;
-  letter-spacing: 0.04em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tab kbd {
-  display: inline-grid;
-  min-width: 0.85rem;
-  height: 0.85rem;
   place-items: center;
-  border: 1px solid var(--chrome-line);
-  color: var(--chrome-muted);
-  font-family: var(--font-mono);
-  font-size: 0.45rem;
-  line-height: 1;
 }
 
 .tab[aria-selected="true"],
@@ -49,14 +27,4 @@
   color: var(--chrome-text);
   background: linear-gradient(var(--chrome-steel-hi), var(--chrome-steel));
   box-shadow: inset 1px 1px var(--chrome-bevel), inset -1px -1px var(--chrome-inset), 0 0 0 1px var(--a, var(--chrome-cyan));
-}
-
-@media (max-width: 620px) and (orientation: landscape) {
-  .tabLabel {
-    display: none;
-  }
-
-  .tabContent {
-    grid-template-columns: 1fr auto;
-  }
 }

@@ -122,6 +122,23 @@ describe("pointer-up policy", () => {
       box: null,
       selectionMode: false,
       mobileCommand: null,
+      placeKind: "power",
+      repairMode: false,
+      sellMode: false,
+    })).toEqual({ preventDefault: true, clearPlace: true, beep: "cancel" });
+
+    expect(resolvePointerUp({
+      pointerType: "mouse",
+      button: 2,
+      ctrlKey: false,
+      metaKey: false,
+      p,
+      state,
+      cam,
+      selectedIds: [],
+      box: null,
+      selectionMode: false,
+      mobileCommand: null,
       placeKind: null,
       repairMode: true,
       sellMode: false,

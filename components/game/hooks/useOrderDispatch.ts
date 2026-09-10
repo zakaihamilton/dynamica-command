@@ -1,7 +1,7 @@
 import { useCallback, type MutableRefObject } from "react";
 import { beep } from "@/lib/audio/synth";
 import { beepForCommands } from "@/lib/audio/uiOrders";
-import { commandMarkerKind, type CommandMarker } from "@/lib/render/renderOverlays";
+import { COMMAND_MARKER_INVALID_MS, commandMarkerKind, type CommandMarker } from "@/lib/render/renderOverlays";
 import type { Camera } from "@/lib/iso";
 import type { Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
@@ -46,7 +46,10 @@ export function useOrderDispatch({
   if (!resolvedCommandPort) throw new Error("useOrderDispatch requires a runtime command port");
   const markUnitCommand = useCallback((s: SimState, p: { x: number; y: number }, commands: Command[]) => {
     const kind = commandMarkerKind(commands);
-    if (!kind) return;
+    if (!kind) {
+      commandMarkerRef.current = null;
+      return;
+    }
     const { x, y } = pointerTile(s, p, camRef.current);
     commandMarkerRef.current = {
       x,
@@ -58,7 +61,8 @@ export function useOrderDispatch({
   }, [camRef, commandMarkerRef]);
   const markInvalidCommand = useCallback((s: SimState, p: { x: number; y: number }) => {
     const { x, y } = pointerTile(s, p, camRef.current);
-    commandMarkerRef.current = { x, y, bornMs: performance.now(), kind: "invalid" };
+    const bornMs = performance.now();
+    commandMarkerRef.current = { x, y, bornMs, expiresMs: bornMs + COMMAND_MARKER_INVALID_MS, kind: "invalid" };
   }, [camRef, commandMarkerRef]);
 
   const issueContextOrder = useCallback((s: SimState, p: { x: number; y: number }, attackMove = false) => {

@@ -7,6 +7,7 @@ export type CommandMarker = {
   x: number;
   y: number;
   bornMs: number;
+  expiresMs?: number;
   kind?: CommandMarkerKind;
   mode?: "attack" | "attackMove";
 };
