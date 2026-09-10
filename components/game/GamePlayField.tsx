@@ -31,7 +31,6 @@ export type GamePlayFieldProps = {
   onBackTutorial: () => void;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
-  onCampaignMap: () => void;
   onRetry: () => void;
   onMenu: () => void;
   onObjectivePanelToggle?: () => void;
@@ -60,7 +59,6 @@ export function GamePlayField({
   onBackTutorial,
   onNextBriefing,
   onCampaignVictory,
-  onCampaignMap,
   onRetry,
   onMenu,
   onObjectivePanelToggle,
@@ -106,7 +104,6 @@ export function GamePlayField({
         state={state}
         onNextBriefing={onNextBriefing}
         onCampaignVictory={onCampaignVictory}
-        onCampaignMap={onCampaignMap}
         onRetry={onRetry}
         onMenu={onMenu}
       />

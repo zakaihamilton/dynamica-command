@@ -41,10 +41,7 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
     <section className={styles.outcome} aria-label="Outcome assessment">
       <div className={styles.outcomeSummary}>
         <span className={styles.outcomeIcon} aria-hidden="true">{primaryIcon}</span>
-        <div>
-          <ConsoleLabel>Mission assessment</ConsoleLabel>
-          <p className={styles.outcomeText}>{debrief.outcome}</p>
-        </div>
+        <p className={styles.outcomeText}>{debrief.outcome}</p>
       </div>
 
       <div className={styles.resultCard} data-testid="primary-result-card" data-status={primaryState}>
@@ -83,9 +80,6 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
         </summary>
         <div className={styles.disclosureBody}>
           <p>{debrief.tactical.emphasis}</p>
-          <p className={debrief.tactical.completed ? styles.profileComplete : styles.profileIncomplete}>
-            {debrief.tactical.completed ? "Profile challenge met." : "Profile challenge not met."}
-          </p>
         </div>
       </details>
 
@@ -107,13 +101,12 @@ export function MissionBattleRecord({ debrief }: { debrief: MissionDebrief }) {
     <section className={styles.section} aria-label="Battle record">
       <div className={styles.sectionHeader}>
         <ConsoleLabel>Battle record</ConsoleLabel>
-        <span className={styles.sectionHint}>Mission summary</span>
       </div>
       <dl className={styles.metrics}>
         <div><dt>Time</dt><dd>{debrief.battle.duration}</dd></div>
         <div><dt>Credits</dt><dd>{debrief.battle.creditsGathered}</dd></div>
-        <div><dt>Units trained</dt><dd>{debrief.battle.unitsTrained}</dd></div>
-        <div><dt>Structures</dt><dd>{debrief.battle.structuresCompleted}</dd></div>
+        <div><dt>Trained</dt><dd>{debrief.battle.unitsTrained}</dd></div>
+        <div><dt>Built</dt><dd>{debrief.battle.structuresCompleted}</dd></div>
         <div><dt>Score</dt><dd>{debrief.battle.score}</dd></div>
         <div><dt>Medals</dt><dd>{debrief.battle.medals} / 3</dd></div>
       </dl>
@@ -139,7 +132,6 @@ export function MissionForceDisposition({ debrief }: { debrief: MissionDebrief }
     <section className={styles.section} aria-label="Force disposition">
       <div className={styles.sectionHeader}>
         <ConsoleLabel>Forces</ConsoleLabel>
-        <span className={styles.sectionHint}>Remaining / losses</span>
       </div>
       <div className={styles.forceGrid}>
         <MissionForceCard label="Friendly" force={debrief.forces.friendly} />

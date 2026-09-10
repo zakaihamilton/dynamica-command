@@ -209,7 +209,7 @@ test("completes a prepared mission through repair, production, and autosave", as
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   await expect(page.getByRole("button", { name: "Next briefing" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Replay mission" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Campaign map" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Campaign map" })).toHaveCount(0);
 
   const terminal = await savedState(page);
   expect(terminal?.result).toBe("won");

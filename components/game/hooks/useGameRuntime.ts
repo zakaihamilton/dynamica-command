@@ -359,7 +359,6 @@ export function useGameRuntime({
     onBackTutorial: session.backTutorial,
     onNextBriefing: session.goNextBriefing,
     onCampaignVictory: session.goCampaignVictory,
-    onCampaignMap: session.goCampaignMap,
     onRetry: session.goRetry,
     onMenu: session.goMenu,
     combatAlert,

@@ -36,7 +36,6 @@ export function createGameRuntimeSurfaces(runtime: GameRuntime): GameRuntimeSurf
       onBackTutorial: runtime.onBackTutorial,
       onNextBriefing: runtime.onNextBriefing,
       onCampaignVictory: runtime.onCampaignVictory,
-      onCampaignMap: runtime.onCampaignMap,
       onRetry: runtime.onRetry,
       onMenu: runtime.onMenu,
       combatAlert: runtime.combatAlert,

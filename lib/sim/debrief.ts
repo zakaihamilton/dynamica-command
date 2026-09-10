@@ -138,10 +138,10 @@ export function missionDebrief(state: SimState) {
 }
 
 function retryGuidance(state: SimState): string {
-  if (state.lossReason === "deadline") return "Open with power and a refinery, then queue only the force needed for the objective. Keep the timer visible and move before the final minute.";
-  if (state.lossReason === "objectiveTargetLost") return "Protect the mission target first. Establish a nearby escort, use attack-move to clear the route, and keep support units behind the front line.";
-  if (state.lossReason === "yardDestroyed") return "Rebuild the defensive screen around Command HQ and use Repair on damaged structures before committing to another push.";
-  return "Review the objective card, secure the opening economy, and use the Selected tab to issue focused orders.";
+  if (state.lossReason === "deadline") return "Open with power and a refinery. Keep the timer visible and move before the final minute.";
+  if (state.lossReason === "objectiveTargetLost") return "Protect the target first. Escort the route and keep support units behind the front line.";
+  if (state.lossReason === "yardDestroyed") return "Rebuild the screen around Command HQ. Repair damaged structures before pushing again.";
+  return "Secure the opening economy, then issue focused orders from the Selected tab.";
 }
 
 export type MissionDebrief = ReturnType<typeof missionDebrief>;

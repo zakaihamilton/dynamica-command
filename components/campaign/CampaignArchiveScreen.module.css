@@ -134,11 +134,7 @@
 }
 
 .panel::before {
-  pointer-events: none;
-  position: absolute;
-  inset: 0.55rem;
-  border: 1px solid color-mix(in srgb, var(--chrome-bevel) 18%, transparent);
-  content: "";
+  display: none;
 }
 
 .panel::after {

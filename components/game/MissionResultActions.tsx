@@ -9,14 +9,12 @@ export function MissionResultActions({
   state,
   onNextBriefing,
   onCampaignVictory,
-  onCampaignMap,
   onRetry,
   onMenu,
 }: {
   state: SimState;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
-  onCampaignMap: () => void;
   onRetry: () => void;
   onMenu: () => void;
 }) {
@@ -65,9 +63,6 @@ export function MissionResultActions({
           Retry
         </ConsoleButton>
       ) : null}
-      <ConsoleButton muted tooltip="Open the campaign operations map" onClick={onCampaignMap}>
-        Campaign map
-      </ConsoleButton>
       <ConsoleButton muted tooltip="Return to the main menu" shortcut={SHORTCUT.resultMenu} onClick={onMenu}>
         Menu
       </ConsoleButton>

@@ -930,7 +930,7 @@ test("shows a mission result overlay from a finished save", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Next briefing" })).toHaveAttribute("data-default-action", "true");
   await expect(page.getByRole("button", { name: "Share result" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Replay mission" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Campaign map" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Campaign map" })).toHaveCount(0);
 
   await page.setViewportSize({ width: 1280, height: 600 });
   await page.reload();

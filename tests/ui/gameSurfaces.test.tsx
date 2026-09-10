@@ -191,7 +191,6 @@ describe("game overlay surfaces", () => {
         state={state}
         onNextBriefing={vi.fn()}
         onCampaignVictory={vi.fn()}
-        onCampaignMap={vi.fn()}
         onRetry={onRetry}
         onMenu={vi.fn()}
       />,
@@ -211,7 +210,6 @@ describe("game overlay surfaces", () => {
         state={state}
         onNextBriefing={vi.fn()}
         onCampaignVictory={vi.fn()}
-        onCampaignMap={vi.fn()}
         onRetry={vi.fn()}
         onMenu={vi.fn()}
       />,
@@ -219,7 +217,7 @@ describe("game overlay surfaces", () => {
 
     expect(screen.queryByRole("button", { name: "Share result" })).toBeNull();
     expect(screen.getByRole("button", { name: "Retry" })).toHaveAttribute("data-default-action", "true");
-    expect(screen.getByRole("button", { name: "Campaign map" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Campaign map" })).toBeNull();
   });
 
   it("separates required mission conditions from bonus objectives", () => {

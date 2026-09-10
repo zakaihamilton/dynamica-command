@@ -15,14 +15,12 @@ export function MissionResult({
   state,
   onNextBriefing,
   onCampaignVictory,
-  onCampaignMap,
   onRetry,
   onMenu,
 }: {
   state: SimState;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
-  onCampaignMap: () => void;
   onRetry: () => void;
   onMenu: () => void;
 }) {
@@ -45,12 +43,7 @@ export function MissionResult({
         aria-labelledby="mission-result-title"
       >
         <header className={styles.header}>
-          <div className={styles.headerKicker}>
-            <ConsoleLabel className={styles.headerLabel}>Campaign status</ConsoleLabel>
-            <span className={styles.headerState}>
-              {state.result === "won" ? "Operation secured" : "Operation terminated"}
-            </span>
-          </div>
+          <ConsoleLabel className={styles.headerLabel}>Campaign status</ConsoleLabel>
           <h2 id="mission-result-title" className={styles.title}>
             {state.result === "won" ? "Mission complete" : "Mission failed"}
           </h2>
@@ -65,7 +58,6 @@ export function MissionResult({
           state={state}
           onNextBriefing={onNextBriefing}
           onCampaignVictory={onCampaignVictory}
-          onCampaignMap={onCampaignMap}
           onRetry={onRetry}
           onMenu={onMenu}
         />
