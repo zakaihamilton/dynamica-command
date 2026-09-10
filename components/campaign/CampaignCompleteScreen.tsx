@@ -6,6 +6,7 @@ import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { DocumentTitle } from "@/components/ui/DocumentTitle";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { ActionRail, ArtBackedCard, DossierSection, MetricCluster, StatusBadge } from "./CampaignDossier";
 import { createCampaign } from "@/lib/gen/campaign";
 import { missionDurationMinutesFor, missionTimeLimitLabel, secondaryObjectivesForMissionSeed } from "@/lib/gen/objectives";
 import { missionObjectives, objectiveHeadline } from "@/lib/gen/story";
@@ -73,14 +74,13 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
     : `Deploy mission ${selectedMissionIndex + 1}`;
 
   const missionQueue = (
-    <section className={styles.section} aria-labelledby="mission-record-title">
-      <div className={styles.sectionHeader}>
-        <div>
-          <ConsoleLabel as="h2">{operations ? "Operations" : "Mission record"}</ConsoleLabel>
-          <h2 id="mission-record-title" className={styles.sectionTitle}>{operations ? "Select an operation" : "Six operations"}</h2>
-        </div>
-        <span className={styles.sectionCount}>{summary.completed}/{campaign.missions.length} complete</span>
-      </div>
+    <DossierSection
+      className={styles.section}
+      aria-labelledby="mission-record-title"
+      label={operations ? "Operations" : "Mission record"}
+      title={<h2 id="mission-record-title" className={styles.sectionTitle}>{operations ? "Select an operation" : "Six operations"}</h2>}
+      aside={<span className={styles.sectionCount}>{summary.completed}/{campaign.missions.length} complete</span>}
+    >
       <div className={styles.missions}>
         {campaign.missions.map((mission, index) => {
           const medals = progress.medals[String(mission.index)] ?? 0;
@@ -96,7 +96,15 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           const card = (
             <>
               <span className={styles.missionTopline}>
-                <span><b className={styles.missionNumber}>{String(index + 1).padStart(2, "0")}</b>{status}</span>
+                <span>
+                  <b className={styles.missionNumber}>{String(index + 1).padStart(2, "0")}</b>
+                  <StatusBadge
+                    className={styles.missionStatus}
+                    tone={missionComplete ? "success" : available ? "gold" : "muted"}
+                  >
+                    {status}
+                  </StatusBadge>
+                </span>
                 <span className={styles.medals} aria-label={`${medals} of 3 medals`}>{missionMedalDisplay(medals)}</span>
               </span>
               <span className={styles.missionTitle}>{mission.name}</span>
@@ -125,23 +133,25 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           );
         })}
       </div>
-    </section>
+    </DossierSection>
   );
 
   const missionDetail = selectedMission ? (
-    <section
+    <ArtBackedCard
+      as="section"
       className={styles.detail}
+      art={biomeArt(selectedMission.biome)}
       aria-labelledby="mission-detail-title"
       data-testid="mission-detail"
-      style={{ "--mission-art": `url("${biomeArt(selectedMission.biome)}")` } as React.CSSProperties}
     >
-      <div className={styles.detailArt} aria-hidden="true" />
       <div className={styles.detailHeader}>
         <div>
           <ConsoleLabel>Mission detail</ConsoleLabel>
           <h2 id="mission-detail-title" className={styles.detailTitle}>Mission {selectedMission.index + 1}{" // "}{selectedMission.name}</h2>
         </div>
-        <span className={styles.detailStatus}>{selectedMissionComplete ? "Completed" : selectedMissionAvailable ? "Available" : "Locked"}</span>
+        <StatusBadge className={styles.detailStatus} tone={selectedMissionComplete ? "success" : selectedMissionAvailable ? "gold" : "muted"}>
+          {selectedMissionComplete ? "Completed" : selectedMissionAvailable ? "Available" : "Locked"}
+        </StatusBadge>
       </div>
 
       <div className={styles.detailGrid}>
@@ -188,7 +198,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           <span className={styles.lockedMessage}>Complete mission {selectedMission.index} to unlock this operation.</span>
         )}
       </div>
-    </section>
+    </ArtBackedCard>
   ) : null;
 
   return (
@@ -216,18 +226,24 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
             </div>
           </header>
 
-          <section className={styles.summary} aria-label="Campaign summary">
-            <div>
-              <span>Missions</span>
-              <strong>{summary.completed} <small>/ {campaign.missions.length}</small></strong>
-              <span className={styles.summaryTrack} aria-hidden="true"><span style={{ width: `${Math.round((summary.completed / campaign.missions.length) * 100)}%` }} /></span>
-            </div>
-            <div>
-              <span>Medals</span>
-              <strong>{summary.totalMedals} <small>/ {summary.possibleMedals}</small></strong>
-              <span className={styles.summaryTrack} aria-hidden="true"><span style={{ width: `${Math.round((summary.totalMedals / summary.possibleMedals) * 100)}%` }} /></span>
-            </div>
-          </section>
+          <MetricCluster
+            className={styles.summary}
+            aria-label="Campaign summary"
+            items={[
+              {
+                label: "Missions",
+                value: <strong>{summary.completed} <small>/ {campaign.missions.length}</small></strong>,
+                progress: (summary.completed / campaign.missions.length) * 100,
+                tone: "gold",
+              },
+              {
+                label: "Medals",
+                value: <strong>{summary.totalMedals} <small>/ {summary.possibleMedals}</small></strong>,
+                progress: (summary.totalMedals / summary.possibleMedals) * 100,
+                tone: "cyan",
+              },
+            ]}
+          />
 
           {operations ? (
             <div className={styles.operationsBody} data-testid="operations-body">
@@ -241,7 +257,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
             </>
           )}
 
-          <div className={styles.actions}>
+          <ActionRail className={styles.actions}>
             <ConsoleButton
               tooltip={copied ? "Theater dossier copied to clipboard!" : "Copy Wordle-style campaign score to clipboard"}
               onClick={handleShare}
@@ -249,7 +265,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
               {copied ? "Copied!" : "Share dossier"}
             </ConsoleButton>
             <ConsoleButton muted onClick={() => router.push("/")} tooltip="Return to the main menu">Return to menu</ConsoleButton>
-          </div>
+          </ActionRail>
         </MetalPanel>
       </div>
     </main>

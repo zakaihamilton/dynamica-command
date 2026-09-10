@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { StatusBadge } from "@/components/campaign/CampaignDossier";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
@@ -89,7 +90,13 @@ export function SaveSlotList({
                         onResume?.(entry);
                       }}
                     >
-                      <span className={styles.itemMarker} aria-hidden="true">{entry.kind === "slot" ? "S" : "A"}</span>
+                      <StatusBadge
+                        className={styles.itemMarker}
+                        tone={entry.kind === "slot" ? "gold" : "cyan"}
+                        aria-hidden="true"
+                      >
+                        {entry.kind === "slot" ? "S" : "A"}
+                      </StatusBadge>
                       <span className={styles.itemCopy}>
                         <strong className={styles.itemTitle}>{entry.kind === "slot" ? entry.name : "Autosave"}</strong>
                         <span className={styles.itemCampaign}>{entry.campaignName}</span>

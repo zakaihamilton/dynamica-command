@@ -234,6 +234,14 @@
   text-align: right;
 }
 
+.archiveStatus[data-tone="success"] {
+  color: var(--chrome-success);
+}
+
+.archiveStatus[data-tone="muted"] {
+  color: var(--chrome-muted);
+}
+
 .archiveControls {
   display: flex;
   align-items: center;

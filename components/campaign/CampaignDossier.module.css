@@ -1,0 +1,123 @@
+.section {
+  min-width: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sectionIdentity {
+  min-width: 0;
+}
+
+.metricCluster {
+  display: grid;
+  min-width: 0;
+}
+
+.metricCluster > div {
+  min-width: 0;
+}
+
+.metricTrack {
+  display: block;
+  grid-column: 1 / -1;
+  height: 0.35rem;
+  overflow: hidden;
+  background: rgba(5, 10, 16, 0.78);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.metricTrack > span {
+  display: block;
+  height: 100%;
+  background: var(--chrome-cyan);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-cyan) 45%, transparent);
+}
+
+.metricCluster > div[data-tone="gold"] .metricTrack > span {
+  background: var(--chrome-gold);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-gold) 45%, transparent);
+}
+
+.metricCluster > div[data-tone="success"] .metricTrack > span {
+  background: var(--chrome-success);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-success) 45%, transparent);
+}
+
+.metricCluster > div[data-tone="alert"] .metricTrack > span {
+  background: var(--chrome-alert);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-alert) 45%, transparent);
+}
+
+.statusBadge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.26rem 0.42rem;
+  border: 1px solid color-mix(in srgb, currentColor 56%, transparent);
+  border-left-width: 2px;
+  background: color-mix(in srgb, currentColor 10%, rgba(7, 13, 20, 0.76));
+  color: var(--chrome-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.statusBadge[data-tone="gold"] {
+  color: var(--chrome-gold);
+}
+
+.statusBadge[data-tone="success"] {
+  color: var(--chrome-success);
+}
+
+.statusBadge[data-tone="alert"] {
+  color: var(--chrome-alert);
+}
+
+.statusBadge[data-tone="muted"] {
+  color: var(--chrome-muted);
+}
+
+.artCard {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.artCard::before {
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background:
+    linear-gradient(90deg, var(--chrome-surface-deep), transparent 74%),
+    linear-gradient(180deg, rgba(5, 8, 14, 0.12), var(--chrome-surface-deep)),
+    var(--dossier-art) center / cover no-repeat;
+  content: "";
+  opacity: 0.58;
+  mix-blend-mode: screen;
+}
+
+.artCard > * {
+  position: relative;
+  z-index: 1;
+}
+
+.actionRail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}

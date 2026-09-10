@@ -1,4 +1,4 @@
-import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
+import { DossierSection, MetricCluster, StatusBadge } from "@/components/campaign/CampaignDossier";
 import type { ForceDebrief, MissionDebrief } from "@/lib/sim/debrief";
 import styles from "./MissionResult.module.css";
 
@@ -47,7 +47,9 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
       <div className={styles.resultCard} data-testid="primary-result-card" data-status={primaryState}>
         <div className={styles.resultCardHeader}>
           <p className={styles.objectiveLabel}>Primary objective</p>
-          <span className={styles.cardStatus}><span aria-hidden="true">{primaryIcon}</span>{primaryState === "complete" ? "Complete" : "Failed"}</span>
+          <StatusBadge className={styles.cardStatus} tone={primaryState === "complete" ? "success" : "alert"}>
+            <span aria-hidden="true">{primaryIcon}</span>{primaryState === "complete" ? "Complete" : "Failed"}
+          </StatusBadge>
         </div>
         <p className={styles.objectiveHeadline}>{primaryObjective.headline}</p>
         <p className={styles.objectiveProgress}>{primaryObjective.progress}</p>
@@ -98,19 +100,19 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
 
 export function MissionBattleRecord({ debrief }: { debrief: MissionDebrief }) {
   return (
-    <section className={styles.section} aria-label="Battle record" data-testid="battle-record">
-      <div className={styles.sectionHeader}>
-        <ConsoleLabel>Battle record</ConsoleLabel>
-      </div>
-      <dl className={styles.metrics}>
-        <div><dt>Time</dt><dd>{debrief.battle.duration}</dd></div>
-        <div><dt>Credits</dt><dd>{debrief.battle.creditsGathered}</dd></div>
-        <div><dt>Trained</dt><dd>{debrief.battle.unitsTrained}</dd></div>
-        <div><dt>Built</dt><dd>{debrief.battle.structuresCompleted}</dd></div>
-        <div><dt>Score</dt><dd>{debrief.battle.score}</dd></div>
-        <div><dt>Medals</dt><dd>{debrief.battle.medals} / 3</dd></div>
-      </dl>
-    </section>
+    <DossierSection className={styles.section} label="Battle record" aria-label="Battle record" data-testid="battle-record">
+      <MetricCluster
+        className={styles.metrics}
+        items={[
+          { label: "Time", value: debrief.battle.duration },
+          { label: "Credits", value: debrief.battle.creditsGathered },
+          { label: "Trained", value: debrief.battle.unitsTrained },
+          { label: "Built", value: debrief.battle.structuresCompleted },
+          { label: "Score", value: debrief.battle.score },
+          { label: "Medals", value: `${debrief.battle.medals} / 3`, tone: "gold" },
+        ]}
+      />
+    </DossierSection>
   );
 }
 
@@ -129,14 +131,11 @@ export function MissionForceCard({ label, force }: { label: string; force: Force
 
 export function MissionForceDisposition({ debrief }: { debrief: MissionDebrief }) {
   return (
-    <section className={styles.section} aria-label="Force disposition" data-testid="force-disposition">
-      <div className={styles.sectionHeader}>
-        <ConsoleLabel>Forces</ConsoleLabel>
-      </div>
+    <DossierSection className={styles.section} label="Forces" aria-label="Force disposition" data-testid="force-disposition">
       <div className={styles.forceGrid}>
         <MissionForceCard label="Friendly" force={debrief.forces.friendly} />
         <MissionForceCard label="Enemy" force={debrief.forces.enemy} />
       </div>
-    </section>
+    </DossierSection>
   );
 }

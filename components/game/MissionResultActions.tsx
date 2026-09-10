@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ActionRail } from "@/components/campaign/CampaignDossier";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import { formatMissionShareCard } from "@/lib/ui/shareCard";
@@ -32,7 +33,7 @@ export function MissionResultActions({
   };
 
   return (
-    <div className={styles.actions}>
+    <ActionRail className={styles.actions}>
       {state.result === "won" && state.missionIndex < 5 ? (
         <ConsoleButton tooltip="Advance to the next briefing" shortcut={SHORTCUT.resultPrimary} onClick={onNextBriefing}>
           Next briefing
@@ -66,6 +67,6 @@ export function MissionResultActions({
       <ConsoleButton muted tooltip="Return to the main menu" shortcut={SHORTCUT.resultMenu} onClick={onMenu}>
         Menu
       </ConsoleButton>
-    </div>
+    </ActionRail>
   );
 }

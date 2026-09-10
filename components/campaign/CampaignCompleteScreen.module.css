@@ -174,7 +174,7 @@
   background: linear-gradient(110deg, rgba(25, 55, 63, 0.76), rgba(11, 17, 23, 0.48));
 }
 
-.summary span:first-child {
+.summary dt {
   color: var(--chrome-muted);
   font-size: 0.72rem;
   font-weight: 800;
@@ -195,25 +195,8 @@
   font-weight: 700;
 }
 
-.summaryTrack {
-  display: block;
-  grid-column: 1 / -1;
-  height: 0.35rem;
-  overflow: hidden;
-  background: rgba(5, 10, 16, 0.78);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
-}
-
-.summaryTrack > span {
-  display: block;
-  height: 100%;
-  background: var(--chrome-gold);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-gold) 45%, transparent);
-}
-
-.summary > div:nth-child(2) .summaryTrack > span {
-  background: var(--chrome-cyan);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-cyan) 45%, transparent);
+.summary .metricTrack {
+  margin-top: 0.25rem;
 }
 
 .section {
@@ -442,22 +425,6 @@
   box-shadow: inset 1px 1px rgba(255, 255, 255, 0.035), inset -1px -1px var(--chrome-inset), 0 14px 28px rgba(0, 0, 0, 0.16);
 }
 
-.detailArt {
-  pointer-events: none;
-  position: absolute;
-  z-index: 0;
-  inset: 0 0 0 auto;
-  right: 0;
-  width: min(60%, 34rem);
-  height: 100%;
-  background:
-    linear-gradient(90deg, var(--chrome-surface-deep), transparent 74%),
-    linear-gradient(180deg, rgba(5, 8, 14, 0.12), var(--chrome-surface-deep)),
-    var(--mission-art) center / cover no-repeat;
-  opacity: 0.58;
-  mix-blend-mode: screen;
-}
-
 .detailHeader,
 .detailGrid,
 .detailActions {
@@ -503,6 +470,18 @@
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
+}
+
+.detailStatus[data-tone="gold"] {
+  color: var(--chrome-gold);
+}
+
+.detailStatus[data-tone="success"] {
+  color: var(--chrome-success);
+}
+
+.detailStatus[data-tone="muted"] {
+  color: var(--chrome-muted);
 }
 
 .detailGrid {
