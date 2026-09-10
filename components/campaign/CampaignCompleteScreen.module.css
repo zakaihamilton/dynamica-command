@@ -53,7 +53,15 @@
 }
 
 .panel::before {
-  display: none;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 13, 20, 0.96), rgba(8, 13, 20, 0.78) 46%, rgba(8, 13, 20, 0.3)),
+    linear-gradient(180deg, rgba(8, 13, 20, 0.08), rgba(8, 13, 20, 0.82) 92%),
+    var(--scene-art) right center / cover no-repeat;
+  content: "";
+  opacity: 0.72;
 }
 
 .panel::after {
@@ -72,6 +80,8 @@
 }
 
 .header {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -79,6 +89,18 @@
   padding: 0.35rem 0 1.1rem;
   border-bottom: 1px solid var(--chrome-line);
   background: transparent;
+}
+
+.header::after {
+  pointer-events: none;
+  position: absolute;
+  right: -2rem;
+  bottom: 0;
+  width: 14rem;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, var(--chrome-cyan));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--chrome-cyan) 30%, transparent);
+  content: "";
 }
 
 .headerIdentity {
@@ -129,7 +151,7 @@
 .summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
+  gap: 0.7rem;
   margin: 1rem 0;
 }
 
@@ -139,16 +161,17 @@
   align-items: baseline;
   gap: 0.2rem 0.8rem;
   min-width: 0;
-  padding: 0.7rem 0.2rem 0.75rem;
-  border-top: 1px solid var(--chrome-line);
-  border-bottom: 1px solid var(--chrome-line);
-  border-left: 2px solid var(--chrome-gold);
-  background: transparent;
-  box-shadow: none;
+  padding: 0.85rem 0.8rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-gold) 28%, var(--chrome-line));
+  border-left: 3px solid var(--chrome-gold);
+  background: linear-gradient(110deg, rgba(58, 53, 32, 0.76), rgba(11, 17, 23, 0.48));
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.03), inset -1px -1px var(--chrome-inset);
 }
 
 .summary > div:nth-child(2) {
+  border-color: color-mix(in srgb, var(--chrome-cyan) 28%, var(--chrome-line));
   border-left-color: var(--chrome-cyan);
+  background: linear-gradient(110deg, rgba(25, 55, 63, 0.76), rgba(11, 17, 23, 0.48));
 }
 
 .summary span:first-child {
@@ -175,9 +198,10 @@
 .summaryTrack {
   display: block;
   grid-column: 1 / -1;
-  height: 4px;
+  height: 0.35rem;
   overflow: hidden;
-  background: var(--chrome-inset);
+  background: rgba(5, 10, 16, 0.78);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .summaryTrack > span {
@@ -196,7 +220,7 @@
   min-width: 0;
   margin-top: 0.75rem;
   padding: 1rem 0 0;
-  border-top: 1px solid var(--chrome-line);
+  border-top: 0;
   background: transparent;
   box-shadow: none;
 }
@@ -236,20 +260,48 @@
 .missions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
 .mission {
+  position: relative;
+  isolation: isolate;
   display: grid;
   min-width: 0;
   gap: 0.32rem;
-  padding: 0.72rem 0.6rem;
-  border: 0;
-  border-top: 1px solid var(--chrome-line);
-  border-left: 2px solid transparent;
-  background: transparent;
-  box-shadow: none;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  min-height: 8rem;
+  padding: 0.82rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 22%, var(--chrome-line));
+  border-left: 3px solid transparent;
+  background: linear-gradient(110deg, rgba(23, 39, 49, 0.94), rgba(7, 13, 20, 0.72));
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.025), inset -1px -1px var(--chrome-inset), 0 10px 22px rgba(0, 0, 0, 0.14);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mission::before,
+.mission::after {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+
+.mission::before {
+  z-index: -2;
+  background: var(--mission-art) right center / cover no-repeat;
+  opacity: 0.38;
+  mix-blend-mode: screen;
+  mask-image: linear-gradient(90deg, transparent 8%, rgba(0, 0, 0, 0.22) 42%, #000 100%);
+}
+
+.mission::after {
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(7, 13, 20, 0.98) 8%, rgba(7, 13, 20, 0.84) 48%, rgba(7, 13, 20, 0.38));
+}
+
+.mission > * {
+  position: relative;
+  z-index: 1;
 }
 
 .missionButton {
@@ -263,8 +315,10 @@
 }
 
 .missionButton:hover {
-  border-left-color: color-mix(in srgb, var(--chrome-cyan) 72%, var(--chrome-inset));
-  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 9%, transparent), transparent 72%);
+  border-color: color-mix(in srgb, var(--chrome-cyan) 66%, var(--chrome-line));
+  border-left-color: var(--chrome-cyan);
+  background: linear-gradient(110deg, rgba(25, 63, 71, 0.92), rgba(7, 13, 20, 0.62));
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.04), 0 14px 26px rgba(0, 0, 0, 0.22);
   transform: translateY(-1px);
 }
 
@@ -274,21 +328,27 @@
 }
 
 .mission.selected {
+  border-color: color-mix(in srgb, var(--chrome-cyan) 72%, var(--chrome-line));
   border-left-color: var(--chrome-cyan);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 12%, transparent), transparent 78%);
-  box-shadow: none;
+  background: linear-gradient(110deg, rgba(28, 76, 84, 0.9), rgba(7, 13, 20, 0.6));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 20%, transparent), inset 1px 1px rgba(255, 255, 255, 0.04), 0 14px 30px rgba(0, 0, 0, 0.24);
 }
 
 .mission.complete {
-  border-top-color: color-mix(in srgb, var(--chrome-success) 42%, var(--chrome-line));
+  border-color: color-mix(in srgb, var(--chrome-success) 32%, var(--chrome-line));
 }
 
 .mission.available {
+  border-color: color-mix(in srgb, var(--chrome-gold) 32%, var(--chrome-line));
   border-left-color: var(--chrome-gold);
 }
 
 .mission.locked {
   opacity: 0.58;
+}
+
+.mission.locked::before {
+  opacity: 0.12;
 }
 
 .missionTopline {
@@ -374,26 +434,27 @@
   min-width: 0;
   flex-direction: column;
   margin-top: 0.75rem;
-  padding: 1.1rem 0;
+  padding: 1.2rem 1.1rem 1.1rem;
   overflow: hidden;
-  border-top: 1px solid color-mix(in srgb, var(--chrome-cyan) 62%, var(--chrome-inset));
-  background: transparent;
-  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 36%, var(--chrome-line));
+  border-left: 3px solid var(--chrome-cyan);
+  background: linear-gradient(105deg, rgba(9, 22, 29, 0.9), rgba(8, 14, 21, 0.46));
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.035), inset -1px -1px var(--chrome-inset), 0 14px 28px rgba(0, 0, 0, 0.16);
 }
 
 .detailArt {
   pointer-events: none;
   position: absolute;
   z-index: 0;
-  top: 0;
+  inset: 0 0 0 auto;
   right: 0;
-  width: min(58%, 30rem);
-  height: 10rem;
+  width: min(60%, 34rem);
+  height: 100%;
   background:
     linear-gradient(90deg, var(--chrome-surface-deep), transparent 74%),
     linear-gradient(180deg, rgba(5, 8, 14, 0.12), var(--chrome-surface-deep)),
     var(--mission-art) center / cover no-repeat;
-  opacity: 0.44;
+  opacity: 0.58;
   mix-blend-mode: screen;
 }
 
@@ -411,7 +472,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding-bottom: 0.8rem;
-  border-bottom: 1px solid var(--chrome-line);
+  border-bottom: 0;
 }
 
 .detailHeader > div {
@@ -433,10 +494,10 @@
 
 .detailStatus {
   flex: 0 0 auto;
-  padding: 0.32rem 0.5rem;
-  border: 0;
-  border-left: 2px solid currentColor;
-  background: transparent;
+  padding: 0.38rem 0.55rem;
+  border: 1px solid currentColor;
+  border-left-width: 3px;
+  background: rgba(7, 15, 22, 0.64);
   color: var(--chrome-cyan);
   font-size: 0.72rem;
   font-weight: 800;
@@ -447,17 +508,18 @@
 .detailGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
-  margin-top: 0.8rem;
+  gap: 0.65rem;
+  margin-top: 0.9rem;
 }
 
 .detailBlock {
   display: grid;
   min-width: 0;
   gap: 0.35rem;
-  padding: 0.65rem 0.15rem;
-  border-top: 1px solid var(--chrome-line);
-  background: transparent;
+  padding: 0.7rem 0.65rem;
+  border: 1px solid rgba(126, 172, 190, 0.16);
+  background: rgba(6, 14, 21, 0.58);
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.02);
 }
 
 .detailBlock > span {
@@ -602,10 +664,10 @@
 }
 
 .operationsBody > .detail {
-  border-top: 0;
-  border-left: 0;
-  background: transparent;
-  padding: 0 0 0 1rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 36%, var(--chrome-line));
+  border-left: 3px solid var(--chrome-cyan);
+  background: linear-gradient(105deg, rgba(9, 22, 29, 0.9), rgba(8, 14, 21, 0.46));
+  padding: 1rem;
 }
 
 .operationsBody .detailGrid {
@@ -752,9 +814,10 @@
 
   .operationsBody > .detail {
     border-left: 0;
-    border-top: 1px solid color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-line));
-    padding: 1rem 0 0;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--chrome-cyan) 7%, transparent), transparent 82%);
+    border: 1px solid color-mix(in srgb, var(--chrome-cyan) 42%, var(--chrome-line));
+    border-left: 3px solid var(--chrome-cyan);
+    padding: 1rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--chrome-cyan) 12%, transparent), rgba(8, 14, 21, 0.52) 82%);
   }
 
   .operationsBody .detailActions {

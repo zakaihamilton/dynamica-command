@@ -71,6 +71,8 @@ export function SaveSlotList({
                     <ConsoleButton
                       muted={!selected}
                       className={cx(styles.item, selected && styles.selected)}
+                      data-kind={entry.kind}
+                      data-result={entry.result}
                       aria-pressed={onSelect ? selected : undefined}
                       aria-label={
                         onResume
@@ -87,7 +89,15 @@ export function SaveSlotList({
                         onResume?.(entry);
                       }}
                     >
-                      {archiveEntryLabel(entry)}
+                      <span className={styles.itemMarker} aria-hidden="true">{entry.kind === "slot" ? "S" : "A"}</span>
+                      <span className={styles.itemCopy}>
+                        <strong className={styles.itemTitle}>{entry.kind === "slot" ? entry.name : "Autosave"}</strong>
+                        <span className={styles.itemCampaign}>{entry.campaignName}</span>
+                      </span>
+                      <span className={styles.itemMeta} aria-hidden="true">
+                        <span>MISSION {String(entry.missionIndex + 1).padStart(2, "0")}</span>
+                        <span>{formatMissionDuration(entry.tick)}</span>
+                      </span>
                     </ConsoleButton>
                     {showActions && onCampaignMap ? (
                       <ConsoleButton

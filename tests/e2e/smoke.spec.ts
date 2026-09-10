@@ -968,6 +968,13 @@ test("reflows failed mission actions without a share slot", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Share result" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  const [menuBounds, retryBounds] = await Promise.all([
+    page.getByRole("button", { name: "Menu" }).boundingBox(),
+    page.getByRole("button", { name: "Retry" }).boundingBox(),
+  ]);
+  expect(menuBounds).not.toBeNull();
+  expect(retryBounds).not.toBeNull();
+  expect(menuBounds!.x).toBeLessThan(retryBounds!.x);
 
   const bounds = await page.getByTestId("mission-result").evaluate((element) => ({
     viewportWidth: window.innerWidth,

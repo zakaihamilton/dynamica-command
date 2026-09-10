@@ -112,9 +112,11 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
               key={mission.index}
               type="button"
               className={`${styles.mission} ${styles.missionButton} ${missionComplete ? styles.complete : available ? styles.available : styles.locked} ${selectedMissionIndex === mission.index ? styles.selected : ""}`}
+              style={{ "--mission-art": `url("${biomeArt(mission.biome)}")` } as React.CSSProperties}
               aria-label={`${action} mission ${index + 1}: ${mission.name}`}
               aria-pressed={selectedMissionIndex === mission.index}
               data-testid={`mission-card-${mission.index}`}
+              data-status={missionComplete ? "completed" : available ? "available" : "locked"}
               data-tooltip={`${action} mission ${index + 1}`}
               onClick={() => setSelectedMissionIndex(mission.index)}
             >

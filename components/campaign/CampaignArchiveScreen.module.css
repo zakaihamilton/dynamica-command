@@ -134,7 +134,15 @@
 }
 
 .panel::before {
-  display: none;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 13, 20, 0.96), rgba(8, 13, 20, 0.82) 48%, rgba(8, 13, 20, 0.38)),
+    linear-gradient(180deg, rgba(8, 13, 20, 0.08), rgba(8, 13, 20, 0.86) 92%),
+    var(--scene-art) right center / cover no-repeat;
+  content: "";
+  opacity: 0.58;
 }
 
 .panel::after {
@@ -153,7 +161,23 @@
 }
 
 .header {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 0.8rem;
+  border-bottom: 0;
   text-align: center;
+}
+
+.header::after {
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--chrome-cyan), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--chrome-cyan) 25%, transparent);
+  content: "";
 }
 
 .title {
@@ -189,8 +213,11 @@
   justify-content: space-between;
   gap: 1rem;
   margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--chrome-line);
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 28%, var(--chrome-line));
+  border-left: 3px solid var(--chrome-cyan);
+  background: linear-gradient(105deg, rgba(24, 54, 63, 0.68), rgba(8, 14, 21, 0.46));
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.025), inset -1px -1px var(--chrome-inset);
 }
 
 .archiveHeader h2 {
@@ -250,9 +277,10 @@
   align-items: center;
   gap: 0.5rem;
   margin-top: 0.85rem;
-  padding: 0.65rem;
+  padding: 0.75rem;
   border: 1px solid color-mix(in srgb, var(--chrome-alert) 55%, var(--chrome-inset));
-  background: color-mix(in srgb, var(--chrome-alert) 10%, var(--chrome-void));
+  border-left: 3px solid var(--chrome-alert);
+  background: linear-gradient(105deg, color-mix(in srgb, var(--chrome-alert) 16%, var(--chrome-void)), rgba(8, 14, 21, 0.72));
   color: var(--chrome-warning);
   font-size: 0.76rem;
 }
@@ -263,7 +291,7 @@
   gap: 0.5rem;
   margin-top: 1.25rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--chrome-line);
+  border-top: 0;
 }
 
 .footer {

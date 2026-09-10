@@ -38,7 +38,7 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
   const primaryIcon = primaryState === "complete" ? "✓" : "!";
 
   return (
-    <section className={styles.outcome} aria-label="Outcome assessment">
+    <section className={styles.outcome} aria-label="Outcome assessment" data-status={primaryState}>
       <div className={styles.outcomeSummary}>
         <span className={styles.outcomeIcon} aria-hidden="true">{primaryIcon}</span>
         <p className={styles.outcomeText}>{debrief.outcome}</p>
@@ -98,7 +98,7 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
 
 export function MissionBattleRecord({ debrief }: { debrief: MissionDebrief }) {
   return (
-    <section className={styles.section} aria-label="Battle record">
+    <section className={styles.section} aria-label="Battle record" data-testid="battle-record">
       <div className={styles.sectionHeader}>
         <ConsoleLabel>Battle record</ConsoleLabel>
       </div>
@@ -116,8 +116,8 @@ export function MissionBattleRecord({ debrief }: { debrief: MissionDebrief }) {
 
 export function MissionForceCard({ label, force }: { label: string; force: ForceDebrief }) {
   return (
-    <div className={styles.forceCard}>
-      <h3>{label}</h3>
+    <div className={styles.forceCard} data-force={label.toLowerCase()}>
+      <h3><span className={styles.forceMark} aria-hidden="true" />{label}</h3>
       <dl>
         <div><dt>Units</dt><dd>{force.unitsRemaining} <small>left</small></dd></div>
         <div><dt>Structures</dt><dd>{force.buildingsRemaining} <small>left</small></dd></div>
@@ -129,7 +129,7 @@ export function MissionForceCard({ label, force }: { label: string; force: Force
 
 export function MissionForceDisposition({ debrief }: { debrief: MissionDebrief }) {
   return (
-    <section className={styles.section} aria-label="Force disposition">
+    <section className={styles.section} aria-label="Force disposition" data-testid="force-disposition">
       <div className={styles.sectionHeader}>
         <ConsoleLabel>Forces</ConsoleLabel>
       </div>

@@ -12,6 +12,7 @@ import type { GameActions } from "../../components/game/hooks/useGameActions";
 import type { GameCamera } from "../../components/game/hooks/useGameCamera";
 import type { GameSession } from "../../components/game/hooks/useGameSession";
 import { GameOverlays } from "../../components/game/GameOverlays";
+import { MissionResult } from "../../components/game/MissionResult";
 import { MissionResultActions } from "../../components/game/MissionResultActions";
 import { MissionOutcome } from "../../components/game/MissionResultSections";
 import { missionDebrief } from "../../lib/sim/debrief";
@@ -218,6 +219,26 @@ describe("game overlay surfaces", () => {
     expect(screen.queryByRole("button", { name: "Share result" })).toBeNull();
     expect(screen.getByRole("button", { name: "Retry" })).toHaveAttribute("data-default-action", "true");
     expect(screen.queryByRole("button", { name: "Campaign map" })).toBeNull();
+  });
+
+  it("keeps result art and status semantics for win and loss states", () => {
+    const lost = { ...makeFixture({ seed: 421, win: { kind: "annihilate" } }), result: "lost" as const };
+    const callbacks = {
+      onNextBriefing: vi.fn(),
+      onCampaignVictory: vi.fn(),
+      onRetry: vi.fn(),
+      onMenu: vi.fn(),
+    };
+    const { rerender } = render(<MissionResult state={lost} {...callbacks} />);
+
+    const result = screen.getByTestId("mission-result");
+    expect(result).toHaveAttribute("data-result", "lost");
+    expect(result).toHaveStyle({ "--result-art": 'url("/art/results/defeat.webp")' });
+
+    const won = { ...lost, result: "won" as const };
+    rerender(<MissionResult state={won} {...callbacks} />);
+    expect(screen.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
+    expect(screen.getByTestId("mission-result")).toHaveStyle({ "--result-art": 'url("/art/results/victory.webp")' });
   });
 
   it("separates required mission conditions from bonus objectives", () => {
