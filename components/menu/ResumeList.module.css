@@ -79,6 +79,7 @@
   width: 100%;
   min-width: 0;
   padding: 0.72rem 0.65rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-cyan) 20%, var(--chrome-line));
   border-left: 3px solid var(--chrome-cyan-dim);
   background: linear-gradient(105deg, rgba(24, 47, 57, 0.78), rgba(8, 14, 21, 0.6));
@@ -180,6 +181,7 @@
 .delete {
   align-self: stretch;
   padding: 0.5rem 0.45rem;
+  border-radius: var(--chrome-radius-sm);
   border-color: color-mix(in srgb, var(--chrome-alert) 28%, var(--chrome-line));
   background: rgba(37, 17, 21, 0.34);
   box-shadow: inset 1px 1px rgba(255, 255, 255, 0.02);
@@ -190,6 +192,7 @@
 .operations {
   align-self: stretch;
   padding: 0.5rem 0.55rem;
+  border-radius: var(--chrome-radius-sm);
   border-color: color-mix(in srgb, var(--chrome-cyan) 28%, var(--chrome-line));
   background: rgba(12, 35, 43, 0.42);
   box-shadow: inset 1px 1px rgba(255, 255, 255, 0.02);

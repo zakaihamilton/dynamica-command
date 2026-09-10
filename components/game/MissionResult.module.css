@@ -21,6 +21,7 @@
   height: min(54rem, calc(100vh - 2rem));
   max-height: calc(100vh - 2rem);
   min-height: 0;
+  border-radius: var(--chrome-radius-lg);
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.7rem;
   padding: 1.2rem;
@@ -165,6 +166,7 @@
   grid-row: 1;
   overflow: hidden;
   padding: 0.85rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-cyan) 28%, var(--chrome-line));
   background: linear-gradient(145deg, rgba(35, 54, 66, 0.62), rgba(7, 13, 20, 0.64));
   box-shadow: inset 1px 1px rgba(255, 255, 255, 0.035), inset -1px -1px var(--chrome-inset);
@@ -175,6 +177,7 @@
   grid-row: 2;
   overflow: hidden;
   padding: 0.85rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-gold) 24%, var(--chrome-line));
   background: linear-gradient(145deg, rgba(43, 46, 40, 0.5), rgba(7, 13, 20, 0.64));
   box-shadow: inset 1px 1px rgba(255, 255, 255, 0.03), inset -1px -1px var(--chrome-inset);
@@ -186,6 +189,7 @@
   gap: 0.8rem;
   min-height: 3.15rem;
   padding: 0.72rem 0.85rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-alert) 32%, var(--chrome-line));
   border-left: 3px solid var(--chrome-cyan-dim);
   background: linear-gradient(105deg, rgba(31, 50, 61, 0.78), rgba(8, 14, 21, 0.38));
@@ -241,6 +245,7 @@
 
 .resultCard {
   padding: 0.76rem 0.82rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-cyan) 42%, var(--chrome-line));
   border-left: 4px solid var(--chrome-cyan);
   background: linear-gradient(105deg, rgba(25, 56, 65, 0.88), rgba(8, 14, 21, 0.58));
@@ -321,6 +326,7 @@
   display: grid;
   gap: 0.25rem;
   padding: 0.48rem 0.55rem 0.55rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-cyan) 22%, var(--chrome-line));
   background: rgba(8, 15, 22, 0.48);
 }
@@ -344,6 +350,7 @@
   gap: 0.35rem;
   min-width: 0;
   padding: 0.48rem 0.45rem;
+  border-radius: var(--chrome-radius-sm);
   border-left: 2px solid transparent;
   background: rgba(31, 49, 59, 0.38);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.02);
@@ -391,6 +398,7 @@
 
 .disclosure {
   padding: 0.38rem 0.6rem 0.48rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-cyan) 24%, var(--chrome-line));
   border-left: 3px solid var(--chrome-cyan-dim);
   background: linear-gradient(105deg, rgba(22, 47, 57, 0.74), rgba(8, 14, 21, 0.42));
@@ -472,6 +480,7 @@
   gap: 0.45rem 0.6rem;
   margin: 0.6rem 0 0;
   padding: 0.55rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-cyan) 26%, var(--chrome-line));
   background: rgba(5, 12, 19, 0.48);
 }
@@ -480,6 +489,7 @@
 .forceCard {
   min-width: 0;
   padding: 0.45rem 0.5rem;
+  border-radius: var(--chrome-radius-sm);
   border-left: 2px solid color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-line));
   background: linear-gradient(105deg, rgba(37, 58, 70, 0.62), rgba(9, 16, 23, 0.2));
 }
@@ -510,6 +520,7 @@
   gap: 0.55rem;
   margin-top: 0.6rem;
   padding: 0.55rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-gold) 25%, var(--chrome-line));
   background: rgba(5, 12, 19, 0.48);
 }

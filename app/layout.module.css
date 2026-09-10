@@ -27,7 +27,9 @@
   --chrome-focus: #b9fbff;
   --chrome-success: #9ee7bd;
   --chrome-warning: #ffcf72;
-  --chrome-radius: 2px;
+  --chrome-radius: 8px;
+  --chrome-radius-sm: 4px;
+  --chrome-radius-lg: 12px;
   --chrome-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
   --texture-brushed: url("/art/textures/brushed-gunmetal.webp");
   --texture-worn: url("/art/textures/worn-panel.webp");
