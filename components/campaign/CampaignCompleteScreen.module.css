@@ -1,12 +1,12 @@
 .screen {
   position: relative;
   box-sizing: border-box;
-  min-height: 100dvh;
   height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
   color: var(--chrome-body);
   background:
-    linear-gradient(rgba(3, 7, 12, 0.42), rgba(3, 7, 12, 0.86)),
+    linear-gradient(rgba(3, 7, 12, 0.42), rgba(3, 7, 12, 0.88)),
     var(--scene-art) center / cover fixed no-repeat,
     var(--chrome-void);
 }
@@ -23,8 +23,9 @@
   z-index: 1;
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   align-items: center;
   justify-content: center;
   padding: 1rem;
@@ -32,409 +33,472 @@
 
 .panel {
   box-sizing: border-box;
-  width: min(58rem, 100%);
+  display: flex;
+  width: min(76rem, 100%);
   max-height: calc(100dvh - 2rem);
+  min-height: 0;
+  flex-direction: column;
   overflow-y: auto;
-  padding: clamp(1rem, 3vw, 2rem);
+  padding: clamp(1rem, 2.4vw, 2rem);
   scrollbar-color: var(--chrome-bevel) var(--chrome-steel-lo);
 }
 
 .header {
-  text-align: center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--chrome-line);
+}
+
+.headerIdentity {
+  min-width: 0;
 }
 
 .title {
-  margin: 0.4rem 0 0;
-  font-family: var(--font-display);
+  margin: 0.3rem 0 0;
   color: var(--chrome-text);
-  font-size: clamp(1.8rem, 5vw, 3.25rem);
+  font-family: var(--font-display);
+  font-size: clamp(2.45rem, 6vw, 4.6rem);
   font-weight: 800;
-  line-height: 1;
+  line-height: 0.88;
+  letter-spacing: 0.025em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .subtitle {
-  margin: 0.45rem 0 0;
+  margin: 0.65rem 0 0;
   color: var(--chrome-cyan);
-  font-size: clamp(0.85rem, 2vw, 1.1rem);
+  font-size: clamp(0.85rem, 1.7vw, 1.1rem);
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
 }
 
-.meta {
-  margin: 0.7rem 0 0;
+.headerContext {
+  display: grid;
+  min-width: 12rem;
+  gap: 0.18rem;
   color: var(--chrome-muted);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-align: right;
   text-transform: uppercase;
+}
+
+.headerContext strong {
+  color: var(--chrome-text);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+}
+
+.contextSeed {
+  color: var(--chrome-gold);
+  font-weight: 800;
 }
 
 .summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.8rem;
   margin: 1rem 0;
 }
 
 .summary > div {
   display: grid;
-  gap: 0.25rem;
-  padding: 0.75rem;
-  border: 1px solid var(--chrome-inset);
-  background: color-mix(in srgb, var(--chrome-steel-lo) 82%, transparent);
-  text-align: center;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0.2rem 0.8rem;
+  min-width: 0;
+  padding: 0.65rem 0.8rem 0.7rem;
+  border: 1px solid var(--chrome-line);
+  border-left: 3px solid var(--chrome-gold);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--chrome-gold) 8%, var(--chrome-surface-deep)), color-mix(in srgb, var(--chrome-steel-lo) 62%, transparent));
 }
 
-.summary span {
+.summary > div:nth-child(2) {
+  border-left-color: var(--chrome-cyan);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--chrome-cyan) 8%, var(--chrome-surface-deep)), color-mix(in srgb, var(--chrome-steel-lo) 62%, transparent));
+}
+
+.summary span:first-child {
   color: var(--chrome-muted);
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .summary strong {
-  color: var(--chrome-gold);
-  font-size: 1.15rem;
+  color: var(--chrome-text);
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  line-height: 1;
+  text-align: right;
+}
+
+.summary strong small {
+  color: var(--chrome-muted);
+  font-size: 0.7em;
+  font-weight: 700;
+}
+
+.summaryTrack {
+  display: block;
+  grid-column: 1 / -1;
+  height: 4px;
+  overflow: hidden;
+  background: var(--chrome-inset);
+}
+
+.summaryTrack > span {
+  display: block;
+  height: 100%;
+  background: var(--chrome-gold);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-gold) 45%, transparent);
+}
+
+.summary > div:nth-child(2) .summaryTrack > span {
+  background: var(--chrome-cyan);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-cyan) 45%, transparent);
 }
 
 .section {
+  min-width: 0;
   margin-top: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--chrome-inset);
+  padding: 0.9rem;
+  border: 1px solid var(--chrome-line);
   background: linear-gradient(145deg, color-mix(in srgb, var(--chrome-steel) 70%, transparent), color-mix(in srgb, var(--chrome-steel-lo) 88%, transparent));
 }
 
+.sectionHeader {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.sectionHeader > div {
+  min-width: 0;
+}
+
 .sectionTitle {
-  margin: 0.2rem 0 0.5rem;
-  font-family: var(--font-display);
+  margin: 0.22rem 0 0;
   color: var(--chrome-text);
-  font-size: 1rem;
-  letter-spacing: 0.06em;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
+  line-height: 0.95;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sectionCount {
+  flex: 0 0 auto;
+  color: var(--chrome-cyan);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .missions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.55rem;
 }
 
 .mission {
   display: grid;
-  gap: 0.25rem;
-  padding: 0.55rem;
+  min-width: 0;
+  gap: 0.32rem;
+  padding: 0.7rem;
   border: 1px solid var(--chrome-inset);
-  background: var(--chrome-steel-lo);
+  background: linear-gradient(145deg, var(--chrome-steel-lo), color-mix(in srgb, var(--chrome-steel-lo) 72%, var(--chrome-void)));
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .missionButton {
   width: 100%;
   color: inherit;
-  text-align: left;
   font: inherit;
   letter-spacing: normal;
+  text-align: left;
   text-transform: none;
   cursor: pointer;
 }
 
 .missionButton:hover {
   border-color: color-mix(in srgb, var(--chrome-cyan) 72%, var(--chrome-inset));
-  background: color-mix(in srgb, var(--chrome-cyan) 10%, var(--chrome-steel-lo));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--chrome-cyan) 10%, var(--chrome-steel-lo)), var(--chrome-steel-lo));
   transform: translateY(-1px);
 }
 
 .missionButton:focus-visible {
-  outline: 2px solid var(--chrome-cyan);
+  outline: 2px solid var(--chrome-focus);
   outline-offset: 2px;
 }
 
 .mission.selected {
   border-color: var(--chrome-cyan);
-  box-shadow: inset 0 0 0 1px var(--chrome-cyan), 0 0 1rem color-mix(in srgb, var(--chrome-cyan) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--chrome-cyan), 0 0 1rem color-mix(in srgb, var(--chrome-cyan) 14%, transparent);
 }
 
 .mission.complete {
-  border-color: color-mix(in srgb, var(--chrome-cyan) 60%, var(--chrome-inset));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 20%, transparent);
+  border-color: color-mix(in srgb, var(--chrome-success) 64%, var(--chrome-inset));
 }
 
 .mission.available {
-  border-color: color-mix(in srgb, var(--chrome-gold) 58%, var(--chrome-inset));
+  border-left: 3px solid var(--chrome-gold);
 }
 
 .mission.locked {
-  opacity: 0.65;
+  opacity: 0.58;
 }
 
 .missionTopline {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   color: var(--chrome-muted);
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
+.missionTopline > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.missionNumber {
+  display: inline-grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.38rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  color: var(--chrome-cyan);
+  font-size: 0.65rem;
+}
+
 .medals {
+  flex: 0 0 auto;
   color: var(--chrome-gold);
-  letter-spacing: 0.05em;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
 }
 
 .missionTitle {
-  margin-top: 0.15rem;
+  margin-top: 0.2rem;
+  overflow: hidden;
   color: var(--chrome-text);
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .missionMeta,
 .missionObjective,
-.missionAction {
+.missionRecord {
+  min-width: 0;
+  overflow: hidden;
   color: var(--chrome-muted);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
 }
 
 .missionObjective {
-  min-height: 2.1em;
   color: var(--chrome-body);
-  line-height: 1.35;
 }
 
 .missionRecord {
   color: var(--chrome-muted);
-  font-size: 0.65rem;
 }
 
 .missionAction {
-  margin-top: 0.15rem;
+  margin-top: 0.28rem;
   color: var(--chrome-cyan);
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .detail {
   position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
   margin-top: 0.75rem;
-  padding: 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-inset));
-  background: linear-gradient(145deg, color-mix(in srgb, var(--chrome-cyan) 8%, var(--chrome-steel)), color-mix(in srgb, var(--chrome-steel-lo) 92%, transparent));
+  padding: 1rem;
   overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 55%, var(--chrome-inset));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--chrome-cyan) 10%, var(--chrome-steel)), color-mix(in srgb, var(--chrome-steel-lo) 92%, transparent));
 }
 
 .detailArt {
   pointer-events: none;
   position: absolute;
+  z-index: 0;
   top: 0;
   right: 0;
-  width: min(52%, 25rem);
-  height: 8rem;
+  width: min(58%, 30rem);
+  height: 10rem;
   background:
-    linear-gradient(90deg, var(--chrome-surface-deep), transparent 70%),
-    linear-gradient(180deg, rgba(5, 8, 14, 0.15), var(--chrome-surface-deep)),
+    linear-gradient(90deg, var(--chrome-surface-deep), transparent 74%),
+    linear-gradient(180deg, rgba(5, 8, 14, 0.12), var(--chrome-surface-deep)),
     var(--mission-art) center / cover no-repeat;
-  opacity: 0.48;
+  opacity: 0.44;
   mix-blend-mode: screen;
 }
 
-.detailHeader {
+.detailHeader,
+.detailGrid,
+.detailActions {
   position: relative;
   z-index: 1;
+}
+
+.detailHeader {
   display: flex;
+  min-width: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--chrome-line);
+}
+
+.detailHeader > div {
+  min-width: 0;
 }
 
 .detailTitle {
-  margin: 0.25rem 0 0;
+  margin: 0.3rem 0 0;
+  overflow: hidden;
   color: var(--chrome-text);
   font-family: var(--font-display);
-  font-size: 0.95rem;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 0.95;
   letter-spacing: 0.04em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .detailStatus {
+  flex: 0 0 auto;
+  padding: 0.32rem 0.5rem;
+  border: 1px solid currentColor;
   color: var(--chrome-cyan);
   font-size: 0.65rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
 }
 
 .detailGrid {
-  position: relative;
-  z-index: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.35rem;
-  margin-top: 0.55rem;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
 }
 
 .detailBlock {
   display: grid;
-  gap: 0.2rem;
   min-width: 0;
-  padding: 0.45rem;
-  border: 1px solid var(--chrome-inset);
-  background: color-mix(in srgb, var(--chrome-steel-lo) 78%, transparent);
+  gap: 0.35rem;
+  padding: 0.65rem;
+  border-top: 1px solid var(--chrome-line);
+  background: color-mix(in srgb, var(--chrome-steel-lo) 56%, transparent);
 }
 
 .detailBlock > span {
-  color: var(--chrome-muted);
-  font-size: 0.56rem;
-  letter-spacing: 0.1em;
+  color: var(--chrome-cyan);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .detailBlock strong,
 .detailBlock li {
   color: var(--chrome-body);
-  font-size: 0.7rem;
-  line-height: 1.25;
+  font-size: 0.86rem;
+  line-height: 1.3;
 }
 
 .detailBlock ul {
   display: grid;
-  gap: 0.15rem;
+  gap: 0.25rem;
   margin: 0;
-  padding-left: 1rem;
+  padding-left: 1.1rem;
 }
 
 .detailActions {
-  position: relative;
-  z-index: 1;
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
-  margin-top: 0.55rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.detailActions > button {
+  min-height: 2.9rem;
 }
 
 .lockedMessage {
   color: var(--chrome-muted);
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   letter-spacing: 0.04em;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.7rem;
   justify-content: center;
-  margin-top: 0.9rem;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
-@media (max-width: 900px) {
-  .missions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 600px) {
-  .content {
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
-  }
-
-  .panel {
-    max-height: calc(100dvh - 1rem);
-    padding: 1rem;
-  }
-
-  .missions {
-    grid-template-columns: 1fr;
-  }
-
-  .detailGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .actions > * {
-    flex: 1 1 12rem;
-  }
-
-  .actions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .actions > * {
-    width: 100%;
-  }
-}
-
-@media (min-width: 901px) {
-  .screen:not(.operationsScreen) .detailGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .screen:not(.operationsScreen) .detailBlock:last-child {
-    grid-column: span 2;
-  }
-}
-
-/* The operations map is a height-constrained command surface. Keep the
-   campaign record above on its original document flow. */
-.operationsScreen {
-  overflow: hidden;
+.actions > button {
+  min-height: 2.9rem;
 }
 
 .operationsScreen .content {
-  box-sizing: border-box;
   height: 100dvh;
   min-height: 0;
 }
 
 .operationsPanel {
-  box-sizing: border-box;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: clamp(0.5rem, 1.5vh, 0.9rem);
+  gap: clamp(0.65rem, 1.5vh, 1rem);
   height: calc(100dvh - 2rem);
   max-height: calc(100dvh - 2rem);
-  min-height: 0;
   overflow: hidden;
-  padding: clamp(0.75rem, 2vh, 1.35rem);
-}
-
-.operationsPanel .title {
-  font-size: clamp(1.75rem, 5vh, 3.25rem);
-}
-
-.operationsPanel .subtitle {
-  font-size: clamp(0.75rem, 1.8vh, 1.1rem);
-}
-
-.operationsPanel .meta {
-  margin-top: 0.45rem;
-  font-size: 0.62rem;
+  padding: clamp(1rem, 2.3vh, 1.6rem) clamp(1rem, 2.4vw, 2rem);
 }
 
 .operationsPanel .summary {
-  gap: 0.45rem;
   margin: 0;
-}
-
-.operationsPanel .summary > div {
-  gap: 0.15rem;
-  padding: clamp(0.4rem, 1vh, 0.65rem);
-}
-
-.operationsPanel .summary strong {
-  font-size: 1rem;
 }
 
 .operationsBody {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(20rem, 0.92fr);
-  gap: 0.7rem;
+  gap: 1rem;
   min-height: 0;
 }
 
@@ -447,276 +511,326 @@
 
 .operationsBody > .section {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  border: 0;
+  border-right: 1px solid var(--chrome-line);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-steel) 32%, transparent), transparent 92%);
+  padding: 0 1rem 0 0;
 }
 
-.operationsBody .sectionTitle {
-  margin-bottom: 0.45rem;
+.operationsBody .sectionHeader {
+  margin-bottom: 0.65rem;
 }
 
 .operationsBody .missions {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(3, minmax(0, 1fr));
   min-height: 0;
-  gap: 0.35rem;
+  gap: 0.45rem;
 }
 
 .operationsBody .mission {
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto auto;
   grid-template-areas:
     "topline topline"
     "title action"
-    "meta action"
-    "record action";
+    "meta action";
   align-items: center;
-  column-gap: 0.5rem;
-  row-gap: 0.05rem;
+  column-gap: 0.7rem;
+  row-gap: 0.12rem;
   min-height: 0;
-  padding: 0.35rem 0.45rem;
+  padding: 0.6rem 0.7rem;
 }
 
 .operationsBody .missionTopline {
   grid-area: topline;
-  min-width: 0;
-  font-size: 0.58rem;
-}
-
-.operationsBody .missionTopline > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .operationsBody .missionTitle {
   grid-area: title;
   min-width: 0;
-  margin-top: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.76rem;
+  margin-top: 0.1rem;
 }
 
 .operationsBody .missionMeta {
   grid-area: meta;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.6rem;
-}
-
-.operationsBody .missionRecord {
-  grid-area: record;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.58rem;
 }
 
 .operationsBody .missionAction {
   grid-area: action;
   align-self: center;
   margin-top: 0;
-  font-size: 0.56rem;
-  writing-mode: vertical-rl;
 }
 
 .operationsBody > .detail {
-  display: flex;
-  flex-direction: column;
-  padding: 0.65rem 0.75rem;
-}
-
-.operationsBody .detailTitle {
-  font-size: 0.92rem;
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-line));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 7%, transparent), transparent 82%);
+  padding: 0 0 0 1rem;
 }
 
 .operationsBody .detailGrid {
-  gap: 0.35rem;
-  margin-top: 0.55rem;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
 }
 
 .operationsBody .detailBlock {
-  gap: 0.2rem;
-  padding: 0.45rem;
-}
-
-.operationsBody .detailBlock > span {
-  font-size: 0.56rem;
+  padding: 0.55rem;
 }
 
 .operationsBody .detailBlock strong,
 .operationsBody .detailBlock li {
-  font-size: 0.68rem;
-  line-height: 1.25;
-}
-
-.operationsBody .detailBlock ul {
-  gap: 0.15rem;
+  font-size: 0.78rem;
 }
 
 .operationsBody .detailActions {
-  margin-top: auto;
+  padding-top: 0.8rem;
 }
 
 .operationsPanel .actions {
   margin-top: 0;
 }
 
-@media (max-width: 900px) {
-  .operationsScreen {
-    height: auto;
-    min-height: 100dvh;
-    overflow-y: auto;
+@media (max-width: 1100px) and (min-width: 901px) {
+  .operationsBody {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.9fr);
   }
 
-  .operationsScreen .content {
-    height: auto;
-    min-height: 100dvh;
-    justify-content: flex-start;
+  .operationsBody .mission {
+    padding-inline: 0.55rem;
   }
 
+  .operationsBody .missionTitle {
+    font-size: 0.92rem;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 650px) {
   .operationsPanel {
-    display: block;
-    height: auto;
-    max-height: none;
-    overflow: visible;
+    gap: 0.55rem;
+    padding-block: 0.8rem;
+  }
+
+  .operationsPanel .header {
+    padding-bottom: 0.65rem;
+  }
+
+  .operationsPanel .title {
+    font-size: clamp(2.35rem, 8vh, 3.6rem);
+  }
+
+  .operationsPanel .subtitle {
+    margin-top: 0.4rem;
   }
 
   .operationsPanel .summary {
-    margin: 0.75rem 0;
+    gap: 0.55rem;
+  }
+
+  .operationsPanel .summary > div {
+    padding-block: 0.45rem 0.5rem;
+  }
+
+  .operationsBody .mission {
+    padding-block: 0.45rem;
+  }
+
+  .operationsBody > .detail {
+    padding-left: 0.75rem;
+  }
+
+  .operationsBody .detailGrid {
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
+
+  .operationsBody .detailBlock {
+    padding: 0.4rem;
+  }
+
+  .operationsBody .detailBlock strong,
+  .operationsBody .detailBlock li {
+    font-size: 0.72rem;
+  }
+
+  .operationsBody .detailActions {
+    padding-top: 0.5rem;
+  }
+
+  .operationsPanel .actions > button {
+    min-height: 2.6rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .operationsScreen .content {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0.75rem;
+  }
+
+  .operationsPanel {
+    height: calc(100dvh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+    padding: 1rem;
+  }
+
+  .operationsPanel .header {
+    gap: 1rem;
+  }
+
+  .operationsPanel .title {
+    font-size: clamp(2rem, 7vw, 3.2rem);
   }
 
   .operationsBody {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.15rem;
   }
 
   .operationsBody > .section,
   .operationsBody > .detail {
+    flex: 0 0 auto;
+    min-height: auto;
     overflow: visible;
   }
 
   .operationsBody > .section {
     display: block;
+    border-right: 0;
+    border-bottom: 1px solid var(--chrome-line);
+    padding: 0 0 1rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--chrome-steel) 32%, transparent), transparent 92%);
   }
 
   .operationsBody .missions {
     grid-template-rows: none;
   }
 
-  .operationsBody .mission {
-    min-height: 5.35rem;
+  .operationsBody > .detail {
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--chrome-cyan) 48%, var(--chrome-line));
+    padding: 1rem 0 0;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--chrome-cyan) 7%, transparent), transparent 82%);
   }
 
-  .operationsPanel .actions {
-    margin-top: 0.75rem;
+  .operationsBody .detailActions {
+    margin-top: 0;
   }
 }
 
 @media (max-width: 600px) {
-  .operationsPanel .summary {
-    margin: 0.65rem 0;
+  .content {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom));
   }
 
-  .operationsBody .missions {
+  .panel {
+    width: 100%;
+    max-height: calc(100dvh - 1rem);
+    padding: 0.9rem;
+  }
+
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding-bottom: 0.8rem;
+  }
+
+  .title {
+    font-size: clamp(2.3rem, 13vw, 3.5rem);
+  }
+
+  .headerContext {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.7rem;
+    text-align: left;
+  }
+
+  .headerContext strong {
+    order: 3;
+    width: 100%;
+    font-size: 0.9rem;
+  }
+
+  .summary {
+    gap: 0.5rem;
+    margin: 0.75rem 0;
+  }
+
+  .summary > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding: 0.6rem;
+  }
+
+  .summary strong {
+    text-align: left;
+  }
+
+  .section,
+  .detail {
+    padding: 0.75rem;
+  }
+
+  .sectionHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .missions {
     grid-template-columns: 1fr;
   }
 
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .detailActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .detailActions > button,
+  .detailActions > .lockedMessage {
+    width: 100%;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: 0.75rem;
+  }
+
+  .actions > button {
+    width: 100%;
+  }
+
+  .operationsPanel {
+    height: calc(100dvh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: 0.9rem;
+  }
+
   .operationsBody .mission {
-    min-height: 5.5rem;
+    min-height: 5.4rem;
   }
 }
 
-/* Reduce nested panel chrome on the operations surface. The outer console
-   remains framed, while the queue and detail read more like one instrument. */
-.operationsPanel .summary > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.7rem;
-  border: 0;
-  border-bottom: 1px solid var(--chrome-line);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--chrome-steel-lo) 58%, transparent), transparent);
-}
-
-.operationsBody > .section {
-  border: 0;
-  border-right: 1px solid var(--chrome-line);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-steel) 32%, transparent), transparent 92%);
-  padding-right: 0.85rem;
-}
-
-.operationsBody > .detail {
-  border: 0;
-  border-left: 1px solid color-mix(in srgb, var(--chrome-cyan) 42%, var(--chrome-line));
-  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 7%, transparent), transparent 78%);
-  padding-left: 1rem;
-}
-
-.operationsBody .mission {
-  border: 0;
-  border-left: 2px solid transparent;
-  border-bottom: 1px solid var(--chrome-line);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-steel-lo) 76%, transparent), transparent 92%);
-  box-shadow: none;
-}
-
-.operationsBody .missionButton:hover {
-  border-left-color: color-mix(in srgb, var(--chrome-cyan) 72%, var(--chrome-inset));
-  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 12%, var(--chrome-steel-lo)), transparent 92%);
-}
-
-.operationsBody .mission.complete {
-  border-left-color: color-mix(in srgb, var(--chrome-cyan) 60%, transparent);
-  box-shadow: none;
-}
-
-.operationsBody .mission.available {
-  border-left-color: color-mix(in srgb, var(--chrome-gold) 72%, transparent);
-}
-
-.operationsBody .mission.selected {
-  border-left-color: var(--chrome-cyan);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 22%, transparent);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-cyan) 16%, var(--chrome-steel-lo)), transparent 92%);
-}
-
-.operationsBody .missionAction {
-  writing-mode: horizontal-tb;
-  white-space: nowrap;
-}
-
-.operationsBody .detailBlock {
-  border: 0;
-  border-top: 1px solid var(--chrome-line);
-  background: transparent;
-  padding: 0.5rem 0;
-}
-
-.operationsBody .detailBlock:nth-child(-n + 2) {
-  border-top: 0;
-  padding-top: 0.15rem;
-}
-
-@media (max-width: 900px) {
-  .operationsBody > .section {
-    border-right: 0;
-    border-bottom: 1px solid var(--chrome-line);
-    padding-right: 0;
-    padding-bottom: 0.75rem;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--chrome-steel) 32%, transparent), transparent 92%);
-  }
-
-  .operationsBody > .detail {
-    border-left: 0;
-    border-top: 1px solid color-mix(in srgb, var(--chrome-cyan) 42%, var(--chrome-line));
-    padding-left: 0;
-    padding-top: 0.9rem;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--chrome-cyan) 7%, transparent), transparent 78%);
+@media (prefers-reduced-motion: reduce) {
+  .mission {
+    transition: none;
   }
 }

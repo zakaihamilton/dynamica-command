@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TICKS_PER_SECOND } from "../../lib/catalog";
 import { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS, createMission, tick } from "../../lib/sim/api";
 import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../../lib/sim/fixtures";
-import { formatHoldClock, inspect, objectiveProgress, evaluateObjectives } from "../../lib/sim/objectives";
+import { formatHoldClock, inspect, objectiveProgress, evaluateObjectives, secondaryProgress } from "../../lib/sim/objectives";
 import { createCampaign } from "../../lib/gen/campaign";
 import { generateWinCategory, missionDurationMinutesFor, missionTimeLimitClock, missionTimeLimitLabel, missionTimeLimitTicks, secondaryObjectivesForMissionSeed } from "../../lib/gen/objectives";
 import { formatMissionClock, formatMissionClockFromTicks, MAX_OPERATION_TICKS, minutesToTicks } from "../../lib/gen/pacing";
@@ -137,6 +137,24 @@ describe("win categories", () => {
     state.tick = CONVOY_STAGING_TICKS - 1;
     tick(state);
     expect(timed?.completed).toBe(true);
+  });
+
+  it("keeps a timed secondary active until the primary objective wins", () => {
+    const state = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 100 } });
+    state.tick = 20;
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [],
+      deadline: 100,
+      rescued: 0,
+      required: 1,
+      secondary: [{ id: "time", kind: "completeBefore", label: "Complete the operation within 8 min", target: 100, completed: true }],
+    };
+
+    expect(secondaryProgress(state)[0]).toMatchObject({ completed: false, failed: false });
+    state.result = "won";
+    expect(secondaryProgress(state)[0]).toMatchObject({ completed: true, failed: false });
   });
 
   it("losing the construction yard fails the mission", () => {

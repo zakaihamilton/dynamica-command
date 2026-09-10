@@ -1,118 +1,171 @@
 .screen {
+  position: relative;
   box-sizing: border-box;
-  min-height: 100vh;
+  height: 100dvh;
   min-height: 100dvh;
+  overflow: hidden;
   padding: clamp(0.75rem, 2.5vh, 1.25rem) 1rem;
-  /* Leave a whole CSS pixel of scroll room so controls never end up fractionally clipped. */
-  padding-bottom: calc(clamp(0.75rem, 2.5vh, 1.25rem) + 1px);
-  overflow-y: auto;
-  scrollbar-color: var(--chrome-bevel) var(--chrome-steel-lo);
   color: var(--chrome-body);
   background:
-    repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0,0,0,0.16) 3px 4px),
+    repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0, 0, 0, 0.16) 3px 4px),
     radial-gradient(circle at 50% 12%, color-mix(in srgb, var(--chrome-steel-hi) 58%, transparent), var(--chrome-void) 78%),
     linear-gradient(rgba(3, 7, 12, 0.64), rgba(3, 7, 12, 0.84)),
     var(--scene-art) center / cover fixed no-repeat;
 }
 
 .inner {
-  margin: 0 auto;
-  max-width: 72rem;
-  width: 100%;
+  box-sizing: border-box;
   display: grid;
-  gap: clamp(0.75rem, 2.5vh, 1.25rem) 1.75rem;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(0.6rem, 1.8vh, 1rem) 1.25rem;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-width: 78rem;
+  margin: 0 auto;
 }
 
 .mast {
-  min-width: 0;
   width: 100%;
+  min-width: 0;
 }
 
 .mast > :global(*) {
-  width: 100%;
   box-sizing: border-box;
+  width: 100%;
+}
+
+.portraits,
+.enemy {
+  min-width: 0;
+  min-height: 0;
+}
+
+.portraits > *,
+.enemy > * {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .portraits {
   display: grid;
-  gap: 1rem;
   align-content: start;
   align-items: start;
-  min-width: 0;
+  gap: 0.75rem;
+  overflow-y: auto;
+  scrollbar-color: var(--chrome-bevel) var(--chrome-steel-lo);
 }
 
 .enemy {
   align-self: start;
-  min-width: 0;
+  overflow: hidden;
 }
 
 .panel {
   position: relative;
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  gap: clamp(0.75rem, 1.75vh, 1rem);
-  padding: clamp(1rem, 3vh, 1.5rem);
-  box-shadow: var(--chrome-shadow), inset 0 1px rgba(255,255,255,0.06);
+  min-width: 0;
   min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  padding: clamp(0.8rem, 2.5vh, 1.35rem);
+  box-shadow: var(--chrome-shadow), inset 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.panelScroll {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  gap: clamp(0.55rem, 1.5vh, 0.85rem);
+  overflow-y: auto;
+  padding-right: 0.15rem;
+  scrollbar-color: var(--chrome-bevel) var(--chrome-steel-lo);
+  scrollbar-gutter: stable;
+}
+
+.panelScroll > * {
   min-width: 0;
 }
 
 .comms {
   flex-shrink: 0;
-  padding: clamp(0.75rem, 2vh, 1rem);
+  padding: clamp(0.65rem, 1.8vh, 0.9rem);
   border: 1px solid var(--chrome-inset);
-  background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  border-top: 2px solid var(--chrome-cyan-dim);
   background:
     linear-gradient(rgba(17, 28, 37, 0.9), rgba(6, 11, 17, 0.94)),
     var(--texture-crt) center / 420px 420px;
   background-blend-mode: normal, screen;
   box-shadow: inset 1px 1px var(--chrome-steel-hi), inset -1px -1px var(--chrome-void);
-  border-top: 2px solid var(--chrome-cyan-dim);
 }
 
 .opening {
-  padding: 0.8rem;
+  padding: 0.7rem;
   border: 1px solid var(--chrome-cyan-dim);
   border-left: 3px solid var(--chrome-cyan);
   background: linear-gradient(135deg, color-mix(in srgb, var(--chrome-cyan) 10%, var(--chrome-steel-lo)), var(--chrome-steel-lo));
 }
 
 .openingSequence {
-  margin: 0.45rem 0 0;
+  margin: 0.4rem 0 0;
   color: var(--chrome-text);
   font-family: var(--font-mono);
-  font-size: 0.73rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  line-height: 1.55;
-  letter-spacing: 0.04em;
+  line-height: 1.45;
+  letter-spacing: 0.035em;
   text-transform: uppercase;
 }
 
 .openingHint {
-  margin: 0.4rem 0 0;
+  margin: 0.35rem 0 0;
   color: var(--chrome-muted);
-  font-size: 0.67rem;
-  line-height: 1.4;
+  font-size: 0.64rem;
+  line-height: 1.35;
 }
 
 .actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
   flex-shrink: 0;
+  align-items: center;
+  gap: 0.55rem 0.7rem;
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--chrome-line);
+  background: var(--chrome-surface-deep);
 }
 
 .actions :global(button) {
+  min-height: 2.75rem;
+  min-width: 0;
   scroll-margin-block-end: 2px;
 }
 
+.launch {
+  grid-column: 5;
+  grid-row: 1;
+  justify-self: end;
+}
+
 .tone {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+  min-width: 0;
   margin: 0;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
   color: var(--chrome-muted);
+  font-size: 0.58rem;
+  letter-spacing: 0.13em;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 @media (min-width: 640px) {
@@ -123,26 +176,18 @@
 
 @media (min-width: 768px) {
   .screen {
-    padding-left: 2rem;
     padding-right: 2rem;
+    padding-left: 2rem;
   }
-
 }
 
 @media (min-width: 1024px) {
-  .screen {
-    padding-top: clamp(0.75rem, 2.5vh, 1.25rem);
-    padding-bottom: clamp(0.75rem, 2.5vh, 1.25rem);
-  }
-
   .inner {
     grid-template-columns: 168px minmax(0, 1fr) 168px;
     grid-template-areas:
       "mast mast mast"
       "portraits panel enemy";
-    column-gap: 2rem;
-    row-gap: clamp(0.75rem, 2.5vh, 1.25rem);
-    align-items: start;
+    column-gap: 1.5rem;
   }
 
   .mast {
@@ -156,7 +201,6 @@
 
   .panel {
     grid-area: panel;
-    overflow: visible;
   }
 
   .enemy {
@@ -166,19 +210,19 @@
 
 @media (max-width: 1023px) {
   .screen {
-    padding-top: max(0.6rem, env(safe-area-inset-top));
-    padding-right: max(0.65rem, env(safe-area-inset-right));
-    padding-bottom: max(0.8rem, env(safe-area-inset-bottom));
-    padding-left: max(0.65rem, env(safe-area-inset-left));
+    padding-top: max(0.55rem, env(safe-area-inset-top));
+    padding-right: max(0.6rem, env(safe-area-inset-right));
+    padding-bottom: max(0.65rem, env(safe-area-inset-bottom));
+    padding-left: max(0.6rem, env(safe-area-inset-left));
   }
 
   .inner {
-    grid-template-columns: minmax(60px, 0.8fr) minmax(0, 2.4fr) minmax(60px, 0.8fr);
+    grid-template-columns: 3.5rem minmax(0, 1fr) 3.5rem;
     grid-template-areas:
       "mast mast mast"
       "portraits panel enemy";
-    column-gap: clamp(0.4rem, 1.5vw, 1rem);
-    row-gap: 0.75rem;
+    column-gap: 0.55rem;
+    row-gap: 0.6rem;
   }
 
   .mast {
@@ -187,13 +231,13 @@
 
   .panel {
     grid-area: panel;
-    padding: 0.85rem;
+    padding: 0.7rem;
   }
 
   .portraits {
     grid-area: portraits;
     grid-template-columns: 1fr;
-    gap: 0.55rem;
+    gap: 0.45rem;
   }
 
   .enemy {
@@ -201,28 +245,61 @@
   }
 }
 
-@media (max-width: 420px) {
-  .screen {
-    padding-right: 0.45rem;
-    padding-left: 0.45rem;
-  }
-
-  .inner {
+@media (max-width: 639px) {
+  .panelScroll {
     gap: 0.55rem;
   }
 
-  .panel {
-    padding: 0.65rem;
+  .comms {
+    padding: 0.6rem;
   }
 
-  .portraits {
-    gap: 0.4rem;
+  .opening {
+    padding: 0.6rem;
   }
 
   .actions {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, 52px) auto;
     gap: 0.45rem;
+  }
+
+  .launch {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .actions .tone {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 420px) {
+  .screen {
+    padding-right: 0.4rem;
+    padding-left: 0.4rem;
+  }
+
+  .inner {
+    grid-template-columns: 3.2rem minmax(0, 1fr) 3.2rem;
+    column-gap: 0.35rem;
+    row-gap: 0.45rem;
+  }
+
+  .panel {
+    padding: 0.55rem;
+  }
+
+  .actions {
+    grid-template-rows: 64px 52px auto;
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
   }
 
   .actions :global(button) {
@@ -230,8 +307,15 @@
   }
 
   .tone {
-    font-size: 0.55rem;
-    line-height: 1rem;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
     text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panelScroll {
+    scroll-behavior: auto;
   }
 }

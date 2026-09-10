@@ -404,6 +404,34 @@ test.describe("mission briefing responsive layout", () => {
       expect(Math.max(...layout.cards) - Math.min(...layout.cards)).toBeLessThanOrEqual(1);
     });
   }
+
+  test("keeps the primary briefing action docked when transmission is skipped", async ({ page }) => {
+    for (const viewport of [
+      { width: 1280, height: 720 },
+      { width: 700, height: 400 },
+      { width: 390, height: 844 },
+      { width: 320, height: 568 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/briefing?seed=0421&mission=0");
+
+      const launch = page.getByRole("button", { name: "Launch" });
+      const skip = page.getByRole("button", { name: "Skip transmission" });
+      await expect(skip).toBeVisible();
+      const before = await launch.boundingBox();
+      if (!before) throw new Error("Launch button has no layout box before skipping");
+
+      await skip.click();
+      const after = await launch.boundingBox();
+      if (!after) throw new Error("Launch button has no layout box after skipping");
+
+      expect(after.x).toBeCloseTo(before.x, 1);
+      expect(after.y).toBeCloseTo(before.y, 1);
+      const actions = await page.getByTestId("briefing-actions").boundingBox();
+      if (!actions) throw new Error("Briefing actions have no layout box");
+      expect(after.x + after.width).toBeCloseTo(actions.x + actions.width, 1);
+    }
+  });
 });
 
 test.describe("selected unit actions", () => {

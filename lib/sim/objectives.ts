@@ -48,15 +48,24 @@ function deadlineWarningEvent(state: SimState): SimEvent | undefined {
 }
 
 export function secondaryProgress(state: SimState): SecondaryProgress[] {
-  return (state.runtime?.secondary ?? []).map((objective) => ({
-    id: objective.id,
-    label: objective.label,
-    completed: objective.completed === true,
-    failed: objective.completed !== true && (
-      state.result === "lost"
-      || (objective.kind === "completeBefore" && objective.target !== undefined && state.tick >= objective.target)
-    ),
-  }));
+  return (state.runtime?.secondary ?? []).map((objective) => {
+    // A time secondary is tracked as "on pace" in the runtime while a mission
+    // is active, but it is only a completed result when the primary operation
+    // also wins. Otherwise a failed mission could report that it completed its
+    // operation within the limit simply because the player lost early.
+    const completed = objective.completed === true && (
+      objective.kind !== "completeBefore" || state.result === "won"
+    );
+    return {
+      id: objective.id,
+      label: objective.label,
+      completed,
+      failed: !completed && (
+        state.result === "lost"
+        || (objective.kind === "completeBefore" && objective.target !== undefined && state.tick >= objective.target)
+      ),
+    };
+  });
 }
 
 export function objectiveProgress(state: SimState): ObjectiveProgress {

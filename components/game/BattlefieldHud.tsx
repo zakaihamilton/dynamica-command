@@ -48,13 +48,17 @@ export function BattlefieldHud({
   const timerValue = timeRemaining?.replace(/^Time remaining\s*/, "") ?? "";
   const timerText = urgency === "normal" ? `Time remaining ${timerValue}` : `Time remaining ${timerValue} · ${timerLabel}`;
   const secondaryCards = objectiveCards.filter((card) => !card.primary);
+  const primaryCard = objectiveCards.find((card) => card.primary) ?? objectiveCards[0];
+  const primaryObjective = briefingObjectives?.find((item) => item.id === "win")?.text
+    ?? briefingObjectives?.[0]?.text
+    ?? primaryCard?.label
+    ?? objective;
   const toggleDirective = () => {
     setDirectiveExpanded((expanded) => !expanded);
     onObjectivePanelToggle?.();
   };
   return (
     <div className={styles.status} data-testid="battlefield-status" data-urgency={urgency}>
-      <div className={styles.statusBackdrop} aria-hidden="true" />
       <div className={styles.operationBar}>
         <div className={styles.missionMeta}>
           <div className={styles.seed} data-testid="seed"><span className={styles.statusGlyph} aria-hidden="true">◆</span> Seed {formatSeed(seed)}</div>
@@ -82,20 +86,21 @@ export function BattlefieldHud({
             aria-label={`${directiveExpanded ? "Collapse" : "Expand"} mission directive`}
             aria-expanded={directiveExpanded}
             aria-controls="mission-directive-body"
+            data-tooltip={`${directiveExpanded ? "Collapse" : "Expand"} mission directive`}
             onClick={toggleDirective}
           >
             <span className={styles.directiveToggleIcon} aria-hidden="true">{directiveExpanded ? "−" : "+"}</span>
           </button>
         </div>
         <div id="mission-directive-body" className={styles.directiveBody} hidden={!directiveExpanded}>
-            <div className={styles.objective} data-testid="objective" data-status={objectiveCards[0]?.status ?? "active"}>
+            <div className={styles.objective} data-testid="objective" data-status={primaryCard?.status ?? "active"}>
               <span className={styles.objectivePriority}><span className={styles.priorityIcon} aria-hidden="true">!</span> Primary objective</span>
-              <strong>{objective}</strong>
-              {objectiveCards[0] && objectiveCards[0].target > 0 ? (
+              <strong>{primaryObjective}</strong>
+              {primaryCard && primaryCard.target > 0 ? (
                 <span className={styles.objectiveProgress}>
-                  {Math.min(objectiveCards[0].current, objectiveCards[0].target)} / {objectiveCards[0].target}
+                  {Math.min(primaryCard.current, primaryCard.target)} / {primaryCard.target}
                   <span className={styles.objectiveBar} aria-hidden="true">
-                    <span style={{ width: `${Math.round(Math.max(0, Math.min(1, objectiveCards[0].current / objectiveCards[0].target)) * 100)}%` }} />
+                    <span style={{ width: `${Math.round(Math.max(0, Math.min(1, primaryCard.current / primaryCard.target)) * 100)}%` }} />
                   </span>
                 </span>
               ) : null}
@@ -143,6 +148,7 @@ export function BattlefieldHud({
             ) : null}
         </div>
       </div>
+      <div className={styles.statusBackdrop} aria-hidden="true" />
     </div>
   );
 }

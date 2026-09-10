@@ -58,6 +58,30 @@ describe("mission debrief", () => {
     expect(missionDebrief(rescue).outcome).toBe("A stranded unit was lost.");
   });
 
+  it("does not mark a time secondary complete when the mission fails early", () => {
+    const state = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 144 } });
+    state.result = "lost";
+    state.lossReason = "yardDestroyed";
+    state.tick = 36;
+    state.runtime = {
+      kind: "rescue",
+      phase: "complete",
+      targetIds: [],
+      deadline: 144,
+      rescued: 0,
+      required: 1,
+      secondary: [
+        { id: "yard", kind: "preserveYard", label: "Keep the Command HQ standing", completed: false },
+        { id: "time", kind: "completeBefore", label: "Complete the operation within 12 min", target: 144, completed: true },
+      ],
+    };
+
+    expect(missionDebrief(state).secondary).toMatchObject([
+      { id: "yard", completed: false, failed: true },
+      { id: "time", completed: false, failed: true },
+    ]);
+  });
+
   it("formats elapsed time as whole minutes and hides the sidebar after a result", () => {
     expect(formatMissionDuration(12 * 125 + 7)).toBe("2 min");
     expect(shouldShowCommandSidebar("playing")).toBe(true);

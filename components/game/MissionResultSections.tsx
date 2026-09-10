@@ -2,6 +2,17 @@ import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import type { ForceDebrief, MissionDebrief } from "@/lib/sim/debrief";
 import styles from "./MissionResult.module.css";
 
+function secondaryOutcomeLabel(objective: MissionDebrief["secondary"][number]): string {
+  if (objective.id === "yard") return objective.completed ? "Command HQ intact" : "Command HQ destroyed";
+  if (objective.id === "survivors") return objective.completed ? "Combat unit retained" : "No combat unit survived";
+  if (objective.id === "time") {
+    const within = objective.label.match(/within (.+?)(?: total)?$/i)?.[1];
+    if (within) return objective.completed ? `Operation finished within ${within}` : `Operation not finished within ${within}`;
+    return objective.completed ? "Operation finished before the final push" : "Operation not finished before the final push";
+  }
+  return objective.label;
+}
+
 export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
   return (
     <section className={styles.outcome} aria-label="Outcome assessment">
@@ -26,7 +37,7 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
           {debrief.secondary.map((objective) => (
             <div className={styles.secondaryCard} key={objective.id}>
               <p className={objective.completed ? styles.secondaryComplete : objective.failed ? styles.secondaryFailed : styles.secondaryIncomplete}>
-                <span aria-hidden="true">{objective.completed ? "✓" : objective.failed ? "×" : "○"}</span> {objective.completed ? "Complete" : objective.failed ? "Failed" : "Incomplete"}: {objective.label}
+                <span aria-hidden="true">{objective.completed ? "✓" : objective.failed ? "×" : "○"}</span> <strong>{objective.completed ? "Completed" : objective.failed ? "Failed" : "Active"}</strong>: {secondaryOutcomeLabel(objective)}
               </p>
             </div>
           ))}

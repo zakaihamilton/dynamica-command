@@ -230,6 +230,33 @@ describe("pointer-up policy", () => {
     })).toEqual({ clearBox: true, select: [] });
   });
 
+  it("does not issue a sell order for a building that cannot be sold", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const yard = addBuilding(state, 0, "constructionYard", 3, 3);
+    const cam = createCamera();
+    const p = tileToScreen(yard.x, yard.y, cam, heightAt(state, yard.x, yard.y));
+
+    expect(resolvePointerUp({
+      pointerType: "mouse",
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      p,
+      state,
+      cam,
+      selectedIds: [],
+      box: null,
+      selectionMode: false,
+      mobileCommand: null,
+      placeKind: null,
+      repairMode: false,
+      sellMode: true,
+    })).toEqual({
+      clearBox: true,
+      commandNotice: { text: "That building cannot be sold.", kind: "error" },
+    });
+  });
+
   it("beeps only when a selection actually gains units", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
     const unit = addUnit(state, 0, "infantry", 2, 2);

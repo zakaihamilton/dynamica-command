@@ -93,23 +93,25 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
         <BriefingAllyPortraits campaign={campaign} liveRole={liveRole} />
 
         <MetalPanel className={styles.panel}>
-          <section className={styles.comms}>
-            <ConsoleLabel>Incoming transmission</ConsoleLabel>
-            <BriefingStory
-              storyRef={typewriter.storyRef}
-              campaign={campaign}
-              lines={typewriter.visibleLines}
-              talking={typewriter.isTalking}
-              speakerRole={liveRole}
-            />
-          </section>
-          {profileContract ? <BriefingProfile contract={profileContract} /> : null}
-          <section className={styles.opening} aria-label="Recommended first action" data-testid="briefing-first-action">
-            <ConsoleLabel>Recommended first action</ConsoleLabel>
-            <p className={styles.openingSequence}>{openingSequence(def.kind ?? "holdTheLine")}</p>
-            <p className={styles.openingHint}>Establish the power grid before committing your first production queue.</p>
-          </section>
-          <BriefingObjectives objectives={objectives} />
+          <div className={styles.panelScroll}>
+            <section className={styles.comms}>
+              <ConsoleLabel>Incoming transmission</ConsoleLabel>
+              <BriefingStory
+                storyRef={typewriter.storyRef}
+                campaign={campaign}
+                lines={typewriter.visibleLines}
+                talking={typewriter.isTalking}
+                speakerRole={liveRole}
+              />
+            </section>
+            {profileContract ? <BriefingProfile contract={profileContract} /> : null}
+            <section className={styles.opening} aria-label="Recommended first action" data-testid="briefing-first-action">
+              <ConsoleLabel>Recommended first action</ConsoleLabel>
+              <p className={styles.openingSequence}>{openingSequence(def.kind ?? "holdTheLine")}</p>
+              <p className={styles.openingHint}>Secure the power grid before the first production queue.</p>
+            </section>
+            <BriefingObjectives objectives={objectives} />
+          </div>
           <BriefingActions
             campaign={campaign}
             returnToGame={returnToGame}

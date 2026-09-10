@@ -76,3 +76,30 @@
     overflow-wrap: anywhere;
   }
 }
+
+@media (max-width: 420px) {
+  .frame {
+    padding: 0.25rem 0.25rem 0.3rem;
+  }
+
+  .meta {
+    font-size: 0.46rem;
+    letter-spacing: 0.06em;
+  }
+
+  .name {
+    margin-top: 0.25rem;
+    font-size: 0.52rem;
+    line-height: 1.05;
+    letter-spacing: 0.08em;
+    overflow-wrap: break-word;
+  }
+
+  .faction {
+    margin-top: 0.2rem;
+    font-size: 0.48rem;
+    line-height: 1.05;
+    letter-spacing: 0.03em;
+    overflow-wrap: break-word;
+  }
+}

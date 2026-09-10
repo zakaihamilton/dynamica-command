@@ -2,6 +2,7 @@ import { beepForCommands } from "@/lib/audio/uiOrders";
 import type { BeepKind } from "@/lib/audio/synth";
 import type { Camera } from "@/lib/iso";
 import { canPlaceBuilding } from "@/lib/sim/world";
+import { canSell } from "@/lib/sim/sell";
 import type { BuildingKind, Command, SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import {
@@ -199,6 +200,9 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
   if (sellMode) {
     const hit = pickSelectableEntity(state, p.x, p.y, tx, ty, cam);
     if (hit && hit.owner === 0 && hit.class === "building") {
+      if (!canSell(hit)) {
+        return { clearBox: true, commandNotice: { text: "That building cannot be sold.", kind: "error" } };
+      }
       return {
         clearBox: true,
         commands: [{ type: "sell", buildingId: hit.id }],

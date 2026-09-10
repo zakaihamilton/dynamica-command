@@ -52,6 +52,7 @@ export function BriefingActions({
         </ConsoleButton>
       ) : null}
       <ConsoleButton
+        className={styles.launch}
         tooltip={returnToGame ? "Return to the battlefield" : "Launch this mission"}
         shortcut={returnToGame ? SHORTCUT.resume : SHORTCUT.launch}
         onClick={onLaunch}

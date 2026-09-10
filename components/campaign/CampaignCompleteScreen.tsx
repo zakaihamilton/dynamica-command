@@ -71,8 +71,13 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
 
   const missionQueue = (
     <section className={styles.section} aria-labelledby="mission-record-title">
-      <ConsoleLabel as="h2">{operations ? "Deployment queue" : "Mission record"}</ConsoleLabel>
-      <h2 id="mission-record-title" className={styles.sectionTitle}>{operations ? "Choose an operation" : "Six operations"}</h2>
+      <div className={styles.sectionHeader}>
+        <div>
+          <ConsoleLabel as="h2">{operations ? "Operations" : "Mission record"}</ConsoleLabel>
+          <h2 id="mission-record-title" className={styles.sectionTitle}>{operations ? "Select an operation" : "Six operations"}</h2>
+        </div>
+        <span className={styles.sectionCount}>{summary.completed}/{campaign.missions.length} complete</span>
+      </div>
       <div className={styles.missions}>
         {campaign.missions.map((mission, index) => {
           const medals = progress.medals[String(mission.index)] ?? 0;
@@ -88,13 +93,13 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           const card = (
             <>
               <span className={styles.missionTopline}>
-                <span>Mission {index + 1} · {status}</span>
+                <span><b className={styles.missionNumber}>{String(index + 1).padStart(2, "0")}</b>{status}</span>
                 <span className={styles.medals} aria-label={`${medals} of 3 medals`}>{missionMedalDisplay(medals)}</span>
               </span>
               <span className={styles.missionTitle}>{mission.name}</span>
               <span className={styles.missionMeta}>{biomeLabel(mission.biome)} · {mission.mapSize}×{mission.mapSize}</span>
               {!operations ? <span className={styles.missionObjective}>{objectiveHeadline(mission.win)}</span> : null}
-              <span className={styles.missionRecord}>{record}</span>
+              {!operations ? <span className={styles.missionRecord}>{record}</span> : null}
               <span className={styles.missionAction}>{action}</span>
             </>
           );
@@ -186,15 +191,29 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           data-testid={operations ? "operations-panel" : "campaign-complete-panel"}
         >
           <header className={styles.header}>
-            <ConsoleLabel>Strategic command record</ConsoleLabel>
-            <h1 className={styles.title}>{operations ? "Operations map" : summary.isComplete ? "Campaign complete" : "Campaign record"}</h1>
-            <p className={styles.subtitle}>{operations ? "SELECT DEPLOYMENT" : summary.isComplete ? "THEATER SECURED" : "PROGRESS ARCHIVED"}</p>
-            <p className={styles.meta}>Seed {formatSeed(seed)} · {campaign.world.name} · {campaign.factions[0].name}</p>
+            <div className={styles.headerIdentity}>
+              <ConsoleLabel>{operations ? "Campaign status" : "Strategic command record"}</ConsoleLabel>
+              <h1 className={styles.title}>{operations ? "Operations map" : summary.isComplete ? "Campaign complete" : "Campaign record"}</h1>
+              <p className={styles.subtitle}>{operations ? "SELECT DEPLOYMENT" : summary.isComplete ? "THEATER SECURED" : "PROGRESS ARCHIVED"}</p>
+            </div>
+            <div className={styles.headerContext} aria-label="Campaign context">
+              <span className={styles.contextSeed}>SEED {formatSeed(seed)}</span>
+              <strong>{campaign.world.name}</strong>
+              <span>{campaign.factions[0].name}</span>
+            </div>
           </header>
 
           <section className={styles.summary} aria-label="Campaign summary">
-            <div><span>Missions</span><strong>{summary.completed} / {campaign.missions.length}</strong></div>
-            <div><span>Medals</span><strong>{summary.totalMedals} / {summary.possibleMedals}</strong></div>
+            <div>
+              <span>Missions</span>
+              <strong>{summary.completed} <small>/ {campaign.missions.length}</small></strong>
+              <span className={styles.summaryTrack} aria-hidden="true"><span style={{ width: `${Math.round((summary.completed / campaign.missions.length) * 100)}%` }} /></span>
+            </div>
+            <div>
+              <span>Medals</span>
+              <strong>{summary.totalMedals} <small>/ {summary.possibleMedals}</small></strong>
+              <span className={styles.summaryTrack} aria-hidden="true"><span style={{ width: `${Math.round((summary.totalMedals / summary.possibleMedals) * 100)}%` }} /></span>
+            </div>
           </section>
 
           {operations ? (

@@ -60,6 +60,7 @@ describe("product chrome", () => {
         levelCount={campaign.missions.length}
         missionName="Recovery Zone"
         objective="Return the convoy"
+        briefingObjectives={[{ id: "win", text: "Contact and return 2 stranded units within 10 min" }]}
         timeRemaining="Time remaining 00:09"
         timeRemainingTicks={9 * 12}
         timeLimitTicks={10 * 60 * 12}
@@ -73,6 +74,7 @@ describe("product chrome", () => {
 
     expect(screen.getByTestId("time-remaining")).toHaveAttribute("data-urgency", "critical");
     expect(screen.getByTestId("objective")).toHaveAttribute("data-status", "active");
+    expect(screen.getByTestId("objective")).toHaveTextContent("Contact and return 2 stranded units within 10 min");
     expect(screen.getByTestId("objective")).toHaveTextContent("1 / 2");
     expect(screen.getByTestId("secondary-objectives")).toHaveTextContent("Optional directives 0/1");
     expect(screen.getByTestId("mission-phase")).toHaveTextContent("Extraction phase");
@@ -92,13 +94,16 @@ describe("product chrome", () => {
 
     const toggle = screen.getByRole("button", { name: "Collapse mission directive" });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveAttribute("data-tooltip", "Collapse mission directive");
     expect(screen.getByTestId("objective")).toBeVisible();
 
     fireEvent.click(toggle);
-    expect(screen.getByRole("button", { name: "Expand mission directive" })).toHaveAttribute("aria-expanded", "false");
+    const expand = screen.getByRole("button", { name: "Expand mission directive" });
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    expect(expand).toHaveAttribute("data-tooltip", "Expand mission directive");
     expect(document.getElementById("mission-directive-body")).toHaveAttribute("hidden");
 
-    fireEvent.click(screen.getByRole("button", { name: "Expand mission directive" }));
+    fireEvent.click(expand);
     expect(screen.getByTestId("objective")).toBeVisible();
   });
 
