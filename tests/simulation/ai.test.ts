@@ -33,7 +33,7 @@ describe("enemy AI", () => {
     tickAi(s);
     expect(s.entities.some((e) => e.owner === 1 && e.kind === "power" && e.constructing > 0 && e.x > 8)).toBe(true);
 
-    const productionEvery = Math.round(difficulty.enemyProductionEvery * objectiveContractFor("destroyMarked")!.productionScale);
+    const productionEvery = Math.round(difficulty.enemyProductionEvery * (objectiveContractFor("destroyMarked")!.productionScale + 3));
     s.tick = difficulty.enemyProductionStart + productionEvery;
     tickAi(s);
     expect(s.entities.some((e) => e.owner === 1 && e.kind === "refinery" && e.constructing > 0 && e.x > 10)).toBe(true);

@@ -149,7 +149,7 @@ export function missionObjectives(
       case "sabotage":
         return `Sabotage ${win.targetCount ?? 1} enemy systems within ${scenarioTimeLimitLabel(win)}`;
       case "rescue":
-        return `Rescue ${win.targetCount ?? 1} stranded units within ${scenarioTimeLimitLabel(win)}`;
+        return `Contact and return ${win.targetCount ?? 1} stranded units within ${scenarioTimeLimitLabel(win)}`;
       case "extraction":
         return `Extract ${win.targetCount ?? 1} assets from ${place} within ${scenarioTimeLimitLabel(win)}`;
       default:

@@ -87,6 +87,10 @@ export type MissionRuntime = {
   rescued: number;
   required: number;
   extractedIds?: number[];
+  /** Rescue targets that have been contacted and are now player-controlled. */
+  contactedIds?: number[];
+  /** Rescue targets that have reached the player Command HQ zone. */
+  rescuedIds?: number[];
   secondary: SecondaryObjective[];
   director?: MissionDirectorState;
 };
@@ -104,7 +108,7 @@ export function inObjectiveZone(
 }
 
 export function missionUsesObjectiveZone(kind: MissionKind | undefined): boolean {
-  return kind === "escort" || kind === "extraction";
+  return kind === "escort" || kind === "rescue" || kind === "extraction";
 }
 
 export type CampaignProgress = {

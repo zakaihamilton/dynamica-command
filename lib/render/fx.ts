@@ -13,6 +13,7 @@ export type FxKind =
   | "muzzle"
   | "impact"
   | "explosion"
+  | "destruction"
   | "wreck"
   | "rubble"
   | "scorch"
@@ -49,6 +50,7 @@ export const FX_DURATION: Record<FxKind, number> = {
   muzzle: 140,
   impact: 320,
   explosion: 680,
+  destruction: 900,
   wreck: 6500,
   rubble: 9000,
   scorch: 11000,
@@ -253,14 +255,7 @@ export function burstsFromEvents(
       targetDomain,
       magnitude,
     } satisfies Omit<BurstInput, "kind">;
-    push({ ...base, kind: "explosion" });
-    if (entityClass === "building") {
-      push({ ...base, kind: "rubble" });
-      push({ ...base, kind: "scorch", magnitude: 1.15 });
-    } else if (targetDomain === "vehicle") {
-      push({ ...base, kind: "wreck" });
-      push({ ...base, kind: "scorch", magnitude: 0.72 });
-    }
+    push({ ...base, kind: "destruction" });
   }
 
   return { bursts, nextId: id };

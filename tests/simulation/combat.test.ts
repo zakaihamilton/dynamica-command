@@ -344,6 +344,27 @@ describe("combat damage model", () => {
     expect(primaryHp - primary.hp).toBeGreaterThan(splashHp - splash.hp);
   });
 
+  it("emits one destruction event when cannon splash kills a collateral target", () => {
+    const s = makeFixture({ seed: 7, width: 16, height: 12, win: { kind: "annihilate" } });
+    addUnit(s, 0, "tank", 4, 4);
+    addUnit(s, 1, "infantry", 5, 4);
+    const splash = addUnit(s, 1, "infantry", 5, 5);
+    splash.hp = 1;
+
+    const events = tickCombat(s);
+    const destroyed = events.filter((event) => event.type === "destroyed");
+
+    expect(destroyed).toHaveLength(1);
+    expect(destroyed[0]).toMatchObject({
+      id: splash.id,
+      owner: splash.owner,
+      kind: splash.kind,
+      x: splash.x,
+      y: splash.y,
+    });
+    expect(splash.hp).toBe(0);
+  });
+
   it("deals more damage from high ground than from low ground", () => {
     const high = makeFixture({ seed: 7, width: 16, height: 12, win: { kind: "annihilate" } });
     setHeight(high, 4, 4, 2);

@@ -11,6 +11,7 @@ import { tooltipLines, tileTooltipLines } from "../../lib/render/renderer";
 import { objectiveProgress } from "../../lib/sim/objectives";
 import { distToEntity } from "../../lib/sim/world";
 import { guardScenarioObjectives } from "../../lib/sim/ai/director";
+import { deserializeState, serializeState } from "../../lib/persist/save";
 import type { MissionKind } from "../../lib/types";
 
 function missionOfKind(kind: MissionKind, missionIndex: number) {
@@ -106,7 +107,7 @@ describe("tactical expansion", () => {
       expect(convoy.every((entity) => Math.hypot(entity.x - state.runtime!.zone!.x, entity.y - state.runtime!.zone!.y) > 8)).toBe(true);
       expect(neutral?.path).toEqual([]);
       expect(state.runtime?.convoyStartTick).toBe(CONVOY_STAGING_TICKS);
-      expect(CONVOY_STAGING_TICKS).toBe(7 * 60 * TICKS_PER_SECOND);
+      expect(CONVOY_STAGING_TICKS).toBe(3 * 60 * TICKS_PER_SECOND);
       expect(state.runtime?.deadline).toBe(state.win.ticks! + CONVOY_STAGING_TICKS + CONVOY_COMPLETION_BUFFER_TICKS);
       const convoyIds = new Set(convoy.map((entity) => entity.id));
       let enemyEngaged = false;
@@ -351,6 +352,148 @@ describe("tactical expansion", () => {
     expect(first.neutral).toBe(false);
     expect(second.neutral).toBe(true);
     expect(state.runtime.rescued).toBe(1);
+  });
+
+  it("keeps tracked rescue incomplete until contacted units return to HQ", () => {
+    const state = makeFixture({ width: 16, height: 16, win: { kind: "rescue", targetCount: 1, ticks: 500 } });
+    const yard = addBuilding(state, 0, "constructionYard", 0, 0);
+    const rescuer = addUnit(state, 0, "infantry", 8, 3);
+    const stranded = addUnit(state, 0, "infantry", 8, 3);
+    stranded.idle = true;
+    stranded.neutral = true;
+    stranded.scenarioRole = "stranded";
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [stranded.id],
+      zone: { x: yard.x, y: yard.y },
+      deadline: 500,
+      rescued: 0,
+      required: 1,
+      contactedIds: [],
+      rescuedIds: [],
+      secondary: [],
+    };
+
+    tick(state);
+
+    expect(stranded.neutral).toBe(false);
+    expect(state.runtime.contactedIds).toEqual([stranded.id]);
+    expect(state.runtime.rescuedIds).toEqual([]);
+    expect(state.runtime.rescued).toBe(0);
+    expect(state.result).toBe("playing");
+
+    stranded.x = yard.x;
+    stranded.y = yard.y;
+    tick(state);
+
+    expect(state.runtime.rescuedIds).toEqual([stranded.id]);
+    expect(state.runtime.rescued).toBe(1);
+    expect(state.result).toBe("won");
+    expect(objectiveProgress(state).label).toBe("Contacted 1 · Returned 1 / 1");
+    void rescuer;
+  });
+
+  it("fails when a contacted rescue unit is destroyed before returning", () => {
+    const state = makeFixture({ width: 16, height: 16, win: { kind: "rescue", targetCount: 1, ticks: 500 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const rescuer = addUnit(state, 0, "infantry", 8, 3);
+    const stranded = addUnit(state, 0, "infantry", 8, 3);
+    stranded.idle = true;
+    stranded.neutral = true;
+    stranded.scenarioRole = "stranded";
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [stranded.id],
+      rescued: 0,
+      required: 1,
+      contactedIds: [],
+      rescuedIds: [],
+      secondary: [],
+    };
+
+    tick(state);
+    expect(state.runtime.contactedIds).toEqual([stranded.id]);
+    stranded.hp = 0;
+    const result = tick(state);
+
+    expect(state.result).toBe("lost");
+    expect(state.lossReason).toBe("objectiveTargetLost");
+    expect(result.events).toContainEqual({ type: "lost" });
+    void rescuer;
+  });
+
+  it("advances multiple rescue targets independently through contact and return", () => {
+    const state = makeFixture({ width: 20, height: 20, win: { kind: "rescue", targetCount: 2, ticks: 500 } });
+    const yard = addBuilding(state, 0, "constructionYard", 0, 0);
+    const rescuer = addUnit(state, 0, "infantry", 8, 3);
+    const first = addUnit(state, 0, "infantry", 8, 3);
+    const second = addUnit(state, 0, "infantry", 14, 3);
+    for (const target of [first, second]) {
+      target.neutral = true;
+      target.scenarioRole = "stranded";
+      target.idle = true;
+    }
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [first.id, second.id],
+      rescued: 0,
+      required: 2,
+      contactedIds: [],
+      rescuedIds: [],
+      secondary: [],
+    };
+
+    tick(state);
+    expect(state.runtime.contactedIds).toEqual([first.id]);
+    expect(state.runtime.rescuedIds).toEqual([]);
+    first.x = yard.x;
+    first.y = yard.y;
+    tick(state);
+    expect(state.runtime.rescuedIds).toEqual([first.id]);
+    expect(state.result).toBe("playing");
+
+    rescuer.x = second.x;
+    rescuer.y = second.y;
+    tick(state);
+    expect(state.runtime.contactedIds).toEqual([first.id, second.id]);
+    expect(state.runtime.rescuedIds).toEqual([first.id]);
+    second.x = yard.x;
+    second.y = yard.y;
+    tick(state);
+    expect(state.runtime.rescuedIds).toEqual([first.id, second.id]);
+    expect(state.result).toBe("won");
+  });
+
+  it("preserves tracked rescue contact and return state across save/load", () => {
+    const state = makeFixture({ width: 16, height: 16, win: { kind: "rescue", targetCount: 1, ticks: 500 } });
+    addBuilding(state, 0, "constructionYard", 0, 0);
+    const rescuer = addUnit(state, 0, "infantry", 8, 3);
+    const stranded = addUnit(state, 0, "infantry", 8, 3);
+    stranded.idle = true;
+    stranded.neutral = true;
+    stranded.scenarioRole = "stranded";
+    state.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [stranded.id],
+      rescued: 0,
+      required: 1,
+      contactedIds: [],
+      rescuedIds: [],
+      secondary: [],
+    };
+    tick(state);
+
+    const restored = deserializeState(serializeState(state));
+
+    expect(restored.runtime?.contactedIds).toEqual([stranded.id]);
+    expect(restored.runtime?.rescuedIds).toEqual([]);
+    expect(restored.runtime?.phase).toBe("extraction");
+    expect(restored.runtime?.rescued).toBe(0);
+    void rescuer;
   });
 
   it("keeps extraction assets stationary until a player unit reaches them", () => {

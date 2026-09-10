@@ -1,4 +1,4 @@
-import type { BalanceStrategy, MissionFamily, MissionKind, UnitKind } from "../../types";
+import type { BalanceStrategy, MissionDirectorPhase, MissionFamily, MissionKind, UnitKind } from "../../types";
 import { missionFamilyFor } from "../../gen/profile";
 
 export type BalanceRecord = {
@@ -26,9 +26,13 @@ export type BalanceRecord = {
   firstPressureTick?: number;
   firstHqThreatTick?: number;
   hqHealthAtPressure?: number;
+  firstFinaleTick?: number;
+  hqHealthAtFinale?: number;
   hqHealthAtEnd?: number;
   assaultTransitions?: number;
   primaryCompletedTick?: number;
+  completionPhase?: MissionDirectorPhase;
+  durationByPhase?: Partial<Record<MissionDirectorPhase, number>>;
   repairCommands?: number;
   openingCredits?: number;
   openingUnitsProducedByRole?: Partial<Record<UnitKind, number>>;
@@ -40,6 +44,14 @@ export type BalanceRecord = {
   targetDepth?: number;
   targetRouteLength?: number;
   targetReachable?: boolean;
+  targetDepths?: number[];
+  targetRouteLengths?: number[];
+  maxTargetDepth?: number;
+  allTargetsReachable?: boolean;
+  materiallyFair?: boolean;
+  effectiveRouteLengths?: number[];
+  effectiveRouteLength?: number;
+  rescueReturnRouteLength?: number;
 };
 
 export type BalanceKindSummary = {
@@ -60,9 +72,12 @@ export type BalanceKindSummary = {
   averageFirstPressureTick: number | null;
   averageFirstHqThreatTick: number | null;
   averageHqHealthAtPressure: number | null;
+  averageFirstFinaleTick: number | null;
+  averageHqHealthAtFinale: number | null;
   averageHqHealthAtEnd: number | null;
   averageAssaultTransitions: number;
   averagePrimaryCompletedTick: number | null;
+  averageDurationByPhase: Record<MissionDirectorPhase, number>;
   averageRepairCommands: number;
   averageOpeningCredits: number | null;
   averageBaselineRouteLength: number | null;
@@ -72,6 +87,9 @@ export type BalanceKindSummary = {
   averageLaneCount: number | null;
   averageTargetDepth: number | null;
   averageTargetRouteLength: number | null;
+  averageMaxTargetDepth: number | null;
+  averageEffectiveRouteLength: number | null;
+  averageRescueReturnRouteLength: number | null;
   targetReachabilityRate: number | null;
   lossReasons: Record<string, number>;
 };
@@ -131,29 +149,43 @@ export function balanceFailureReason(record: Pick<BalanceRecord, "result" | "tru
 }
 
 export const DEFAULT_BALANCE_THRESHOLDS: BalanceThresholds = {
-  minWinRate: 0.60,
-  maxTimeoutRate: 0.20,
+  minWinRate: 0.90,
+  maxTimeoutRate: 0.05,
   minKindSamples: 4,
-  minKindWinRate: 0.40,
-  maxKindTimeoutRate: 0.20,
+  minKindWinRate: 0.85,
+  maxKindTimeoutRate: 0.05,
   maxTruncatedRate: 0,
   maxMapFailureRate: 0,
   maxPowerDeficitRate: 0,
   maxCommandRejectionRate: 0,
-  maxAverageCasualties: 40,
+  maxAverageCasualties: 35,
   targetedKindWinRates: {
-    destroyMarked: 0.70,
-    sabotage: 0.70,
-    annihilate: 0.70,
-    decapitate: 0.70,
-    rescue: 0.70,
-    razeAll: 0.70,
-    holdTheLine: 0.70,
+    harvestQuota: 0.85,
+    forceQuota: 0.85,
+    structureQuota: 0.85,
+    destroyMarked: 0.85,
+    sabotage: 0.85,
+    annihilate: 0.85,
+    decapitate: 0.85,
+    rescue: 0.85,
+    razeAll: 0.85,
+    holdTheLine: 0.85,
+    escort: 0.85,
+    extraction: 0.85,
   },
   maxKindAverageCasualties: {
-    annihilate: 65,
-    decapitate: 75,
-    razeAll: 70,
+    harvestQuota: 55,
+    forceQuota: 55,
+    structureQuota: 55,
+    destroyMarked: 55,
+    sabotage: 55,
+    annihilate: 55,
+    decapitate: 55,
+    rescue: 55,
+    razeAll: 55,
+    holdTheLine: 55,
+    escort: 55,
+    extraction: 55,
   },
 };
 
@@ -184,6 +216,14 @@ function lossReasons(records: BalanceRecord[]): Record<string, number> {
   );
 }
 
+function averageDurationByPhase(records: BalanceRecord[]): Record<MissionDirectorPhase, number> {
+  const phases: MissionDirectorPhase[] = ["opening", "pressure", "finale"];
+  return Object.fromEntries(phases.map((phase) => [
+    phase,
+    average(records, (record) => record.durationByPhase?.[phase] ?? 0),
+  ])) as Record<MissionDirectorPhase, number>;
+}
+
 function summarizeKind(records: BalanceRecord[]): BalanceKindSummary {
   const wins = records.filter((record) => record.result === "won").length;
   const losses = records.filter((record) => record.result === "lost").length;
@@ -205,9 +245,12 @@ function summarizeKind(records: BalanceRecord[]): BalanceKindSummary {
     averageFirstPressureTick: averageOptional(records, (record) => record.firstPressureTick),
     averageFirstHqThreatTick: averageOptional(records, (record) => record.firstHqThreatTick),
     averageHqHealthAtPressure: averageOptional(records, (record) => record.hqHealthAtPressure),
+    averageFirstFinaleTick: averageOptional(records, (record) => record.firstFinaleTick),
+    averageHqHealthAtFinale: averageOptional(records, (record) => record.hqHealthAtFinale),
     averageHqHealthAtEnd: averageOptional(records, (record) => record.hqHealthAtEnd),
     averageAssaultTransitions: average(records, (record) => record.assaultTransitions ?? 0),
     averagePrimaryCompletedTick: averageOptional(records, (record) => record.primaryCompletedTick),
+    averageDurationByPhase: averageDurationByPhase(records),
     averageRepairCommands: average(records, (record) => record.repairCommands ?? 0),
     averageOpeningCredits: averageOptional(records, (record) => record.openingCredits),
     averageBaselineRouteLength: averageOptional(records, (record) => record.baselineRouteLength),
@@ -217,7 +260,13 @@ function summarizeKind(records: BalanceRecord[]): BalanceKindSummary {
     averageLaneCount: averageOptional(records, (record) => record.laneCount),
     averageTargetDepth: averageOptional(records, (record) => record.targetDepth),
     averageTargetRouteLength: averageOptional(records, (record) => record.targetRouteLength),
-    targetReachabilityRate: averageOptional(records, (record) => record.targetReachable === undefined ? undefined : record.targetReachable ? 1 : 0),
+    averageMaxTargetDepth: averageOptional(records, (record) => record.maxTargetDepth),
+    averageEffectiveRouteLength: averageOptional(records, (record) => record.effectiveRouteLength),
+    averageRescueReturnRouteLength: averageOptional(records, (record) => record.rescueReturnRouteLength),
+    targetReachabilityRate: averageOptional(records, (record) => {
+      const reachable = record.allTargetsReachable ?? record.targetReachable;
+      return reachable === undefined ? undefined : reachable ? 1 : 0;
+    }),
     lossReasons: lossReasons(records),
   };
 }

@@ -437,8 +437,8 @@ describe("production and overlay helpers", () => {
   it("shows the escort total limit separately from convoy departure", () => {
     const escort = createMission({ seed: 421, missionIndex: 3 });
     expect(playFieldStatus(escort)).toMatchObject({
-      timeRemaining: "Time remaining 25:00",
-      convoyDeparture: "Convoy departs in 07:00",
+      timeRemaining: "Time remaining 21:00",
+      convoyDeparture: "Convoy departs in 03:00",
     });
   });
 

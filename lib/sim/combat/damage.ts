@@ -33,7 +33,18 @@ export function strike(
       if (Math.hypot(splash.x - target.x, splash.y - target.y) > stats.splashRadius) continue;
       splash.hp -= damage * 0.35;
       if (splash.class === "unit") splash.suppression = Math.min(100, (splash.suppression ?? 0) + Math.round(stats.suppression * 0.35));
-      if (splash.hp <= 0) invalidateLivingCache(state);
+      if (splash.hp <= 0) {
+        splash.hp = 0;
+        invalidateLivingCache(state);
+        events?.push({
+          type: "destroyed",
+          id: splash.id,
+          owner: splash.owner,
+          kind: splash.kind,
+          x: splash.x,
+          y: splash.y,
+        });
+      }
     }
   }
   const destroyed = target.hp <= 0;

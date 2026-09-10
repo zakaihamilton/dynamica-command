@@ -13,7 +13,17 @@ import {
   type FxBurst,
 } from "../../lib/render/fx";
 import { drawFxLayer } from "../../lib/render/renderCombat";
+import { drawSprite } from "../../lib/render/sprites";
 import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
+
+vi.mock("../../lib/render/sprites", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/render/sprites")>("../../lib/render/sprites");
+  return {
+    ...actual,
+    drawSprite: vi.fn(),
+    rasterize: vi.fn(() => ({ width: 1, height: 1 } as HTMLCanvasElement)),
+  };
+});
 
 function burst(partial: Partial<FxBurst> & Pick<FxBurst, "kind">): FxBurst {
   return {
@@ -43,6 +53,9 @@ function mockCtx() {
     fill: vi.fn(),
     stroke: vi.fn(),
     fillRect: vi.fn(),
+    translate: vi.fn(),
+    rotate: vi.fn(),
+    scale: vi.fn(),
     globalAlpha: 1,
     globalCompositeOperation: "source-over",
     fillStyle: "",
@@ -59,6 +72,11 @@ describe("combat fx bursts", () => {
     expect(fxProgress(explosion, 100)).toBe(1);
     expect(fxAlive(explosion, 99)).toBe(true);
     expect(fxAlive(explosion, 100)).toBe(false);
+
+    const destruction = burst({ kind: "destruction", bornMs: 0 });
+    expect(fxProgress(destruction, FX_DURATION.destruction / 2)).toBe(0.5);
+    expect(cullFx([destruction], FX_DURATION.destruction - 1)).toHaveLength(1);
+    expect(cullFx([destruction], FX_DURATION.destruction)).toHaveLength(0);
   });
 
   it("culls expired bursts and caps the live list", () => {
@@ -73,7 +91,7 @@ describe("combat fx bursts", () => {
     expect(culled.filter((item) => item.kind === "impact")).toHaveLength(MAX_TRANSIENT_FX);
   });
 
-  it("spawns explosions for units and rubble for buildings", () => {
+  it("spawns one transient destruction burst for units and buildings", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
     const tank = addUnit(state, 1, "tank", 4, 5);
     const yard = addBuilding(state, 1, "constructionYard", 6, 6);
@@ -88,12 +106,47 @@ describe("combat fx bursts", () => {
       500,
       10,
     );
-    expect(nextId).toBeGreaterThan(10);
-    expect(bursts.some((item) => item.kind === "explosion" && item.entityKind === "tank")).toBe(true);
-    expect(bursts.some((item) => item.kind === "rubble" && item.entityKind === "constructionYard")).toBe(true);
-    expect(bursts.filter((item) => item.entityKind === "tank" && item.kind === "rubble")).toHaveLength(0);
+    expect(nextId).toBe(12);
+    expect(bursts.map((item) => item.kind)).toEqual(["destruction", "destruction"]);
+    expect(bursts.every((item) => item.durationMs === FX_DURATION.destruction)).toBe(true);
+    expect(bursts.some((item) => item.entityKind === "tank" && item.entityClass === "unit")).toBe(true);
+    expect(bursts.some((item) => item.entityKind === "constructionYard" && item.entityClass === "building")).toBe(true);
+    expect(bursts.some((item) => item.kind === "wreck" || item.kind === "rubble" || item.kind === "scorch")).toBe(false);
     expect(bursts.find((item) => item.entityKind === "tank")?.x).toBe(4);
     expect(bursts.find((item) => item.entityKind === "constructionYard")?.y).toBe(6);
+  });
+
+  it("renders collapses for units and buildings and suppresses moving debris", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const unit = burst({
+      kind: "destruction",
+      entityKind: "tank",
+      entityClass: "unit",
+      bornMs: 1000,
+      durationMs: FX_DURATION.destruction,
+      variant: 12,
+    });
+    const building = burst({
+      kind: "destruction",
+      entityKind: "constructionYard",
+      entityClass: "building",
+      bornMs: 1000,
+      durationMs: FX_DURATION.destruction,
+      variant: 13,
+    });
+    const animated = mockCtx();
+    vi.mocked(drawSprite).mockClear();
+    drawFxLayer(animated, state, createCamera(), [unit, building], 1200, "burst", false);
+    expect(drawSprite).toHaveBeenCalledTimes(4);
+    const animatedDebrisCalls = (animated.stroke as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+
+    const reduced = mockCtx();
+    vi.mocked(drawSprite).mockClear();
+    drawFxLayer(reduced, state, createCamera(), [unit, building], 1200, "burst", true);
+    expect(drawSprite).toHaveBeenCalledTimes(4);
+    expect(animatedDebrisCalls).toBeGreaterThan(
+      (reduced.stroke as unknown as { mock: { calls: unknown[] } }).mock.calls.length,
+    );
   });
 
   it("keeps the destroyed owner's palette metadata after compaction", () => {

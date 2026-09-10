@@ -40,7 +40,11 @@ export function tileTooltipLines(state: SimState, x: number, y: number): string[
   if (!access.buildable) lines.push("Construction blocked");
   if (fog === 1) lines.push("Shrouded");
   if (missionUsesObjectiveZone(state.runtime?.kind) && inObjectiveZone(x, y, state.runtime?.zone)) {
-    lines.push(state.runtime?.kind === "escort" ? "Convoy destination" : "Extraction zone");
+    lines.push(
+      state.runtime?.kind === "escort"
+        ? "Convoy destination"
+        : state.runtime?.kind === "rescue" ? "Command HQ zone" : "Extraction zone",
+    );
   }
   return lines;
 }

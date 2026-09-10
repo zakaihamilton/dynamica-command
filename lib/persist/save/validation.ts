@@ -158,6 +158,21 @@ function isRuntime(value: unknown): boolean {
   if (!isIntegerInRange(value.rescued, 0, Number.MAX_SAFE_INTEGER) || !isIntegerInRange(value.required, 0, Number.MAX_SAFE_INTEGER)) return false;
   if (isOneOf(value.kind, ["escort", "rescue", "extraction"] as const) &&
     (value.required > targetIds.length || value.rescued > value.required)) return false;
+  const validateRuntimeIds = (ids: unknown, subset: number[]): ids is number[] =>
+    Array.isArray(ids) &&
+    ids.every((id) => isIntegerInRange(id, 0, Number.MAX_SAFE_INTEGER)) &&
+    new Set(ids).size === ids.length &&
+    ids.every((id) => subset.includes(id));
+  const contactedIds = value.contactedIds;
+  const rescuedIds = value.rescuedIds;
+  if (value.contactedIds !== undefined) {
+    if (value.kind !== "rescue" || !validateRuntimeIds(contactedIds, targetIds)) return false;
+  }
+  if (value.rescuedIds !== undefined) {
+    if (value.kind !== "rescue" || !validateRuntimeIds(rescuedIds, targetIds)) return false;
+    if (contactedIds === undefined || !validateRuntimeIds(contactedIds, targetIds) || rescuedIds.some((id) => !contactedIds.includes(id))) return false;
+    if (value.rescued !== rescuedIds.length) return false;
+  }
   if (!Array.isArray(value.secondary) || !value.secondary.every(isSecondaryObjective)) return false;
   if (value.convoyStartTick !== undefined && !isIntegerInRange(value.convoyStartTick, 0, Number.MAX_SAFE_INTEGER)) return false;
   if (value.zone !== undefined && !isVec2(value.zone)) return false;

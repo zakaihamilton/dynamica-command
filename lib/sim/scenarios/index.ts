@@ -63,8 +63,13 @@ function setupTimedScenario({ state, map, mission, profile, reachable }: Scenari
 
   if (kind === "sabotage") {
     for (let i = 0; i < count; i++) {
-      const depth = contestedRoute ? 6 : 4;
-      const spacing = contestedRoute ? 4 : 3;
+      // Keep sabotage targets outside the enemy yard's immediate firing
+      // ring. The first legacy placement sat on top of the base perimeter,
+      // which made a technically reachable contract behave like an attrition
+      // wall for the competent baseline. The contested variant keeps its
+      // wider spacing while both routes still lead into the enemy approach.
+      const depth = 8;
+      const spacing = 4;
       const spot = map.markedSpots[i] ?? enemyApproachPoint(map, depth + i * spacing, i % 2 === 0 ? -2 : 2);
       const objective = spawnBuildingAt(
         state,
@@ -153,6 +158,14 @@ function targetLostForScenario(state: SimState): boolean {
     return runtime.targetIds.some((id) => !extracted.has(id) && !entityAlive(state, id));
   }
   if (runtime.kind === "rescue") {
+    // New rescue runs track the two distinct phases explicitly. A target that
+    // has been contacted is no longer safe just because it is player-owned:
+    // it must survive until it reaches the HQ zone. Keep the old counter-based
+    // fallback so saves created before this field existed remain playable.
+    if (runtime.contactedIds !== undefined || runtime.rescuedIds !== undefined) {
+      const rescued = new Set(runtime.rescuedIds ?? []);
+      return runtime.targetIds.some((id) => !rescued.has(id) && !entityAlive(state, id));
+    }
     const required = state.win.targetCount ?? runtime.required ?? runtime.targetIds.length;
     const remaining = runtime.targetIds.filter((id) =>
       state.entities.some((entity) => entity.id === id && entity.hp > 0 && entity.neutral === true),
@@ -181,7 +194,13 @@ function progressForScenario(state: SimState): ScenarioProgress | undefined {
       const runtime = state.runtime;
       const current = runtime?.rescued ?? 0;
       const target = state.win.targetCount ?? runtime?.required ?? 1;
-      const label = state.win.kind === "escort" ? `Convoy ${current} / ${target}` : state.win.kind === "rescue" ? `Rescued ${current} / ${target}` : `Extracted ${current} / ${target}`;
+      const label = state.win.kind === "escort"
+        ? `Convoy ${current} / ${target}`
+        : state.win.kind === "rescue"
+          ? runtime?.contactedIds !== undefined || runtime?.rescuedIds !== undefined
+            ? `Contacted ${runtime?.contactedIds?.length ?? 0} · Returned ${current} / ${target}`
+            : `Rescued ${current} / ${target}`
+          : `Extracted ${current} / ${target}`;
       return { current, target, label };
     }
     default:
@@ -197,9 +216,12 @@ function completeForScenario(state: SimState): boolean | undefined {
       return ids.length > 0 && ids.every((id) => !entityAlive(state, id));
     }
     case "escort":
-    case "rescue":
     case "extraction":
       return (state.runtime?.rescued ?? 0) >= (state.win.targetCount ?? state.runtime?.required ?? Infinity);
+    case "rescue":
+      return state.runtime?.rescuedIds !== undefined
+        ? state.runtime.rescuedIds.length >= (state.win.targetCount ?? state.runtime.required ?? Infinity)
+        : (state.runtime?.rescued ?? 0) >= (state.win.targetCount ?? state.runtime?.required ?? Infinity);
     default:
       return undefined;
   }
@@ -306,6 +328,8 @@ export function configureMissionScenario(
     deadline: setup.deadline,
     rescued: 0,
     required: setup.required ?? mission.win.targetCount ?? 1,
+    contactedIds: mission.win.kind === "rescue" ? [] : undefined,
+    rescuedIds: mission.win.kind === "rescue" ? [] : undefined,
     secondary: secondaryObjectivesForMission(mission, rng),
   };
   state.runtime = runtime;

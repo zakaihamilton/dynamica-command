@@ -36,8 +36,50 @@ export function tickRescueExtraction(state: SimState): void {
   if (!runtime || (runtime.kind !== "rescue" && runtime.kind !== "extraction")) return;
 
   const yard = state.entities.find((e) => e.owner === 0 && e.kind === "constructionYard" && e.hp > 0);
-  if (runtime.kind === "extraction" && yard) {
+  if (yard) {
     runtime.zone = { x: yard.x, y: yard.y };
+  }
+
+  if (runtime.kind === "rescue" && (runtime.contactedIds !== undefined || runtime.rescuedIds !== undefined)) {
+    const contacted = runtime.contactedIds ?? [];
+    const rescued = runtime.rescuedIds ?? [];
+    const contactedSet = new Set(contacted);
+    const rescuedSet = new Set(rescued);
+
+    // Capture this list before contacting targets. A newly contacted target
+    // may not contact another stranded unit until the next simulation tick.
+    const rescuers = state.entities.filter(
+      (e) => e.owner === 0 && e.class === "unit" && e.hp > 0 && !e.neutral && !runtime.targetIds.includes(e.id),
+    );
+    for (const id of runtime.targetIds) {
+      if (contactedSet.has(id)) continue;
+      const target = state.entities.find((item) => item.id === id && item.hp > 0);
+      if (!target?.neutral) continue;
+      target.path = [];
+      target.routePending = false;
+      target.idle = true;
+      if (rescuers.some((rescuer) => Math.hypot(rescuer.x - target.x, rescuer.y - target.y) <= RESCUE_CONTACT_RADIUS)) {
+        target.neutral = false;
+        contacted.push(id);
+        contactedSet.add(id);
+        runtime.phase = "extraction";
+      }
+    }
+
+    if (runtime.zone) {
+      for (const id of contacted) {
+        if (rescuedSet.has(id)) continue;
+        const target = state.entities.find((item) => item.id === id && item.hp > 0);
+        if (target && !target.neutral && inObjectiveZone(target.x, target.y, runtime.zone)) {
+          rescued.push(id);
+          rescuedSet.add(id);
+        }
+      }
+    }
+    runtime.contactedIds = contacted;
+    runtime.rescuedIds = rescued;
+    runtime.rescued = rescued.length;
+    return;
   }
 
   // Capture this list before contacting targets. A newly rescued target may

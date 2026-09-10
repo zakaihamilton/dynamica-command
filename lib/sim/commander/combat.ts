@@ -38,6 +38,19 @@ export function objectiveEntity(state: SimState): Entity | undefined {
   return undefined;
 }
 
+/**
+ * Pick the first defensive structure that blocks a decapitation approach.
+ * The construction yard remains the authoritative objective, but walking a
+ * full assault through its turret ring makes the objective behave like an
+ * attrition check instead of a siege with a readable first target.
+ */
+export function offensiveApproachTarget(state: SimState, objective: Entity): Entity {
+  if (objectiveKind(state) !== "decapitate" || objective.kind !== "constructionYard") return objective;
+  return enemyEntitiesView(state)
+    .filter((entity) => entity.kind === "turret" && entity.constructing === 0)
+    .sort((a, b) => distToEntity(objective, a) - distToEntity(objective, b) || a.id - b.id)[0] ?? objective;
+}
+
 export function parallelOffensiveTargets(state: SimState): Entity[] {
   if (objectiveKind(state) !== "sabotage" && objectiveKind(state) !== "destroyMarked") return [];
   const targetIds = state.win.targetIds ?? state.runtime?.targetIds ?? [];
@@ -56,7 +69,7 @@ export function defensiveThreat(state: SimState, yard: Entity): Entity | undefin
 
 export function scenarioThreat(state: SimState): Entity | undefined {
   const kind = objectiveKind(state);
-  if (kind !== "escort" && kind !== "extraction") return undefined;
+  if (kind !== "escort" && kind !== "rescue" && kind !== "extraction") return undefined;
   const scenarioTargets = (state.runtime?.targetIds ?? [])
     .map((id) => state.entities.find((entity) => entity.id === id && entity.hp > 0))
     .filter((entity): entity is Entity => !!entity && (kind === "escort" || !entity.neutral));
@@ -79,12 +92,28 @@ export function assaultReady(state: SimState, target: Entity, combat: Entity[]):
       ? 18
       : 8 + Math.floor(state.missionIndex / 3);
   if (combat.length < minimumUnits) return false;
+  // Late offensive missions need a short staging window to let the opening
+  // economy and local defense settle. Committing during the first exchange
+  // sends the starting force into a fully staffed turret ring before the
+  // commander has had a chance to reinforce it.
+  if (state.missionIndex >= 4 && state.tick < 2400) return false;
 
   const playerStrength = combat.reduce((sum, entity) => sum + combatValue(entity), 0);
-  const enemyStrength = enemyEntitiesView(state)
-    .filter((entity) => isCombatEntity(entity) && distToEntity(target, entity) <= 22)
+  const defenders = enemyEntitiesView(state).filter((entity) => distToEntity(target, entity) <= 22);
+  const enemyStrength = defenders
+    .filter((entity) => isCombatEntity(entity))
     .reduce((sum, entity) => sum + combatValue(entity), 0);
-  if (enemyStrength === 0 || playerStrength >= enemyStrength * 0.5) return true;
+  // Turrets are not units and therefore do not contribute to combatValue, but
+  // they are the part of the production ring that makes a small assault trade
+  // away its entire force. Count each completed turret as a defensive unit so
+  // the competent commander stages a real counter advantage before pushing.
+  const turretStrength = defenders.filter((entity) => entity.kind === "turret" && entity.constructing === 0).length * 8;
+  const defensiveStrength = enemyStrength + turretStrength;
+  // A half-strength push can clear the first screen but leaves the player
+  // force trading into the enemy production ring. Hold the assault until the
+  // force has a meaningful counter advantage; the deadline fallback still
+  // guarantees a finite closeout when the board is unusually resistant.
+  if (defensiveStrength === 0 || playerStrength >= defensiveStrength) return true;
 
   const deadline = state.runtime?.deadline ?? state.win.ticks;
   return deadline !== undefined && state.tick >= deadline * 0.4;

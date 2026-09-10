@@ -23,11 +23,19 @@ export function assertProfileMapsValid(startSeed: number, endSeed: number): Set<
       expect(map.affordances.reachableResourceValue).toBeGreaterThanOrEqual(4_000);
       expect(map.affordances.nearestResourceDistance).toBeLessThan(32);
 
-      const scenario = scenarioAffordances(createMission({ seed, missionIndex: mission.index }));
+      const state = createMission({ seed, missionIndex: mission.index });
+      const scenario = scenarioAffordances(state);
+      const expectedScenarioTargets = (state.runtime?.targetIds.length ?? 0) || 1;
       expect(scenario.targetReachable).toBe(true);
+      expect(scenario.allTargetsReachable).toBe(true);
+      expect(scenario.materiallyFair).toBe(true);
+      expect(scenario.targetDepths).toHaveLength(expectedScenarioTargets);
+      expect(scenario.targetRouteLengths).toHaveLength(expectedScenarioTargets);
+      expect(scenario.targetRouteLengths.every((length) => length > 0)).toBe(true);
       expect(scenario.routeLength).toBeGreaterThan(0);
       expect(scenario.targetDepth).toBeGreaterThanOrEqual(0);
       expect(scenario.targetDepth).toBeLessThanOrEqual(1);
+      if (mission.win.kind === "rescue") expect(scenario.rescueReturnRouteLength).toBeGreaterThan(0);
     }
   }
   return seen;

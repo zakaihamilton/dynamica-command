@@ -23,7 +23,7 @@ export function minutesToTicks(minutes: number): number {
 }
 
 /** Escort missions spend this long staging the convoy before it starts moving. */
-export const CONVOY_STAGING_MINUTES = 7;
+export const CONVOY_STAGING_MINUTES = 3;
 export const CONVOY_STAGING_TICKS = minutesToTicks(CONVOY_STAGING_MINUTES);
 /** Extra escort time covers the final approach through a contested route. */
 export const CONVOY_COMPLETION_BUFFER_MINUTES = 2;

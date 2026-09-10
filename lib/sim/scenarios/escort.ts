@@ -2,7 +2,7 @@ import type { GeneratedMap } from "../../gen/map";
 import { OBJECTIVE_ZONE_RADIUS } from "../../types";
 import type { SimState, Vec2 } from "../../types";
 import { tryFindPathDetailed } from "../pathBudget";
-import { routePendingFor } from "../pathfinding";
+import { findPathDetailed, routePendingFor } from "../pathfinding";
 import { distToEntity, isStaticWalkable } from "../world";
 import { reachableScenarioPoint } from "./reachability";
 
@@ -59,6 +59,18 @@ export function convoyDestination(state: SimState, zone: Vec2, index: number): V
     }
   }
   candidates.sort((a, b) => b.baseDistance - a.baseDistance || b.zoneDistance - a.zoneDistance || a.point.y - b.point.y || a.point.x - b.point.x);
+  const convoyId = state.runtime?.kind === "escort" ? state.runtime.targetIds[index] : undefined;
+  const convoy = convoyId === undefined ? undefined : state.entities.find((entity) => entity.id === convoyId && entity.hp > 0);
+  if (convoy && candidates.length) {
+    // Keep the stable perimeter ordering, but skip a candidate that is not
+    // reachable from this convoy's staging cell. This closes a rare generated
+    // map trap where one of several identical trucks could never finish the
+    // otherwise valid escort route.
+    for (let offset = 0; offset < candidates.length; offset++) {
+      const candidate = candidates[(index + offset) % candidates.length]!;
+      if (findPathDetailed(state, convoy, candidate.point).status === "complete") return candidate.point;
+    }
+  }
   return candidates[index % candidates.length]?.point ?? zone;
 }
 

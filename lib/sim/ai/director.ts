@@ -10,6 +10,11 @@ import { contestedResourcePoint, distance, queueUnit, shouldAutoRepair, shouldRe
 import { enemyKnownPlayerEntities, nearestKnownPlayer } from "./visibility";
 
 const YARD_DEFENSE_RANGE = 14;
+// Objective contracts are authored as production intensity, while this legacy
+// scheduler stores the cadence as an interval multiplier. Keep one baseline
+// interval in the conversion so a reduced contract cannot create a tighter
+// queue simply because the stored multiplier is below its old value.
+const OBJECTIVE_PRODUCTION_PACING_BUFFER = 3;
 
 type DirectorBuffers = {
   enemyBuildings: Entity[];
@@ -149,7 +154,9 @@ export function tickAi(state: SimState): void {
   const productionEvery = timedScenario
     ? Math.round(difficulty.enemyProductionEvery * timedProductionScale)
     : openingOffensive ? Math.round(difficulty.enemyProductionEvery * 4)
-      : Math.round(difficulty.enemyProductionEvery * (objectiveContract?.productionScale ?? 1));
+      : Math.round(difficulty.enemyProductionEvery * (objectiveContract
+        ? objectiveContract.productionScale + OBJECTIVE_PRODUCTION_PACING_BUFFER
+        : 1));
   // Objective closeout windows need finite pressure: once the finale begins,
   // stop adding fresh enemy units or structures while keeping existing
   // defenses active. Otherwise the player can chase a moving target to timeout.

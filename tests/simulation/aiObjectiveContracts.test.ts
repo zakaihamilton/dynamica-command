@@ -57,12 +57,12 @@ describe("objective-specific enemy AI contracts", () => {
   it("applies objective production cadence instead of the generic cadence", () => {
     const base = missionDifficulty(2).enemyProductionEvery;
 
-    expect(producesAt("destroyMarked", base)).toBe(false);
-    expect(producesAt("destroyMarked", Math.round(base * objectiveContractFor("destroyMarked")!.productionScale))).toBe(true);
+    expect(producesAt("destroyMarked", base - 1)).toBe(false);
+    expect(producesAt("destroyMarked", Math.round(base * (objectiveContractFor("destroyMarked")!.productionScale + 3)))).toBe(true);
     expect(producesAt("annihilate", base)).toBe(false);
-    expect(producesAt("annihilate", Math.round(base * objectiveContractFor("annihilate")!.productionScale))).toBe(true);
+    expect(producesAt("annihilate", Math.round(base * (objectiveContractFor("annihilate")!.productionScale + 3)))).toBe(true);
     expect(producesAt("decapitate", base)).toBe(false);
-    expect(producesAt("decapitate", Math.round(base * objectiveContractFor("decapitate")!.productionScale))).toBe(true);
+    expect(producesAt("decapitate", Math.round(base * (objectiveContractFor("decapitate")!.productionScale + 3)))).toBe(true);
   });
 
   it.each(["sabotage", "razeAll", "decapitate", "annihilate"] as const)(
@@ -81,7 +81,7 @@ describe("objective-specific enemy AI contracts", () => {
       };
       const difficulty = missionDifficulty(state.missionIndex);
       state.tick = difficulty.enemyProductionStart + Math.round(
-        difficulty.enemyProductionEvery * objectiveContractFor(kind)!.productionScale,
+        difficulty.enemyProductionEvery * (objectiveContractFor(kind)!.productionScale + 3),
       );
 
       tickAi(state);

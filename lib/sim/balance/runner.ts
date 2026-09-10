@@ -7,7 +7,7 @@ import { createMissionFromData, tick } from "../api";
 import { CompetentCommander } from "../commander";
 import { ArchetypeCommander, isArchetypeStrategy } from "../commander/archetypes";
 import { powerBreakdown } from "../world";
-import { TILE_BLOCKED, TILE_WATER, type BalanceStrategy, type Campaign, type Command, type MissionDef, type SimState, type UnitKind } from "../../types";
+import { TILE_BLOCKED, TILE_WATER, type BalanceStrategy, type Campaign, type Command, type MissionDef, type MissionDirectorPhase, type SimState, type UnitKind } from "../../types";
 import { missionFamilyFor } from "../../gen/profile";
 import { scenarioAffordances, type ScenarioAffordances } from "../scenarios";
 import { COMMANDER_CADENCE } from "../commander/queries";
@@ -60,9 +60,13 @@ function runScenario(
   let firstPressureTick: number | undefined;
   let firstHqThreatTick: number | undefined;
   let hqHealthAtPressure: number | undefined;
+  let firstFinaleTick: number | undefined;
+  let hqHealthAtFinale: number | undefined;
   let previousAiState: SimState["aiState"];
   let assaultTransitions = 0;
   let primaryCompletedTick: number | undefined;
+  let completionPhase: MissionDirectorPhase | undefined;
+  const durationByPhase: Record<MissionDirectorPhase, number> = { opening: 0, pressure: 0, finale: 0 };
   let repairCommands = 0;
   let openingCredits: number | undefined;
   let openingUnitsProducedByRole: Partial<Record<UnitKind, number>> | undefined;
@@ -104,7 +108,19 @@ function runScenario(
         if (playerYard) hqHealthAtPressure = playerYard.hp / Math.max(1, playerYard.maxHp);
       }
     }
-    if (primaryCompletedTick === undefined && result.state.result === "won") primaryCompletedTick = state.tick;
+    const phase = state.runtime?.director?.phase;
+    if (phase) {
+      durationByPhase[phase] += 1;
+      if (phase === "finale" && firstFinaleTick === undefined) {
+        firstFinaleTick = state.tick;
+        const playerYard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard" && entity.hp > 0);
+        if (playerYard) hqHealthAtFinale = playerYard.hp / Math.max(1, playerYard.maxHp);
+      }
+    }
+    if (primaryCompletedTick === undefined && result.state.result === "won") {
+      primaryCompletedTick = state.tick;
+      completionPhase = phase;
+    }
     if (openingCredits === undefined && state.tick >= openingCutoff) {
       openingCredits = state.credits[0];
       openingUnitsProducedByRole = { ...state.unitsProducedByRole };
@@ -125,12 +141,16 @@ function runScenario(
     firstPressureTick,
     firstHqThreatTick,
     hqHealthAtPressure,
+    firstFinaleTick,
+    hqHealthAtFinale,
     hqHealthAtEnd: (() => {
       const playerYard = state.entities.find((entity) => entity.owner === 0 && entity.kind === "constructionYard");
       return playerYard ? playerYard.hp / Math.max(1, playerYard.maxHp) : 0;
     })(),
     assaultTransitions,
     primaryCompletedTick,
+    completionPhase,
+    durationByPhase,
     repairCommands,
     openingCredits,
     openingUnitsProducedByRole,
@@ -183,7 +203,7 @@ export function runOne(
   });
   const scenario = sharedScenario?.affordances ?? scenarioAffordances(state);
   if (sharedScenario && !sharedScenario.affordances) sharedScenario.affordances = scenario;
-  const mapIsValid = (sharedScenario?.mapValid ?? validMap(map)) && scenario.targetReachable;
+  const mapIsValid = (sharedScenario?.mapValid ?? validMap(map)) && scenario.allTargetsReachable && scenario.materiallyFair;
   const run = runScenario(state, map, strategy, maxTicks, deadlineAt);
   const scenarioMs = performance.now() - scenarioStartedAt;
   return {
@@ -215,9 +235,13 @@ export function runOne(
     firstPressureTick: run.firstPressureTick,
     firstHqThreatTick: run.firstHqThreatTick,
     hqHealthAtPressure: run.hqHealthAtPressure,
+    firstFinaleTick: run.firstFinaleTick,
+    hqHealthAtFinale: run.hqHealthAtFinale,
     hqHealthAtEnd: run.hqHealthAtEnd,
     assaultTransitions: run.assaultTransitions,
     primaryCompletedTick: run.primaryCompletedTick,
+    completionPhase: run.completionPhase,
+    durationByPhase: run.durationByPhase,
     repairCommands: run.repairCommands,
     openingCredits: run.openingCredits,
     openingUnitsProducedByRole: run.openingUnitsProducedByRole,
@@ -229,6 +253,14 @@ export function runOne(
     targetDepth: scenario.targetDepth,
     targetRouteLength: scenario.routeLength,
     targetReachable: scenario.targetReachable,
+    targetDepths: scenario.targetDepths,
+    targetRouteLengths: scenario.targetRouteLengths,
+    maxTargetDepth: scenario.maxTargetDepth,
+    allTargetsReachable: scenario.allTargetsReachable,
+    materiallyFair: scenario.materiallyFair,
+    effectiveRouteLengths: scenario.effectiveRouteLengths,
+    effectiveRouteLength: scenario.effectiveRouteLength,
+    rescueReturnRouteLength: scenario.rescueReturnRouteLength,
     scenarioMs,
   };
 }

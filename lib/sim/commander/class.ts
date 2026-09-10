@@ -22,6 +22,7 @@ import {
   defensiveThreat,
   scenarioThreat,
   assaultReady,
+  offensiveApproachTarget,
   orderKey,
 } from "./combat";
 import type { CommanderMetrics } from "./queries";
@@ -95,23 +96,31 @@ export class CompetentCommander {
       : undefined;
     const threat = defensiveThreat(state, yard) ?? scenarioThreat(state) ?? emergencyThreat;
     const objective = objectiveEntity(state);
+    const approachObjective = objective && objective.owner === 1 ? offensiveApproachTarget(state, objective) : objective;
     const extractionCargo = objectiveKind(state) === "extraction"
       ? (state.runtime?.targetIds ?? []).map((id) => state.entities.find((entity) => entity.id === id && entity.hp > 0)).filter((entity): entity is Entity => !!entity && !entity.neutral && !inObjectiveZone(entity.x, entity.y, state.runtime?.zone))
       : [];
+    const rescueReturnUnits = objectiveKind(state) === "rescue"
+      ? (state.runtime?.targetIds ?? []).map((id) => state.entities.find((entity) => entity.id === id && entity.hp > 0)).filter((entity): entity is Entity => !!entity && !entity.neutral && !inObjectiveZone(entity.x, entity.y, state.runtime?.zone))
+      : [];
     const extractionCargoIds = new Set(extractionCargo.map((entity) => entity.id));
+    const rescueReturnIds = new Set(rescueReturnUnits.map((entity) => entity.id));
     const extractionEscortTarget = [...extractionCargo]
       .sort((a, b) => distToEntity(b, yard) - distToEntity(a, yard) || a.id - b.id)[0];
+    const rescueEscortTarget = [...rescueReturnUnits]
+      .sort((a, b) => distToEntity(b, yard) - distToEntity(a, yard) || a.id - b.id)[0];
     const combat = combatUnits(state);
-    const objectiveCombat = objectiveKind(state) === "extraction"
-      ? combat.filter((entity) => !extractionCargoIds.has(entity.id))
+    const objectiveCombat = objectiveKind(state) === "extraction" || objectiveKind(state) === "rescue"
+      ? combat.filter((entity) => !extractionCargoIds.has(entity.id) && !rescueReturnIds.has(entity.id))
       : combat;
     const finalPush = finalPushActive(state);
     const scenarioObjective = ["escort", "rescue", "extraction"].includes(objectiveKind(state)) && (
-      objective?.neutral === true || extractionCargo.length > 0
+      objective?.neutral === true || extractionCargo.length > 0 || rescueReturnUnits.length > 0
     ) && (objectiveKind(state) !== "escort" || state.runtime?.convoyStartTick === undefined);
 
-    if (extractionCargo.length) {
-      commands.push({ type: "move", unitIds: extractionCargo.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
+    const returningScenarioUnits = [...extractionCargo, ...rescueReturnUnits];
+    if (returningScenarioUnits.length) {
+      commands.push({ type: "move", unitIds: returningScenarioUnits.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
     }
 
     if (combat.length) {
@@ -120,7 +129,7 @@ export class CompetentCommander {
       const assaultTargets = offensiveObjective
         ? objectiveKind(state) !== "sabotage" && parallelOffensiveTargets(state).length > 1
           ? parallelOffensiveTargets(state)
-          : objective ? [objective] : []
+          : approachObjective ? [approachObjective] : []
         : [];
       if (!offensiveObjective || this.assaultKind !== objectiveKind(state)) {
         this.assaultKind = offensiveObjective ? objectiveKind(state) : undefined;
@@ -192,7 +201,7 @@ export class CompetentCommander {
           combatCommands.push({ type: "move", unitIds: combat.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
         }
       } else if (threat) {
-        if (["escort", "extraction"].includes(objectiveKind(state)) && objectiveCombat.length) {
+        if (["escort", "rescue", "extraction"].includes(objectiveKind(state)) && objectiveCombat.length) {
           if (defenders.length) {
             combatCommands.push({ type: "attack", unitIds: defenders.map((entity) => entity.id), targetId: threat.id });
           }
@@ -221,12 +230,22 @@ export class CompetentCommander {
       } else {
         const force = scenarioObjective ? assaultForce : combat;
         const extractionRecovery = objectiveKind(state) === "extraction" && extractionCargo.length > 0 && objective?.neutral !== true;
+        const rescueRecovery = objectiveKind(state) === "rescue" && rescueReturnUnits.length > 0;
+        const recoveryTarget = objectiveKind(state) === "extraction"
+          ? extractionEscortTarget
+          : rescueEscortTarget;
+        const rescueContactTarget = objectiveKind(state) === "rescue" && objective?.neutral ? objective : undefined;
         if (scenarioObjective && defenders.length) {
           combatCommands.push({ type: "move", unitIds: defenders.map((entity) => entity.id), x: yard.x, y: yard.y, formation: "line" });
         }
-        if (force.length && extractionRecovery) {
-          const needsCargoEscort = extractionEscortTarget !== undefined && force.some((entity) => distToEntity(entity, extractionEscortTarget) > 6);
-          const recoveryDestination = needsCargoEscort ? extractionEscortTarget : yard;
+        if (force.length && (extractionRecovery || rescueRecovery)) {
+          // Contact the next stranded unit while already-contacted units
+          // return on their own orders. This lets a rescue operation make
+          // independent progress instead of serializing every target behind
+          // the slowest return trip.
+          const nextScenarioTarget = rescueContactTarget ?? recoveryTarget;
+          const needsScenarioEscort = nextScenarioTarget !== undefined && force.some((entity) => distToEntity(entity, nextScenarioTarget) > 6);
+          const recoveryDestination = needsScenarioEscort ? nextScenarioTarget : yard;
           combatCommands.push({ type: "attackMove", unitIds: force.map((entity) => entity.id), x: recoveryDestination.x, y: recoveryDestination.y, formation: "line" });
         } else if (force.length && objective && (objective.neutral || objective.class === "unit" && objective.owner === 0)) {
           const escortDestination = { x: objective.x, y: objective.y };
