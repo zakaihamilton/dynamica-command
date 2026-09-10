@@ -166,6 +166,7 @@ describe("BriefingActions", () => {
     const backButton = screen.getByRole("button", { name: "Back to menu" });
     expect(backButton).toHaveAttribute("data-shortcut", "Esc");
     expect(backButton).toHaveAttribute("data-tooltip", "Back to menu");
+    expect(screen.getByRole("button", { name: "Launch" })).toHaveAttribute("data-default-action", "true");
   });
 
   it("removes the duplicate back button when returning to a mission", () => {
@@ -375,7 +376,9 @@ describe("NewGameSetup", () => {
     );
 
     expect(screen.getByTestId("campaign-backdrop")).toBeVisible();
-    expect(screen.getByTestId("campaign-info-pane")).toContainElement(screen.getByRole("button", { name: "Start" }));
+    const startButton = screen.getByRole("button", { name: "Start" });
+    expect(screen.getByTestId("campaign-info-pane")).toContainElement(startButton);
+    expect(startButton).toHaveAttribute("data-default-action", "true");
     const codePane = screen.getByTestId("campaign-code-pane");
     expect(codePane).toContainElement(screen.getByRole("button", { name: "Copy link" }));
     expect(codePane).not.toHaveTextContent(campaign.world.name);

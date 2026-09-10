@@ -1,4 +1,8 @@
 .banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   pointer-events: none;
   position: absolute;
   z-index: 20;
@@ -19,6 +23,32 @@
   text-transform: uppercase;
   text-shadow: 1px 1px #000;
   animation: combat-alert-pulse 0.9s ease-in-out 2;
+}
+
+.icon {
+  display: inline-grid;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 1rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.banner[data-kind="objective"] {
+  border-color: color-mix(in srgb, var(--chrome-gold) 62%, var(--chrome-inset));
+  color: var(--chrome-gold);
+}
+
+.banner[data-kind="contact"] {
+  border-color: color-mix(in srgb, var(--chrome-cyan) 62%, var(--chrome-inset));
+  color: var(--chrome-cyan);
+}
+
+.banner[data-kind="system"] {
+  border-color: color-mix(in srgb, var(--chrome-warning) 62%, var(--chrome-inset));
+  color: var(--chrome-warning);
 }
 
 @media (prefers-reduced-motion: reduce) {

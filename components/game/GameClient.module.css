@@ -9,6 +9,26 @@
   color: var(--chrome-body);
 }
 
+.shell[data-high-contrast="true"] {
+  --chrome-body: #f1fbff;
+  --chrome-muted: #b7d2dd;
+  --chrome-line: rgba(196, 245, 255, 0.5);
+  --chrome-steel-lo: #0c151e;
+  --chrome-steel: #233845;
+  --chrome-steel-hi: #557184;
+}
+
+.shell[data-high-contrast="true"] :global(canvas) {
+  filter: saturate(1.12) contrast(1.18);
+}
+
+.shell[data-reduced-motion="true"] :global(*) {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 @media (max-width: 799px) and (orientation: portrait) {
   .shell {
     flex-direction: column;

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { MetalPanel } from "@/components/ui/MetalPanel";
+import { ActionRail, StatusBadge } from "./CampaignDossier";
 import { RASTER_ART } from "@/lib/gen/visualAssets";
 import {
   cachedLocalStorage,
@@ -109,7 +110,9 @@ export function CampaignArchiveScreen() {
             <div className={styles.archiveHeader}>
               <ConsoleLabel as="h2">Save slots</ConsoleLabel>
               <div className={styles.archiveControls}>
-                <span className={styles.archiveStatus}>{entries.length ? "READY TO RESUME" : "ARCHIVE EMPTY"}</span>
+                <StatusBadge className={styles.archiveStatus} tone={entries.length ? "success" : "muted"}>
+                  {entries.length ? "Ready to resume" : "Archive empty"}
+                </StatusBadge>
               </div>
             </div>
             <SaveSlotList
@@ -143,11 +146,11 @@ export function CampaignArchiveScreen() {
               </div>
             ) : null}
 
-            <div className={styles.actions}>
+            <ActionRail className={styles.actions}>
               <ConsoleButton muted onClick={() => router.push("/")} tooltip="Return to the main menu" shortcut="Esc">
                 Return to menu
               </ConsoleButton>
-            </div>
+            </ActionRail>
           </MetalPanel>
         </div>
 

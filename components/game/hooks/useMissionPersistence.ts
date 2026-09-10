@@ -46,6 +46,7 @@ export type MissionPersistenceParams = {
   terminalSaveRef: MutableRefObject<boolean>;
   saveSession: SaveSession;
   tutorial?: boolean;
+  suppressImplicitSavesRef?: MutableRefObject<() => void>;
 };
 
 export function useMissionPersistence({
@@ -67,6 +68,7 @@ export function useMissionPersistence({
   terminalSaveRef,
   saveSession,
   tutorial = false,
+  suppressImplicitSavesRef,
 }: MissionPersistenceParams) {
   const router = useRouter();
 
@@ -167,6 +169,7 @@ export function useMissionPersistence({
         applyLoadedState(loaded, "Loaded the autosave.");
         return;
       }
+      suppressImplicitSavesRef?.current();
       router.push(`/play?seed=${formatSeed(loaded.seed)}&mission=${loaded.missionIndex}&resume=1`);
       return;
     }
@@ -185,8 +188,9 @@ export function useMissionPersistence({
       applyLoadedState(slot.state, `Loaded “${slot.name}”.`);
       return;
     }
+    suppressImplicitSavesRef?.current();
     router.push(`/play?seed=${formatSeed(slot.state.seed)}&mission=${slot.state.missionIndex}&resume=1`);
-  }, [applyLoadedState, router, seed, setPauseNotice, stateRef, tutorial]);
+  }, [applyLoadedState, router, seed, setPauseNotice, stateRef, suppressImplicitSavesRef, tutorial]);
 
   const restartMissionNow = useCallback(() => {
     const world = stateRef.current;

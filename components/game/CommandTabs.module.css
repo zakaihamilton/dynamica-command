@@ -13,7 +13,13 @@
   min-height: 2.5rem;
   align-items: center;
   justify-content: center;
-  padding: 0.45rem;
+  padding: 0.35rem 0.28rem;
+}
+
+.tabContent {
+  display: grid;
+  width: 100%;
+  place-items: center;
 }
 
 .tab[aria-selected="true"],

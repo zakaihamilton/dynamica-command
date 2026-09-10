@@ -37,6 +37,7 @@ export function useGameRenderer({
   place,
   repair,
   sell,
+  reducedMotionOverride = false,
 }: {
   stateRef: RefObject<SimState | null>;
   hostRef: RefObject<HTMLDivElement | null>;
@@ -52,8 +53,10 @@ export function useGameRenderer({
   place: MutableRefObject<BuildingKind | null>;
   repair: MutableRefObject<boolean>;
   sell: MutableRefObject<boolean>;
+  reducedMotionOverride?: boolean;
 }) {
-  const reducedMotion = useSyncExternalStore(subscribeReducedMotion, reducedMotionSnapshot, () => false);
+  const systemReducedMotion = useSyncExternalStore(subscribeReducedMotion, reducedMotionSnapshot, () => false);
+  const reducedMotion = systemReducedMotion || reducedMotionOverride;
   const extrasRef = useRef<RenderExtras>({
     cursor: null,
     placeKind: null,

@@ -6,6 +6,61 @@ export const TELEMETRY_KEY = "shiftingfront:telemetry";
 export const TELEMETRY_VERSION = 1 as const;
 export const TELEMETRY_MAX_RECORDS = 128;
 
+export type MissionUxTelemetry = {
+  briefingSkipped: boolean;
+  controlsOpened: number;
+  tutorialCompleted: boolean;
+  tutorialExited: boolean;
+  mobilePanelOpened: number;
+  objectivePanelToggles: number;
+  firstSelectionTick?: number;
+  firstOrderTick?: number;
+  firstBuildTick?: number;
+  firstProductionTick?: number;
+  commandFeedbackCount: number;
+  commandRejectionsByReason: Record<string, number>;
+};
+
+export function createMissionUxTelemetry(): MissionUxTelemetry {
+  return {
+    briefingSkipped: false,
+    controlsOpened: 0,
+    tutorialCompleted: false,
+    tutorialExited: false,
+    mobilePanelOpened: 0,
+    objectivePanelToggles: 0,
+    commandFeedbackCount: 0,
+    commandRejectionsByReason: {},
+  };
+}
+
+/**
+ * Keeps UI-side validation messages and simulation rejection events in one
+ * stable, aggregate-friendly namespace without storing player-entered text.
+ */
+export function canonicalCommandRejectionReason(reason: string): string {
+  const value = reason.trim().toLowerCase();
+  if (value.includes("building limit") || value.includes("limited to one")) return "building limit reached";
+  if (value.includes("invalid building")) return "invalid building";
+  if (value.includes("invalid placement") || value.includes("build site")) return "invalid placement";
+  if (value.includes("construction yard")) return "construction yard unavailable";
+  if (value.includes("insufficient credits") || value.includes("more credits")) return "insufficient credits";
+  if (value.includes("attack target") || value.includes("enemy target")) return "invalid attack target";
+  if (value.includes("support target")) return "invalid support target";
+  if (value.includes("eligible support")) return "no eligible support unit";
+  if (value.includes("eligible units") || value.includes("friendly unit") || value.includes("combat unit")) return "no eligible unit";
+  if (value.includes("friendly building")) return "invalid building target";
+  if (value.includes("training step")) return "training step";
+  if (value.includes("unit unavailable") || value.includes("advance the campaign")) return "unit unavailable";
+  if (value.includes("wrong producer")) return "wrong producer";
+  if (value.includes("production slot") || value.includes("producer unavailable")) return "producer unavailable";
+  if (value.includes("queue full")) return "production queue full";
+  if (value.includes("power shortage") || value.includes("restore power")) return "power shortage";
+  if (value.includes("ore field") || value.includes("harvesting")) return "invalid harvest target";
+  if (value.includes("destination") || value.includes("ground") || value.includes("walked")) return "invalid destination";
+  return value.replace(/\s+/g, "_") || "unknown command rejection";
+}
+
 export type MissionTelemetry = {
   missionIndex: number;
   missionKind: MissionKind | "unknown";
@@ -27,6 +82,7 @@ export type MissionTelemetry = {
   assaultTransitions: number;
   secondaryObjectivesCompleted: number;
   secondaryObjectivesTotal: number;
+  ux?: MissionUxTelemetry;
   recordedAt: number;
 };
 
@@ -37,6 +93,33 @@ type TelemetryEnvelope = {
 
 function finiteInteger(value: unknown, min = 0): value is number {
   return typeof value === "number" && Number.isInteger(value) && Number.isFinite(value) && value >= min;
+}
+
+function normalizeUx(value: unknown): MissionUxTelemetry {
+  const base = createMissionUxTelemetry();
+  if (!isRecord(value)) return base;
+  const count = (candidate: unknown) => finiteInteger(candidate) ? candidate : 0;
+  const tick = (candidate: unknown) => finiteInteger(candidate) ? candidate : undefined;
+  const reasons: Record<string, number> = {};
+  if (isRecord(value.commandRejectionsByReason)) {
+    for (const [reason, amount] of Object.entries(value.commandRejectionsByReason)) {
+      if (finiteInteger(amount)) reasons[reason] = amount;
+    }
+  }
+  return {
+    briefingSkipped: value.briefingSkipped === true,
+    controlsOpened: count(value.controlsOpened),
+    tutorialCompleted: value.tutorialCompleted === true,
+    tutorialExited: value.tutorialExited === true,
+    mobilePanelOpened: count(value.mobilePanelOpened),
+    objectivePanelToggles: count(value.objectivePanelToggles),
+    firstSelectionTick: tick(value.firstSelectionTick),
+    firstOrderTick: tick(value.firstOrderTick),
+    firstBuildTick: tick(value.firstBuildTick),
+    firstProductionTick: tick(value.firstProductionTick),
+    commandFeedbackCount: count(value.commandFeedbackCount),
+    commandRejectionsByReason: reasons,
+  };
 }
 
 function normalizeRecord(value: unknown): MissionTelemetry | null {
@@ -71,6 +154,7 @@ function normalizeRecord(value: unknown): MissionTelemetry | null {
     assaultTransitions: numberOrZero(value.assaultTransitions),
     secondaryObjectivesCompleted: numberOrZero(value.secondaryObjectivesCompleted),
     secondaryObjectivesTotal: numberOrZero(value.secondaryObjectivesTotal),
+    ux: normalizeUx(value.ux),
     recordedAt: numberOrZero(value.recordedAt),
   };
 }
@@ -134,7 +218,7 @@ export function telemetryFromMission(
     | "hqHealthAtEnd"
     | "primaryCompletedTick"
     | "assaultTransitions"
-  > = { commandsIssued: 0, commandRejections: 0, assaultTransitions: 0 },
+  > & { ux?: MissionUxTelemetry } = { commandsIssued: 0, commandRejections: 0, assaultTransitions: 0 },
 ): MissionTelemetry {
   const secondary = state.runtime?.secondary ?? [];
   const deadlineOutcome = state.result === "lost" && state.lossReason === "deadline"
@@ -161,6 +245,7 @@ export function telemetryFromMission(
     assaultTransitions: stats.assaultTransitions,
     secondaryObjectivesCompleted: secondary.filter((objective) => objective.completed === true).length,
     secondaryObjectivesTotal: secondary.length,
+    ux: stats.ux ?? createMissionUxTelemetry(),
     recordedAt: Date.now(),
   };
 }

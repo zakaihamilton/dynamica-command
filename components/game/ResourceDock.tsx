@@ -21,6 +21,10 @@ export function ResourceDock({
       </div>
       <div className={styles.host} data-tooltip={powerTip}>
         <PowerMeter produced={produced} used={used} />
+        <div className={styles.powerTotals} aria-label={`Power used ${used} of ${produced}`}>
+          <span>Grid load</span>
+          <strong>{used}<small> / {produced}</small></strong>
+        </div>
       </div>
     </div>
   );

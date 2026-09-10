@@ -36,6 +36,8 @@ export function PauseMenu({
   onToggleSound,
   onToggleMusic,
   onToggleTacticalRoster,
+  onToggleReducedMotion,
+  onToggleHighContrast,
   onVolumeChange,
   telemetryRecordCount,
   onExportTelemetry,
@@ -63,6 +65,8 @@ export function PauseMenu({
   onToggleSound: () => void;
   onToggleMusic: () => void;
   onToggleTacticalRoster?: () => void;
+  onToggleReducedMotion?: () => void;
+  onToggleHighContrast?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   telemetryRecordCount?: number;
   onExportTelemetry?: () => boolean;
@@ -114,6 +118,8 @@ export function PauseMenu({
             onToggleSound={onToggleSound}
             onToggleMusic={onToggleMusic}
             onToggleTacticalRoster={onToggleTacticalRoster}
+            onToggleReducedMotion={onToggleReducedMotion}
+            onToggleHighContrast={onToggleHighContrast}
             onVolumeChange={onVolumeChange}
             telemetryRecordCount={telemetryRecordCount}
             onExportTelemetry={onExportTelemetry}

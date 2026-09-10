@@ -121,18 +121,74 @@
   box-sizing: border-box;
   width: min(100%, 52rem);
   overflow: visible;
+  border-radius: var(--chrome-radius-lg);
   padding: clamp(1rem, 3vw, 2rem);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--chrome-raised) 24%, transparent), transparent 22%),
+    linear-gradient(145deg, rgba(40, 54, 66, 0.82), rgba(8, 13, 20, 0.96)),
+    var(--texture-brushed) center / 420px 420px;
+  box-shadow:
+    inset 1px 1px color-mix(in srgb, var(--chrome-bevel) 68%, transparent),
+    inset -1px -1px var(--chrome-void),
+    0 24px 70px rgba(0, 0, 0, 0.5),
+    0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 12%, transparent);
+}
+
+.panel::before {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(8, 13, 20, 0.96), rgba(8, 13, 20, 0.82) 48%, rgba(8, 13, 20, 0.38)),
+    linear-gradient(180deg, rgba(8, 13, 20, 0.08), rgba(8, 13, 20, 0.86) 92%),
+    var(--scene-art) right center / cover no-repeat;
+  content: "";
+  opacity: 0.58;
+}
+
+.panel::after {
+  pointer-events: none;
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  background: linear-gradient(90deg, var(--chrome-cyan-dim), var(--chrome-cyan), transparent 78%);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--chrome-cyan) 24%, transparent);
+  content: "";
+}
+
+.panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .header {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 0.8rem;
+  border-bottom: 0;
   text-align: center;
+}
+
+.header::after {
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--chrome-cyan), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--chrome-cyan) 25%, transparent);
+  content: "";
 }
 
 .title {
   margin: 0.45rem 0 0;
   color: var(--chrome-text);
   font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 3.6rem);
+  font-size: clamp(2.15rem, 5vw, 3.8rem);
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 0.95;
@@ -142,7 +198,7 @@
 .subtitle {
   margin: 0.55rem 0 0;
   color: var(--chrome-cyan);
-  font-size: clamp(0.75rem, 1.7vw, 1rem);
+  font-size: clamp(0.82rem, 1.7vw, 1.05rem);
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -151,8 +207,8 @@
   max-width: 34rem;
   margin: 0.75rem auto 0;
   color: var(--chrome-body);
-  font-size: 0.75rem;
-  line-height: 1.5;
+  font-size: 0.84rem;
+  line-height: 1.55;
 }
 
 .archiveHeader {
@@ -161,8 +217,12 @@
   justify-content: space-between;
   gap: 1rem;
   margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--chrome-line);
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--chrome-radius);
+  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 28%, var(--chrome-line));
+  border-left: 3px solid var(--chrome-cyan);
+  background: linear-gradient(105deg, rgba(24, 54, 63, 0.68), rgba(8, 14, 21, 0.46));
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.025), inset -1px -1px var(--chrome-inset);
 }
 
 .archiveHeader h2 {
@@ -173,10 +233,18 @@
 .archiveStatus {
   color: var(--chrome-cyan);
   font-family: var(--font-mono);
-  font-size: 0.52rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-align: right;
+}
+
+.archiveStatus[data-tone="success"] {
+  color: var(--chrome-success);
+}
+
+.archiveStatus[data-tone="muted"] {
+  color: var(--chrome-muted);
 }
 
 .archiveControls {
@@ -222,11 +290,13 @@
   align-items: center;
   gap: 0.5rem;
   margin-top: 0.85rem;
-  padding: 0.65rem;
+  padding: 0.75rem;
+  border-radius: var(--chrome-radius);
   border: 1px solid color-mix(in srgb, var(--chrome-alert) 55%, var(--chrome-inset));
-  background: color-mix(in srgb, var(--chrome-alert) 10%, var(--chrome-void));
+  border-left: 3px solid var(--chrome-alert);
+  background: linear-gradient(105deg, color-mix(in srgb, var(--chrome-alert) 16%, var(--chrome-void)), rgba(8, 14, 21, 0.72));
   color: var(--chrome-warning);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
 }
 
 .actions {
@@ -235,7 +305,7 @@
   gap: 0.5rem;
   margin-top: 1.25rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--chrome-line);
+  border-top: 0;
 }
 
 .footer {

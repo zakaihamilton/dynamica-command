@@ -1,6 +1,12 @@
-import type { PointerEventHandler, Ref } from "react";
+import type { CSSProperties, PointerEventHandler, Ref } from "react";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import styles from "./MinimapFrame.module.css";
+
+export type MinimapPing = {
+  kind: "urgent" | "objective";
+  x: number;
+  y: number;
+};
 
 export function MinimapFrame({
   canvasRef,
@@ -8,12 +14,14 @@ export function MinimapFrame({
   onPointerMove,
   onPointerUp,
   isDragging,
+  ping,
 }: {
   canvasRef: Ref<HTMLCanvasElement>;
   onPointerDown: PointerEventHandler<HTMLCanvasElement>;
   onPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onPointerUp: PointerEventHandler<HTMLCanvasElement>;
   isDragging: boolean;
+  ping?: MinimapPing;
 }) {
   return (
     <div className={styles.host} data-tooltip="Minimap. Click or drag to look around. Press H to jump to your base." data-shortcut={SHORTCUT.home}>
@@ -35,6 +43,14 @@ export function MinimapFrame({
           onPointerCancel={onPointerUp}
         />
         <span className={styles.sweep} aria-hidden />
+        {ping ? (
+          <span
+            className={styles.ping}
+            data-kind={ping.kind}
+            style={{ "--ping-x": `${ping.x * 100}%`, "--ping-y": `${ping.y * 100}%` } as CSSProperties}
+            aria-label={ping.kind === "urgent" ? "Urgent alert location" : "Objective transition"}
+          />
+        ) : null}
       </div>
     </div>
   );

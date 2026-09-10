@@ -1,15 +1,18 @@
 import { TILE_H, tileToScreen, type Camera } from "../../iso";
-import { heightAt } from "../../sim/world";
-import type { SimState } from "../../types";
+import { UNIT_STATS } from "../../catalog";
+import { distToEntity, heightAt } from "../../sim/world";
+import { isUnitEntity, type SimState } from "../../types";
 import type { CommandMarker, CommandMarkerKind } from "./types";
 
-export const COMMAND_MARKER_DURATION_MS = 650;
+export const COMMAND_MARKER_INTRO_MS = 220;
+export const COMMAND_MARKER_INVALID_MS = 900;
 
 export const COMMAND_MARKER_COLORS: Record<CommandMarkerKind, { stroke: string; shadow: string; fill: string }> = {
   move: { stroke: "#8dffc8", shadow: "#43e69a", fill: "#d7ffe9" },
   attack: { stroke: "#ff7a6e", shadow: "#e04538", fill: "#ffd4ce" },
   harvest: { stroke: "#ffd07a", shadow: "#e0a040", fill: "#ffe9c4" },
   support: { stroke: "#7ad4ff", shadow: "#3aa0e0", fill: "#d4f2ff" },
+  invalid: { stroke: "#ffd34d", shadow: "#e09b18", fill: "#fff1a6" },
 };
 
 function ordersUnits(command: { type: string; unitIds?: number[] }): boolean {
@@ -25,6 +28,36 @@ export function commandMarkerKind(commands: { type: string; unitIds?: number[] }
   return null;
 }
 
+function unitHasReachedMarkerDestination(state: SimState, unitId: number, marker: CommandMarker): boolean {
+  const entity = state.entities.find((candidate) => candidate.id === unitId);
+  if (!entity || !isUnitEntity(entity) || entity.hp <= 0) return true;
+  const unit = entity;
+  if (unit.path.length || unit.routePending || unit.flowGoal) return false;
+
+  // Direct attacks resolve at weapon range rather than on the target's tile.
+  // Keep unreachable attacks marked until the target is destroyed or the
+  // issuing unit actually reaches its firing range.
+  if (marker.kind === "attack" && marker.mode === "attack") {
+    const target = marker.targetId === undefined
+      ? undefined
+      : state.entities.find((entity) => entity.id === marker.targetId);
+    if (!target || target.hp <= 0) return true;
+    return unit.attackTarget === target.id && distToEntity(unit, target) <= UNIT_STATS[unit.kind].range;
+  }
+
+  const destination = unit.orderDestination;
+  return Boolean(
+    unit.idle &&
+      (!destination ||
+        (Math.round(unit.x) === Math.round(destination.x) && Math.round(unit.y) === Math.round(destination.y))),
+  );
+}
+
+export function commandMarkerReachedDestination(state: SimState, marker: CommandMarker): boolean {
+  if (!marker.unitIds?.length || marker.kind === "invalid") return false;
+  return marker.unitIds.every((unitId) => unitHasReachedMarkerDestination(state, unitId, marker));
+}
+
 export function drawCommandMarker(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -34,16 +67,19 @@ export function drawCommandMarker(
   reducedMotion = false,
 ): void {
   if (!marker) return;
-  const progress = (nowMs - marker.bornMs) / COMMAND_MARKER_DURATION_MS;
-  if (progress < 0 || progress >= 1) return;
+  if (marker.expiresMs !== undefined && nowMs >= marker.expiresMs) return;
+  if (commandMarkerReachedDestination(state, marker)) return;
+  const progress = Math.max(0, Math.min(1, (nowMs - marker.bornMs) / COMMAND_MARKER_INTRO_MS));
+  if (nowMs < marker.bornMs) return;
 
   const z = cam.zoom;
   const s = tileToScreen(marker.x, marker.y, cam, heightAt(state, marker.x, marker.y));
   const groundY = s.y + (TILE_H / 2) * z;
-  const fade = 1 - progress;
-  const radius = (reducedMotion ? 15 : 8 + progress * 18) * z;
-  const colors = COMMAND_MARKER_COLORS[marker.kind ?? "move"];
+  const fade = 0.92;
   const kind = marker.kind ?? "move";
+  const pulse = reducedMotion ? 0 : kind === "invalid" ? Math.sin(nowMs / 180) * 3 : Math.sin(nowMs / 260) * 2;
+  const radius = (reducedMotion ? 15 : 12 + progress * 5 + pulse) * z;
+  const colors = COMMAND_MARKER_COLORS[marker.kind ?? "move"];
 
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
@@ -57,7 +93,7 @@ export function drawCommandMarker(
   ctx.stroke();
 
   if (!reducedMotion) {
-    ctx.globalAlpha = fade * 0.34;
+    ctx.globalAlpha = fade * 0.28;
     ctx.strokeStyle = colors.shadow;
     ctx.lineWidth = Math.max(1, z);
     ctx.beginPath();
@@ -91,11 +127,24 @@ export function drawCommandMarker(
   ctx.strokeStyle = colors.stroke;
   ctx.lineWidth = Math.max(1.5, 2 * z);
   ctx.beginPath();
-  if (kind === "attack") {
-    ctx.moveTo(s.x - 4 * z, groundY - 4 * z);
-    ctx.lineTo(s.x + 4 * z, groundY + 4 * z);
-    ctx.moveTo(s.x + 4 * z, groundY - 4 * z);
-    ctx.lineTo(s.x - 4 * z, groundY + 4 * z);
+  if (kind === "invalid") {
+    ctx.moveTo(s.x - 5 * z, groundY - 5 * z);
+    ctx.lineTo(s.x + 5 * z, groundY + 5 * z);
+    ctx.moveTo(s.x + 5 * z, groundY - 5 * z);
+    ctx.lineTo(s.x - 5 * z, groundY + 5 * z);
+  } else if (kind === "attack") {
+    if (marker.mode === "attackMove") {
+      ctx.moveTo(s.x - 6 * z, groundY + 4 * z);
+      ctx.lineTo(s.x + 6 * z, groundY - 4 * z);
+      ctx.lineTo(s.x + 3 * z, groundY - 4 * z);
+      ctx.moveTo(s.x + 6 * z, groundY - 4 * z);
+      ctx.lineTo(s.x + 6 * z, groundY - 7 * z);
+    } else {
+      ctx.moveTo(s.x - 4 * z, groundY - 4 * z);
+      ctx.lineTo(s.x + 4 * z, groundY + 4 * z);
+      ctx.moveTo(s.x + 4 * z, groundY - 4 * z);
+      ctx.lineTo(s.x - 4 * z, groundY + 4 * z);
+    }
   } else if (kind === "harvest") {
     ctx.moveTo(s.x - 5 * z, groundY + 2 * z);
     ctx.lineTo(s.x, groundY - 5 * z);

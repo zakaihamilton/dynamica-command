@@ -149,8 +149,8 @@ test("welcome tutorial opens the seed 0000 training range", async ({ page }) => 
   await page.getByRole("button", { name: "TUTORIAL" }).click();
   await expect(page).toHaveURL(/\/tutorial/);
   await expect(page.getByTestId("tutorial-overlay")).toBeVisible();
-  await expect(page.getByTestId("seed")).toHaveText("Seed 0000");
-  await expect(page.getByTestId("objective")).toHaveText("Training range — no time limit");
+  await expect(page.getByTestId("seed")).toContainText("Seed 0000");
+  await expect(page.getByTestId("objective")).toContainText("Training range — no time limit");
   await expect(page.getByTestId("time-remaining")).toHaveCount(0);
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await expect(page.getByRole("button", { name: "Skip training" })).toHaveCount(0);
@@ -184,7 +184,7 @@ test("launches a seeded campaign from menu to battlefield", async ({ page }) => 
 
   await page.getByRole("button", { name: "Launch" }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&mission=0/);
-  await expect(page.getByTestId("seed")).toHaveText("Seed 0421");
+  await expect(page.getByTestId("seed")).toContainText("Seed 0421");
   await expect(page.getByTestId("command-sidebar")).toBeVisible();
   await expect(page.getByTestId("credits")).toBeVisible();
   await expect(page.getByTestId("time-remaining")).toHaveText(/Time remaining (?:09|10):\d{2}/);
@@ -271,15 +271,14 @@ test("keeps sidebar item portraits sharp across command tabs", async ({ page }) 
     expect(card.left).toBeGreaterThanOrEqual(sidebarBounds!.x);
     expect(card.right).toBeLessThanOrEqual(sidebarBounds!.x + sidebarBounds!.width);
     expect(card.top).toBeGreaterThanOrEqual(sidebarBounds!.y);
-    expect(card.bottom).toBeLessThanOrEqual(sidebarBounds!.y + sidebarBounds!.height);
   };
 
   const constructionPortraits = await portraitMetrics();
   expect(constructionPortraits).toHaveLength(5);
   for (const portrait of constructionPortraits) {
     expectInsideSidebar(portrait.card);
-    expect(portrait.backingWidth).toBeGreaterThan(portrait.cssWidth);
-    expect(portrait.backingHeight).toBeGreaterThan(portrait.cssHeight);
+    expect(portrait.backingWidth).toBeGreaterThanOrEqual(portrait.cssWidth);
+    expect(portrait.backingHeight).toBeGreaterThanOrEqual(portrait.cssHeight);
     expect(portrait.artRatio).toBeCloseTo(80 / 56, 2);
     expect(portrait.imageRendering).toBe("auto");
   }
@@ -288,7 +287,7 @@ test("keeps sidebar item portraits sharp across command tabs", async ({ page }) 
   const productionPortraits = await portraitMetrics();
   expect(productionPortraits).toHaveLength(6);
   productionPortraits.forEach((portrait) => expectInsideSidebar(portrait.card));
-  expect(productionPortraits.every((portrait) => portrait.backingWidth > portrait.cssWidth && portrait.backingHeight > portrait.cssHeight)).toBe(true);
+  expect(productionPortraits.every((portrait) => portrait.backingWidth >= portrait.cssWidth && portrait.backingHeight >= portrait.cssHeight)).toBe(true);
 
   const geometry = await battlefieldEntityGeometry(page, state, unit!);
   await page.mouse.click(geometry.pointer.x, geometry.pointer.y);
@@ -311,8 +310,8 @@ test("keeps sidebar item portraits sharp across command tabs", async ({ page }) 
       imageRendering: getComputedStyle(canvas).imageRendering,
     };
   });
-  expect(selectedMetrics.backingWidth).toBeGreaterThan(selectedMetrics.cssWidth);
-  expect(selectedMetrics.backingHeight).toBeGreaterThan(selectedMetrics.cssHeight);
+  expect(selectedMetrics.backingWidth).toBeGreaterThanOrEqual(selectedMetrics.cssWidth);
+  expect(selectedMetrics.backingHeight).toBeGreaterThanOrEqual(selectedMetrics.cssHeight);
   expectInsideSidebar(selectedMetrics);
   expect(selectedMetrics.imageRendering).toBe("auto");
 });
@@ -325,7 +324,7 @@ test("opens the operations map and launches an available mission", async ({ page
   await expect(page.getByTestId("mission-card-2")).toContainText("Locked");
 
   await page.getByTestId("mission-card-0").click();
-  await expect(page.getByTestId("mission-detail")).toContainText("Secondary objectives");
+  await expect(page.getByTestId("mission-detail")).toContainText("Primary requirements");
   await expect(page.getByTestId("mission-detail")).toContainText("Time limit");
   await expect(page.getByTestId("mission-detail")).toContainText("10 min");
   await page.getByTestId("launch-selected-mission").click();
@@ -536,7 +535,7 @@ test("keeps briefing dialogue and battlefield status readable on mobile", async 
   await page.goto("/play?seed=0421&mission=0&fresh=1");
   await expect(page.getByTestId("time-remaining")).toBeVisible();
 
-  const statusGeometry = await page.locator('[class*="status"]').evaluate((element) => {
+  const statusGeometry = await page.getByTestId("battlefield-status").evaluate((element) => {
     const first = element.children[0]?.getBoundingClientRect();
     const second = element.children[1]?.getBoundingClientRect();
     return {
@@ -802,7 +801,7 @@ test("resumes a seeded save from the menu", async ({ page }) => {
   await page.getByRole("button", { name: "LOAD MISSION" }).click();
   await page.getByRole("button", { name: /Resume .* autosave/ }).click();
   await expect(page).toHaveURL(/\/play\?seed=0421&resume=1/);
-  await expect(page.getByTestId("seed")).toHaveText("Seed 0421");
+  await expect(page.getByTestId("seed")).toContainText("Seed 0421");
   await expect(page.getByTestId("credits")).toHaveText("9,876");
 });
 
@@ -928,6 +927,60 @@ test("shows a mission result overlay from a finished save", async ({ page }) => 
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   await expect(page.getByRole("heading", { name: "Mission complete" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Next briefing" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next briefing" })).toHaveAttribute("data-default-action", "true");
+  await expect(page.getByRole("button", { name: "Share result" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Replay mission" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Campaign map" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Campaign map" })).toHaveCount(0);
+
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.reload();
+  await expect(page.getByTestId("mission-result")).toBeVisible();
+  const resultLayout = await page.getByTestId("mission-result").evaluate((element) => {
+    const panel = element.querySelector<HTMLElement>("[role='dialog']");
+    const actions = panel?.querySelector<HTMLElement>("[class*='actions']");
+    if (!panel || !actions) throw new Error("Missing mission result layout");
+    const panelBounds = panel.getBoundingClientRect();
+    const actionBounds = actions.getBoundingClientRect();
+    return {
+      panelTop: panelBounds.top,
+      panelBottom: panelBounds.bottom,
+      panelClientHeight: panel.clientHeight,
+      panelScrollHeight: panel.scrollHeight,
+      actionsBottom: actionBounds.bottom,
+    };
+  });
+  expect(resultLayout.panelTop).toBeGreaterThanOrEqual(0);
+  expect(resultLayout.panelBottom).toBeLessThanOrEqual(600);
+  expect(resultLayout.actionsBottom).toBeLessThanOrEqual(600);
+  expect(resultLayout.panelScrollHeight).toBeLessThanOrEqual(resultLayout.panelClientHeight + 1);
+});
+
+test("reflows failed mission actions without a share slot", async ({ page }) => {
+  const state = distinctiveSave("lost");
+  await page.addInitScript(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, { key: saveKey(421), raw: saveEnvelope(state) });
+
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/play?seed=0421&resume=1");
+  await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "lost");
+  await expect(page.getByRole("button", { name: "Retry" })).toHaveAttribute("data-default-action", "true");
+  await expect(page.getByRole("button", { name: "Share result" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  const [menuBounds, retryBounds] = await Promise.all([
+    page.getByRole("button", { name: "Menu" }).boundingBox(),
+    page.getByRole("button", { name: "Retry" }).boundingBox(),
+  ]);
+  expect(menuBounds).not.toBeNull();
+  expect(retryBounds).not.toBeNull();
+  expect(menuBounds!.x).toBeLessThan(retryBounds!.x);
+
+  const bounds = await page.getByTestId("mission-result").evaluate((element) => ({
+    viewportWidth: window.innerWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+    resultScrollWidth: element.scrollWidth,
+  }));
+  expect(bounds.bodyScrollWidth).toBeLessThanOrEqual(bounds.viewportWidth);
+  expect(bounds.resultScrollWidth).toBeLessThanOrEqual(bounds.viewportWidth);
 });

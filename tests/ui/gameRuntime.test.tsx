@@ -285,6 +285,26 @@ describe("useGameRuntime", () => {
     expect(readSave(localStorageAdapter(), 421)?.tick).toBe(120);
   });
 
+  it("does not overwrite a checkpoint when loading another mission triggers pagehide", () => {
+    const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
+    const checkpoint = { ...makeFixture({ seed: 421, win: { kind: "annihilate" } }), missionIndex: 1, tick: 88 };
+    const written = writeSlot(localStorageAdapter(), {
+      name: "Earlier mission",
+      state: checkpoint,
+      campaign: freshCampaignProgress(421),
+    });
+    expect(written.ok).toBe(true);
+    if (!written.ok) return;
+
+    const entry = result.current.session.listLoadEntries().find((candidate) => candidate.kind === "slot" && candidate.id === written.id);
+    expect(entry).toBeDefined();
+    act(() => result.current.session.loadArchiveEntry(entry!));
+
+    act(() => window.dispatchEvent(new Event("pagehide")));
+
+    expect(readSave(localStorageAdapter(), 421)).toMatchObject({ missionIndex: 1, tick: 88 });
+  });
+
   it("does not replace a newer same-seed save during unload", () => {
     const { result } = renderHook(() => useGameRuntime({ seed: 421, mission: 0, resume: false, tutorial: false }));
     const loopOptions = (startLoop.mock.calls as unknown[][])[0]?.[0] as { setState: (state: typeof result.current.state) => void };

@@ -21,7 +21,15 @@ export type SecondaryProgress = {
   id: string;
   label: string;
   completed: boolean;
+  failed: boolean;
 };
+
+export type ObjectivePriority = "primary" | "optional";
+
+/** Presentation classification for legacy secondary-objective records. */
+export function objectivePriorityFor(id: string): ObjectivePriority {
+  return id === "yard" || id === "time" || id === "target" || id === "scenario-target" ? "primary" : "optional";
+}
 
 function timeRemainingTicks(state: SimState): number | undefined {
   if (state.runtime) {
@@ -47,11 +55,24 @@ function deadlineWarningEvent(state: SimState): SimEvent | undefined {
 }
 
 export function secondaryProgress(state: SimState): SecondaryProgress[] {
-  return (state.runtime?.secondary ?? []).map((objective) => ({
-    id: objective.id,
-    label: objective.label,
-    completed: objective.completed === true,
-  }));
+  return (state.runtime?.secondary ?? []).map((objective) => {
+    // A time secondary is tracked as "on pace" in the runtime while a mission
+    // is active, but it is only a completed result when the primary operation
+    // also wins. Otherwise a failed mission could report that it completed its
+    // operation within the limit simply because the player lost early.
+    const completed = objective.completed === true && (
+      objective.kind !== "completeBefore" || state.result === "won"
+    );
+    return {
+      id: objective.id,
+      label: objective.label,
+      completed,
+      failed: !completed && (
+        state.result === "lost"
+        || (objective.kind === "completeBefore" && objective.target !== undefined && state.tick >= objective.target)
+      ),
+    };
+  });
 }
 
 export function objectiveProgress(state: SimState): ObjectiveProgress {

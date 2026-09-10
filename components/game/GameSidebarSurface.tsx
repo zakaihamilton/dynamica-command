@@ -1,7 +1,9 @@
 import type { PointerEventHandler, Ref } from "react";
 import type { Entity, FactionVisualProfile, Palette, SimState } from "@/lib/types";
 import type { CommandTab } from "@/lib/ui/shortcuts";
+import type { MobileCommand } from "./mobileCommandTypes";
 import { CommandSidebar } from "./CommandSidebar";
+import type { MinimapPing } from "./MinimapFrame";
 import type { GameActions } from "./hooks/useGameActions";
 import type { GameCamera } from "./hooks/useGameCamera";
 import type { GameSession } from "./hooks/useGameSession";
@@ -26,6 +28,11 @@ export function GameSidebarSurface({
   onTab,
   actions,
   mobilePanelOpen,
+  selectionCount,
+  selectionMode,
+  activeMobileCommand,
+  onSelectionMode,
+  minimapPing,
 }: {
   factionName: string;
   state: SimState;
@@ -46,6 +53,11 @@ export function GameSidebarSurface({
   onTab: (tab: CommandTab) => void;
   actions: GameActions;
   mobilePanelOpen: boolean;
+  selectionCount: number;
+  selectionMode: boolean;
+  activeMobileCommand: MobileCommand | null;
+  onSelectionMode: (active: boolean) => void;
+  minimapPing?: MinimapPing;
 }) {
   const onMinimapPointerDown: PointerEventHandler<HTMLCanvasElement> = camera.onMinimapPointerDown;
   const onMinimapPointerMove: PointerEventHandler<HTMLCanvasElement> = camera.onMinimapPointerMove;
@@ -75,6 +87,7 @@ export function GameSidebarSurface({
       onMinimapPointerMove={onMinimapPointerMove}
       onMinimapPointerUp={onMinimapPointerUp}
       isMinimapDragging={camera.isMinimapDragging}
+      minimapPing={minimapPing}
       mobilePanelOpen={mobilePanelOpen}
       onTab={onTab}
       onRepair={actions.toggleRepair}
@@ -86,6 +99,11 @@ export function GameSidebarSurface({
       onStop={() => actions.issueSelectedCommand("stop")}
       onStance={(stance) => actions.issueSelectedCommand("stance", stance)}
       onFormation={(formation) => actions.issueSelectedCommand("formation", formation)}
+      selectionCount={selectionCount}
+      selectionMode={selectionMode}
+      activeMobileCommand={activeMobileCommand}
+      onMobileCommand={actions.chooseMobileCommand}
+      onSelectionMode={onSelectionMode}
     />
   );
 }

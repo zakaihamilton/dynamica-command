@@ -6,6 +6,7 @@ import { canvasPointerPos } from "./canvasPointer";
 import type { SelectionBox } from "./selectionBox";
 import type { PointerUpEffect } from "./gamePointerUp";
 import { createRuntimeCommandPort, type RuntimeCommandPort } from "./runtime/facade";
+import type { MissionUxTelemetry } from "@/lib/persist/telemetry";
 
 export function usePointerUpHandler({
   stateRef,
@@ -23,7 +24,11 @@ export function usePointerUpHandler({
   sellRef,
   setSellMode,
   markUnitCommand,
+  markInvalidCommand,
   syncCursor,
+  onCommandNotice,
+  onCommandRejection,
+  uxRef,
 }: {
   stateRef: MutableRefObject<SimState>;
   commandPort?: RuntimeCommandPort;
@@ -41,7 +46,11 @@ export function usePointerUpHandler({
   sellRef: MutableRefObject<boolean>;
   setSellMode: (v: boolean) => void;
   markUnitCommand: (s: SimState, p: { x: number; y: number }, commands: Command[]) => void;
+  markInvalidCommand: (s: SimState, p: { x: number; y: number }) => void;
   syncCursor: (canvas?: HTMLCanvasElement | null) => void;
+  onCommandNotice?: (text: string, kind?: "success" | "info" | "warning" | "error") => void;
+  onCommandRejection?: (reason: string) => void;
+  uxRef?: MutableRefObject<MissionUxTelemetry>;
 }) {
   const resolvedCommandPort = useMemo(() => {
     if (commandPort) return commandPort;
@@ -54,6 +63,18 @@ export function usePointerUpHandler({
     if (effect.commands?.length) {
       resolvedCommandPort.enqueueMany(effect.commands);
       markUnitCommand(stateRef.current, canvasPointerPos(event), effect.commands);
+      if (uxRef && effect.commands.some((command) => command.type === "build") && uxRef.current.firstBuildTick === undefined) {
+        uxRef.current.firstBuildTick = stateRef.current.tick;
+      }
+      if (uxRef && effect.commands.some((command) => ("unitIds" in command && command.unitIds.length > 0)) && uxRef.current.firstOrderTick === undefined) {
+        uxRef.current.firstOrderTick = stateRef.current.tick;
+      }
+    }
+    if (effect.commandNotice) {
+      const isBuildPlacement = effect.commands?.some((command) => command.type === "build") ?? false;
+      if (effect.commandNotice.kind === "error" && !isBuildPlacement) markInvalidCommand(stateRef.current, canvasPointerPos(event));
+      if (effect.commandNotice.kind === "error" && !effect.commands?.length) onCommandRejection?.(effect.commandNotice.text);
+      onCommandNotice?.(effect.commandNotice.text, effect.commandNotice.kind);
     }
     if (effect.select) commitSelection(effect.select);
     if (effect.endSelectionMode) setSelectionMode(false);
@@ -78,7 +99,10 @@ export function usePointerUpHandler({
     resolvedCommandPort,
     commitSelection,
     markUnitCommand,
+    markInvalidCommand,
     mobileCommandRef,
+    onCommandNotice,
+    onCommandRejection,
     placeRef,
     repairRef,
     sellRef,
@@ -89,6 +113,7 @@ export function usePointerUpHandler({
     setSellMode,
     stateRef,
     syncCursor,
+    uxRef,
   ]);
 
   return { applyPointerUp };

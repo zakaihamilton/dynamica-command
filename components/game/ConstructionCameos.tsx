@@ -34,6 +34,11 @@ export function ConstructionCameos({
             cost={BUILDING_STATS[kind].cost}
             disabled={disabledReason !== undefined}
             disabledReason={disabledReason}
+            detail={BUILDING_STATS[kind].power === 0
+              ? "No grid load"
+              : BUILDING_STATS[kind].power > 0
+                ? `Produces +${BUILDING_STATS[kind].power} power`
+                : `Uses ${Math.abs(BUILDING_STATS[kind].power)} power`}
             active={placeKind === kind}
             cameo={cameo}
             shortcut={SHORTCUT.cameo[index]}

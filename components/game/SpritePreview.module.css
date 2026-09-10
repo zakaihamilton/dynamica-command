@@ -1,6 +1,8 @@
 .canvas {
   display: block;
   width: 100%;
+  max-width: 160px;
+  margin-inline: auto;
   height: auto;
   aspect-ratio: 80 / 56;
   object-fit: contain;

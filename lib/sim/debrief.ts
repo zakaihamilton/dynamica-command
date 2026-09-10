@@ -3,7 +3,7 @@ import { formatMissionMinutesFromTicks, MAX_MISSION_TICKS } from "../gen/pacing"
 import { profileContractFor, resolveMissionProfile } from "../gen/profile";
 import { objectiveHeadline } from "../gen/story";
 import type { LossReason, MissionKind, Owner, SimState } from "../types";
-import { objectiveProgress, secondaryProgress } from "./objectives";
+import { objectivePriorityFor, objectiveProgress, secondaryProgress } from "./objectives";
 import { livingView } from "./world";
 
 export type ForceDebrief = {
@@ -20,6 +20,24 @@ function forceDebrief(state: SimState, owner: Owner): ForceDebrief {
     buildingsRemaining: active.filter((entity) => entity.class === "building").length,
     unitsLost: state.losses.units[owner],
     buildingsLost: state.losses.buildings[owner],
+  };
+}
+
+function scenarioTargetObjective(state: SimState, won: boolean) {
+  const runtime = state.runtime;
+  if (!runtime || runtime.targetIds.length === 0) return undefined;
+  const labels: Partial<Record<MissionKind, string>> = {
+    escort: "Convoy reaches extraction",
+    rescue: "Stranded units return to Command HQ",
+    extraction: "Cargo reaches extraction",
+  };
+  const label = labels[runtime.kind];
+  if (!label) return undefined;
+  return {
+    id: "scenario-target",
+    label,
+    completed: won,
+    failed: state.lossReason === "objectiveTargetLost",
   };
 }
 
@@ -78,8 +96,17 @@ export function missionDebrief(state: SimState) {
   const objective = objectiveProgress(state);
   const won = state.result === "won";
   const profile = profileContractFor(resolveMissionProfile(state.seed, state.missionIndex, state.win.kind));
+  const secondary = secondaryProgress(state);
+  const targetObjective = scenarioTargetObjective(state, won);
+  const primaryObjectives = [
+    ...secondary.filter((item) => objectivePriorityFor(item.id) === "primary"),
+    ...(targetObjective ? [targetObjective] : []),
+  ];
+  const optionalObjectives = secondary.filter((item) => objectivePriorityFor(item.id) === "optional");
   return {
+    status: won ? "won" as const : "lost" as const,
     outcome: won ? "Primary objective achieved." : missionLossMessage(state),
+    retryGuidance: won ? undefined : retryGuidance(state),
     objective: {
       headline: objectiveHeadline(state.win),
       progress: objective.label,
@@ -89,7 +116,12 @@ export function missionDebrief(state: SimState) {
       emphasis: profile.emphasis,
       completed: won,
     },
-    secondary: secondaryProgress(state),
+    // Keep `secondary` for existing callers and share-card compatibility. The
+    // grouped fields are presentation-only and make required conditions
+    // impossible to mislabel as optional in result surfaces.
+    secondary,
+    primaryObjectives,
+    optionalObjectives,
     battle: {
       duration: formatMissionDuration(state.tick),
       creditsGathered: state.creditsEarned[0],
@@ -103,6 +135,13 @@ export function missionDebrief(state: SimState) {
       enemy: forceDebrief(state, 1),
     },
   };
+}
+
+function retryGuidance(state: SimState): string {
+  if (state.lossReason === "deadline") return "Open with power and a refinery. Keep the timer visible and move before the final minute.";
+  if (state.lossReason === "objectiveTargetLost") return "Protect the target first. Escort the route and keep support units behind the front line.";
+  if (state.lossReason === "yardDestroyed") return "Rebuild the screen around Command HQ. Repair damaged structures before pushing again.";
+  return "Secure the opening economy, then issue focused orders from the Selected tab.";
 }
 
 export type MissionDebrief = ReturnType<typeof missionDebrief>;

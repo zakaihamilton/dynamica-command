@@ -36,5 +36,17 @@ export function useAudioPreferences(
     writeSettings(cachedLocalStorage(), next);
   }, [setSettings, settings]);
 
-  return { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume };
+  const toggleReducedMotion = useCallback(() => {
+    const next = { ...settings, reducedMotion: !settings.reducedMotion };
+    setSettings(next);
+    writeSettings(cachedLocalStorage(), next);
+  }, [setSettings, settings]);
+
+  const toggleHighContrast = useCallback(() => {
+    const next = { ...settings, highContrast: !settings.highContrast };
+    setSettings(next);
+    writeSettings(cachedLocalStorage(), next);
+  }, [setSettings, settings]);
+
+  return { toggleSound, toggleMusic, toggleTacticalRoster, toggleReducedMotion, toggleHighContrast, updateVolume };
 }

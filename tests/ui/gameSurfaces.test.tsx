@@ -12,7 +12,10 @@ import type { GameActions } from "../../components/game/hooks/useGameActions";
 import type { GameCamera } from "../../components/game/hooks/useGameCamera";
 import type { GameSession } from "../../components/game/hooks/useGameSession";
 import { GameOverlays } from "../../components/game/GameOverlays";
+import { MissionResult } from "../../components/game/MissionResult";
 import { MissionResultActions } from "../../components/game/MissionResultActions";
+import { MissionOutcome } from "../../components/game/MissionResultSections";
+import { missionDebrief } from "../../lib/sim/debrief";
 
 vi.mock("../../components/game/MobileCommandLauncher", () => ({
   MobileCommandLauncher: ({ open }: { open: boolean }) => <div data-testid="surface-mobile-launcher" data-open={open ? "true" : "false"} />,
@@ -189,7 +192,6 @@ describe("game overlay surfaces", () => {
         state={state}
         onNextBriefing={vi.fn()}
         onCampaignVictory={vi.fn()}
-        onCampaignMap={vi.fn()}
         onRetry={onRetry}
         onMenu={vi.fn()}
       />,
@@ -197,6 +199,90 @@ describe("game overlay surfaces", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Replay mission" }));
     expect(onRetry).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Share result" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Next briefing" })).toHaveAttribute("data-default-action", "true");
+  });
+
+  it("uses retry as the default action and removes sharing after a failure", () => {
+    const state = { ...makeFixture({ seed: 421, win: { kind: "annihilate" } }), result: "lost" as const };
+
+    render(
+      <MissionResultActions
+        state={state}
+        onNextBriefing={vi.fn()}
+        onCampaignVictory={vi.fn()}
+        onRetry={vi.fn()}
+        onMenu={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Share result" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Retry" })).toHaveAttribute("data-default-action", "true");
+    expect(screen.queryByRole("button", { name: "Campaign map" })).toBeNull();
+  });
+
+  it("keeps result art and status semantics for win and loss states", () => {
+    const lost = { ...makeFixture({ seed: 421, win: { kind: "annihilate" } }), result: "lost" as const };
+    const callbacks = {
+      onNextBriefing: vi.fn(),
+      onCampaignVictory: vi.fn(),
+      onRetry: vi.fn(),
+      onMenu: vi.fn(),
+    };
+    const { rerender } = render(<MissionResult state={lost} {...callbacks} />);
+
+    const result = screen.getByTestId("mission-result");
+    expect(result).toHaveAttribute("data-result", "lost");
+    expect(result).toHaveStyle({ "--result-art": 'url("/art/results/defeat.webp")' });
+
+    const won = { ...lost, result: "won" as const };
+    rerender(<MissionResult state={won} {...callbacks} />);
+    expect(screen.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
+    expect(screen.getByTestId("mission-result")).toHaveStyle({ "--result-art": 'url("/art/results/victory.webp")' });
+  });
+
+  it("separates required mission conditions from bonus objectives", () => {
+    const state = makeFixture({ seed: 421, win: { kind: "rescue", targetCount: 1, ticks: 144 } });
+    state.result = "lost";
+    state.lossReason = "yardDestroyed";
+    state.runtime = {
+      kind: "rescue",
+      phase: "complete",
+      targetIds: [42],
+      deadline: 144,
+      rescued: 0,
+      required: 1,
+      secondary: [
+        { id: "yard", kind: "preserveYard", label: "Keep the Command HQ standing", completed: false },
+        { id: "time", kind: "completeBefore", label: "Complete the operation within 12 min", target: 144, completed: true },
+        { id: "survivors", kind: "keepUnits", label: "Keep at least one combat unit alive", completed: false },
+      ],
+    };
+
+    render(<MissionOutcome debrief={missionDebrief(state)} />);
+
+    expect(screen.getByTestId("required-objectives")).toHaveTextContent("Primary objectives");
+    expect(screen.getByTestId("required-objectives")).toHaveTextContent("Command HQ destroyed");
+    expect(screen.getByTestId("required-objectives")).toHaveTextContent("Operation not finished within 12 min");
+    expect(screen.getByTestId("required-objectives")).toHaveTextContent("Stranded units return to Command HQ");
+    expect(screen.getByTestId("optional-objectives")).toHaveTextContent("Bonus objectives");
+    expect(screen.getByTestId("optional-objectives")).toHaveTextContent("No combat unit survived");
+    expect(screen.queryByText("Secondary objectives")).toBeNull();
+
+    const profile = screen.getByTestId("profile-assessment");
+    const retry = screen.getByTestId("retry-guidance");
+    expect(profile).toHaveAttribute("open");
+    expect(retry).toHaveAttribute("open");
+
+    fireEvent.click(screen.getByText("Tactical profile"));
+    expect(profile).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Tactical profile"));
+    expect(profile).toHaveAttribute("open");
+
+    fireEvent.click(screen.getByText("Retry guidance"));
+    expect(retry).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Retry guidance"));
+    expect(retry).toHaveAttribute("open");
   });
 
   it("keeps command controls available during tutorial play", () => {

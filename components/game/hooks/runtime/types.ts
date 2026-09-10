@@ -1,5 +1,6 @@
 import type { MutableRefObject } from "react";
 import type { SaveSession, SaveWriteStatus } from "@/lib/persist/save";
+import type { MissionUxTelemetry } from "@/lib/persist/telemetry";
 import type { Camera } from "@/lib/iso";
 import type { FxBurst } from "@/lib/render/fx";
 import type { PanAvailability, PanDir } from "@/lib/render/camera";
@@ -21,6 +22,9 @@ export type RuntimeRefs = {
   campaignRecordedRef: MutableRefObject<boolean>;
   lifecycleRef: MutableRefObject<RuntimeLifecycleState>;
   persistenceRef: MutableRefObject<RuntimePersistenceState>;
+  uxRef: MutableRefObject<MissionUxTelemetry>;
+  /** Prevents the old runtime from overwriting a checkpoint during load navigation. */
+  suppressImplicitSavesRef?: MutableRefObject<() => void>;
 };
 
 export type RuntimePorts = {
@@ -28,8 +32,9 @@ export type RuntimePorts = {
   setPanAvailability: (availability: PanAvailability) => void;
   applyEdgePan: (direction: PanDir | null) => void;
   redraw: (nowMs?: number, subTickAlpha?: number) => void;
-  onAlert: (text: string) => void;
+  onAlert: (text: string, kind?: "warning" | "objective" | "contact" | "system") => void;
   onTacticalAnnouncement: (text: string) => void;
+  onCommandNotice: (text: string, kind?: "success" | "info" | "warning" | "error") => void;
   saveSession: SaveSession;
   persistCampaign: boolean;
 };
@@ -45,6 +50,7 @@ export type RuntimeCounters = {
   primaryCompletedTick?: number;
   assaultTransitions: number;
   lastAiState?: SimState["aiState"];
+  ux: MissionUxTelemetry;
 };
 
 export type RuntimeLifecycleState = {

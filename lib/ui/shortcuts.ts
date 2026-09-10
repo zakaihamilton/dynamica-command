@@ -83,6 +83,7 @@ export const SHORTCUT = {
   deploy: "Enter",
   launch: "Enter",
   replay: "R",
+  skip: "Space",
   play: "Space",
   resultPrimary: "Enter",
   resultMenu: "Esc",

@@ -1,0 +1,58 @@
+.notice {
+  pointer-events: none;
+  position: absolute;
+  z-index: 24;
+  left: 0.85rem;
+  bottom: 0.85rem;
+  display: flex;
+  max-width: min(28rem, calc(100% - 1.7rem));
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--chrome-cyan-dim);
+  background: color-mix(in srgb, var(--chrome-void) 90%, transparent);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45), inset 0 0 0 1px var(--chrome-inset);
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.notice[data-kind="success"] {
+  border-color: color-mix(in srgb, var(--chrome-success) 72%, var(--chrome-inset));
+  color: var(--chrome-success);
+}
+
+.notice[data-kind="warning"],
+.notice[data-kind="error"] {
+  border-color: color-mix(in srgb, var(--chrome-alert) 72%, var(--chrome-inset));
+  color: var(--chrome-warning);
+}
+
+.notice[data-kind="error"] {
+  color: var(--chrome-alert);
+}
+
+.icon {
+  display: inline-grid;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 1rem;
+  place-items: center;
+  border: 1px solid currentColor;
+}
+
+@media (max-width: 799px) {
+  .notice {
+    right: 0.65rem;
+    bottom: max(5.4rem, calc(env(safe-area-inset-bottom) + 4.6rem));
+    left: 0.65rem;
+    max-width: none;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.55rem;
+  }
+}

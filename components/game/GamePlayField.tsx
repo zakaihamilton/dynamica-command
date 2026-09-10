@@ -6,6 +6,8 @@ import { Battlefield } from "./Battlefield";
 import { CombatAlert } from "./CombatAlert";
 import { MissionResult } from "./MissionResult";
 import { TutorialOverlay } from "./TutorialOverlay";
+import { CommandNotice } from "./CommandNotice";
+import type { CommandNoticeState } from "./hooks/useGameChrome";
 import { MIN_RENDER_HEIGHT, MIN_RENDER_WIDTH } from "./hooks/useGameCamera";
 import { playFieldStatus } from "./playFieldStatus";
 
@@ -29,10 +31,12 @@ export type GamePlayFieldProps = {
   onBackTutorial: () => void;
   onNextBriefing: () => void;
   onCampaignVictory: () => void;
-  onCampaignMap: () => void;
   onRetry: () => void;
   onMenu: () => void;
+  onObjectivePanelToggle?: () => void;
   combatAlert?: string | null;
+  combatAlertKind?: import("./hooks/useCombatAlert").CombatAlertKind;
+  commandNotice?: CommandNoticeState;
 };
 
 export function GamePlayField({
@@ -55,10 +59,12 @@ export function GamePlayField({
   onBackTutorial,
   onNextBriefing,
   onCampaignVictory,
-  onCampaignMap,
   onRetry,
   onMenu,
+  onObjectivePanelToggle,
   combatAlert,
+  combatAlertKind,
+  commandNotice,
 }: GamePlayFieldProps) {
   const status = playFieldStatus(state, campaign);
   return (
@@ -78,6 +84,11 @@ export function GamePlayField({
       timeRemaining={tutorial ? undefined : status.timeRemaining}
       convoyDeparture={status.convoyDeparture}
       briefingObjectives={tutorial ? undefined : status.briefingObjectives}
+      objectiveCards={tutorial ? undefined : status.objectiveCards}
+      phaseLabel={tutorial ? undefined : status.phaseLabel}
+      timeRemainingTicks={tutorial ? undefined : status.timeRemainingTicks}
+      timeLimitTicks={tutorial ? undefined : status.timeLimitTicks}
+      onObjectivePanelToggle={onObjectivePanelToggle}
       showHud={state.result === "playing"}
       biome={state.biome}
       onPointerDown={onPointerDown}
@@ -87,12 +98,12 @@ export function GamePlayField({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
     >
-      {combatAlert ? <CombatAlert text={combatAlert} /> : null}
+      {combatAlert ? <CombatAlert text={combatAlert} kind={combatAlertKind} /> : null}
+      <CommandNotice notice={commandNotice ?? null} />
       <MissionResult
         state={state}
         onNextBriefing={onNextBriefing}
         onCampaignVictory={onCampaignVictory}
-        onCampaignMap={onCampaignMap}
         onRetry={onRetry}
         onMenu={onMenu}
       />
@@ -100,6 +111,7 @@ export function GamePlayField({
         <TutorialOverlay
           prompt={tutorialPrompt(state)}
           complete={state.tutorialStage === "complete"}
+          stage={state.tutorialStage}
           onAdvance={state.tutorialStage === "complete" ? onExitTutorial : onAdvanceTutorial}
           onBack={onBackTutorial}
         />

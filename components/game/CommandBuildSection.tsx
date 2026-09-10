@@ -12,6 +12,7 @@ export function CommandBuildSection({
   repairMode,
   sellMode,
   activeTab,
+  selectionCount,
   power,
   onTab,
   onRepair,
@@ -33,6 +34,7 @@ export function CommandBuildSection({
       activeTab={activeTab}
       placeKind={placeKind}
       selected={selected}
+      selectionCount={selectionCount}
       power={power}
       availableProducer={availableProducer}
       onPlace={onPlace}

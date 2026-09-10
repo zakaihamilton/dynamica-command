@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cachedLocalStorage } from "@/lib/persist/save";
+import { readSettings } from "@/lib/persist/settings";
 import type { BriefingLine } from "@/lib/types";
 import { briefingActiveLineIndex, briefingRevealedLines } from "./briefingWrap";
 
@@ -11,6 +13,12 @@ export function useBriefingTypewriter(lines: BriefingLine[], onComplete?: () => 
   const storyRef = useRef<HTMLDivElement>(null);
   const shownRef = useRef(0);
   const completedRef = useRef(false);
+  const [reducedMotion, setReducedMotion] = useState(() => (
+    typeof window !== "undefined" && (
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      || readSettings(cachedLocalStorage()).reducedMotion
+    )
+  ));
   const totalChars = lines.reduce((n, line) => n + line.text.length, 0);
   const resetKey = `${playId}:${totalChars}`;
   const [activeKey, setActiveKey] = useState(resetKey);
@@ -18,7 +26,7 @@ export function useBriefingTypewriter(lines: BriefingLine[], onComplete?: () => 
     setActiveKey(resetKey);
     setShown(0);
   }
-  const displayShown = activeKey !== resetKey ? 0 : shown;
+  const displayShown = reducedMotion ? totalChars : activeKey !== resetKey ? 0 : shown;
 
   const replayTransmission = useCallback(() => {
     shownRef.current = 0;
@@ -41,6 +49,18 @@ export function useBriefingTypewriter(lines: BriefingLine[], onComplete?: () => 
   }, [playId, totalChars]);
 
   useEffect(() => {
+    const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(
+      (media?.matches ?? false) || readSettings(cachedLocalStorage()).reducedMotion,
+    );
+    update();
+    if (!media) return;
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) return;
     let raf = 0;
     let last = performance.now();
     let carry = 0;
@@ -66,7 +86,7 @@ export function useBriefingTypewriter(lines: BriefingLine[], onComplete?: () => 
       stopped = true;
       cancelAnimationFrame(raf);
     };
-  }, [playId, totalChars]);
+  }, [playId, reducedMotion, totalChars]);
 
   useEffect(() => {
     if (displayShown < totalChars || completedRef.current) return;

@@ -25,6 +25,8 @@ export function MenuOverlay({
   onToggleSound,
   onToggleMusic,
   onToggleTacticalRoster,
+  onToggleReducedMotion,
+  onToggleHighContrast,
   onVolumeChange,
   onBack,
 }: {
@@ -44,6 +46,8 @@ export function MenuOverlay({
   onToggleSound: () => void;
   onToggleMusic: () => void;
   onToggleTacticalRoster?: () => void;
+  onToggleReducedMotion?: () => void;
+  onToggleHighContrast?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
 }) {
@@ -74,6 +78,8 @@ export function MenuOverlay({
           onToggleSound={onToggleSound}
           onToggleMusic={onToggleMusic}
           onToggleTacticalRoster={onToggleTacticalRoster}
+          onToggleReducedMotion={onToggleReducedMotion}
+          onToggleHighContrast={onToggleHighContrast}
           onVolumeChange={onVolumeChange}
           onBack={onBack}
         />

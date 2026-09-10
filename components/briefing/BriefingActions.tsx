@@ -7,6 +7,8 @@ export function BriefingActions({
   campaign,
   returnToGame,
   onReplay,
+  onSkip = () => undefined,
+  isComplete = false,
   onLaunch,
   onBack,
   backLabel,
@@ -14,6 +16,8 @@ export function BriefingActions({
   campaign: Campaign;
   returnToGame: boolean;
   onReplay: () => void;
+  onSkip?: () => void;
+  isComplete?: boolean;
   onLaunch: () => void;
   onBack: () => void;
   backLabel: string;
@@ -37,7 +41,18 @@ export function BriefingActions({
       >
         Replay
       </ConsoleButton>
+      {!isComplete ? (
+        <ConsoleButton
+          muted
+          tooltip="Reveal the full transmission"
+          shortcut={SHORTCUT.skip}
+          onClick={onSkip}
+        >
+          Skip transmission
+        </ConsoleButton>
+      ) : null}
       <ConsoleButton
+        className={styles.launch}
         tooltip={returnToGame ? "Return to the battlefield" : "Launch this mission"}
         shortcut={returnToGame ? SHORTCUT.resume : SHORTCUT.launch}
         onClick={onLaunch}

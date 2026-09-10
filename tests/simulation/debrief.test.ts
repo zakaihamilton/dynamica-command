@@ -18,6 +18,7 @@ describe("mission debrief", () => {
     addUnit(state, 1, "infantry", 7, 7);
 
     expect(missionDebrief(state)).toMatchObject({
+      status: "won",
       outcome: "Primary objective achieved.",
       objective: { headline: "Extract 900 credits from the field", progress: "Extracted 900 / 900" },
       tactical: { completed: true, label: expect.any(String) },
@@ -35,6 +36,7 @@ describe("mission debrief", () => {
     state.tick = 36;
 
     expect(missionDebrief(state)).toMatchObject({
+      status: "lost",
       outcome: "The Command HQ was destroyed.",
       objective: { headline: "Hold this ground for 1 min", progress: "Hold 00:07 remaining" },
       tactical: { completed: false, emphasis: expect.any(String) },
@@ -56,6 +58,32 @@ describe("mission debrief", () => {
     rescue.result = "lost";
     rescue.lossReason = "objectiveTargetLost";
     expect(missionDebrief(rescue).outcome).toBe("A stranded unit was lost.");
+  });
+
+  it("does not mark a time secondary complete when the mission fails early", () => {
+    const state = makeFixture({ win: { kind: "rescue", targetCount: 1, ticks: 144 } });
+    state.result = "lost";
+    state.lossReason = "yardDestroyed";
+    state.tick = 36;
+    state.runtime = {
+      kind: "rescue",
+      phase: "complete",
+      targetIds: [],
+      deadline: 144,
+      rescued: 0,
+      required: 1,
+      secondary: [
+        { id: "yard", kind: "preserveYard", label: "Keep the Command HQ standing", completed: false },
+        { id: "time", kind: "completeBefore", label: "Complete the operation within 12 min", target: 144, completed: true },
+      ],
+    };
+
+    expect(missionDebrief(state).secondary).toMatchObject([
+      { id: "yard", completed: false, failed: true },
+      { id: "time", completed: false, failed: true },
+    ]);
+    expect(missionDebrief(state).primaryObjectives.map(({ id }) => id)).toEqual(["yard", "time"]);
+    expect(missionDebrief(state).optionalObjectives).toHaveLength(0);
   });
 
   it("formats elapsed time as whole minutes and hides the sidebar after a result", () => {

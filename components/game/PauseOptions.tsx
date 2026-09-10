@@ -12,6 +12,8 @@ export function PauseOptions({
   onToggleSound,
   onToggleMusic,
   onToggleTacticalRoster,
+  onToggleReducedMotion,
+  onToggleHighContrast,
   onVolumeChange,
   onBack,
   telemetryRecordCount,
@@ -24,6 +26,8 @@ export function PauseOptions({
   onToggleSound: () => void;
   onToggleMusic: () => void;
   onToggleTacticalRoster?: () => void;
+  onToggleReducedMotion?: () => void;
+  onToggleHighContrast?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
   telemetryRecordCount?: number;
@@ -62,6 +66,16 @@ export function PauseOptions({
         <ConsoleButton className={styles.action} tooltip="Show a keyboard-friendly unit list beside the battlefield" onClick={onToggleTacticalRoster}>
           Tactical roster: {settings.tacticalRosterEnabled ? "On" : "Off"}
         </ConsoleButton>
+        {onToggleReducedMotion ? (
+          <ConsoleButton className={styles.action} tooltip="Reduce interface animation and motion" onClick={onToggleReducedMotion}>
+            Reduced motion: {settings.reducedMotion ? "On" : "Off"}
+          </ConsoleButton>
+        ) : null}
+        {onToggleHighContrast ? (
+          <ConsoleButton className={styles.action} tooltip="Increase interface contrast and status differentiation" onClick={onToggleHighContrast}>
+            High contrast: {settings.highContrast ? "On" : "Off"}
+          </ConsoleButton>
+        ) : null}
         {telemetryEnabled ? (
           <div className={styles.group}>
             <ConsoleLabel className={styles.groupLabel}>Diagnostics</ConsoleLabel>

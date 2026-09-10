@@ -9,6 +9,7 @@ export function GamePauseSurface({
   settings,
   setView,
   setNotice,
+  onControlsOpened,
   session,
 }: {
   view: PauseView;
@@ -16,6 +17,7 @@ export function GamePauseSurface({
   settings: GameSettings;
   setView: (view: PauseView) => void;
   setNotice: (notice: string) => void;
+  onControlsOpened?: () => void;
   session: GameSession;
 }) {
   return (
@@ -35,6 +37,7 @@ export function GamePauseSurface({
       onBriefing={session.viewMissionBriefing}
       onRestart={session.restartMission}
       onControls={() => {
+        onControlsOpened?.();
         setView("controls");
         setNotice("");
       }}
@@ -47,6 +50,8 @@ export function GamePauseSurface({
       onToggleSound={session.toggleSound}
       onToggleMusic={session.toggleMusic}
       onToggleTacticalRoster={session.toggleTacticalRoster}
+      onToggleReducedMotion={session.toggleReducedMotion}
+      onToggleHighContrast={session.toggleHighContrast}
       onVolumeChange={session.updateVolume}
       telemetryRecordCount={session.telemetryEnabled ? session.telemetryRecordCount : undefined}
       onExportTelemetry={session.telemetryEnabled ? session.exportTelemetry : undefined}

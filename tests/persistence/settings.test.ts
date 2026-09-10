@@ -84,6 +84,23 @@ describe("audio settings", () => {
     expect(readSettings(storage).tacticalRosterEnabled).toBe(true);
   });
 
+  it("migrates older preferences with new accessibility settings off", () => {
+    const storage = memoryStorage({
+      [SETTINGS_KEY]: JSON.stringify({
+        version: 2,
+        savedAt: 1,
+        settings: { sfxEnabled: false, tacticalRosterEnabled: true },
+      }),
+    });
+
+    expect(readSettings(storage)).toMatchObject({
+      sfxEnabled: false,
+      tacticalRosterEnabled: true,
+      reducedMotion: false,
+      highContrast: false,
+    });
+  });
+
   it("returns false when settings cannot be written", () => {
     const storage = memoryStorage();
     storage.setItem = () => {

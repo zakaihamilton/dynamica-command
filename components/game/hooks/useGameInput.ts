@@ -14,6 +14,8 @@ import { useTouchGestures } from "./useTouchGestures";
 import { useOrderDispatch } from "./useOrderDispatch";
 import { usePointerUpHandler } from "./usePointerUpHandler";
 import { createRuntimeCommandPort, type RuntimeCommandPort } from "./runtime/facade";
+import type { CommandNoticeKind } from "./useGameChrome";
+import type { MissionUxTelemetry } from "@/lib/persist/telemetry";
 
 export function useGameInput({
   stateRef,
@@ -40,6 +42,9 @@ export function useGameInput({
   applyEdgePan,
   selectionModeRef,
   setSelectionMode,
+  onCommandNotice,
+  onCommandRejection,
+  uxRef,
 }: {
   stateRef: MutableRefObject<SimState>;
   camRef: MutableRefObject<Camera>;
@@ -66,6 +71,9 @@ export function useGameInput({
   applyEdgePan: (dir: PanDir | null) => void;
   selectionModeRef: MutableRefObject<boolean>;
   setSelectionMode: (active: boolean) => void;
+  onCommandNotice?: (text: string, kind?: CommandNoticeKind) => void;
+  onCommandRejection?: (reason: string) => void;
+  uxRef?: MutableRefObject<MissionUxTelemetry>;
 }) {
   const resolvedCommandPort = useMemo(() => {
     if (commandPort) return commandPort;
@@ -104,7 +112,7 @@ export function useGameInput({
     syncCursor();
   }, [placeKind, repairMode, sellMode, selectedIds, syncCursor]);
 
-  const { markUnitCommand, issueContextOrder } = useOrderDispatch({
+  const { markUnitCommand, markInvalidCommand, issueContextOrder } = useOrderDispatch({
     camRef,
     selectedRef,
     commandPort: resolvedCommandPort,
@@ -114,6 +122,9 @@ export function useGameInput({
     mobileCommandRef,
     setMobileCommandState,
     commandMarkerRef,
+    onCommandNotice,
+    onCommandRejection,
+    uxRef,
     syncCursor,
   });
 
@@ -141,7 +152,11 @@ export function useGameInput({
     sellRef,
     setSellMode,
     markUnitCommand,
+    markInvalidCommand,
     syncCursor,
+    onCommandNotice,
+    onCommandRejection,
+    uxRef,
   });
 
   const onDown = useCallback((e: PointerEvent<HTMLCanvasElement>) => {

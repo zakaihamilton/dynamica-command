@@ -7,6 +7,25 @@
   background: var(--chrome-void);
 }
 
+.screen[data-high-contrast="true"] {
+  --chrome-body: #f1fbff;
+  --chrome-muted: #b7d2dd;
+  --chrome-line: rgba(196, 245, 255, 0.5);
+  --chrome-steel-lo: #0c151e;
+  --chrome-steel: #233845;
+  --chrome-steel-hi: #557184;
+}
+
+.screen[data-high-contrast="true"] :global(canvas) {
+  filter: saturate(1.12) contrast(1.18);
+}
+
+.screen[data-reduced-motion="true"] :global(*) {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 .scene {
   pointer-events: none;
   position: absolute;

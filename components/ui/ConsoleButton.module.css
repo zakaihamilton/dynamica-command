@@ -35,6 +35,16 @@
   outline-offset: 2px;
 }
 
+.button[data-default-action="true"]:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: 0.22rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-cyan) 88%, var(--chrome-text));
+  border-radius: calc(var(--chrome-radius) - 2px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 55%, transparent);
+  pointer-events: none;
+}
+
 .button:disabled {
   color: var(--chrome-muted);
   cursor: not-allowed;

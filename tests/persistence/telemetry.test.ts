@@ -60,6 +60,36 @@ describe("local telemetry", () => {
     });
   });
 
+  it("normalizes UX telemetry while preserving compatibility with older records", () => {
+    const storage = memoryStorage();
+    recordTelemetry(storage, {
+      ...record(0),
+      ux: {
+        briefingSkipped: true,
+        controlsOpened: 2,
+        tutorialCompleted: false,
+        tutorialExited: true,
+        mobilePanelOpened: 3,
+        objectivePanelToggles: 4,
+        firstSelectionTick: 12,
+        firstOrderTick: 20,
+        firstBuildTick: 30,
+        firstProductionTick: 40,
+        commandFeedbackCount: 7,
+        commandRejectionsByReason: { invalidDestination: 2 },
+      },
+    });
+    expect(readTelemetry(storage)[0]?.ux).toMatchObject({
+      briefingSkipped: true,
+      mobilePanelOpened: 3,
+      firstProductionTick: 40,
+      commandRejectionsByReason: { invalidDestination: 2 },
+    });
+    expect(readTelemetry(memoryStorage({
+      [TELEMETRY_KEY]: JSON.stringify({ version: 1, records: [record(1)] }),
+    }))[0]?.ux).toMatchObject({ commandFeedbackCount: 0 });
+  });
+
   it("exports a versioned normalized envelope and clears only telemetry", () => {
     const storage = memoryStorage({ "shiftingfront:save:421": "keep this save" });
     recordTelemetry(storage, record(0));

@@ -9,6 +9,30 @@
   min-width: 0;
 }
 
+.cancel {
+  position: absolute;
+  z-index: 4;
+  top: 0.18rem;
+  right: 0.18rem;
+  display: grid;
+  width: 1.35rem;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  min-height: 1.35rem;
+  place-items: center;
+  padding: 0;
+  border-color: var(--chrome-alert);
+  background: color-mix(in srgb, var(--chrome-void) 88%, transparent);
+  color: var(--chrome-alert);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.cancel:hover {
+  background: var(--chrome-alert);
+  color: var(--chrome-void);
+}
+
 .card {
   position: relative;
   display: flex;
@@ -122,8 +146,9 @@
 .count {
   position: absolute;
   top: 3px;
-  right: 4px;
+  left: 4px;
   min-width: 1rem;
+  z-index: 3;
   border: 1px solid var(--chrome-cyan);
   background: var(--chrome-void);
   color: var(--chrome-text);
@@ -136,13 +161,22 @@
 }
 
 .caption {
+  display: grid;
+  box-sizing: border-box;
+  height: 2.55rem;
+  min-height: 2.55rem;
+  overflow: hidden;
+  gap: 2px;
+  border-top: 1px solid var(--chrome-inset);
+  background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
+  padding: 2px 5px 4px;
+}
+
+.captionTop {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 4px;
-  border-top: 1px solid var(--chrome-inset);
-  background: linear-gradient(var(--chrome-steel), var(--chrome-steel-lo));
-  padding: 2px 5px 4px;
 }
 
 .caption span {
@@ -156,4 +190,33 @@
 .caption b {
   color: var(--chrome-gold);
   font-size: 0.58rem;
+}
+
+.status {
+  overflow: hidden;
+  color: var(--chrome-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.43rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.status.blocked {
+  color: var(--chrome-warning);
+}
+
+.detail {
+  overflow: hidden;
+  color: var(--chrome-muted);
+  font-family: var(--font-mono);
+  font-size: 0.4rem;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
 }

@@ -2,12 +2,26 @@ import { startLoop, type LoopHandle } from "@/lib/game/loop";
 import { TICKS_PER_SECOND } from "@/lib/catalog";
 import { tick } from "@/lib/sim/api";
 import type { SimEvent, SimState } from "@/lib/types";
+import { canonicalCommandRejectionReason, type MissionUxTelemetry } from "@/lib/persist/telemetry";
 import { createFrameCoordinator } from "./frame";
 import { createPersistenceCoordinator } from "./persistence";
 import { createPresentationCoordinator } from "./presentation";
 import type { RuntimeController, RuntimePorts, RuntimeRefs } from "./types";
 
 const AUTOSAVE_INTERVAL_TICKS = 30 * TICKS_PER_SECOND;
+
+function createRuntimeUxTelemetry(): MissionUxTelemetry {
+  return {
+    briefingSkipped: false,
+    controlsOpened: 0,
+    tutorialCompleted: false,
+    tutorialExited: false,
+    mobilePanelOpened: 0,
+    objectivePanelToggles: 0,
+    commandFeedbackCount: 0,
+    commandRejectionsByReason: {},
+  };
+}
 
 export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts): RuntimeController {
   let loop: LoopHandle | null = null;
@@ -23,6 +37,7 @@ export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts):
     onAlert: ports.onAlert,
     onTacticalAnnouncement: ports.onTacticalAnnouncement,
     persistenceRef: refs.persistenceRef,
+    suppressImplicitSavesRef: refs.suppressImplicitSavesRef,
   });
   const presentation = createPresentationCoordinator({
     cameraRef: refs.cameraRef,
@@ -31,6 +46,7 @@ export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts):
     fxSequence: refs.fxSequence,
     onAlert: ports.onAlert,
     onTacticalAnnouncement: ports.onTacticalAnnouncement,
+    onCommandNotice: ports.onCommandNotice,
   });
   const frame = createFrameCoordinator({
     cameraRef: refs.cameraRef,
@@ -45,11 +61,17 @@ export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts):
 
   const syncSession = (state: SimState) => {
     if (lifecycle.sessionState === state) return;
+    const isInitialSession = lifecycle.sessionState === null;
     lifecycle.sessionState = state;
     lifecycle.terminalPresented = refs.terminalSaveRef.current;
     lifecycle.commandApplied = false;
     lifecycle.counters.commandsIssued = 0;
     lifecycle.counters.commandRejections = 0;
+    const briefingSkipped = isInitialSession && refs.uxRef.current.briefingSkipped;
+    lifecycle.counters.ux = refs.uxRef.current = {
+      ...createRuntimeUxTelemetry(),
+      briefingSkipped,
+    };
     lifecycle.counters.firstCombatTick = undefined;
     lifecycle.counters.firstPressureTick = undefined;
     lifecycle.counters.firstHqThreatTick = undefined;
@@ -97,6 +119,12 @@ export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts):
     onTick(state: SimState, events: SimEvent[], now: number) {
       syncSession(state);
       lifecycle.counters.commandRejections += events.filter((event) => event.type === "commandRejected").length;
+      for (const event of events) {
+        if (event.type === "commandRejected") {
+          const reason = canonicalCommandRejectionReason(event.reason);
+          lifecycle.counters.ux.commandRejectionsByReason[reason] = (lifecycle.counters.ux.commandRejectionsByReason[reason] ?? 0) + 1;
+        }
+      }
       if (lifecycle.counters.firstCombatTick === undefined && events.some((event) => event.type === "combat" && event.owner === 0)) {
         lifecycle.counters.firstCombatTick = state.tick;
       }

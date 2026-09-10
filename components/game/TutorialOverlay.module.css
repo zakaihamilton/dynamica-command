@@ -13,9 +13,26 @@
   box-shadow: 0 0 24px rgba(0, 0, 0, 0.7), inset 0 0 0 1px var(--chrome-inset);
 }
 
-.kicker, .prompt { margin: 0; }
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.kicker, .prompt, .target { margin: 0; }
 .kicker { color: var(--chrome-cyan); font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.progressLabel { color: var(--chrome-muted); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.progress { display: flex; gap: 0.2rem; margin-top: 0.55rem; }
+.progress span { height: 0.22rem; flex: 1; background: var(--chrome-steel); }
+.progressActive { background: var(--chrome-cyan) !important; }
+.progressPending { opacity: 0.6; }
+.target { margin-top: 0.65rem; color: var(--chrome-gold); font-size: 0.67rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.target strong { color: var(--chrome-text); }
 .prompt { margin-top: 0.35rem; color: var(--chrome-text); }
+.hint { margin-top: 0.65rem; color: var(--chrome-muted); font-size: 0.68rem; }
+.hint summary { cursor: pointer; color: var(--chrome-cyan); text-transform: uppercase; letter-spacing: 0.1em; }
+.hint p { margin: 0.35rem 0 0; line-height: 1.4; }
 .actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
 
 @media (max-width: 799px) {

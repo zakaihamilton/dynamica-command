@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { clearMusicPosition } from "@/lib/audio/music";
-import { markFreshLaunchIntent } from "@/lib/persist/navigation";
+import { clearBriefingSkippedIntent, markBriefingSkippedIntent, markFreshLaunchIntent } from "@/lib/persist/navigation";
 import { formatSeed } from "@/lib/seed/rng";
 import { briefingCommandFromKey, isEditableTarget } from "@/lib/ui/shortcuts";
 import { briefingBackPath, type NavigationOrigin } from "../game/hooks/missionRoutes";
@@ -34,8 +34,14 @@ export function useBriefingController({
   }, [mission, returnToGame, router, seed]);
 
   const back = useCallback(() => {
+    clearBriefingSkippedIntent(seed, mission);
     router.push(briefingBackPath(seed, mission, returnToGame, origin));
   }, [mission, origin, returnToGame, router, seed]);
+
+  const skip = useCallback(() => {
+    markBriefingSkippedIntent(seed, mission);
+    skipToEnd();
+  }, [mission, seed, skipToEnd]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -47,7 +53,7 @@ export function useBriefingController({
       if (!command) return;
       e.preventDefault();
       if (command.type === "skip") {
-        skipToEnd();
+        skip();
         return;
       }
       if (command.type === "replay") {
@@ -62,10 +68,11 @@ export function useBriefingController({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [back, isComplete, launch, replayTransmission, returnToGame, skipToEnd]);
+  }, [back, isComplete, launch, replayTransmission, returnToGame, skip]);
 
   return {
     launch,
     back,
+    skip,
   };
 }

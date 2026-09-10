@@ -13,6 +13,8 @@ import { TacticalRoster } from "./TacticalRoster";
 import type { GameActions } from "./hooks/useGameActions";
 import type { GameCamera } from "./hooks/useGameCamera";
 import type { GameSession } from "./hooks/useGameSession";
+import styles from "./GameAnnouncements.module.css";
+import { minimapPingFor } from "@/lib/ui/missionPresentation";
 
 export type GameOverlayProps = {
   campaign: Campaign;
@@ -35,8 +37,13 @@ export type GameOverlayProps = {
   setPauseView: (view: PauseView) => void;
   setPauseNotice: (notice: string) => void;
   onToggleMobilePanel: () => void;
+  onMobileSheetDrag?: (direction: "open" | "close") => void;
   onPause: () => void;
+  onControlsOpened?: () => void;
+  combatAlert?: string | null;
+  combatAlertKind?: import("./hooks/useCombatAlert").CombatAlertKind;
   onSelect?: (ids: number[]) => void;
+  onSelectionMode?: (active: boolean) => void;
   onAnnounce?: (message: string) => void;
   actions: GameActions;
   session: GameSession;
@@ -48,6 +55,7 @@ export function GameOverlays({
   playerVisualProfile,
   selectedIds,
   tutorial,
+  selectionMode = false,
   mobilePanelOpen,
   mobileLauncherRef,
   miniRef,
@@ -62,9 +70,14 @@ export function GameOverlays({
   setPauseView,
   setPauseNotice,
   onToggleMobilePanel,
+  onMobileSheetDrag,
   onPause,
+  onControlsOpened,
+  combatAlert,
+  combatAlertKind,
   onSelect = () => undefined,
   onAnnounce = () => undefined,
+  onSelectionMode = () => undefined,
   actions,
   session,
 }: GameOverlayProps) {
@@ -79,14 +92,25 @@ export function GameOverlays({
   const powerSig = powerSignature(state);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on derived signature, not raw state
   const grid = useMemo(() => powerBreakdown(state, 0), [powerSig]);
+  const minimapPing = useMemo(() => {
+    if (!combatAlert) return undefined;
+    if (combatAlertKind === "warning") return minimapPingFor(state, "urgent");
+    if (combatAlertKind === "objective") return minimapPingFor(state, "objective");
+    return undefined;
+  }, [combatAlert, combatAlertKind, state]);
 
   return (
     <>
+      <div className={styles.liveRegion} aria-live="polite" aria-atomic="true" data-testid="tactical-announcement">
+        {tacticalAnnouncement}
+      </div>
       {!paused && state.result === "playing" && !session.confirmation ? (
         <MobileCommandLauncher
           open={mobilePanelOpen}
           onToggle={onToggleMobilePanel}
+          onDrag={onMobileSheetDrag}
           buttonRef={mobileLauncherRef}
+          statusText={`${selectionMode ? "Select units" : selectedIds.length ? `${selectedIds.length} selected` : "No selection"} · ${actions.mobileCommandState ? actions.mobileCommandState === "attackMove" ? "Attack-move ready" : `${actions.mobileCommandState.charAt(0).toUpperCase()}${actions.mobileCommandState.slice(1)} ready` : "Command sheet"}`}
         />
       ) : null}
 
@@ -111,6 +135,11 @@ export function GameOverlays({
           onTab={onTab}
           actions={actions}
           mobilePanelOpen={mobilePanelOpen}
+          selectionCount={selectedIds.length}
+          selectionMode={selectionMode}
+          activeMobileCommand={actions.mobileCommandState}
+          onSelectionMode={onSelectionMode}
+          minimapPing={minimapPing}
         />
       ) : null}
 
@@ -133,6 +162,7 @@ export function GameOverlays({
           settings={audioSettings}
           setView={setPauseView}
           setNotice={setPauseNotice}
+          onControlsOpened={onControlsOpened}
           session={session}
         />
       ) : null}

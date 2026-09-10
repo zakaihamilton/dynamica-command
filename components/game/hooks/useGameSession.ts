@@ -98,6 +98,7 @@ export function useGameSession({
   setSettings,
   saveSession,
   tutorial = false,
+  suppressImplicitSavesRef,
   browserBackGuardEnabled = false,
   onBrowserBackLeave,
 }: MissionPersistenceParams & {
@@ -108,7 +109,7 @@ export function useGameSession({
   browserBackGuardEnabled?: boolean;
   onBrowserBackLeave?: () => void;
 }) {
-  const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
+  const { toggleSound, toggleMusic, toggleTacticalRoster, toggleReducedMotion, toggleHighContrast, updateVolume } = useAudioPreferences(settings, setSettings);
   const [, setTelemetryRevision] = useState(0);
   const telemetryRecordCount = tutorial ? 0 : readTelemetry(cachedLocalStorage()).length;
   const [canLeaveWithoutSave, setCanLeaveWithoutSave] = useState(false);
@@ -162,6 +163,7 @@ export function useGameSession({
     terminalSaveRef,
     saveSession,
     tutorial,
+    suppressImplicitSavesRef,
   });
   const persistNamedSlot = persistence.saveNamedSlot;
   const confirmation = useMissionConfirmation({
@@ -252,6 +254,8 @@ export function useGameSession({
     toggleSound,
     toggleMusic,
     toggleTacticalRoster,
+    toggleReducedMotion,
+    toggleHighContrast,
     updateVolume,
     advanceTutorial: persistence.advanceTutorial,
     exitTutorial: routes.exitTutorial,

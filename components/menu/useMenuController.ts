@@ -19,7 +19,7 @@ export function useMenuController() {
   const [settings, setSettings] = useState<GameSettings>(() => defaultSettings());
   const inputRef = useRef<HTMLInputElement>(null);
   const copyTimer = useRef(0);
-  const { toggleSound, toggleMusic, toggleTacticalRoster, updateVolume } = useAudioPreferences(settings, setSettings);
+  const { toggleSound, toggleMusic, toggleTacticalRoster, toggleReducedMotion, toggleHighContrast, updateVolume } = useAudioPreferences(settings, setSettings);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -136,6 +136,8 @@ export function useMenuController() {
     toggleSound,
     toggleMusic,
     toggleTacticalRoster,
+    toggleReducedMotion,
+    toggleHighContrast,
     updateVolume,
     setCode: (value: string) => {
       setCode(value);
