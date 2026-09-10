@@ -15,9 +15,12 @@ type TacticalScreenProps = GameRuntimeSurfaces & {
 
 /** Pure screen composition for the tactical mission view. */
 export function TacticalScreen({ title, palette, playField, overlays }: TacticalScreenProps) {
+  const { audioSettings } = overlays;
   return (
     <div
       className={styles.shell}
+      data-high-contrast={audioSettings.highContrast ? "true" : "false"}
+      data-reduced-motion={audioSettings.reducedMotion ? "true" : "false"}
       style={
         {
           "--p": palette.primary,

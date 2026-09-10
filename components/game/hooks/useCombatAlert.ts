@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export type CombatAlertKind = "warning" | "objective" | "contact" | "system";
+
 export function useCombatAlert() {
   const [combatAlert, setCombatAlert] = useState<string | null>(null);
+  const [combatAlertKind, setCombatAlertKind] = useState<CombatAlertKind>("warning");
   const clearRef = useRef<number | null>(null);
 
-  const onAlert = useCallback((text: string) => {
+  const onAlert = useCallback((text: string, kind: CombatAlertKind = "warning") => {
     setCombatAlert(text);
+    setCombatAlertKind(kind);
     if (clearRef.current) window.clearTimeout(clearRef.current);
     clearRef.current = window.setTimeout(() => {
       setCombatAlert(null);
@@ -17,5 +21,5 @@ export function useCombatAlert() {
     if (clearRef.current) window.clearTimeout(clearRef.current);
   }, []);
 
-  return { combatAlert, onAlert };
+  return { combatAlert, combatAlertKind, onAlert };
 }

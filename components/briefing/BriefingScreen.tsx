@@ -104,11 +104,18 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
             />
           </section>
           {profileContract ? <BriefingProfile contract={profileContract} /> : null}
+          <section className={styles.opening} aria-label="Recommended first action" data-testid="briefing-first-action">
+            <ConsoleLabel>Recommended first action</ConsoleLabel>
+            <p className={styles.openingSequence}>{openingSequence(def.kind ?? "holdTheLine")}</p>
+            <p className={styles.openingHint}>Establish the power grid before committing your first production queue.</p>
+          </section>
           <BriefingObjectives objectives={objectives} />
           <BriefingActions
             campaign={campaign}
             returnToGame={returnToGame}
             onReplay={typewriter.replayTransmission}
+            onSkip={controller.skip}
+            isComplete={typewriter.isComplete}
             onLaunch={controller.launch}
             onBack={controller.back}
             backLabel={backLabel}
@@ -119,4 +126,11 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
       </div>
     </div>
   );
+}
+
+function openingSequence(kind: string): string {
+  if (kind === "rescue" || kind === "escort") return "1. Build power  →  2. Build refinery  →  3. Train infantry  →  4. Assign an escort route";
+  if (kind === "sabotage") return "1. Build power  →  2. Build refinery  →  3. Train infantry  →  4. Scout the target sector";
+  if (kind === "extraction") return "1. Build power  →  2. Build refinery  →  3. Train infantry  →  4. Secure the extraction route";
+  return "1. Build power  →  2. Build refinery  →  3. Train infantry  →  4. Hold the line";
 }

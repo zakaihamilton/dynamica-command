@@ -1,13 +1,14 @@
 import type { FxBurst } from "../fx";
 import type { BuildingKind } from "../../types";
 
-export type CommandMarkerKind = "move" | "attack" | "harvest" | "support";
+export type CommandMarkerKind = "move" | "attack" | "harvest" | "support" | "invalid";
 
 export type CommandMarker = {
   x: number;
   y: number;
   bornMs: number;
   kind?: CommandMarkerKind;
+  mode?: "attack" | "attackMove";
 };
 
 export type RenderExtras = {

@@ -36,11 +36,37 @@
   animation: radar-scan 5.5s linear infinite;
 }
 
+.ping {
+  pointer-events: none;
+  position: absolute;
+  z-index: 3;
+  top: var(--ping-y, 50%);
+  left: var(--ping-x, 50%);
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid var(--chrome-alert);
+  border-radius: 50%;
+  background: var(--chrome-void);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chrome-alert) 25%, transparent), 0 0 12px var(--chrome-alert);
+  transform: translate(-50%, -50%);
+  animation: minimap-ping 0.9s ease-out infinite;
+}
+
+.ping[data-kind="objective"] {
+  border-color: var(--chrome-gold);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chrome-gold) 25%, transparent), 0 0 12px var(--chrome-gold);
+}
+
+@keyframes minimap-ping {
+  50% { transform: translate(-50%, -50%) scale(1.22); opacity: 0.7; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .sweep {
+  .sweep,
+  .ping {
     animation: none;
     opacity: 0.2;
-    transform: translateY(-12%);
+    transform: translate(-50%, -50%);
   }
 }
 

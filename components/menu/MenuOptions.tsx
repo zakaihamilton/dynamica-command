@@ -9,6 +9,8 @@ export function MenuOptions({
   onToggleSound,
   onToggleMusic,
   onToggleTacticalRoster,
+  onToggleReducedMotion,
+  onToggleHighContrast,
   onVolumeChange,
   onBack,
 }: {
@@ -16,6 +18,8 @@ export function MenuOptions({
   onToggleSound: () => void;
   onToggleMusic: () => void;
   onToggleTacticalRoster?: () => void;
+  onToggleReducedMotion?: () => void;
+  onToggleHighContrast?: () => void;
   onVolumeChange: (key: AudioVolumeKey, value: number) => void;
   onBack: () => void;
 }) {
@@ -32,6 +36,8 @@ export function MenuOptions({
         onToggleSound={onToggleSound}
         onToggleMusic={onToggleMusic}
         onToggleTacticalRoster={onToggleTacticalRoster}
+        onToggleReducedMotion={onToggleReducedMotion}
+        onToggleHighContrast={onToggleHighContrast}
         onVolumeChange={onVolumeChange}
         onBack={onBack}
         backTooltip="Return to the main menu"

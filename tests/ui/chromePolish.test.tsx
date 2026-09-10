@@ -50,6 +50,33 @@ describe("product chrome", () => {
     expect(screen.getByTestId("mission-profile")).toHaveTextContent("Resource Race");
   });
 
+  it("surfaces objective urgency with progress and non-color status", () => {
+    const campaign = createCampaign(421);
+    render(
+      <BattlefieldHud
+        seed={421}
+        levelNumber={1}
+        levelCount={campaign.missions.length}
+        missionName="Recovery Zone"
+        objective="Return the convoy"
+        timeRemaining="Time remaining 00:09"
+        timeRemainingTicks={9 * 12}
+        timeLimitTicks={10 * 60 * 12}
+        objectiveCards={[
+          { id: "primary", label: "Return the convoy", current: 1, target: 2, status: "active", primary: true },
+          { id: "escort", label: "Protect the escort", current: 0, target: 1, status: "active" },
+        ]}
+        phaseLabel="Extraction phase"
+      />,
+    );
+
+    expect(screen.getByTestId("time-remaining")).toHaveAttribute("data-urgency", "critical");
+    expect(screen.getByTestId("objective")).toHaveAttribute("data-status", "active");
+    expect(screen.getByTestId("objective")).toHaveTextContent("1 / 2");
+    expect(screen.getByTestId("secondary-objectives")).toHaveTextContent("Optional directives 0/1");
+    expect(screen.getByTestId("mission-phase")).toHaveTextContent("Extraction phase");
+  });
+
   it("uses the generated campaign length in the briefing mast", () => {
     const campaign = createCampaign(421);
     const mission = campaign.missions[0]!;

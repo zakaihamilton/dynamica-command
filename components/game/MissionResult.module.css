@@ -95,6 +95,17 @@
   font-weight: 700;
 }
 
+.resultCard {
+  margin-top: 0.75rem;
+  padding: 0.7rem;
+  border: 1px solid var(--chrome-cyan-dim);
+  background: color-mix(in srgb, var(--chrome-cyan) 7%, var(--chrome-steel-lo));
+}
+
+.resultCard .objectiveLabel {
+  margin-top: 0;
+}
+
 .profileAssessment {
   margin-top: 0.75rem;
   padding-top: 0.7rem;
@@ -134,15 +145,41 @@
   text-align: left;
 }
 
+.secondaryCard {
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--chrome-steel);
+  background: var(--chrome-steel-lo);
+}
+
 .secondaryComplete,
-.secondaryIncomplete {
-  margin: 0.3rem 0 0;
+.secondaryIncomplete,
+.secondaryFailed {
+  margin: 0;
   font-size: 0.68rem;
   font-weight: 700;
 }
 
+.retryGuidance {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--chrome-steel);
+  text-align: left;
+}
+
+.retryGuidance p:last-child {
+  margin: 0.3rem 0 0;
+  color: var(--chrome-muted);
+  font-size: 0.69rem;
+  line-height: 1.45;
+}
+
 .secondaryComplete {
   color: var(--chrome-gold);
+}
+
+.secondaryFailed {
+  color: var(--chrome-alert);
 }
 
 .secondaryIncomplete {

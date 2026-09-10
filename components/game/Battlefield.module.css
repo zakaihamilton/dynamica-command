@@ -30,14 +30,22 @@
   z-index: 2;
   inset: 0 0 auto 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.72fr);
-  gap: 1.25rem;
-  padding: 0.75rem;
+  grid-template-columns: minmax(13rem, 0.72fr) minmax(20rem, 1.28fr);
+  gap: 1rem;
+  padding: 0.65rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   text-transform: uppercase;
-  background: rgba(5, 8, 14, 0.5);
+  background: linear-gradient(180deg, rgba(5, 8, 14, 0.86), rgba(5, 8, 14, 0.58) 82%, transparent);
+  backdrop-filter: blur(8px) saturate(0.8);
   text-shadow: 1px 1px #000;
+}
+
+.operationBar {
+  min-width: 0;
+  padding: 0.35rem 0.55rem 0.45rem;
+  border-left: 2px solid var(--chrome-cyan-dim);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chrome-steel-lo) 82%, transparent), transparent);
 }
 
 .missionMeta {
@@ -49,12 +57,20 @@
 
 .seed,
 .level {
+  display: inline-flex;
+  align-items: center;
   letter-spacing: 0.3em;
   white-space: nowrap;
 }
 
 .seed {
   color: var(--chrome-cyan);
+}
+
+.statusGlyph {
+  margin-right: 0.35rem;
+  color: var(--chrome-gold);
+  font-size: 0.55rem;
 }
 
 .level {
@@ -92,35 +108,282 @@
   letter-spacing: 0.16em;
 }
 
+.operationFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.operationTicks {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.operationTick,
+.operationTickActive {
+  display: block;
+  width: 1.25rem;
+  height: 3px;
+  background: var(--chrome-steel-hi);
+  box-shadow: inset 0 1px var(--chrome-inset);
+}
+
+.operationTickActive {
+  background: var(--chrome-cyan);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--chrome-cyan) 44%, transparent);
+}
+
 .objective {
+  display: grid;
+  gap: 0.25rem;
   max-width: 100%;
-  text-align: right;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-gold) 38%, var(--chrome-inset));
+  border-left: 3px solid var(--chrome-gold);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--chrome-gold) 9%, var(--chrome-void)), color-mix(in srgb, var(--chrome-void) 84%, transparent));
+  text-align: left;
   color: var(--chrome-body);
+}
+
+.objective[data-status="complete"] {
+  border-left-color: var(--chrome-success);
+  border-color: color-mix(in srgb, var(--chrome-success) 36%, var(--chrome-inset));
+}
+
+.objective[data-status="failed"] {
+  border-left-color: var(--chrome-alert);
+  border-color: color-mix(in srgb, var(--chrome-alert) 48%, var(--chrome-inset));
+}
+
+.objectivePriority,
+.directiveKicker,
+.secondaryHeader {
+  color: var(--chrome-gold);
+  font-size: 0.51rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.objectivePriority {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.priorityIcon {
+  display: inline-grid;
+  width: 0.9rem;
+  height: 0.9rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  color: var(--chrome-gold);
+  font-size: 0.58rem;
+}
+
+.objective > strong {
+  color: var(--chrome-text);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.objectiveProgress {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--chrome-cyan);
+  font-size: 0.59rem;
+  font-weight: 800;
+}
+
+.objectiveBar,
+.timerBar {
+  display: block;
+  flex: 1;
+  min-width: 3rem;
+  height: 3px;
+  overflow: hidden;
+  background: var(--chrome-steel-hi);
+}
+
+.objectiveBar > span,
+.timerBar > span {
+  display: block;
+  height: 100%;
+  background: var(--chrome-cyan);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--chrome-cyan) 50%, transparent);
 }
 
 .objectiveStack {
   min-width: 0;
   max-width: none;
-  text-align: right;
+  text-align: left;
+}
+
+.directiveHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.28rem;
+}
+
+.directiveKicker {
+  color: var(--chrome-cyan);
+}
+
+.phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--chrome-muted);
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.phaseDot {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: var(--chrome-cyan);
+  box-shadow: 0 0 7px var(--chrome-cyan);
 }
 
 .timeRemaining {
-  margin-top: 0.18rem;
+  display: flex;
+  align-items: center;
+  gap: 0.34rem;
+  margin-top: 0.35rem;
+  padding: 0.28rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-gold) 30%, var(--chrome-inset));
+  background: color-mix(in srgb, var(--chrome-void) 82%, transparent);
   color: var(--chrome-gold);
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
 
+.timeRemaining[data-urgency="watch"] {
+  border-color: var(--chrome-warning);
+  color: var(--chrome-warning);
+}
+
+.timeRemaining[data-urgency="urgent"],
+.timeRemaining[data-urgency="critical"] {
+  border-color: var(--chrome-alert);
+  color: var(--chrome-alert);
+}
+
+.timeRemaining[data-urgency="critical"] {
+  animation: timerPulse 1s steps(2, end) infinite;
+}
+
+.timerGlyph {
+  font-size: 0.9rem;
+}
+
+.timerBar {
+  margin-left: auto;
+  max-width: 7rem;
+}
+
+.timeRemaining[data-urgency="watch"] .timerBar > span {
+  background: var(--chrome-warning);
+}
+
+.timeRemaining[data-urgency="urgent"] .timerBar > span,
+.timeRemaining[data-urgency="critical"] .timerBar > span {
+  background: var(--chrome-alert);
+}
+
+@keyframes timerPulse {
+  50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--chrome-alert) 45%, transparent); }
+}
+
 .stagingWindow {
-  margin-top: 0.12rem;
+  margin-top: 0.3rem;
+  padding-left: 0.4rem;
+  border-left: 2px solid var(--chrome-cyan-dim);
   color: var(--chrome-cyan);
   font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
 
+.secondaryRail {
+  margin-top: 0.45rem;
+  padding: 0.42rem 0.55rem;
+  border: 1px solid var(--chrome-line);
+  background: color-mix(in srgb, var(--chrome-void) 74%, transparent);
+}
+
+.secondaryHeader {
+  display: flex;
+  justify-content: space-between;
+  color: var(--chrome-muted);
+}
+
+.secondaryHeader span {
+  color: var(--chrome-cyan);
+}
+
+.secondaryCards {
+  display: grid;
+  gap: 0.24rem;
+  margin-top: 0.32rem;
+}
+
+.secondaryCard {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-start;
+  color: var(--chrome-body);
+  font-size: 0.57rem;
+  line-height: 1.25;
+  letter-spacing: 0.03em;
+}
+
+.secondaryCard[data-status="complete"] {
+  color: var(--chrome-success);
+}
+
+.secondaryCard[data-status="failed"] {
+  color: var(--chrome-alert);
+}
+
+.secondaryState {
+  margin-left: auto;
+  color: var(--chrome-muted);
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.secondaryCard[data-status="complete"] .secondaryState {
+  color: var(--chrome-success);
+}
+
+.secondaryCard[data-status="failed"] .secondaryState {
+  color: var(--chrome-alert);
+}
+
+.secondaryIcon {
+  flex: 0 0 0.8rem;
+  color: var(--chrome-cyan);
+  font-weight: 800;
+}
+
+.secondaryCard[data-status="complete"] .secondaryIcon {
+  color: var(--chrome-success);
+}
+
 .briefingObjectives {
+  pointer-events: auto;
   display: grid;
   gap: 0.14rem;
   width: fit-content;
@@ -135,11 +398,22 @@
 }
 
 .briefingLabel {
+  display: block;
+  cursor: pointer;
   margin-bottom: 0.08rem;
   color: var(--chrome-cyan);
   font-size: 0.5rem;
   font-weight: 800;
   letter-spacing: 0.12em;
+}
+
+.briefingLabel::marker {
+  color: var(--chrome-cyan);
+}
+
+.briefingList {
+  display: grid;
+  gap: 0.14rem;
 }
 
 .briefingObjective {
@@ -174,8 +448,17 @@
   }
 
   .status {
-    grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.85fr);
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
     gap: 0.75rem;
+  }
+
+  .operationTicks {
+    gap: 2px;
+  }
+
+  .operationTick,
+  .operationTickActive {
+    width: 0.85rem;
   }
 }
 
@@ -210,8 +493,30 @@
     letter-spacing: 0.14em;
   }
 
-  .objectiveStack {
-    max-width: 58%;
+  .objectiveStack { max-width: none; }
+
+  .operationBar {
+    padding: 0.25rem 0.4rem 0.3rem;
+  }
+
+  .operationFoot {
+    display: block;
+  }
+
+  .operationTicks {
+    margin-top: 0.38rem;
+  }
+
+  .objective {
+    padding: 0.42rem 0.5rem;
+  }
+
+  .objective > strong {
+    font-size: 0.62rem;
+  }
+
+  .secondaryRail {
+    max-width: 100%;
   }
 
   .briefingObjectives {

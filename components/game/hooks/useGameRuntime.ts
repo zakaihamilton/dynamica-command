@@ -14,8 +14,11 @@ import { useGameSession } from "./useGameSession";
 import { useGameSelection } from "./useGameSelection";
 import { useGameRuntimeState } from "./useGameRuntimeState";
 import { clearRenderSessionCaches } from "@/lib/render/sessionCache";
+import { canonicalCommandRejectionReason, createMissionUxTelemetry } from "@/lib/persist/telemetry";
+import { consumeBriefingSkippedIntent } from "@/lib/persist/navigation";
 import type { PauseView } from "@/lib/ui/shortcuts";
 import { createRuntimeCommandPort } from "./runtime/facade";
+import type { CommandNoticeKind } from "./useGameChrome";
 
 export function useGameRuntime({
   seed,
@@ -63,15 +66,30 @@ export function useGameRuntime({
     setPauseNotice,
     tacticalAnnouncement,
     announceTactical,
+    commandNotice,
+    announceCommand: showCommandNotice,
     audioSettings,
     setAudioSettings,
     cmdQ,
   } = chrome;
+  const uxRef = useRef(createMissionUxTelemetry());
+  const recordCommandRejection = useCallback((text: string) => {
+    const reason = canonicalCommandRejectionReason(text);
+    uxRef.current.commandRejectionsByReason[reason] = (uxRef.current.commandRejectionsByReason[reason] ?? 0) + 1;
+  }, [uxRef]);
+  const announceCommandFeedback = useCallback((text: string, kind: CommandNoticeKind = "info") => {
+    uxRef.current.commandFeedbackCount += 1;
+    showCommandNotice(text, kind);
+    announceTactical(text);
+  }, [announceTactical, showCommandNotice, uxRef]);
   const commandPort = useMemo(() => createRuntimeCommandPort(cmdQ), [cmdQ]);
+  useEffect(() => {
+    if (!tutorial && consumeBriefingSkippedIntent(seed, mission)) uxRef.current.briefingSkipped = true;
+  }, [mission, seed, tutorial, uxRef]);
 
-  const selection = useGameSelection({ stateRef, setState });
+  const selection = useGameSelection({ stateRef, setState, uxRef });
   const { selected, selectedIds, selectionMode, selectionModeRef, commitSelection, setSelectionMode } = selection;
-  const { combatAlert, onAlert } = useCombatAlert();
+  const { combatAlert, combatAlertKind, onAlert } = useCombatAlert();
 
   const camera = useGameCamera({ stateRef, canvasRef, hostRef });
   const {
@@ -88,7 +106,7 @@ export function useGameRuntime({
     resetCamera,
   } = camera;
 
-  const actions = useGameActions({ stateRef, commandPort, selected, selectedIds });
+  const actions = useGameActions({ stateRef, commandPort, selected, selectedIds, onCommandNotice: announceCommandFeedback, onCommandRejection: recordCommandRejection, uxRef });
   const {
     place,
     placeKind,
@@ -135,6 +153,9 @@ export function useGameRuntime({
     applyEdgePan,
     selectionModeRef,
     setSelectionMode,
+    onCommandNotice: announceCommandFeedback,
+    onCommandRejection: recordCommandRejection,
+    uxRef,
   });
 
   const { hoverRef, cursorRef, boxRef, commandMarkerRef, resetInput, onDown, onEnter, onMove, onLeave, onUp, onCancel } = input;
@@ -154,6 +175,7 @@ export function useGameRuntime({
     place,
     repair,
     sell,
+    reducedMotionOverride: audioSettings.reducedMotion,
   });
 
   const resetTransientMobileUi = useCallback(() => {
@@ -190,23 +212,46 @@ export function useGameRuntime({
   });
   const { openPauseMenu: openMissionPause } = session;
 
+  const recordControlsOpened = useCallback(() => {
+    uxRef.current.controlsOpened += 1;
+  }, [uxRef]);
+
   const openPauseMenu = useCallback((view: PauseView = "main") => {
+    if (view === "controls") recordControlsOpened();
     resetTransientMobileUi();
     openMissionPause(view);
-  }, [openMissionPause, resetTransientMobileUi]);
+  }, [openMissionPause, recordControlsOpened, resetTransientMobileUi]);
 
   const closeMobilePanel = useCallback(() => {
     setMobilePanelOpen(false);
     mobileLauncherRef.current?.focus();
   }, [setMobilePanelOpen]);
-  const toggleMobilePanel = useCallback(() => {
+  const openMobilePanel = useCallback(() => {
     setSelectionMode(false);
+    setMobilePanelOpen(true);
+    uxRef.current.mobilePanelOpened += 1;
+  }, [setMobilePanelOpen, setSelectionMode, uxRef]);
+  const toggleMobilePanel = useCallback(() => {
     if (mobilePanelOpen) {
       closeMobilePanel();
       return;
     }
-    setMobilePanelOpen(true);
-  }, [closeMobilePanel, mobilePanelOpen, setMobilePanelOpen, setSelectionMode]);
+    openMobilePanel();
+  }, [closeMobilePanel, mobilePanelOpen, openMobilePanel]);
+  const onMobileSheetDrag = useCallback((direction: "open" | "close") => {
+    if (direction === "open" && !mobilePanelOpen) openMobilePanel();
+    if (direction === "close" && mobilePanelOpen) closeMobilePanel();
+  }, [closeMobilePanel, mobilePanelOpen, openMobilePanel]);
+
+  const onObjectivePanelToggle = useCallback(() => {
+    uxRef.current.objectivePanelToggles += 1;
+  }, [uxRef]);
+
+  const onExitTutorial = useCallback(() => {
+    if (state.tutorialStage === "complete") uxRef.current.tutorialCompleted = true;
+    else uxRef.current.tutorialExited = true;
+    session.exitTutorial();
+  }, [session, state.tutorialStage, uxRef]);
   const cancelKeyboardTool = useCallback(() => {
     cancelMobileCommand();
     resetInput();
@@ -279,7 +324,9 @@ export function useGameRuntime({
     redraw,
     onAlert,
     onTacticalAnnouncement: announceTactical,
+    onCommandNotice: announceCommandFeedback,
     persistCampaign: !tutorial,
+    uxRef,
   });
 
   useGameAudioLifecycle({ seed, missionIndex: state.missionIndex, tutorial, paused, result: state.result });
@@ -305,7 +352,7 @@ export function useGameRuntime({
     onPointerUp: onUp,
     onPointerCancel: onCancel,
     onAdvanceTutorial: session.advanceTutorial,
-    onExitTutorial: session.exitTutorial,
+    onExitTutorial,
     onBackTutorial: session.backTutorial,
     onNextBriefing: session.goNextBriefing,
     onCampaignVictory: session.goCampaignVictory,
@@ -313,8 +360,11 @@ export function useGameRuntime({
     onRetry: session.goRetry,
     onMenu: session.goMenu,
     combatAlert,
+    combatAlertKind,
+    commandNotice,
     selectedIds,
     selectionMode,
+    setSelectionMode,
     mobilePanelOpen,
     mobileLauncherRef,
     activeTab,
@@ -329,6 +379,9 @@ export function useGameRuntime({
     onSelect: commitSelection,
     onAnnounce: announceTactical,
     onToggleMobilePanel: toggleMobilePanel,
+    onMobileSheetDrag,
+    onObjectivePanelToggle,
+    onControlsOpened: recordControlsOpened,
     onPause: openPauseMenu,
     actions,
     session,

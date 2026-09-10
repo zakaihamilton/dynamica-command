@@ -16,6 +16,19 @@ export function SelectionIdentity({
   profile: FactionVisualProfile;
   stance: Stance;
 }) {
+  const currentOrder = selected.class === "unit"
+    ? selected.repairing
+      ? "Repairing"
+      : selected.gatherX !== undefined
+        ? "Harvesting"
+        : selected.orderMode === "attackMove"
+          ? "Attack-move"
+          : selected.orderMode === "attack"
+            ? "Engaging"
+            : selected.orderMode === "move"
+              ? "Moving"
+              : selected.idle ? "Idle" : "Holding position"
+    : undefined;
   return (
     <div className={styles.row}>
       <div className={styles.portrait}>
@@ -41,6 +54,7 @@ export function SelectionIdentity({
             Support: {SUPPORT_MODE_LABEL[selected.supportMode]}
           </span>
         ) : null}
+        {currentOrder ? <span className={styles.orderStatus} data-testid="selected-order">Order: {currentOrder}</span> : null}
         {(selected.suppression ?? 0) > 0 ? <span className={styles.stat}>Suppressed {Math.ceil(selected.suppression ?? 0)}%</span> : null}
         {selected.kind === "harvester" ? (
           <span className={styles.carry}>

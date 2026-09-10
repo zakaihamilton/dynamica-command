@@ -7,9 +7,11 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
     <section className={styles.outcome} aria-label="Outcome assessment">
       <ConsoleLabel>Outcome assessment</ConsoleLabel>
       <p className={styles.outcomeText}>{debrief.outcome}</p>
-      <p className={styles.objectiveLabel}>Primary objective</p>
-      <p className={styles.objectiveHeadline}>{debrief.objective.headline}</p>
-      <p className={styles.objectiveProgress}>{debrief.objective.progress}</p>
+      <div className={styles.resultCard} data-testid="primary-result-card">
+        <p className={styles.objectiveLabel}>Primary objective</p>
+        <p className={styles.objectiveHeadline}>{debrief.objective.headline}</p>
+        <p className={styles.objectiveProgress}>{debrief.objective.progress}</p>
+      </div>
       <div className={styles.profileAssessment} data-testid="profile-assessment">
         <p className={styles.objectiveLabel}>Tactical profile</p>
         <p className={styles.profileLabel}>{debrief.tactical.label}</p>
@@ -22,10 +24,18 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
         <div className={styles.secondaryList} aria-label="Secondary objectives">
           <p className={styles.objectiveLabel}>Secondary objectives</p>
           {debrief.secondary.map((objective) => (
-            <p className={objective.completed ? styles.secondaryComplete : styles.secondaryIncomplete} key={objective.id}>
-              {objective.completed ? "✓" : "○"} {objective.label}
-            </p>
+            <div className={styles.secondaryCard} key={objective.id}>
+              <p className={objective.completed ? styles.secondaryComplete : objective.failed ? styles.secondaryFailed : styles.secondaryIncomplete}>
+                <span aria-hidden="true">{objective.completed ? "✓" : objective.failed ? "×" : "○"}</span> {objective.completed ? "Complete" : objective.failed ? "Failed" : "Incomplete"}: {objective.label}
+              </p>
+            </div>
           ))}
+        </div>
+      ) : null}
+      {debrief.retryGuidance ? (
+        <div className={styles.retryGuidance} data-testid="retry-guidance">
+          <p className={styles.objectiveLabel}>Retry guidance</p>
+          <p>{debrief.retryGuidance}</p>
         </div>
       ) : null}
     </section>

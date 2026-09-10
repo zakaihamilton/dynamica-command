@@ -14,13 +14,15 @@ export function createPresentationCoordinator({
   fxSequence,
   onAlert,
   onTacticalAnnouncement,
+  onCommandNotice,
 }: {
   cameraRef: { current: Camera };
   canvasRef: { current: HTMLCanvasElement | null };
   fxRef: { current: FxBurst[] };
   fxSequence: { current: number };
-  onAlert: (text: string) => void;
+  onAlert: (text: string, kind?: "warning" | "objective" | "contact" | "system") => void;
   onTacticalAnnouncement: (text: string) => void;
+  onCommandNotice: (text: string, kind?: "success" | "info" | "warning" | "error") => void;
 }) {
   let appliedIntensity: MusicIntensity = "calm";
   let lastCombatTick = Number.NEGATIVE_INFINITY;
@@ -57,11 +59,12 @@ export function createPresentationCoordinator({
       const rejection = events.find((event) => event.type === "commandRejected");
       if (rejection?.type === "commandRejected") {
         playSfx(rejectionSfx(rejection.reason));
-        onTacticalAnnouncement(commandRejectionMessage(rejection.reason));
+        const message = commandRejectionMessage(rejection.reason);
+        onCommandNotice(message, "error");
       }
       if (alert) {
         playSfx(alertSfx(alert.kind), { force: true });
-        onAlert(alert.text);
+        onAlert(alert.text, alert.kind);
         onTacticalAnnouncement(alert.text);
       }
       if (events.some((event) => ["combat", "destroyed", "support", "built", "produced"].includes(event.type))) {

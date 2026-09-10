@@ -16,6 +16,8 @@ export function MenuScreen() {
   return (
     <div
       className={styles.screen}
+      data-high-contrast={controller.settings.highContrast ? "true" : "false"}
+      data-reduced-motion={controller.settings.reducedMotion ? "true" : "false"}
       style={{ "--scene-art": `url("${RASTER_ART.menu}")` } as CSSProperties}
     >
       <DocumentTitle title="Shifting Front" />
@@ -67,6 +69,8 @@ export function MenuScreen() {
         onToggleSound={controller.toggleSound}
         onToggleMusic={controller.toggleMusic}
         onToggleTacticalRoster={controller.toggleTacticalRoster}
+        onToggleReducedMotion={controller.toggleReducedMotion}
+        onToggleHighContrast={controller.toggleHighContrast}
         onVolumeChange={controller.updateVolume}
         onBack={controller.goBack}
       />

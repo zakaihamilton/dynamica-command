@@ -26,6 +26,30 @@
   color: var(--chrome-text);
 }
 
+.progressStrip {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.7rem;
+  max-width: 18rem;
+}
+
+.progressStrip span {
+  height: 0.28rem;
+  flex: 1;
+  border: 1px solid var(--chrome-steel);
+  background: var(--chrome-void);
+}
+
+.progressActive {
+  background: var(--chrome-cyan) !important;
+  border-color: var(--chrome-cyan) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--chrome-cyan) 45%, transparent);
+}
+
+.progressPending {
+  opacity: 0.7;
+}
+
 .world {
   margin: 0.5rem 0 0;
   font-family: var(--font-mono);

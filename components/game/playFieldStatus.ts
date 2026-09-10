@@ -2,6 +2,7 @@ import { formatMissionClockFromTicks } from "@/lib/gen/pacing";
 import { profileContractFor, resolveMissionProfile } from "@/lib/gen/profile";
 import { objectiveProgress, secondaryProgress } from "@/lib/sim/objectives";
 import { missionObjectives } from "@/lib/gen/story";
+import { missionTimeLimitTicks, objectiveCardsFor, phaseLabel } from "@/lib/ui/missionPresentation";
 import type { Campaign, SimState } from "@/lib/types";
 
 export function playFieldStatus(state: SimState, campaign?: Campaign) {
@@ -20,6 +21,11 @@ export function playFieldStatus(state: SimState, campaign?: Campaign) {
     objective: objective.label,
     secondary: secondaryProgress(state).map((item) => `${item.completed ? "✓" : "○"} ${item.label}`),
     briefingObjectives: mission ? missionObjectives(mission, campaign) : [],
+    objectiveProgress: objective,
+    objectiveCards: objectiveCardsFor(state),
+    phaseLabel: phaseLabel(state.runtime),
+    timeRemainingTicks: objective.timeRemainingTicks,
+    timeLimitTicks: missionTimeLimitTicks(state),
     timeRemaining,
     convoyDeparture,
     profileLabel: profile?.label,

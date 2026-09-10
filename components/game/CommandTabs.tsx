@@ -39,7 +39,11 @@ function CommandBarButton({
       className={styles.tab}
       onClick={onClick}
     >
-      <CommandTabIcon type={icon} />
+      <span className={styles.tabContent}>
+        <CommandTabIcon type={icon} />
+        <span className={styles.tabLabel}>{label}</span>
+        <kbd>{shortcut}</kbd>
+      </span>
     </ConsoleButton>
   );
 }

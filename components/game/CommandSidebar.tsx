@@ -4,6 +4,8 @@ import { CommandBuildSection } from "./CommandBuildSection";
 import { CommandHeader } from "./CommandHeader";
 import { MinimapFrame } from "./MinimapFrame";
 import { ResourceDock } from "./ResourceDock";
+import { MobileTouchControls } from "./MobileTouchControls";
+import type { MinimapPing } from "./MinimapFrame";
 import styles from "./CommandSidebar.module.css";
 
 export function CommandSidebar({
@@ -25,6 +27,7 @@ export function CommandSidebar({
   onMinimapPointerMove,
   onMinimapPointerUp,
   isMinimapDragging,
+  minimapPing,
   onTab,
   onRepair,
   onSell,
@@ -37,6 +40,11 @@ export function CommandSidebar({
   onStance,
   onFormation,
   mobilePanelOpen,
+  selectionCount = 0,
+  selectionMode = false,
+  activeMobileCommand = null,
+  onMobileCommand,
+  onSelectionMode,
 }: CommandBuildControls & {
   factionName: string;
   produced: number;
@@ -47,7 +55,13 @@ export function CommandSidebar({
   onMinimapPointerMove: PointerEventHandler<HTMLCanvasElement>;
   onMinimapPointerUp: PointerEventHandler<HTMLCanvasElement>;
   isMinimapDragging: boolean;
+  minimapPing?: MinimapPing;
   mobilePanelOpen: boolean;
+  selectionCount?: number;
+  selectionMode?: boolean;
+  activeMobileCommand?: import("./mobileCommandTypes").MobileCommand | null;
+  onMobileCommand?: (command: import("./mobileCommandTypes").MobileCommand) => void;
+  onSelectionMode?: (active: boolean) => void;
 }) {
   const [portraitViewport, setPortraitViewport] = useState(false);
 
@@ -81,6 +95,7 @@ export function CommandSidebar({
           onPointerMove={onMinimapPointerMove}
           onPointerUp={onMinimapPointerUp}
           isDragging={isMinimapDragging}
+          ping={minimapPing}
         />
       </div>
 
@@ -97,6 +112,7 @@ export function CommandSidebar({
         repairMode={repairMode}
         sellMode={sellMode}
         activeTab={activeTab}
+        selectionCount={selectionCount}
         power={power}
         onTab={onTab}
         onRepair={onRepair}
@@ -109,6 +125,15 @@ export function CommandSidebar({
         onStop={onStop}
         onStance={onStance}
         onFormation={onFormation}
+      />
+      <MobileTouchControls
+        selectedCount={selectionCount}
+        hasUnitSelection={selectionCount > 0 && selected?.class === "unit" && selected.owner === 0 && !selected.neutral}
+        selectionMode={selectionMode}
+        activeCommand={activeMobileCommand}
+        onCommand={onMobileCommand ?? (() => undefined)}
+        onSelectionMode={onSelectionMode ?? (() => undefined)}
+        onStop={onStop}
       />
     </aside>
   );

@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { labelFor, type CameoStatus } from "@/lib/catalog";
 import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
@@ -12,6 +13,7 @@ export function CommandCameo({
   cost,
   disabled,
   disabledReason,
+  detail,
   active,
   cameo,
   shortcut,
@@ -24,6 +26,7 @@ export function CommandCameo({
   cost: number;
   disabled?: boolean;
   disabledReason?: string;
+  detail?: string;
   active?: boolean;
   cameo: CameoStatus;
   shortcut?: string;
@@ -32,7 +35,8 @@ export function CommandCameo({
 }) {
   const busy = cameo.phase !== "idle";
   const showCount = cameo.queued > 1 || cameo.phase === "waiting";
-  const tooltip = `${labelFor(kind)} · ${cost} credits${busy ? (cameo.phase === "waiting" ? ` · ${cameo.queued} in queue` : ` · ${Math.round(cameo.ratio * 100)}% complete`) : ""}${busy || active ? " · Right-click to cancel" : ""}${disabledReason ? ` · ${disabledReason}` : ""}`;
+  const cancellable = busy || active;
+  const tooltip = `${labelFor(kind)} · ${cost} credits${busy ? (cameo.phase === "waiting" ? ` · ${cameo.queued} in queue` : ` · ${Math.round(cameo.ratio * 100)}% complete`) : ""}${cancellable ? " · Right-click or use Cancel" : ""}${disabledReason ? ` · ${disabledReason}` : ""}`;
   const ariaStatus = disabledReason ? `, ${disabledReason}` : "";
   return (
     <span
@@ -50,7 +54,7 @@ export function CommandCameo({
         disabled={disabled}
         className={cx(styles.card, active && styles.active, busy && styles.busy)}
         onClick={onClick}
-        aria-label={`${labelFor(kind)}, ${cost} credits${busy ? `, ${cameo.phase === "waiting" ? `${cameo.queued} in queue` : `${Math.round(cameo.ratio * 100)} percent complete`}` : ""}${busy || active ? ", right-click to cancel" : ""}${ariaStatus}`}
+        aria-label={`${labelFor(kind)}, ${cost} credits${busy ? `, ${cameo.phase === "waiting" ? `${cameo.queued} in queue` : `${Math.round(cameo.ratio * 100)} percent complete`}` : ""}${cancellable ? ", cancel available" : ""}${ariaStatus}`}
         aria-keyshortcuts={shortcut}
       >
         <span className={styles.art}>
@@ -67,10 +71,29 @@ export function CommandCameo({
           {showCount ? <span className={styles.count}>{cameo.queued}</span> : null}
         </span>
         <span className={styles.caption}>
-          <span>{labelFor(kind)}</span>
-          <b>{cost}</b>
+          <span className={styles.captionTop}>
+            <span>{labelFor(kind)}</span>
+            <b>{cost}</b>
+          </span>
+          <span className={cx(styles.status, disabledReason && styles.blocked)}>
+            {disabledReason ?? (busy ? cameo.phase === "waiting" ? `Queue ${cameo.queued}` : `${Math.round(cameo.ratio * 100)}% ready` : "Ready")}
+          </span>
+          {detail ? <span className={styles.detail}>{detail}</span> : null}
         </span>
       </button>
+      {cancellable && onContextMenu ? (
+        <ConsoleButton
+          className={styles.cancel}
+          aria-label={`Cancel ${labelFor(kind)}`}
+          data-testid={`cameo-cancel-${kind}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onContextMenu();
+          }}
+        >
+          ×
+        </ConsoleButton>
+      ) : null}
     </span>
   );
 }

@@ -21,6 +21,7 @@ export type SecondaryProgress = {
   id: string;
   label: string;
   completed: boolean;
+  failed: boolean;
 };
 
 function timeRemainingTicks(state: SimState): number | undefined {
@@ -51,6 +52,10 @@ export function secondaryProgress(state: SimState): SecondaryProgress[] {
     id: objective.id,
     label: objective.label,
     completed: objective.completed === true,
+    failed: objective.completed !== true && (
+      state.result === "lost"
+      || (objective.kind === "completeBefore" && objective.target !== undefined && state.tick >= objective.target)
+    ),
   }));
 }
 

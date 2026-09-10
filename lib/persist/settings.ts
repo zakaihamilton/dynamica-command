@@ -2,7 +2,7 @@ import { safeSetItem, type StorageAdapter } from "./save";
 import { isRecord, readPersistedEnvelope } from "./utils";
 
 export const SETTINGS_KEY = "shiftingfront:settings";
-export const SETTINGS_VERSION = 2 as const;
+export const SETTINGS_VERSION = 3 as const;
 
 export type GameSettings = {
   sfxEnabled: boolean;
@@ -11,6 +11,8 @@ export type GameSettings = {
   musicVolume: number;
   sfxVolume: number;
   tacticalRosterEnabled: boolean;
+  reducedMotion: boolean;
+  highContrast: boolean;
 };
 
 export function defaultSettings(): GameSettings {
@@ -21,6 +23,8 @@ export function defaultSettings(): GameSettings {
     musicVolume: 0.5,
     sfxVolume: 0.9,
     tacticalRosterEnabled: false,
+    reducedMotion: false,
+    highContrast: false,
   };
 }
 
@@ -41,6 +45,8 @@ function normalize(value: unknown): GameSettings {
     musicVolume: clampVolume(raw.musicVolume, base.musicVolume),
     sfxVolume: clampVolume(raw.sfxVolume, base.sfxVolume),
     tacticalRosterEnabled: raw.tacticalRosterEnabled === true,
+    reducedMotion: raw.reducedMotion === true,
+    highContrast: raw.highContrast === true,
   };
 }
 
@@ -49,7 +55,7 @@ export function readSettings(storage: StorageAdapter): GameSettings {
     storage,
     SETTINGS_KEY,
     (parsed) => {
-      if (!isRecord(parsed) || (parsed.version !== 1 && parsed.version !== SETTINGS_VERSION)) return null;
+      if (!isRecord(parsed) || (parsed.version !== 1 && parsed.version !== 2 && parsed.version !== SETTINGS_VERSION)) return null;
       return normalize(parsed.settings);
     },
     defaultSettings(),
@@ -67,6 +73,8 @@ export function writeSettings(storage: StorageAdapter, settings: GameSettings): 
       musicVolume: clampVolume(settings.musicVolume, defaultSettings().musicVolume),
       sfxVolume: clampVolume(settings.sfxVolume, defaultSettings().sfxVolume),
       tacticalRosterEnabled: settings.tacticalRosterEnabled === true,
+      reducedMotion: settings.reducedMotion === true,
+      highContrast: settings.highContrast === true,
     },
   }));
 }

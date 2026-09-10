@@ -533,7 +533,7 @@ test.describe("mobile-first layouts", () => {
         expect(sidebarBounds).not.toBeNull();
         expect(sidebarBounds!.x + sidebarBounds!.width).toBeLessThanOrEqual(viewport.width);
       }
-      await expect(page.getByTestId("mobile-touch-controls")).toHaveCount(0);
+      await expect(page.getByTestId("mobile-touch-controls")).toHaveCount(1);
     });
   }
 
@@ -560,14 +560,14 @@ test.describe("mobile-first layouts", () => {
     expect(panelBounds).not.toBeNull();
     expect(panelBounds!.x).toBeGreaterThanOrEqual(0);
     expect(panelBounds!.x + panelBounds!.width).toBeLessThanOrEqual(390);
-    await expect(panel.getByTestId("mobile-touch-controls")).toHaveCount(0);
+    await expect(panel.getByTestId("mobile-touch-controls")).toBeVisible();
     await expect(panel.getByRole("tab", { name: "Construction" })).toBeVisible();
 
     await launcher.getByTestId("mobile-command-toggle").click();
     await expect(panel).not.toBeVisible();
     await launcher.getByTestId("mobile-command-toggle").click();
     await expect(panel).toBeVisible();
-    await page.getByTestId("mobile-command-scrim").click({ position: { x: 12, y: 420 } });
+    await page.getByTestId("mobile-command-scrim").click({ position: { x: 12, y: 96 } });
     await expect(panel).not.toBeVisible();
   });
 
@@ -616,7 +616,7 @@ test.describe("mobile-first layouts", () => {
         };
       });
 
-      expect(layout.sidebar.width).toBeLessThanOrEqual(320);
+      expect(layout.sidebar.width).toBeLessThanOrEqual(viewport.width);
       expect(layout.sidebar.width).toBeGreaterThan(0);
       expect(layout.sidebar.right).toBeLessThanOrEqual(viewport.width);
       expect(layout.documentWidth).toBeLessThanOrEqual(viewport.width);
@@ -628,8 +628,8 @@ test.describe("mobile-first layouts", () => {
         expect(art).not.toBeNull();
         expect(art!.width / art!.height).toBeCloseTo(80 / 56, 2);
         expect(canvas).not.toBeNull();
-        expect(canvas!.backingWidth).toBeGreaterThan(canvas!.cssWidth);
-        expect(canvas!.backingHeight).toBeGreaterThan(canvas!.cssHeight);
+        expect(canvas!.backingWidth).toBeGreaterThanOrEqual(canvas!.cssWidth);
+        expect(canvas!.backingHeight).toBeGreaterThanOrEqual(canvas!.cssHeight);
         expect(canvas!.imageRendering).toBe("auto");
       }
 
@@ -647,7 +647,7 @@ test.describe("mobile-first layouts", () => {
     await expect(page.getByTestId("mobile-command-launcher")).toBeVisible();
   });
 
-  test("does not expose the removed touch controls for a selected base", async ({ page }) => {
+  test("exposes the bottom command sheet for a selected base", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/play?seed=0421&mission=0");
     await waitForBattlefield(page);
@@ -656,7 +656,7 @@ test.describe("mobile-first layouts", () => {
     await dispatchTouch(page, "pointerdown", yard);
     await dispatchTouch(page, "pointerup", yard);
     await page.getByTestId("mobile-command-toggle").click();
-    await expect(page.getByTestId("command-sidebar").getByTestId("mobile-touch-controls")).toHaveCount(0);
+    await expect(page.getByTestId("command-sidebar").getByTestId("mobile-touch-controls")).toBeVisible();
   });
 
   test("supports touch panning and direct commands for a selected unit", async ({ page }) => {

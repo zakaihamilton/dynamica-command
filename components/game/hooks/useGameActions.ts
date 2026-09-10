@@ -3,11 +3,13 @@ import { buildingCameoStatus, buildingLimitReached, isSupportUnit, unitCameoStat
 import { beep } from "@/lib/audio/synth";
 import { groundOrders } from "@/lib/sim/orders";
 import { beepForCommands } from "@/lib/audio/uiOrders";
+import type { MissionUxTelemetry } from "@/lib/persist/telemetry";
 import type { BuildingKind, Command, Formation, SimState, Stance, UnitKind } from "@/lib/types";
 import { terrainAccess } from "@/lib/sim/world";
 import type { MobileCommand } from "../mobileCommandTypes";
 import { PLACEABLE, PRODUCIBLE, leastLoadedProducer } from "./gameActions";
 import { createRuntimeCommandPort, type RuntimeCommandPort } from "./runtime/facade";
+import type { CommandNoticeKind } from "./useGameChrome";
 
 export { PLACEABLE, PRODUCIBLE } from "./gameActions";
 
@@ -17,6 +19,9 @@ export function useGameActions({
   cmdQ,
   selected,
   selectedIds,
+  onCommandNotice,
+  onCommandRejection,
+  uxRef,
 }: {
   stateRef: MutableRefObject<SimState>;
   commandPort?: RuntimeCommandPort;
@@ -24,6 +29,9 @@ export function useGameActions({
   cmdQ?: MutableRefObject<Command[]>;
   selected: MutableRefObject<Set<number>>;
   selectedIds: readonly number[];
+  onCommandNotice?: (text: string, kind?: CommandNoticeKind) => void;
+  onCommandRejection?: (reason: string) => void;
+  uxRef?: MutableRefObject<MissionUxTelemetry>;
 }) {
   const resolvedCommandPort = useMemo(() => {
     if (commandPort) return commandPort;
@@ -33,6 +41,10 @@ export function useGameActions({
   const enqueue = useCallback((command: Command) => {
     resolvedCommandPort.enqueue(command);
   }, [resolvedCommandPort]);
+  const notify = useCallback((text: string, kind: CommandNoticeKind = "info") => {
+    if (kind === "error") onCommandRejection?.(text);
+    onCommandNotice?.(text, kind);
+  }, [onCommandNotice, onCommandRejection]);
   const place = useRef<BuildingKind | null>(null);
   const [placeKind, setPlaceKind] = useState<BuildingKind | null>(null);
   const repair = useRef(false);
@@ -56,14 +68,16 @@ export function useGameActions({
     mobileCommand.current = command;
     setMobileCommandState(command);
     beep("select");
-  }, [clearTools]);
+    notify(`${command === "attackMove" ? "Attack-move" : command.charAt(0).toUpperCase() + command.slice(1)} ready — tap a destination.`, "info");
+  }, [clearTools, notify]);
 
   const cancelMobileCommand = useCallback(() => {
     mobileCommand.current = null;
     setMobileCommandState(null);
     clearTools();
     beep("cancel");
-  }, [clearTools]);
+    notify("Command cancelled.", "info");
+  }, [clearTools, notify]);
 
   const resetMobileCommand = useCallback(() => {
     mobileCommand.current = null;
@@ -79,7 +93,11 @@ export function useGameActions({
     mobileCommand.current = null;
     setMobileCommandState(null);
     beep("ack");
-  }, [enqueue, selected, selectedIds]);
+    if (uxRef && uxRef.current.firstOrderTick === undefined) uxRef.current.firstOrderTick = stateRef.current.tick;
+    notify(command === "stop"
+      ? `Stop order issued to ${unitIds.length} unit${unitIds.length === 1 ? "" : "s"}.`
+      : `${command === "stance" ? "Stance" : "Formation"} updated for ${unitIds.length} unit${unitIds.length === 1 ? "" : "s"}.`, "success");
+  }, [enqueue, notify, selected, selectedIds, stateRef, uxRef]);
 
   const issueCoordinateCommand = useCallback((command: "move" | "attackMove" | "harvest", x: number, y: number) => {
     const tx = Math.round(x);
@@ -94,16 +112,24 @@ export function useGameActions({
       return true;
     });
     const access = terrainAccess(state, tx, ty);
-    if (!unitIds.length || !Number.isInteger(tx) || !Number.isInteger(ty) || !access.traversable || (command === "harvest" && access.label !== "Ore field")) return false;
+    if (!unitIds.length || !Number.isInteger(tx) || !Number.isInteger(ty) || !access.traversable || (command === "harvest" && access.label !== "Ore field")) {
+      notify(command === "harvest" ? "Select an ore field for harvesting." : "That destination cannot be reached.", "error");
+      return false;
+    }
     const commands = command === "move"
       ? groundOrders(state, unitIds, tx, ty, true)
       : [{ type: command, unitIds, x: tx, y: ty } satisfies Command];
-    if (!commands.length) return false;
+    if (!commands.length) {
+      notify("No eligible units for that order.", "error");
+      return false;
+    }
     resolvedCommandPort.enqueueMany(commands);
+    if (uxRef && uxRef.current.firstOrderTick === undefined) uxRef.current.firstOrderTick = state.tick;
     const kind = beepForCommands(commands);
     if (kind) beep(kind);
+    notify(`${command === "attackMove" ? "Attack-move" : command.charAt(0).toUpperCase() + command.slice(1)} order issued.`, "success");
     return true;
-  }, [resolvedCommandPort, selected, selectedIds, stateRef]);
+  }, [notify, resolvedCommandPort, selected, selectedIds, stateRef, uxRef]);
 
   const issueTargetCommand = useCallback((command: "attack" | "support", targetId: number) => {
     const selectedUnitIds = [...(selectedIds.length > 0 ? selectedIds : selected.current)];
@@ -113,16 +139,24 @@ export function useGameActions({
       if (command === "attack") return entity.kind !== "harvester" && !isSupportUnit(entity.kind as UnitKind);
       return isSupportUnit(entity.kind as UnitKind);
     });
-    if (!unitIds.length) return false;
+    if (!unitIds.length) {
+      notify(command === "attack" ? "Select a combat unit first." : "Select a support unit first.", "error");
+      return false;
+    }
     const nextCommand = { type: command, unitIds, targetId } satisfies Command;
     enqueue(nextCommand);
+    if (uxRef && uxRef.current.firstOrderTick === undefined) uxRef.current.firstOrderTick = stateRef.current.tick;
     const kind = beepForCommands([nextCommand]);
     if (kind) beep(kind);
+    notify(`${command === "attack" ? "Attack" : "Support"} order issued.`, "success");
     return true;
-  }, [enqueue, selected, selectedIds, stateRef]);
+  }, [enqueue, notify, selected, selectedIds, stateRef, uxRef]);
 
   const togglePlace = useCallback((kind: BuildingKind) => {
-    if (place.current !== kind && buildingLimitReached(stateRef.current.entities, 0, kind)) return;
+    if (place.current !== kind && buildingLimitReached(stateRef.current.entities, 0, kind)) {
+      notify("This structure is limited to one per mission.", "error");
+      return;
+    }
     const next = place.current === kind ? null : kind;
     place.current = next;
     setPlaceKind(next);
@@ -132,7 +166,8 @@ export function useGameActions({
       sell.current = false;
       setSellMode(false);
     }
-  }, [stateRef]);
+    if (next) notify("Placement mode ready — choose a build site.", "info");
+  }, [notify, stateRef]);
 
   const toggleRepair = useCallback(() => {
     const next = !repair.current;
@@ -144,7 +179,8 @@ export function useGameActions({
       sell.current = false;
       setSellMode(false);
     }
-  }, []);
+    notify(next ? "Repair mode ready." : "Repair mode cancelled.", "info");
+  }, [notify]);
 
   const toggleSell = useCallback(() => {
     const next = !sell.current;
@@ -156,34 +192,43 @@ export function useGameActions({
       repair.current = false;
       setRepairMode(false);
     }
-  }, []);
+    notify(next ? "Sell mode ready." : "Sell mode cancelled.", "info");
+  }, [notify]);
 
   const cancelBuilding = useCallback((kind: BuildingKind) => {
     if (place.current === kind) {
       place.current = null;
       setPlaceKind(null);
       beep("cancel");
+      notify("Placement cancelled.", "info");
       return;
     }
     if (buildingCameoStatus(stateRef.current.entities, 0, kind).phase === "idle") return;
     enqueue({ type: "cancelBuild", building: kind });
     beep("cancel");
-  }, [enqueue, stateRef]);
+    notify("Construction cancelled.", "info");
+  }, [enqueue, notify, stateRef]);
 
   const availableProducer = useCallback((unit: UnitKind) => leastLoadedProducer(stateRef.current, 0, unit), [stateRef]);
 
   const queueUnit = useCallback((unit: UnitKind) => {
     const next = availableProducer(unit);
-    if (!next) return;
+    if (!next) {
+      notify("No production slot is available.", "error");
+      return;
+    }
     enqueue({ type: "produce", fromId: next.id, unit });
     beep("build");
-  }, [availableProducer, enqueue]);
+    if (uxRef && uxRef.current.firstProductionTick === undefined) uxRef.current.firstProductionTick = stateRef.current.tick;
+    notify(`${unit} queued for production.`, "success");
+  }, [availableProducer, enqueue, notify, stateRef, uxRef]);
 
   const cancelUnit = useCallback((unit: UnitKind) => {
     if (unitCameoStatus(stateRef.current.entities, 0, unit).phase === "idle") return;
     enqueue({ type: "cancelProduce", unit });
     beep("cancel");
-  }, [enqueue, stateRef]);
+    notify(`${unit} production cancelled.`, "info");
+  }, [enqueue, notify, stateRef]);
 
   const activateCameo = useCallback((tab: "construction" | "production", index: number, cancel: boolean) => {
     if (tab === "construction") {

@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cachedLocalStorage } from "@/lib/persist/save";
 import { readSettings } from "@/lib/persist/settings";
 import type { Command, SimState } from "@/lib/types";
 import type { CommandTab, PauseView } from "@/lib/ui/shortcuts";
 import { useAnnouncement } from "@/components/ui/useAnnouncement";
+
+export type CommandNoticeKind = "success" | "info" | "warning" | "error";
+export type CommandNoticeState = { text: string; kind: CommandNoticeKind } | null;
 
 export function useGameChrome(initialResult: SimState["result"] = "playing") {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
@@ -17,6 +20,8 @@ export function useGameChrome(initialResult: SimState["result"] = "playing") {
   const pauseViewRef = useRef(pauseView);
   const [pauseNotice, setPauseNotice] = useState("");
   const [tacticalAnnouncement, announceTactical] = useAnnouncement();
+  const [commandNotice, setCommandNotice] = useState<CommandNoticeState>(null);
+  const commandNoticeTimer = useRef<number | null>(null);
   const [audioSettings, setAudioSettings] = useState(() => readSettings(cachedLocalStorage()));
   const cmdQ = useRef<Command[]>([]);
 
@@ -27,6 +32,19 @@ export function useGameChrome(initialResult: SimState["result"] = "playing") {
   useEffect(() => {
     pauseViewRef.current = pauseView;
   }, [pauseView]);
+
+  useEffect(() => () => {
+    if (commandNoticeTimer.current !== null) window.clearTimeout(commandNoticeTimer.current);
+  }, []);
+
+  const announceCommand = useCallback((text: string, kind: CommandNoticeKind = "info") => {
+    setCommandNotice({ text, kind });
+    if (commandNoticeTimer.current !== null) window.clearTimeout(commandNoticeTimer.current);
+    commandNoticeTimer.current = window.setTimeout(() => {
+      setCommandNotice(null);
+      commandNoticeTimer.current = null;
+    }, kind === "error" || kind === "warning" ? 3600 : 2200);
+  }, []);
 
   return {
     mobilePanelOpen,
@@ -46,6 +64,8 @@ export function useGameChrome(initialResult: SimState["result"] = "playing") {
     setPauseNotice,
     tacticalAnnouncement,
     announceTactical,
+    commandNotice,
+    announceCommand,
     audioSettings,
     setAudioSettings,
     cmdQ,

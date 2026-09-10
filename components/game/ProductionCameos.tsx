@@ -1,4 +1,4 @@
-import { UNIT_STATS, isUnitAvailable, labelFor, producerFor, unitCameoStatus } from "@/lib/catalog";
+import { TICKS_PER_SECOND, UNIT_STATS, isUnitAvailable, labelFor, producerFor, unitCameoStatus } from "@/lib/catalog";
 import type { Entity, FactionVisualProfile, Palette, SimState, UnitKind } from "@/lib/types";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import { CameoGrid } from "./CameoGrid";
@@ -38,6 +38,9 @@ export function ProductionCameos({
             cost={UNIT_STATS[unit].cost}
             disabled={disabled}
             disabledReason={disabled ? productionBlockerText(state, unit, power, producer) : undefined}
+            detail={cameo.phase === "progress"
+              ? `${Math.ceil((1 - cameo.ratio) * UNIT_STATS[unit].buildTicks / TICKS_PER_SECOND)}s remaining`
+              : cameo.phase === "waiting" ? "Queued — cancel available" : undefined}
             cameo={cameo}
             shortcut={SHORTCUT.cameo[index]}
             onClick={() => onQueueUnit(unit)}

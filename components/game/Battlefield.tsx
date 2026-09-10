@@ -3,6 +3,7 @@ import type { PanAvailability, PanDir } from "@/lib/render/camera";
 import { biomeArt } from "@/lib/gen/visualAssets";
 import type { MissionObjective } from "@/lib/gen/story";
 import type { BiomeName } from "@/lib/types";
+import type { ObjectiveCardModel } from "@/lib/ui/missionPresentation";
 import { BattlefieldHud } from "./BattlefieldHud";
 import { ScrollArrow } from "./ScrollArrow";
 import styles from "./Battlefield.module.css";
@@ -23,6 +24,11 @@ export function Battlefield({
   timeRemaining,
   convoyDeparture,
   briefingObjectives,
+  objectiveCards,
+  phaseLabel,
+  timeRemainingTicks,
+  timeLimitTicks,
+  onObjectivePanelToggle,
   showHud = true,
   biome,
   children,
@@ -48,6 +54,11 @@ export function Battlefield({
   timeRemaining?: string;
   convoyDeparture?: string;
   briefingObjectives?: MissionObjective[];
+  objectiveCards?: ObjectiveCardModel[];
+  phaseLabel?: string;
+  timeRemainingTicks?: number;
+  timeLimitTicks?: number;
+  onObjectivePanelToggle?: () => void;
   showHud?: boolean;
   biome: BiomeName;
   children?: ReactNode;
@@ -92,6 +103,11 @@ export function Battlefield({
           timeRemaining={timeRemaining}
           convoyDeparture={convoyDeparture}
           briefingObjectives={briefingObjectives}
+          objectiveCards={objectiveCards}
+          phaseLabel={phaseLabel}
+          timeRemainingTicks={timeRemainingTicks}
+          timeLimitTicks={timeLimitTicks}
+          onObjectivePanelToggle={onObjectivePanelToggle}
         />
       ) : null}
       {children}
