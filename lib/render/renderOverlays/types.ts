@@ -10,6 +10,7 @@ export type CommandMarker = {
   expiresMs?: number;
   kind?: CommandMarkerKind;
   mode?: "attack" | "attackMove";
+  unitIds?: number[];
 };
 
 export type RenderExtras = {

@@ -1,5 +1,5 @@
 export type { CommandMarker, CommandMarkerKind, RenderExtras } from "./renderOverlays/types";
-export { COMMAND_MARKER_COLORS, COMMAND_MARKER_INVALID_MS, commandMarkerKind, drawCommandMarker } from "./renderOverlays/commandMarker";
+export { COMMAND_MARKER_COLORS, COMMAND_MARKER_INVALID_MS, commandMarkerKind, commandMarkerReachedDestination, drawCommandMarker } from "./renderOverlays/commandMarker";
 export { drawDiamond, drawDiamondStroke } from "./renderOverlays/diamonds";
 export { drawRescueHalo, drawObjectiveZone } from "./renderOverlays/zones";
 export { drawUnitGlow, drawDamageOverlay } from "./renderOverlays/unitEffects";

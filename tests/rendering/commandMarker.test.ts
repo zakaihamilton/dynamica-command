@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCamera } from "../../lib/iso";
 import { UNIT_STATS } from "../../lib/catalog";
-import { COMMAND_MARKER_COLORS, commandMarkerKind, drawCommandMarker } from "../../lib/render/renderOverlays";
+import { COMMAND_MARKER_COLORS, commandMarkerKind, commandMarkerReachedDestination, drawCommandMarker } from "../../lib/render/renderOverlays";
 import { drawCombatEffects } from "../../lib/render/renderCombat";
 import { addUnit, makeFixture } from "../../lib/sim/fixtures";
 
@@ -65,6 +65,37 @@ describe("command markers", () => {
     const expiredCtx = mockCtx();
     drawCommandMarker(expiredCtx, state, cam, { x: 2, y: 2, bornMs: 0, expiresMs: 900, kind: "invalid" }, 900);
     expect(expiredCtx.ellipse).not.toHaveBeenCalled();
+  });
+
+  it("removes an order marker after its units reach the destination", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const unit = addUnit(state, 0, "infantry", 2, 2);
+    unit.orderMode = "attackMove";
+    unit.orderDestination = { x: 2, y: 2 };
+    unit.idle = true;
+    unit.routePending = false;
+    const marker = { x: 2, y: 2, bornMs: 0, kind: "attack" as const, mode: "attackMove" as const, unitIds: [unit.id] };
+
+    expect(commandMarkerReachedDestination(state, marker)).toBe(true);
+    const ctx = mockCtx();
+    drawCommandMarker(ctx, state, createCamera(), marker, 80);
+    expect(ctx.ellipse).not.toHaveBeenCalled();
+  });
+
+  it("keeps an order marker visible while its units are still moving", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const unit = addUnit(state, 0, "infantry", 2, 2);
+    unit.orderMode = "attackMove";
+    unit.orderDestination = { x: 8, y: 2 };
+    unit.idle = false;
+    unit.routePending = false;
+    unit.path = [{ x: 3, y: 2 }];
+    const marker = { x: 8, y: 2, bornMs: 0, kind: "attack" as const, mode: "attackMove" as const, unitIds: [unit.id] };
+
+    expect(commandMarkerReachedDestination(state, marker)).toBe(false);
+    const ctx = mockCtx();
+    drawCommandMarker(ctx, state, createCamera(), marker, 80);
+    expect(ctx.ellipse).toHaveBeenCalled();
   });
 });
 

@@ -27,6 +27,27 @@ export function commandMarkerKind(commands: { type: string; unitIds?: number[] }
   return null;
 }
 
+function unitHasReachedMarkerDestination(state: SimState, unitId: number, marker: CommandMarker): boolean {
+  const unit = state.entities.find((entity) => entity.id === unitId && entity.class === "unit");
+  if (!unit || unit.hp <= 0) return true;
+  if (unit.path.length || unit.routePending || unit.flowGoal) return false;
+
+  // Direct attacks resolve at weapon range rather than on the target's tile.
+  if (marker.kind === "attack" && marker.mode === "attack") return true;
+
+  const destination = unit.orderDestination;
+  return Boolean(
+    unit.idle &&
+      (!destination ||
+        (Math.round(unit.x) === Math.round(destination.x) && Math.round(unit.y) === Math.round(destination.y))),
+  );
+}
+
+export function commandMarkerReachedDestination(state: SimState, marker: CommandMarker): boolean {
+  if (!marker.unitIds?.length || marker.kind === "invalid") return false;
+  return marker.unitIds.every((unitId) => unitHasReachedMarkerDestination(state, unitId, marker));
+}
+
 export function drawCommandMarker(
   ctx: CanvasRenderingContext2D,
   state: SimState,
@@ -37,6 +58,7 @@ export function drawCommandMarker(
 ): void {
   if (!marker) return;
   if (marker.expiresMs !== undefined && nowMs >= marker.expiresMs) return;
+  if (commandMarkerReachedDestination(state, marker)) return;
   const progress = Math.max(0, Math.min(1, (nowMs - marker.bornMs) / COMMAND_MARKER_INTRO_MS));
   if (nowMs < marker.bornMs) return;
 
