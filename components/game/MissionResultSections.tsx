@@ -76,7 +76,7 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
         </div>
       ) : null}
 
-      <details className={styles.disclosure} data-testid="profile-assessment">
+      <details className={styles.disclosure} data-testid="profile-assessment" open>
         <summary>
           <span>Tactical profile</span>
           <span className={styles.disclosureValue}>{debrief.tactical.label} · {debrief.tactical.completed ? "Met" : "Not met"}</span>
@@ -90,7 +90,7 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
       </details>
 
       {debrief.retryGuidance ? (
-        <details className={styles.disclosure} data-testid="retry-guidance">
+        <details className={styles.disclosure} data-testid="retry-guidance" open>
           <summary>
             <span>Retry guidance</span>
             <span className={styles.disclosureValue}>How to improve</span>

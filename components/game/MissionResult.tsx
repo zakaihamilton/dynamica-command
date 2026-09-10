@@ -45,7 +45,12 @@ export function MissionResult({
         aria-labelledby="mission-result-title"
       >
         <header className={styles.header}>
-          <ConsoleLabel>Campaign status</ConsoleLabel>
+          <div className={styles.headerKicker}>
+            <ConsoleLabel className={styles.headerLabel}>Campaign status</ConsoleLabel>
+            <span className={styles.headerState}>
+              {state.result === "won" ? "Operation secured" : "Operation terminated"}
+            </span>
+          </div>
           <h2 id="mission-result-title" className={styles.title}>
             {state.result === "won" ? "Mission complete" : "Mission failed"}
           </h2>

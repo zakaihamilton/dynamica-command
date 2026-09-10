@@ -122,6 +122,38 @@
   width: min(100%, 52rem);
   overflow: visible;
   padding: clamp(1rem, 3vw, 2rem);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--chrome-raised) 24%, transparent), transparent 22%),
+    linear-gradient(145deg, rgba(40, 54, 66, 0.82), rgba(8, 13, 20, 0.96)),
+    var(--texture-brushed) center / 420px 420px;
+  box-shadow:
+    inset 1px 1px color-mix(in srgb, var(--chrome-bevel) 68%, transparent),
+    inset -1px -1px var(--chrome-void),
+    0 24px 70px rgba(0, 0, 0, 0.5),
+    0 0 0 1px color-mix(in srgb, var(--chrome-cyan) 12%, transparent);
+}
+
+.panel::before {
+  pointer-events: none;
+  position: absolute;
+  inset: 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--chrome-bevel) 18%, transparent);
+  content: "";
+}
+
+.panel::after {
+  pointer-events: none;
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--chrome-cyan-dim), var(--chrome-cyan), transparent 78%);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--chrome-cyan) 24%, transparent);
+  content: "";
+}
+
+.panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .header {
@@ -132,7 +164,7 @@
   margin: 0.45rem 0 0;
   color: var(--chrome-text);
   font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 3.6rem);
+  font-size: clamp(2.15rem, 5vw, 3.8rem);
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 0.95;
@@ -142,7 +174,7 @@
 .subtitle {
   margin: 0.55rem 0 0;
   color: var(--chrome-cyan);
-  font-size: clamp(0.75rem, 1.7vw, 1rem);
+  font-size: clamp(0.82rem, 1.7vw, 1.05rem);
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -151,8 +183,8 @@
   max-width: 34rem;
   margin: 0.75rem auto 0;
   color: var(--chrome-body);
-  font-size: 0.75rem;
-  line-height: 1.5;
+  font-size: 0.84rem;
+  line-height: 1.55;
 }
 
 .archiveHeader {
@@ -173,7 +205,7 @@
 .archiveStatus {
   color: var(--chrome-cyan);
   font-family: var(--font-mono);
-  font-size: 0.52rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-align: right;
@@ -226,7 +258,7 @@
   border: 1px solid color-mix(in srgb, var(--chrome-alert) 55%, var(--chrome-inset));
   background: color-mix(in srgb, var(--chrome-alert) 10%, var(--chrome-void));
   color: var(--chrome-warning);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
 }
 
 .actions {
