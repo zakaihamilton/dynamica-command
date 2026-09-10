@@ -58,6 +58,7 @@ export function useOrderDispatch({
       kind,
       mode: commands.some((command) => command.type === "attackMove") ? "attackMove" : "attack",
       unitIds: [...new Set(commands.flatMap((command) => ("unitIds" in command ? command.unitIds : [])))],
+      targetId: commands.find((command) => command.type === "attack")?.targetId,
     };
   }, [camRef, commandMarkerRef]);
   const markInvalidCommand = useCallback((s: SimState, p: { x: number; y: number }) => {

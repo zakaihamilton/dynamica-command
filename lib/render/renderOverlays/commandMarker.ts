@@ -1,6 +1,7 @@
 import { TILE_H, tileToScreen, type Camera } from "../../iso";
-import { heightAt } from "../../sim/world";
-import type { SimState } from "../../types";
+import { UNIT_STATS } from "../../catalog";
+import { distToEntity, heightAt } from "../../sim/world";
+import { isUnitEntity, type SimState } from "../../types";
 import type { CommandMarker, CommandMarkerKind } from "./types";
 
 export const COMMAND_MARKER_INTRO_MS = 220;
@@ -28,12 +29,21 @@ export function commandMarkerKind(commands: { type: string; unitIds?: number[] }
 }
 
 function unitHasReachedMarkerDestination(state: SimState, unitId: number, marker: CommandMarker): boolean {
-  const unit = state.entities.find((entity) => entity.id === unitId && entity.class === "unit");
-  if (!unit || unit.hp <= 0) return true;
+  const entity = state.entities.find((candidate) => candidate.id === unitId);
+  if (!entity || !isUnitEntity(entity) || entity.hp <= 0) return true;
+  const unit = entity;
   if (unit.path.length || unit.routePending || unit.flowGoal) return false;
 
   // Direct attacks resolve at weapon range rather than on the target's tile.
-  if (marker.kind === "attack" && marker.mode === "attack") return true;
+  // Keep unreachable attacks marked until the target is destroyed or the
+  // issuing unit actually reaches its firing range.
+  if (marker.kind === "attack" && marker.mode === "attack") {
+    const target = marker.targetId === undefined
+      ? undefined
+      : state.entities.find((entity) => entity.id === marker.targetId);
+    if (!target || target.hp <= 0) return true;
+    return unit.attackTarget === target.id && distToEntity(unit, target) <= UNIT_STATS[unit.kind].range;
+  }
 
   const destination = unit.orderDestination;
   return Boolean(

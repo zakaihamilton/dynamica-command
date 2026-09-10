@@ -97,6 +97,42 @@ describe("command markers", () => {
     drawCommandMarker(ctx, state, createCamera(), marker, 80);
     expect(ctx.ellipse).toHaveBeenCalled();
   });
+
+  it("keeps a direct attack marker visible when the target is unreachable", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const unit = addUnit(state, 0, "infantry", 2, 2);
+    const target = addUnit(state, 1, "infantry", 10, 2);
+    unit.attackTarget = target.id;
+    unit.orderMode = "attack";
+    unit.orderDestination = { x: target.x, y: target.y };
+    unit.idle = false;
+    unit.routePending = false;
+    unit.path = [];
+    const marker = { x: target.x, y: target.y, bornMs: 0, kind: "attack" as const, mode: "attack" as const, targetId: target.id, unitIds: [unit.id] };
+
+    expect(commandMarkerReachedDestination(state, marker)).toBe(false);
+    const ctx = mockCtx();
+    drawCommandMarker(ctx, state, createCamera(), marker, 80);
+    expect(ctx.ellipse).toHaveBeenCalled();
+  });
+
+  it("removes a direct attack marker after the unit reaches weapon range", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const unit = addUnit(state, 0, "infantry", 2, 2);
+    const target = addUnit(state, 1, "infantry", 4, 2);
+    unit.attackTarget = target.id;
+    unit.orderMode = "attack";
+    unit.orderDestination = { x: target.x, y: target.y };
+    unit.idle = false;
+    unit.routePending = false;
+    unit.path = [];
+    const marker = { x: target.x, y: target.y, bornMs: 0, kind: "attack" as const, mode: "attack" as const, targetId: target.id, unitIds: [unit.id] };
+
+    expect(commandMarkerReachedDestination(state, marker)).toBe(true);
+    const ctx = mockCtx();
+    drawCommandMarker(ctx, state, createCamera(), marker, 80);
+    expect(ctx.ellipse).not.toHaveBeenCalled();
+  });
 });
 
 describe("combat tracers", () => {

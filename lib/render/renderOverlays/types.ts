@@ -11,6 +11,7 @@ export type CommandMarker = {
   kind?: CommandMarkerKind;
   mode?: "attack" | "attackMove";
   unitIds?: number[];
+  targetId?: number;
 };
 
 export type RenderExtras = {
