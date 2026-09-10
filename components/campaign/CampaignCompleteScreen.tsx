@@ -12,6 +12,7 @@ import { missionObjectives, objectiveHeadline } from "@/lib/gen/story";
 import { biomeLabel } from "@/lib/gen/names";
 import { biomeArt, RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
+import { objectivePriorityFor } from "@/lib/sim/objectives";
 import { briefingPath } from "../game/hooks/missionRoutes";
 import styles from "./CampaignCompleteScreen.module.css";
 import { campaignSummary, missionMedalDisplay, missionUnlocks } from "./campaignSummary";
@@ -63,6 +64,8 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
     : false;
   const selectedObjectives = selectedMission ? missionObjectives(selectedMission, campaign) : [];
   const selectedSecondaryObjectives = selectedMission ? secondaryObjectivesForMissionSeed(seed, selectedMission) : [];
+  const selectedPrimaryObjectives = selectedSecondaryObjectives.filter((objective) => objectivePriorityFor(objective.id) === "primary");
+  const selectedOptionalObjectives = selectedSecondaryObjectives.filter((objective) => objectivePriorityFor(objective.id) === "optional");
   const selectedUnlocks = selectedMission ? missionUnlocks(selectedMission.index, campaign.missions.length) : [];
   const selectedTimeLimit = selectedMission ? missionTimeLimitLabel(selectedMission.win) : undefined;
   const selectedLaunchLabel = selectedMissionComplete
@@ -145,11 +148,19 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
           <strong>{selectedObjectives[0]?.text}</strong>
         </div>
         <div className={styles.detailBlock}>
-          <span>Secondary objectives</span>
+          <span>Primary requirements</span>
           <ul>
-            {selectedSecondaryObjectives.map((objective) => <li key={objective.id}>{objective.label}</li>)}
+            {selectedPrimaryObjectives.map((objective) => <li key={objective.id}>{objective.label}</li>)}
           </ul>
         </div>
+        {selectedOptionalObjectives.length > 0 ? (
+          <div className={styles.detailBlock}>
+            <span>Bonus objectives</span>
+            <ul>
+              {selectedOptionalObjectives.map((objective) => <li key={objective.id}>{objective.label}</li>)}
+            </ul>
+          </div>
+        ) : null}
         <div className={styles.detailBlock}>
           <span>{selectedTimeLimit ? "Time limit" : "Expected duration"}</span>
           <strong>{selectedTimeLimit ?? `~${Math.max(1, missionDurationMinutesFor(seed, selectedMission.index, selectedMission.win.kind))} min`}</strong>

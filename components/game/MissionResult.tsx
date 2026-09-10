@@ -44,14 +44,18 @@ export function MissionResult({
         aria-modal="true"
         aria-labelledby="mission-result-title"
       >
-        <ConsoleLabel>Campaign status</ConsoleLabel>
-        <h2 id="mission-result-title" className={styles.title}>
-          {state.result === "won" ? "Mission complete" : "Mission failed"}
-        </h2>
-        <p className={styles.mission}>Mission {state.missionIndex + 1} {"//"} {state.missionName}</p>
-        <MissionOutcome debrief={debrief} />
-        <MissionBattleRecord debrief={debrief} />
-        <MissionForceDisposition debrief={debrief} />
+        <header className={styles.header}>
+          <ConsoleLabel>Campaign status</ConsoleLabel>
+          <h2 id="mission-result-title" className={styles.title}>
+            {state.result === "won" ? "Mission complete" : "Mission failed"}
+          </h2>
+          <p className={styles.mission}>Mission {state.missionIndex + 1} {"//"} {state.missionName}</p>
+        </header>
+        <div className={styles.resultGrid}>
+          <MissionOutcome debrief={debrief} />
+          <MissionBattleRecord debrief={debrief} />
+          <MissionForceDisposition debrief={debrief} />
+        </div>
         <MissionResultActions
           state={state}
           onNextBriefing={onNextBriefing}

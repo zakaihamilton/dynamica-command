@@ -18,15 +18,17 @@ export const ConsoleButton = forwardRef<HTMLButtonElement, Props>(function Conso
   type = "button",
   ...props
 }, ref) {
+  const isDefaultAction = shortcut === "Enter";
   return (
     <button
       ref={ref}
       type={type}
       className={cx(styles.button, muted && styles.muted, className)}
+      {...props}
       data-tooltip={tooltip}
       data-shortcut={shortcut}
+      data-default-action={isDefaultAction ? "true" : undefined}
       data-tooltip-pos={tooltipPos}
-      {...props}
     />
   );
 });

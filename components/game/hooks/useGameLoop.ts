@@ -45,6 +45,7 @@ export function useGameLoop({
   saveSession,
   persistCampaign = true,
   uxRef: suppliedUxRef,
+  suppressImplicitSavesRef,
 }: {
   stateRef: MutableRefObject<SimState>;
   setState: (s: SimState) => void;
@@ -69,6 +70,7 @@ export function useGameLoop({
   saveSession: SaveSession;
   persistCampaign?: boolean;
   uxRef?: { current: import("@/lib/persist/telemetry").MissionUxTelemetry };
+  suppressImplicitSavesRef?: MutableRefObject<() => void>;
 }) {
   const fallbackUxRef = useRef(createFallbackUxTelemetry());
   const uxRef = suppliedUxRef ?? fallbackUxRef;
@@ -101,6 +103,7 @@ export function useGameLoop({
       lifecycleRef,
       persistenceRef,
       uxRef,
+      suppressImplicitSavesRef,
     };
     const ports: RuntimePorts = {
       setState,
@@ -140,5 +143,6 @@ export function useGameLoop({
     terminalSaveRef,
     persistCampaign,
     uxRef,
+    suppressImplicitSavesRef,
   ]);
 }

@@ -18,6 +18,7 @@ describe("mission debrief", () => {
     addUnit(state, 1, "infantry", 7, 7);
 
     expect(missionDebrief(state)).toMatchObject({
+      status: "won",
       outcome: "Primary objective achieved.",
       objective: { headline: "Extract 900 credits from the field", progress: "Extracted 900 / 900" },
       tactical: { completed: true, label: expect.any(String) },
@@ -35,6 +36,7 @@ describe("mission debrief", () => {
     state.tick = 36;
 
     expect(missionDebrief(state)).toMatchObject({
+      status: "lost",
       outcome: "The Command HQ was destroyed.",
       objective: { headline: "Hold this ground for 1 min", progress: "Hold 00:07 remaining" },
       tactical: { completed: false, emphasis: expect.any(String) },
@@ -80,6 +82,8 @@ describe("mission debrief", () => {
       { id: "yard", completed: false, failed: true },
       { id: "time", completed: false, failed: true },
     ]);
+    expect(missionDebrief(state).primaryObjectives.map(({ id }) => id)).toEqual(["yard", "time"]);
+    expect(missionDebrief(state).optionalObjectives).toHaveLength(0);
   });
 
   it("formats elapsed time as whole minutes and hides the sidebar after a result", () => {

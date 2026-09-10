@@ -23,6 +23,8 @@ export type RuntimeRefs = {
   lifecycleRef: MutableRefObject<RuntimeLifecycleState>;
   persistenceRef: MutableRefObject<RuntimePersistenceState>;
   uxRef: MutableRefObject<MissionUxTelemetry>;
+  /** Prevents the old runtime from overwriting a checkpoint during load navigation. */
+  suppressImplicitSavesRef?: MutableRefObject<() => void>;
 };
 
 export type RuntimePorts = {

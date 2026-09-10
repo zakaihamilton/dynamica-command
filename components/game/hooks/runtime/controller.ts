@@ -37,6 +37,7 @@ export function createRuntimeController(refs: RuntimeRefs, ports: RuntimePorts):
     onAlert: ports.onAlert,
     onTacticalAnnouncement: ports.onTacticalAnnouncement,
     persistenceRef: refs.persistenceRef,
+    suppressImplicitSavesRef: refs.suppressImplicitSavesRef,
   });
   const presentation = createPresentationCoordinator({
     cameraRef: refs.cameraRef,

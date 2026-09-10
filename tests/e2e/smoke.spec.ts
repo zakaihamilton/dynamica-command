@@ -324,7 +324,7 @@ test("opens the operations map and launches an available mission", async ({ page
   await expect(page.getByTestId("mission-card-2")).toContainText("Locked");
 
   await page.getByTestId("mission-card-0").click();
-  await expect(page.getByTestId("mission-detail")).toContainText("Secondary objectives");
+  await expect(page.getByTestId("mission-detail")).toContainText("Primary requirements");
   await expect(page.getByTestId("mission-detail")).toContainText("Time limit");
   await expect(page.getByTestId("mission-detail")).toContainText("10 min");
   await page.getByTestId("launch-selected-mission").click();
@@ -927,6 +927,53 @@ test("shows a mission result overlay from a finished save", async ({ page }) => 
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   await expect(page.getByRole("heading", { name: "Mission complete" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Next briefing" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next briefing" })).toHaveAttribute("data-default-action", "true");
+  await expect(page.getByRole("button", { name: "Share result" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Replay mission" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Campaign map" })).toBeVisible();
+
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.reload();
+  await expect(page.getByTestId("mission-result")).toBeVisible();
+  const resultLayout = await page.getByTestId("mission-result").evaluate((element) => {
+    const panel = element.querySelector<HTMLElement>("[role='dialog']");
+    const actions = panel?.querySelector<HTMLElement>("[class*='actions']");
+    if (!panel || !actions) throw new Error("Missing mission result layout");
+    const panelBounds = panel.getBoundingClientRect();
+    const actionBounds = actions.getBoundingClientRect();
+    return {
+      panelTop: panelBounds.top,
+      panelBottom: panelBounds.bottom,
+      panelClientHeight: panel.clientHeight,
+      panelScrollHeight: panel.scrollHeight,
+      actionsBottom: actionBounds.bottom,
+    };
+  });
+  expect(resultLayout.panelTop).toBeGreaterThanOrEqual(0);
+  expect(resultLayout.panelBottom).toBeLessThanOrEqual(600);
+  expect(resultLayout.actionsBottom).toBeLessThanOrEqual(600);
+  expect(resultLayout.panelScrollHeight).toBeLessThanOrEqual(resultLayout.panelClientHeight + 1);
+});
+
+test("reflows failed mission actions without a share slot", async ({ page }) => {
+  const state = distinctiveSave("lost");
+  await page.addInitScript(({ key, raw }) => {
+    localStorage.setItem(key, raw);
+  }, { key: saveKey(421), raw: saveEnvelope(state) });
+
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/play?seed=0421&resume=1");
+  await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "lost");
+  await expect(page.getByRole("button", { name: "Retry" })).toHaveAttribute("data-default-action", "true");
+  await expect(page.getByRole("button", { name: "Share result" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+
+  const bounds = await page.getByTestId("mission-result").evaluate((element) => ({
+    viewportWidth: window.innerWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+    resultScrollWidth: element.scrollWidth,
+  }));
+  expect(bounds.bodyScrollWidth).toBeLessThanOrEqual(bounds.viewportWidth);
+  expect(bounds.resultScrollWidth).toBeLessThanOrEqual(bounds.viewportWidth);
 });

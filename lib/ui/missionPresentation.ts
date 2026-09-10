@@ -1,6 +1,6 @@
 import { TICKS_PER_SECOND } from "../catalog";
 import { formatMissionClockFromTicks } from "../gen/pacing";
-import { objectiveProgress, secondaryProgress, type ObjectiveProgress } from "../sim/objectives";
+import { objectivePriorityFor, objectiveProgress, secondaryProgress, type ObjectiveProgress, type ObjectivePriority } from "../sim/objectives";
 import type { MissionRuntime, SimState } from "../types";
 
 export type ObjectiveCardStatus = "active" | "complete" | "failed";
@@ -12,8 +12,11 @@ export type ObjectiveCardModel = {
   current: number;
   target: number;
   status: ObjectiveCardStatus;
+  priority?: ObjectivePriority;
   primary?: boolean;
 };
+
+export type { ObjectivePriority } from "../sim/objectives";
 
 export function phaseLabel(runtime?: MissionRuntime): string | undefined {
   if (!runtime) return undefined;
@@ -46,6 +49,7 @@ export function objectiveCardsFor(state: SimState): ObjectiveCardModel[] {
       current: primary.current,
       target: primary.target,
       status: primaryFailed ? "failed" : primaryComplete ? "complete" : "active",
+      priority: "primary",
       primary: true,
     },
     ...secondaryProgress(state).map((objective) => ({
@@ -53,6 +57,7 @@ export function objectiveCardsFor(state: SimState): ObjectiveCardModel[] {
       label: objective.label,
       current: objective.completed ? 1 : 0,
       target: 1,
+      priority: objectivePriorityFor(objective.id),
       status: objective.failed ? "failed" as const : objective.completed ? "complete" as const : "active" as const,
     })),
   ];

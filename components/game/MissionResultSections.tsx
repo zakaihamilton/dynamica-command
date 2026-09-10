@@ -2,7 +2,9 @@ import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import type { ForceDebrief, MissionDebrief } from "@/lib/sim/debrief";
 import styles from "./MissionResult.module.css";
 
-function secondaryOutcomeLabel(objective: MissionDebrief["secondary"][number]): string {
+type ObjectiveResult = MissionDebrief["secondary"][number];
+
+function secondaryOutcomeLabel(objective: ObjectiveResult): string {
   if (objective.id === "yard") return objective.completed ? "Command HQ intact" : "Command HQ destroyed";
   if (objective.id === "survivors") return objective.completed ? "Combat unit retained" : "No combat unit survived";
   if (objective.id === "time") {
@@ -13,41 +15,88 @@ function secondaryOutcomeLabel(objective: MissionDebrief["secondary"][number]): 
   return objective.label;
 }
 
+function objectiveState(objective: ObjectiveResult): { label: string; icon: string } {
+  if (objective.completed) return { label: "Complete", icon: "✓" };
+  if (objective.failed) return { label: "Failed", icon: "×" };
+  return { label: "Required", icon: "!" };
+}
+
+function ObjectiveRow({ objective, optional = false }: { objective: ObjectiveResult; optional?: boolean }) {
+  const state = objectiveState(objective);
+  return (
+    <div className={styles.objectiveRow} data-status={objective.completed ? "complete" : objective.failed ? "failed" : "active"}>
+      <span className={styles.objectiveStatusIcon} aria-hidden="true">{optional && state.label === "Required" ? "○" : state.icon}</span>
+      <span className={styles.objectiveRowLabel}>{secondaryOutcomeLabel(objective)}</span>
+      <span className={styles.objectiveRowState}>{optional && state.label === "Required" ? "Bonus" : state.label}</span>
+    </div>
+  );
+}
+
 export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
+  const primaryObjective = debrief.objective;
+  const primaryState = debrief.status === "won" ? "complete" : "failed";
+  const primaryIcon = primaryState === "complete" ? "✓" : "!";
+
   return (
     <section className={styles.outcome} aria-label="Outcome assessment">
-      <ConsoleLabel>Outcome assessment</ConsoleLabel>
-      <p className={styles.outcomeText}>{debrief.outcome}</p>
-      <div className={styles.resultCard} data-testid="primary-result-card">
-        <p className={styles.objectiveLabel}>Primary objective</p>
-        <p className={styles.objectiveHeadline}>{debrief.objective.headline}</p>
-        <p className={styles.objectiveProgress}>{debrief.objective.progress}</p>
+      <div className={styles.outcomeSummary}>
+        <span className={styles.outcomeIcon} aria-hidden="true">{primaryIcon}</span>
+        <div>
+          <ConsoleLabel>Mission assessment</ConsoleLabel>
+          <p className={styles.outcomeText}>{debrief.outcome}</p>
+        </div>
       </div>
-      <div className={styles.profileAssessment} data-testid="profile-assessment">
-        <p className={styles.objectiveLabel}>Tactical profile</p>
-        <p className={styles.profileLabel}>{debrief.tactical.label}</p>
-        <p className={styles.profileText}>{debrief.tactical.emphasis}</p>
-        <p className={debrief.tactical.completed ? styles.profileComplete : styles.profileIncomplete}>
-          {debrief.tactical.completed ? "Profile challenge met." : "Profile challenge not met."}
-        </p>
+
+      <div className={styles.resultCard} data-testid="primary-result-card" data-status={primaryState}>
+        <div className={styles.resultCardHeader}>
+          <p className={styles.objectiveLabel}>Primary objective</p>
+          <span className={styles.cardStatus}><span aria-hidden="true">{primaryIcon}</span>{primaryState === "complete" ? "Complete" : "Failed"}</span>
+        </div>
+        <p className={styles.objectiveHeadline}>{primaryObjective.headline}</p>
+        <p className={styles.objectiveProgress}>{primaryObjective.progress}</p>
       </div>
-      {debrief.secondary.length ? (
-        <div className={styles.secondaryList} aria-label="Secondary objectives">
-          <p className={styles.objectiveLabel}>Secondary objectives</p>
-          {debrief.secondary.map((objective) => (
-            <div className={styles.secondaryCard} key={objective.id}>
-              <p className={objective.completed ? styles.secondaryComplete : objective.failed ? styles.secondaryFailed : styles.secondaryIncomplete}>
-                <span aria-hidden="true">{objective.completed ? "✓" : objective.failed ? "×" : "○"}</span> <strong>{objective.completed ? "Completed" : objective.failed ? "Failed" : "Active"}</strong>: {secondaryOutcomeLabel(objective)}
-              </p>
-            </div>
-          ))}
+
+      {debrief.primaryObjectives.length ? (
+        <div className={styles.objectiveList} aria-label="Primary objectives" data-testid="required-objectives">
+          <div className={styles.listHeader}>
+            <span>Primary objectives</span>
+            <span>{debrief.primaryObjectives.filter((objective) => objective.completed).length}/{debrief.primaryObjectives.length}</span>
+          </div>
+          {debrief.primaryObjectives.map((objective) => <ObjectiveRow key={objective.id} objective={objective} />)}
         </div>
       ) : null}
-      {debrief.retryGuidance ? (
-        <div className={styles.retryGuidance} data-testid="retry-guidance">
-          <p className={styles.objectiveLabel}>Retry guidance</p>
-          <p>{debrief.retryGuidance}</p>
+
+      {debrief.optionalObjectives.length ? (
+        <div className={styles.objectiveList} aria-label="Optional objectives" data-testid="optional-objectives">
+          <div className={styles.listHeader}>
+            <span>Bonus objectives</span>
+            <span>{debrief.optionalObjectives.filter((objective) => objective.completed).length}/{debrief.optionalObjectives.length}</span>
+          </div>
+          {debrief.optionalObjectives.map((objective) => <ObjectiveRow key={objective.id} objective={objective} optional />)}
         </div>
+      ) : null}
+
+      <details className={styles.disclosure} data-testid="profile-assessment">
+        <summary>
+          <span>Tactical profile</span>
+          <span className={styles.disclosureValue}>{debrief.tactical.label} · {debrief.tactical.completed ? "Met" : "Not met"}</span>
+        </summary>
+        <div className={styles.disclosureBody}>
+          <p>{debrief.tactical.emphasis}</p>
+          <p className={debrief.tactical.completed ? styles.profileComplete : styles.profileIncomplete}>
+            {debrief.tactical.completed ? "Profile challenge met." : "Profile challenge not met."}
+          </p>
+        </div>
+      </details>
+
+      {debrief.retryGuidance ? (
+        <details className={styles.disclosure} data-testid="retry-guidance">
+          <summary>
+            <span>Retry guidance</span>
+            <span className={styles.disclosureValue}>How to improve</span>
+          </summary>
+          <div className={styles.disclosureBody}><p>{debrief.retryGuidance}</p></div>
+        </details>
       ) : null}
     </section>
   );
@@ -56,13 +105,16 @@ export function MissionOutcome({ debrief }: { debrief: MissionDebrief }) {
 export function MissionBattleRecord({ debrief }: { debrief: MissionDebrief }) {
   return (
     <section className={styles.section} aria-label="Battle record">
-      <ConsoleLabel>Battle record</ConsoleLabel>
+      <div className={styles.sectionHeader}>
+        <ConsoleLabel>Battle record</ConsoleLabel>
+        <span className={styles.sectionHint}>Mission summary</span>
+      </div>
       <dl className={styles.metrics}>
-        <div><dt>Mission time</dt><dd>{debrief.battle.duration}</dd></div>
-        <div><dt>Credits gathered</dt><dd>{debrief.battle.creditsGathered}</dd></div>
+        <div><dt>Time</dt><dd>{debrief.battle.duration}</dd></div>
+        <div><dt>Credits</dt><dd>{debrief.battle.creditsGathered}</dd></div>
         <div><dt>Units trained</dt><dd>{debrief.battle.unitsTrained}</dd></div>
-        <div><dt>Structures completed</dt><dd>{debrief.battle.structuresCompleted}</dd></div>
-        <div><dt>Mission score</dt><dd>{debrief.battle.score}</dd></div>
+        <div><dt>Structures</dt><dd>{debrief.battle.structuresCompleted}</dd></div>
+        <div><dt>Score</dt><dd>{debrief.battle.score}</dd></div>
         <div><dt>Medals</dt><dd>{debrief.battle.medals} / 3</dd></div>
       </dl>
     </section>
@@ -74,22 +126,9 @@ export function MissionForceCard({ label, force }: { label: string; force: Force
     <div className={styles.forceCard}>
       <h3>{label}</h3>
       <dl>
-        <div>
-          <dt>Units remaining</dt>
-          <dd>{force.unitsRemaining}</dd>
-        </div>
-        <div>
-          <dt>Structures remaining</dt>
-          <dd>{force.buildingsRemaining}</dd>
-        </div>
-        <div>
-          <dt>Units lost</dt>
-          <dd>{force.unitsLost}</dd>
-        </div>
-        <div>
-          <dt>Structures lost</dt>
-          <dd>{force.buildingsLost}</dd>
-        </div>
+        <div><dt>Units</dt><dd>{force.unitsRemaining} <small>left</small></dd></div>
+        <div><dt>Structures</dt><dd>{force.buildingsRemaining} <small>left</small></dd></div>
+        <div><dt>Losses</dt><dd>{force.unitsLost}u · {force.buildingsLost}s</dd></div>
       </dl>
     </div>
   );
@@ -98,7 +137,10 @@ export function MissionForceCard({ label, force }: { label: string; force: Force
 export function MissionForceDisposition({ debrief }: { debrief: MissionDebrief }) {
   return (
     <section className={styles.section} aria-label="Force disposition">
-      <ConsoleLabel>Force disposition</ConsoleLabel>
+      <div className={styles.sectionHeader}>
+        <ConsoleLabel>Forces</ConsoleLabel>
+        <span className={styles.sectionHint}>Remaining / losses</span>
+      </div>
       <div className={styles.forceGrid}>
         <MissionForceCard label="Friendly" force={debrief.forces.friendly} />
         <MissionForceCard label="Enemy" force={debrief.forces.enemy} />

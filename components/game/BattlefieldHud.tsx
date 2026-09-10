@@ -47,7 +47,8 @@ export function BattlefieldHud({
         : "Time remaining";
   const timerValue = timeRemaining?.replace(/^Time remaining\s*/, "") ?? "";
   const timerText = urgency === "normal" ? `Time remaining ${timerValue}` : `Time remaining ${timerValue} · ${timerLabel}`;
-  const secondaryCards = objectiveCards.filter((card) => !card.primary);
+  const requiredCards = objectiveCards.filter((card) => !card.primary && card.priority === "primary");
+  const optionalCards = objectiveCards.filter((card) => !card.primary && card.priority !== "primary");
   const primaryCard = objectiveCards.find((card) => card.primary) ?? objectiveCards[0];
   const primaryObjective = briefingObjectives?.find((item) => item.id === "win")?.text
     ?? briefingObjectives?.[0]?.text
@@ -117,11 +118,25 @@ export function BattlefieldHud({
                 {convoyDeparture}
               </div>
             ) : null}
-            {secondaryCards.length ? (
-              <section className={styles.secondaryRail} aria-label="Secondary objectives" data-testid="secondary-objectives">
-                <div className={styles.secondaryHeader}>Optional directives <span>{secondaryCards.filter((card) => card.status === "complete").length}/{secondaryCards.length}</span></div>
+            {requiredCards.length ? (
+              <section className={styles.secondaryRail} aria-label="Primary objectives" data-testid="primary-objectives">
+                <div className={styles.secondaryHeader}>Primary objectives <span>{requiredCards.filter((card) => card.status === "complete").length}/{requiredCards.length}</span></div>
                 <div className={styles.secondaryCards}>
-                  {secondaryCards.map((card) => (
+                  {requiredCards.map((card) => (
+                    <div className={styles.secondaryCard} key={card.id} data-status={card.status}>
+                      <span className={styles.secondaryIcon} aria-hidden="true">{card.status === "complete" ? "✓" : card.status === "failed" ? "×" : "!"}</span>
+                      <span>{card.label}</span>
+                      <span className={styles.secondaryState}>{card.status === "complete" ? "Complete" : card.status === "failed" ? "Failed" : "Required"}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+            {optionalCards.length ? (
+              <section className={styles.secondaryRail} aria-label="Optional objectives" data-testid="secondary-objectives">
+                <div className={styles.secondaryHeader}>Bonus objectives <span>{optionalCards.filter((card) => card.status === "complete").length}/{optionalCards.length}</span></div>
+                <div className={styles.secondaryCards}>
+                  {optionalCards.map((card) => (
                     <div className={styles.secondaryCard} key={card.id} data-status={card.status}>
                       <span className={styles.secondaryIcon} aria-hidden="true">{card.status === "complete" ? "✓" : card.status === "failed" ? "×" : "○"}</span>
                       <span>{card.label}</span>

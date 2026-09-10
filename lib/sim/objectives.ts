@@ -24,6 +24,13 @@ export type SecondaryProgress = {
   failed: boolean;
 };
 
+export type ObjectivePriority = "primary" | "optional";
+
+/** Presentation classification for legacy secondary-objective records. */
+export function objectivePriorityFor(id: string): ObjectivePriority {
+  return id === "yard" || id === "time" || id === "target" || id === "scenario-target" ? "primary" : "optional";
+}
+
 function timeRemainingTicks(state: SimState): number | undefined {
   if (state.runtime) {
     if (state.runtime.deadline !== undefined) return Math.max(0, state.runtime.deadline - state.tick);

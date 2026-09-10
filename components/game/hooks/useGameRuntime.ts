@@ -83,6 +83,7 @@ export function useGameRuntime({
     announceTactical(text);
   }, [announceTactical, showCommandNotice, uxRef]);
   const commandPort = useMemo(() => createRuntimeCommandPort(cmdQ), [cmdQ]);
+  const suppressImplicitSavesRef = useRef<() => void>(() => undefined);
   useEffect(() => {
     if (!tutorial && consumeBriefingSkippedIntent(seed, mission)) uxRef.current.briefingSkipped = true;
   }, [mission, seed, tutorial, uxRef]);
@@ -207,6 +208,7 @@ export function useGameRuntime({
     setSettings: setAudioSettings,
     saveSession,
     tutorial,
+    suppressImplicitSavesRef,
     browserBackGuardEnabled: !tutorial && state.result === "playing",
     onBrowserBackLeave: resetTransientMobileUi,
   });
@@ -327,6 +329,7 @@ export function useGameRuntime({
     onCommandNotice: announceCommandFeedback,
     persistCampaign: !tutorial,
     uxRef,
+    suppressImplicitSavesRef,
   });
 
   useGameAudioLifecycle({ seed, missionIndex: state.missionIndex, tutorial, paused, result: state.result });

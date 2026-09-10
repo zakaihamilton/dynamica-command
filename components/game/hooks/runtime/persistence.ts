@@ -23,6 +23,7 @@ export function createPersistenceCoordinator({
   onAlert,
   onTacticalAnnouncement,
   persistenceRef,
+  suppressImplicitSavesRef,
 }: {
   stateRef: { current: SimState };
   terminalSaveRef: { current: boolean };
@@ -32,11 +33,13 @@ export function createPersistenceCoordinator({
   onAlert: (text: string) => void;
   onTacticalAnnouncement: (text: string) => void;
   persistenceRef: { current: RuntimePersistenceState };
+  suppressImplicitSavesRef?: { current: () => void };
 }) {
   const saveRetry: SaveRetry = persistenceRef.current.saveRetry;
   let idleHandle: number | null = null;
   let idleViaTimeout = false;
   let nextCampaignSaveAttemptMs = persistenceRef.current.nextCampaignSaveAttemptMs;
+  let implicitSavesSuppressed = false;
 
   const cancelIdle = () => {
     if (idleHandle === null) return;
@@ -46,6 +49,7 @@ export function createPersistenceCoordinator({
   };
 
   const saveImplicit = (state: SimState, now: number) => {
+    if (implicitSavesSuppressed) return "saved" as const;
     const status = saveSession.write(state, "implicit");
     saveRetry.state = state;
     saveRetry.retry = status === "failed";
@@ -66,6 +70,7 @@ export function createPersistenceCoordinator({
 
   const reset = () => {
     cancelIdle();
+    implicitSavesSuppressed = false;
     saveRetry.state = null;
     saveRetry.retry = false;
     saveRetry.nextAttemptMs = 0;
@@ -75,7 +80,7 @@ export function createPersistenceCoordinator({
   };
 
   const scheduleAutosave = () => {
-    if (!persistCampaign) return;
+    if (!persistCampaign || implicitSavesSuppressed) return;
     cancelIdle();
     const run = () => {
       idleHandle = null;
@@ -94,6 +99,13 @@ export function createPersistenceCoordinator({
     if (persistCampaign) saveImplicit(stateRef.current, performance.now());
   };
 
+  const suppressImplicitSaves = () => {
+    implicitSavesSuppressed = true;
+    cancelIdle();
+  };
+
+  if (suppressImplicitSavesRef) suppressImplicitSavesRef.current = suppressImplicitSaves;
+
   const onStorage = (event: StorageEvent) => {
     if (saveSession.isStorageEventForSession && !saveSession.isStorageEventForSession(event.storageArea)) return;
     if (event.key === saveKey(stateRef.current.seed)) saveSession.markExternalChange();
@@ -101,9 +113,10 @@ export function createPersistenceCoordinator({
 
   return {
     reset,
+    suppressImplicitSaves,
     scheduleAutosave,
     onTickFrame(state: SimState, now: number) {
-      if (!persistCampaign) return;
+      if (!persistCampaign || implicitSavesSuppressed) return;
       if (saveRetry.retry && now >= saveRetry.nextAttemptMs) saveImplicit(state, now);
       if (state.result === "won" && !campaignRecordedRef.current && now >= nextCampaignSaveAttemptMs) {
         const storage = cachedLocalStorage();
@@ -120,7 +133,7 @@ export function createPersistenceCoordinator({
       }
     },
     onTerminal(state: SimState, now: number, counters: RuntimeCounters) {
-      if (!persistCampaign) return;
+      if (!persistCampaign || implicitSavesSuppressed) return;
       cancelIdle();
       saveImplicit(state, now);
       recordTelemetry(

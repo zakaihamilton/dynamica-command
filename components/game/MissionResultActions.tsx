@@ -45,13 +45,16 @@ export function MissionResultActions({
           Campaign victory
         </ConsoleButton>
       ) : null}
-      <ConsoleButton
-        muted
-        tooltip={copied ? "Result copied to clipboard!" : "Copy Wordle-style score to clipboard"}
-        onClick={handleShare}
-      >
-        {copied ? "Copied!" : "Share result"}
-      </ConsoleButton>
+      {state.result === "won" ? (
+        <ConsoleButton
+          muted
+          className={styles.shareAction}
+          tooltip={copied ? "Result copied to clipboard!" : "Copy Wordle-style score to clipboard"}
+          onClick={handleShare}
+        >
+          {copied ? "Copied!" : "Share result"}
+        </ConsoleButton>
+      ) : null}
       {state.result === "won" ? (
         <ConsoleButton muted tooltip="Replay this mission" onClick={onRetry}>
           Replay mission

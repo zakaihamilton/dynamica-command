@@ -76,8 +76,31 @@ describe("product chrome", () => {
     expect(screen.getByTestId("objective")).toHaveAttribute("data-status", "active");
     expect(screen.getByTestId("objective")).toHaveTextContent("Contact and return 2 stranded units within 10 min");
     expect(screen.getByTestId("objective")).toHaveTextContent("1 / 2");
-    expect(screen.getByTestId("secondary-objectives")).toHaveTextContent("Optional directives 0/1");
+    expect(screen.getByTestId("secondary-objectives")).toHaveTextContent("Bonus objectives 0/1");
     expect(screen.getByTestId("mission-phase")).toHaveTextContent("Extraction phase");
+  });
+
+  it("keeps required secondary conditions in the primary objective rail", () => {
+    const campaign = createCampaign(421);
+    render(
+      <BattlefieldHud
+        seed={421}
+        levelNumber={1}
+        levelCount={campaign.missions.length}
+        missionName="Recovery Zone"
+        objective="Return the convoy"
+        objectiveCards={[
+          { id: "primary", label: "Return the convoy", current: 0, target: 1, status: "active", primary: true, priority: "primary" },
+          { id: "yard", label: "Keep Command HQ standing", current: 1, target: 1, status: "complete", priority: "primary" },
+          { id: "survivors", label: "Keep a combat unit alive", current: 0, target: 1, status: "active", priority: "optional" },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("primary-objectives")).toHaveTextContent("Primary objectives 1/1");
+    expect(screen.getByTestId("primary-objectives")).toHaveTextContent("Keep Command HQ standing");
+    expect(screen.getByTestId("secondary-objectives")).toHaveTextContent("Bonus objectives 0/1");
+    expect(screen.getByTestId("secondary-objectives")).toHaveTextContent("Keep a combat unit alive");
   });
 
   it("allows the mission directive to collapse without losing its accessible control", () => {

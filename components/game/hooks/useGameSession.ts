@@ -98,6 +98,7 @@ export function useGameSession({
   setSettings,
   saveSession,
   tutorial = false,
+  suppressImplicitSavesRef,
   browserBackGuardEnabled = false,
   onBrowserBackLeave,
 }: MissionPersistenceParams & {
@@ -162,6 +163,7 @@ export function useGameSession({
     terminalSaveRef,
     saveSession,
     tutorial,
+    suppressImplicitSavesRef,
   });
   const persistNamedSlot = persistence.saveNamedSlot;
   const confirmation = useMissionConfirmation({
