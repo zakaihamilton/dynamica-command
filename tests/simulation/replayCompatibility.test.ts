@@ -5,7 +5,7 @@ import { runReplay } from "../../lib/sim/replay";
 const BASELINES = [
   { kind: "annihilate", seed: 1, missionIndex: 2, digest: "b3681507b20b0118eb8de21993f5133cd71458cf6a04d7907bb4f8b2544b6bb7" },
   { kind: "decapitate", seed: 1, missionIndex: 4, digest: "ecb5e56f0bfb0dee67ff47bad3a3f8a6116d062c4f6ad635777db0069f0201a8" },
-  { kind: "destroyMarked", seed: 0, missionIndex: 3, digest: "e0ade930976a05b828a0e50069720925a3cc5de00da2bcdae6d2c21aae226a89" },
+  { kind: "destroyMarked", seed: 0, missionIndex: 3, digest: "4e8ddf71fbb39cc7e4fcd1f410827a4df6e70b5da17ccf66b1846aced14a27ba" },
   { kind: "escort", seed: 0, missionIndex: 2, digest: "66223e200534bb0e3d2ff8810b17488f76b09213b13b77ef4cb29dc2bfb0445d" },
   { kind: "extraction", seed: 0, missionIndex: 1, digest: "0f5b8676fbc5a99c77da9dd1672067cbf3318dd1745f68d5dafd06c080077cd9" },
   { kind: "forceQuota", seed: 0, missionIndex: 4, digest: "8ee9b7f0f55348be0a37aa0dff143f31c97c3bc5e038e21a72842a53654cb224" },

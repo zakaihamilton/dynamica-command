@@ -19,6 +19,15 @@ describe("tryBuildPower / tryBuildRefinery", () => {
     const yard = living(s).find((e) => e.kind === "constructionYard" && e.owner === 1)!;
     expect(tryBuildPower(s, yard.x, yard.y)).toBe(false);
   });
+
+  it("does not queue duplicate power plants while one is constructing", () => {
+    const s = enemyState();
+    const yard = living(s).find((e) => e.kind === "constructionYard" && e.owner === 1)!;
+    const plant = addBuilding(s, 1, "power", 14, 20, 100);
+    expect(plant.constructing).toBe(100);
+    expect(tryBuildPower(s, yard.x, yard.y)).toBe(false);
+    expect(living(s).filter((e) => e.owner === 1 && e.kind === "power")).toHaveLength(2);
+  });
 });
 
 describe("tryBuildForwardInfrastructure", () => {

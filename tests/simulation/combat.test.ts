@@ -306,6 +306,28 @@ describe("combat targeting", () => {
     expect(holder.path).toEqual([]);
     expect(foe.hp).toBe(hp);
   });
+
+  it("does not reacquire a contacted rescue evacuee", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "rescue", targetCount: 1, ticks: 500 } });
+    const stranded = addUnit(s, 0, "infantry", 4, 4);
+    stranded.neutral = false;
+    stranded.scenarioRole = "stranded";
+    const raider = addUnit(s, 1, "tank", 5, 4);
+    s.runtime = {
+      kind: "rescue",
+      phase: "active",
+      targetIds: [stranded.id],
+      rescued: 0,
+      required: 1,
+      secondary: [],
+    };
+
+    const hp = stranded.hp;
+    tickCombat(s);
+
+    expect(raider.attackTarget).toBeUndefined();
+    expect(stranded.hp).toBe(hp);
+  });
 });
 
 describe("combat damage model", () => {

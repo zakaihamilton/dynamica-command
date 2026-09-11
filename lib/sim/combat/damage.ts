@@ -1,7 +1,7 @@
 import type { Entity, SimEvent, SimState } from "../../types";
 import { isUnitEntity } from "../../types";
 import { closestApproach, invalidateLivingCache } from "../world";
-import { statsFor } from "./grid";
+import { isCombatTarget, statsFor } from "./grid";
 import { armorFor, damageMultiplier, heightMultiplier } from "./targeting";
 import type { Rng } from "../../seed/rng";
 import { type PendingAlerts, notePlayerAlert } from "./alerts";
@@ -29,7 +29,7 @@ export function strike(
   if (stats.splashRadius > 0) {
     for (const splash of state.entities) {
       if (splash.hp <= 0) continue;
-      if (splash.id === target.id || splash.owner === e.owner || splash.neutral) continue;
+      if (splash.id === target.id || splash.owner === e.owner || splash.neutral || !isCombatTarget(state, splash)) continue;
       if (Math.hypot(splash.x - target.x, splash.y - target.y) > stats.splashRadius) continue;
       splash.hp -= damage * 0.35;
       if (splash.class === "unit") splash.suppression = Math.min(100, (splash.suppression ?? 0) + Math.round(stats.suppression * 0.35));

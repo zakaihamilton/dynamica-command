@@ -50,6 +50,24 @@ describe("pathfinding", () => {
     expect(backgroundPathSearches()).toBeLessThanOrEqual(PATH_BUDGET_PER_TICK);
   });
 
+  it("keeps grouped attack-move followers active while their flow route is pending", () => {
+    const s = makeFixture({ width: 20, height: 20, win: { kind: "annihilate" } });
+    const units = [
+      addUnit(s, 0, "infantry", 2, 2),
+      addUnit(s, 0, "tank", 2, 3),
+    ];
+    issue(s, { type: "attackMove", unitIds: units.map((unit) => unit.id), x: 16, y: 16 });
+    for (const unit of units) {
+      unit.path = [];
+      unit.idle = false;
+      unit.routePending = true;
+    }
+
+    tickCombat(s);
+
+    expect(units.every((unit) => unit.flowGoal && !unit.idle)).toBe(true);
+  });
+
   it("marks a sealed destination unreachable without leaving a pending route", () => {
     const s = makeFixture({ width: 10, height: 10, win: { kind: "harvestQuota", target: 99999 } });
     for (const [x, y] of [

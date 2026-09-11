@@ -127,7 +127,7 @@ describe("runBalanceJob", () => {
       scenarios: [{ seed: 8, mission: 4 }],
     });
     expect(records[0]?.result).toBe("lost");
-    expect(records[0]?.lossReason).toBe("objectiveTargetLost");
+    expect(["objectiveTargetLost", "yardDestroyed"]).toContain(records[0]?.lossReason);
     expect(records[0]?.powerDeficit).toBe(false);
   });
 

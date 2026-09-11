@@ -8,8 +8,12 @@ const chromiumLaunchOptions = {
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  fullyParallel: true,
-  workers: process.env.CI ? 1 : undefined,
+  // The app and its production web server are shared by all projects. Running
+  // individual tests from the same file concurrently causes intermittent
+  // navigation and hydration races on local runs, especially for WebKit.
+  // Keep CI fully serialized and allow only two file-level workers locally.
+  fullyParallel: false,
+  workers: process.env.CI ? 1 : 2,
   retries: process.env.CI ? 2 : 0,
   reporter: "line",
   use: {
