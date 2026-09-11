@@ -418,6 +418,46 @@ describe("pathfinding", () => {
     expect(Math.round(b.y)).toBe(2);
   });
 
+  it("holds a unit at a sealed route end instead of backtracking", () => {
+    const s = makeFixture({ width: 16, height: 12, win: { kind: "harvestQuota", target: 99999 } });
+    const blockedRows = [
+      "................",
+      "..............#.",
+      ".....#...#......",
+      ".#....#....#....",
+      "....#...##.##...",
+      "......#..#...##.",
+      "..##...#..#..##.",
+      "......#..#..#...",
+      ".......#....#...",
+      ".............##.",
+      "....#.....#.....",
+      "................",
+    ];
+    for (let y = 0; y < s.height; y++) {
+      for (let x = 0; x < s.width; x++) {
+        if (blockedRows[y]![x] === "#") setTile(s, x, y, TILE_BLOCKED);
+      }
+    }
+    const mover = addUnit(s, 0, "infantry", 1, 5);
+    const blocker = addUnit(s, 0, "infantry", 2, 5);
+    blocker.orderDestination = { x: blocker.x, y: blocker.y };
+    blocker.idle = true;
+    issue(s, { type: "move", unitIds: [mover.id], x: 14, y: 6 });
+
+    const history: { x: number; y: number; pathLength: number }[] = [];
+    for (let i = 0; i < 220; i++) {
+      tick(s, undefined, { evaluateObjectives: false });
+      history.push({ x: mover.x, y: mover.y, pathLength: mover.path.length });
+    }
+
+    const settledAt = history.findIndex((sample) =>
+      sample.pathLength === 0 && Math.round(sample.x) === 12 && Math.round(sample.y) === 6,
+    );
+    expect(settledAt).toBeGreaterThan(0);
+    expect(history.slice(settledAt).every((sample) => sample.x === 12 && sample.y === 6)).toBe(true);
+  });
+
   it("does not reverse a flow follower when occupancy removes its forward lane", () => {
     const s = makeFixture({ width: 12, height: 8, win: { kind: "harvestQuota", target: 99999 } });
     const mover = addUnit(s, 0, "infantry", 3, 3);

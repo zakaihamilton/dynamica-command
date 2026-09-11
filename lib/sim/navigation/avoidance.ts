@@ -1,6 +1,6 @@
 import type { Entity, SimState, Vec2 } from "../../types";
 import { canClimb, inBounds, isStaticWalkable } from "../world";
-import { diagonalCornerBlocked, PATH_DIRS } from "./grid";
+import { diagonalCornerBlocked, PATH_DIRS, reversesPreviousStep } from "./grid";
 
 export function cellOf(state: SimState, x: number, y: number): number {
   return Math.round(y) * state.width + Math.round(x);
@@ -47,6 +47,7 @@ export function trySidestep(
   e: Entity,
   blockedX: number,
   blockedY: number,
+  previousCell?: number,
 ): boolean {
   if (!e.path.length) return false;
   const cx = Math.round(e.x);
@@ -58,6 +59,7 @@ export function trySidestep(
     const nx = cx + d.x;
     const ny = cy + d.y;
     if (nx === blockedX && ny === blockedY) continue;
+    if (e.owner === 0 && reversesPreviousStep(state.width, cx, cy, nx, ny, previousCell)) continue;
     if (!tileFree(state, occupancy, reserved, e, nx, ny)) continue;
     if (!canClimb(state, cx, cy, nx, ny)) continue;
     if (diagonalCornerBlocked(state, cx, cy, nx, ny)) continue;
@@ -86,10 +88,11 @@ export function nudgeIdle(
   occupancy: Uint8Array,
   reserved: Map<number, number>,
   blocker: Entity,
+  previousCell?: number,
 ): boolean {
   if (blocker.path.length || blocker.neutral) return false;
   if (blocker.orderDestination && !holdingDestination(blocker)) return false;
-  return stepBlockerAside(state, occupancy, reserved, blocker, false);
+  return stepBlockerAside(state, occupancy, reserved, blocker, false, previousCell);
 }
 
 export function giveWay(
@@ -97,11 +100,12 @@ export function giveWay(
   occupancy: Uint8Array,
   reserved: Map<number, number>,
   blocker: Entity,
+  previousCell?: number,
 ): boolean {
   if (blocker.neutral || holdingDestination(blocker)) return false;
-  if (!blocker.path.length) return nudgeIdle(state, occupancy, reserved, blocker);
+  if (!blocker.path.length) return nudgeIdle(state, occupancy, reserved, blocker, previousCell);
   if ((blocker.blockedTicks ?? 0) === 0) return false;
-  return stepBlockerAside(state, occupancy, reserved, blocker, true);
+  return stepBlockerAside(state, occupancy, reserved, blocker, true, previousCell);
 }
 
 export function stepBlockerAside(
@@ -110,6 +114,7 @@ export function stepBlockerAside(
   reserved: Map<number, number>,
   blocker: Entity,
   allowFarther: boolean,
+  previousCell?: number,
 ): boolean {
   const cx = Math.round(blocker.x);
   const cy = Math.round(blocker.y);
@@ -118,6 +123,7 @@ export function stepBlockerAside(
   for (const d of PATH_DIRS) {
     const nx = cx + d.x;
     const ny = cy + d.y;
+    if (blocker.owner === 0 && reversesPreviousStep(state.width, cx, cy, nx, ny, previousCell)) continue;
     if (!tileFree(state, occupancy, reserved, blocker, nx, ny)) continue;
     if (!canClimb(state, cx, cy, nx, ny)) continue;
     if (diagonalCornerBlocked(state, cx, cy, nx, ny)) continue;

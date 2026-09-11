@@ -126,6 +126,7 @@ describe("tactical procedural assets", () => {
         expect(metadata.hasAlpha).toBe(true);
 
         const { data, info } = await sharp(path).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        let transparentPixels = 0;
         const frameAnchors = [0, 1, 2, 3].map((frame) => {
           const offsetX = (frame & 1) * 512;
           const offsetY = ((frame >> 1) & 1) * 512;
@@ -135,6 +136,7 @@ describe("tactical procedural assets", () => {
           for (let y = 0; y < 512; y++) {
             for (let x = 0; x < 512; x++) {
               const alpha = data[((offsetY + y) * info.width + offsetX + x) * 4 + 3]!;
+              if (alpha === 0) transparentPixels += 1;
               if (alpha < 12) continue;
               minX = Math.min(minX, x);
               maxX = Math.max(maxX, x);
@@ -143,6 +145,7 @@ describe("tactical procedural assets", () => {
           }
           return { centerX: Math.round((minX + maxX) / 2), bottom: maxY };
         });
+        expect(transparentPixels / (info.width * info.height)).toBeGreaterThan(0.65);
         expect(new Set(frameAnchors.map(({ centerX }) => centerX)).size).toBe(1);
         expect(new Set(frameAnchors.map(({ bottom }) => bottom)).size).toBe(1);
       }

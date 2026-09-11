@@ -13,6 +13,7 @@ type MovementBuffers = {
   swapped: Set<number>;
   movers: UnitEntity[];
   previousCells: Map<number, number>;
+  movementIntents: Map<number, string>;
   pendingSwaps: Map<number, PendingSwap>;
 };
 
@@ -34,6 +35,7 @@ function buffersFor(state: SimState): MovementBuffers {
       swapped: new Set<number>(),
       movers: [],
       previousCells: new Map<number, number>(),
+      movementIntents: new Map<number, string>(),
       pendingSwaps: new Map<number, PendingSwap>(),
     };
     movementBuffers.set(state, buffers);
@@ -55,14 +57,16 @@ import {
   giveWay,
   goalDistance,
   holdingDestination,
+  reversesPreviousStep,
   tileFree,
   tryCooperativeSwap,
   trySidestep,
 } from "./navigation";
 
 export function tickMovement(state: SimState): void {
-  const { occupancy, atTile, reserved, swapped, movers, previousCells, pendingSwaps } = buffersFor(state);
+  const { occupancy, atTile, reserved, swapped, movers, previousCells, movementIntents, pendingSwaps } = buffersFor(state);
   advancePendingSwaps(state, occupancy, pendingSwaps, swapped, previousCells);
+  resetPreviousCellsForNewOrders(state, previousCells, movementIntents);
   prepareFlowFieldRoutes(state, occupancy, reserved, undefined, pendingSwaps);
   for (const e of state.entities) {
     // Convoys are neutral so combat targeting ignores them, but they still
@@ -89,6 +93,23 @@ export function tickMovement(state: SimState): void {
     if (!e.routePending && !e.idle) continue;
     const result = tryFindPathDetailed(state, e, dest);
     if (!result) continue;
+    const first = result.path[0];
+    if (first && e.owner === 0 && reversesPreviousStep(
+      state.width,
+      Math.round(e.x),
+      Math.round(e.y),
+      Math.round(first.x),
+      Math.round(first.y),
+      previousCells.get(e.id),
+    )) {
+      // A replan can end in a pocket with the only available route pointing
+      // back through the tile the unit just left. Keep the unit settled until
+      // the route can continue without visibly backtracking.
+      e.path = [];
+      e.routePending = false;
+      e.idle = true;
+      continue;
+    }
     e.path = result.path;
     e.routePending = routePendingFor(result.status);
     e.idle = result.status === "unreachable";
@@ -150,13 +171,14 @@ export function tickMovement(state: SimState): void {
         }
       }
 
-      if (trySidestep(state, occupancy, reserved, e, nx, ny)) {
+      if (trySidestep(state, occupancy, reserved, e, nx, ny, e.owner === 0 ? previousCells.get(e.id) : undefined)) {
         e.blockedTicks = 0;
       } else if (blocker && blocker.id !== e.id && giveWay(
         state,
         occupancy,
         reserved,
         blocker,
+        blocker.owner === 0 ? previousCells.get(blocker.id) : undefined,
       )) {
         e.blockedTicks = 0;
         continue;
@@ -202,7 +224,15 @@ export function tickMovement(state: SimState): void {
               const dx = Math.round(detourFirst.x);
               const dy = Math.round(detourFirst.y);
               const sameBlocked = dx === nx && dy === ny;
-              if (!sameBlocked && tileFree(state, occupancy, reserved, e, dx, dy)) {
+              const reverses = e.owner === 0 && reversesPreviousStep(
+                state.width,
+                Math.round(e.x),
+                Math.round(e.y),
+                dx,
+                dy,
+                previousCells.get(e.id),
+              );
+              if (!sameBlocked && !reverses && tileFree(state, occupancy, reserved, e, dx, dy)) {
                 e.path = detour;
               }
             }
@@ -244,6 +274,21 @@ export function tickMovement(state: SimState): void {
   // Positions changed during this tick are not reflected in the O(1) unitAt
   // cache used by placement and closest-approach queries.
   invalidateUnitAtCache(state);
+}
+
+function resetPreviousCellsForNewOrders(
+  state: SimState,
+  previousCells: Map<number, number>,
+  movementIntents: Map<number, string>,
+): void {
+  for (const entity of state.entities) {
+    if (entity.class !== "unit") continue;
+    const destination = entity.orderDestination;
+    const flowGoal = entity.flowGoal;
+    const intent = `${entity.orderMode ?? ""}:${destination?.x ?? ""},${destination?.y ?? ""}:${flowGoal?.x ?? ""},${flowGoal?.y ?? ""}`;
+    if (movementIntents.get(entity.id) !== intent) previousCells.delete(entity.id);
+    movementIntents.set(entity.id, intent);
+  }
 }
 
 function smoothSwapFor(state: SimState, e: Entity, blocker: Entity): boolean {
