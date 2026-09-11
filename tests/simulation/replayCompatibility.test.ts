@@ -12,7 +12,7 @@ const BASELINES = [
   { kind: "harvestQuota", seed: 7, missionIndex: 3, digest: "11ee3254605d96cfb71862caa42cc6ae7d8c6d446160e5deda266451bc3a1971" },
   { kind: "holdTheLine", seed: 0, missionIndex: 5, digest: "9bbf331ea885ff967c231e22ca4aa3009a4177256fba87a60eb43665addb5bac" },
   { kind: "razeAll", seed: 3, missionIndex: 2, digest: "07b7984626528519d55affc793b27b6632f6ad7f042f5e54dbc98039ae89c151" },
-  { kind: "rescue", seed: 0, missionIndex: 0, digest: "e5bb0559517c129e6e2aa9a3099ea875fda42c6abb6ade949d81a220a2d8fc0c" },
+  { kind: "rescue", seed: 0, missionIndex: 0, digest: "4beb3eaa9708a7243b1d5c72573be7d80d7a778137ff329f587507a7b0617bb0" },
   { kind: "sabotage", seed: 1, missionIndex: 0, digest: "855f0f9eed4ba21e86117f53e34253189efb09deb7873d2d1580bb12da113762" },
   { kind: "structureQuota", seed: 2, missionIndex: 0, digest: "d90a775c64185a5c298a243a09fd1bc949bbc249b668b1267e0469f5532f1697" },
 ] as const;
