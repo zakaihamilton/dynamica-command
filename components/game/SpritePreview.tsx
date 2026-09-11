@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { unitMovementOffset } from "@/lib/render/anim";
 import { buildingSprite, unitSprite } from "@/lib/gen/assets";
 import { drawSprite, rasterize, spriteContentBounds } from "@/lib/render/sprites";
 import { paintBuildingAssetOverlay } from "@/lib/render/previewEffects";
@@ -15,7 +14,7 @@ import {
   spritePreviewLayout,
 } from "@/lib/render/spritePreview";
 import { drawUnitShadow } from "@/lib/render/unitMotion";
-import { isUnitKind, UNIT_STATS } from "@/lib/catalog";
+import { isUnitKind } from "@/lib/catalog";
 import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import styles from "./SpritePreview.module.css";
@@ -42,11 +41,10 @@ export function SpritePreview({
     canvas.height = canvasSize.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    let frame = 0;
     let disposed = false;
-    const paint = (animationFrame: 0 | 1 | 2 | 3) => {
+    const paint = () => {
       const spec = isUnitKind(kind)
-        ? unitSprite(kind, palette, { facing: 0, animationFrame, motion: "walk", profile })
+        ? unitSprite(kind, palette, { facing: 0, animationFrame: 0, profile })
         : buildingSprite(kind, palette, { profile });
       const logicalWidth = SPRITE_PREVIEW_WIDTH;
       const logicalHeight = SPRITE_PREVIEW_HEIGHT;
@@ -54,18 +52,15 @@ export function SpritePreview({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const image = rasterize(spec, () => {
-        if (!disposed) paint(animationFrame);
+        if (!disposed) paint();
       });
       const bounds = spriteContentBounds(image) ?? { minX: 0, minY: 0, width: image.width, height: image.height };
       const layout = spritePreviewLayout(bounds, logicalWidth, logicalHeight);
       ctx.imageSmoothingEnabled = true;
       if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
 
-      const movement = isUnitKind(kind) && UNIT_STATS[kind].domain !== "human"
-        ? unitMovementOffset(kind, animationFrame)
-        : null;
       const renderDx = layout.x;
-      const renderDy = layout.y + (movement?.bobY ?? 0) * layout.scale;
+      const renderDy = layout.y;
       const groundX = Math.round(logicalWidth / 2);
       const groundY = Math.round((logicalHeight + layout.height) / 2);
 
@@ -77,7 +72,7 @@ export function SpritePreview({
           groundY,
           layout.scale,
           1,
-          true,
+          false,
         );
       }
 
@@ -88,15 +83,9 @@ export function SpritePreview({
         paintBuildingAssetOverlay(ctx, kind, logicalWidth / 2, overlayY, overlayScale, 0, 3, false, palette);
       }
     };
-    paint(0);
-    if (!isUnit) return;
-    const id = window.setInterval(() => {
-      frame = (frame + 1) & 3;
-      paint(frame as 0 | 1 | 2 | 3);
-    }, 140);
+    paint();
     return () => {
       disposed = true;
-      window.clearInterval(id);
     };
   }, [isUnit, kind, palette, profile]);
   return (

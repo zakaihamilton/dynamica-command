@@ -146,7 +146,7 @@ describe("SpritePreview", () => {
     );
   });
 
-  it("keeps unit animation and shadow rendering while cleaning up its timer", () => {
+  it("keeps unit portraits static in the sidebar", () => {
     const setIntervalSpy = vi.spyOn(window, "setInterval");
     const clearIntervalSpy = vi.spyOn(window, "clearInterval");
     const previews = (["infantry", "antiArmor", "medic"] as const).map((kind) => render(
@@ -157,12 +157,11 @@ describe("SpritePreview", () => {
     expect(mocks.drawUnitShadow).toHaveBeenCalled();
     expect(mocks.paintBuildingAssetOverlay).not.toHaveBeenCalled();
     expect(mocks.unitMovementOffset).not.toHaveBeenCalled();
-    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 140);
+    expect(setIntervalSpy).not.toHaveBeenCalled();
 
     previews.forEach(({ unmount }) => unmount());
 
-    expect(clearIntervalSpy).toHaveBeenCalledTimes(3);
-    expect(clearIntervalSpy.mock.calls.map(([id]) => id)).toEqual(setIntervalSpy.mock.results.map(({ value }) => value));
+    expect(clearIntervalSpy).not.toHaveBeenCalled();
   });
 
   it("keeps both building and unit previews attached to sidebar item cards", () => {
