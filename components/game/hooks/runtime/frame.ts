@@ -1,4 +1,4 @@
-import { cameraPanBounds, clampCamera, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
+import { cameraPanBounds, canPan, panAvailability, panCamera, panOffset, EDGE_PAN_DELAY_MS, type PanAvailability, type PanDir } from "@/lib/render/camera";
 import type { Camera } from "@/lib/iso";
 import type { SimState } from "@/lib/types";
 
@@ -6,6 +6,21 @@ import type { SimState } from "@/lib/types";
 // animation frames sparsely, without allowing an arbitrarily long frame gap to
 // teleport the camera.
 const MAX_CAMERA_ELAPSED_MS = 1_000;
+const EDGE_PAN_SPEED = 600;
+const EDGE_PAN_RESPONSE_MS = 90;
+
+function smoothPanVelocity(current: number, target: number, elapsedMs: number): number {
+  const response = 1 - Math.exp(-elapsedMs / EDGE_PAN_RESPONSE_MS);
+  return current + (target - current) * response;
+}
+
+function edgePanTarget(dir: PanDir): { dx: number; dy: number } {
+  const offset = panOffset(dir, EDGE_PAN_SPEED);
+  const magnitude = Math.hypot(offset.dx, offset.dy);
+  if (magnitude <= EDGE_PAN_SPEED) return offset;
+  const scale = EDGE_PAN_SPEED / magnitude;
+  return { dx: offset.dx * scale, dy: offset.dy * scale };
+}
 
 export function createFrameCoordinator({
   cameraRef,
@@ -27,14 +42,14 @@ export function createFrameCoordinator({
   applyEdgePan: (direction: PanDir | null) => void;
 }) {
   let previousFrameAt: number | null = null;
+  let edgePanVelocity = { dx: 0, dy: 0 };
 
   return {
     onFrame(state: SimState, now: number, paused: boolean, frameMs: number) {
       const elapsedSinceFrame = previousFrameAt === null ? frameMs : Math.max(0, now - previousFrameAt);
       previousFrameAt = now;
       const cameraFrameMs = Math.min(elapsedSinceFrame, MAX_CAMERA_ELAPSED_MS);
-      const panStep = 600 * frameMs / 1000;
-      const edgePanStep = 600 * cameraFrameMs / 1000;
+      const panStep = EDGE_PAN_SPEED * frameMs / 1000;
       if (!paused) {
         const camera = cameraRef.current;
         const canvas = canvasRef.current;
@@ -48,14 +63,25 @@ export function createFrameCoordinator({
         const hoveredEdge = edgePanHover.current;
         const hold = hoveredEdge && now - hoveredEdge.startedAt >= EDGE_PAN_DELAY_MS ? hoveredEdge.dir : null;
         panHold.current = hold;
-        if (hold && bounds) {
-          if (!panAvailability(camera, bounds)[hold]) applyEdgePan(null);
-          else {
-            const offset = panOffset(hold, edgePanStep);
-            panCamera(camera, offset.dx, offset.dy, bounds);
-          }
-        } else if (bounds) {
-          clampCamera(camera, bounds);
+        const canApplyEdgePan = Boolean(hold && bounds && canPan(camera, bounds, hold));
+        if (hold && bounds && !canApplyEdgePan) applyEdgePan(null);
+
+        if (!hoveredEdge) {
+          edgePanVelocity = { dx: 0, dy: 0 };
+        } else {
+          const target = canApplyEdgePan && hold ? edgePanTarget(hold) : { dx: 0, dy: 0 };
+          edgePanVelocity = {
+            dx: smoothPanVelocity(edgePanVelocity.dx, target.dx, cameraFrameMs),
+            dy: smoothPanVelocity(edgePanVelocity.dy, target.dy, cameraFrameMs),
+          };
+        }
+        if (bounds) {
+          panCamera(
+            camera,
+            edgePanVelocity.dx * cameraFrameMs / 1000,
+            edgePanVelocity.dy * cameraFrameMs / 1000,
+            bounds,
+          );
         }
         if (bounds) {
           const next = panAvailability(camera, bounds);
@@ -69,6 +95,7 @@ export function createFrameCoordinator({
         previousFrameAt = null;
         edgePanHover.current = null;
         panHold.current = null;
+        edgePanVelocity = { dx: 0, dy: 0 };
       }
     },
   };

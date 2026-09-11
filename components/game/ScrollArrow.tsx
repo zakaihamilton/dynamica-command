@@ -1,10 +1,10 @@
-import type { PanDir } from "@/lib/render/camera";
+import type { CardinalPanDir } from "@/lib/render/camera";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import { cx } from "@/lib/ui/cx";
 import styles from "./ScrollArrow.module.css";
 
-const SCROLL_ROTATION: Record<PanDir, number> = { up: 0, right: 90, down: 180, left: 270 };
-const DIR_CLASS: Record<PanDir, string> = {
+const SCROLL_ROTATION: Record<CardinalPanDir, number> = { up: 0, right: 90, down: 180, left: 270 };
+const DIR_CLASS: Record<CardinalPanDir, string> = {
   up: styles.up,
   right: styles.right,
   down: styles.down,
@@ -31,7 +31,7 @@ export function ScrollArrow({
   available,
   hot,
 }: {
-  dir: PanDir;
+  dir: CardinalPanDir;
   available: boolean;
   hot: boolean;
 }) {

@@ -19,9 +19,14 @@ describe("edge pan from pointer", () => {
     expect(panDirFromPointer(400, 597, 800, 600)).toBe("down");
   });
 
-  it("prefers the closer edge in a corner", () => {
-    expect(panDirFromPointer(2, 10, 800, 600)).toBe("left");
-    expect(panDirFromPointer(10, 2, 800, 600)).toBe("up");
+  it("scrolls diagonally from the three map corners", () => {
+    expect(panDirFromPointer(2, 10, 800, 600)).toBe("up-left");
+    expect(panDirFromPointer(10, 598, 800, 600)).toBe("down-left");
+    expect(panDirFromPointer(798, 598, 800, 600)).toBe("down-right");
+  });
+
+  it("keeps the top-right corner free for the mission directive", () => {
+    expect(panDirFromPointer(798, 10, 800, 600)).toBeNull();
   });
 
   it("skips unavailable directions", () => {

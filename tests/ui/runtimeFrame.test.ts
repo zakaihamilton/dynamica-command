@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCamera } from "../../lib/iso";
 import { makeFixture } from "../../lib/sim/fixtures";
-import { cameraPanBounds, EDGE_PAN_DELAY_MS } from "../../lib/render/camera";
+import { cameraPanBounds, EDGE_PAN_DELAY_MS, type PanDir } from "../../lib/render/camera";
 import { createFrameCoordinator } from "../../components/game/hooks/runtime/frame";
 
 const ref = <T,>(current: T) => ({ current });
@@ -13,8 +13,8 @@ function makeFrameCoordinator(keys: Record<string, boolean> = {}) {
   camera.x = (bounds.minX + bounds.maxX) / 2;
   camera.y = (bounds.minY + bounds.maxY) / 2;
   const panAvailability = ref({ left: true, right: true, up: true, down: true });
-  const edgePanHover = ref<{ dir: "left" | "right" | "up" | "down"; startedAt: number } | null>(null);
-  const panHold = ref<"left" | "right" | "up" | "down" | null>(null);
+  const edgePanHover = ref<{ dir: PanDir; startedAt: number } | null>(null);
+  const panHold = ref<PanDir | null>(null);
   const setPanAvailability = vi.fn();
   const applyEdgePan = vi.fn();
   const coordinator = createFrameCoordinator({
@@ -70,6 +70,35 @@ describe("runtime frame coordinator", () => {
     frame.coordinator.onFrame(state, 0, false, 0);
     frame.coordinator.onFrame(state, 1_000, false, 100);
 
-    expect(frame.camera.x).toBe(before - 600);
+    expect(frame.camera.x).toBeLessThan(before);
+    expect(frame.camera.x).toBeGreaterThan(before - 600);
+  });
+
+  it("moves both camera axes for a diagonal edge hold", () => {
+    const frame = makeFrameCoordinator();
+    const state = makeFixture({ width: 48, height: 48, win: { kind: "annihilate" } });
+    frame.edgePanHover.current = { dir: "down-right", startedAt: 0 };
+    const before = { x: frame.camera.x, y: frame.camera.y };
+
+    frame.coordinator.onFrame(state, EDGE_PAN_DELAY_MS + 1, false, 16);
+
+    expect(frame.camera.x).toBeLessThan(before.x);
+    expect(frame.camera.y).toBeLessThan(before.y);
+  });
+
+  it("eases into edge scrolling instead of jumping to full speed", () => {
+    const frame = makeFrameCoordinator();
+    const state = makeFixture({ width: 48, height: 48, win: { kind: "annihilate" } });
+    frame.edgePanHover.current = { dir: "left", startedAt: 0 };
+    const before = frame.camera.x;
+
+    frame.coordinator.onFrame(state, EDGE_PAN_DELAY_MS + 1, false, 16);
+    const firstStep = frame.camera.x - before;
+    frame.coordinator.onFrame(state, EDGE_PAN_DELAY_MS + 17, false, 16);
+    const secondStep = frame.camera.x - before - firstStep;
+
+    expect(firstStep).toBeGreaterThan(0);
+    expect(secondStep).toBeGreaterThan(firstStep);
+    expect(secondStep).toBeLessThan(600 * 16 / 1000);
   });
 });

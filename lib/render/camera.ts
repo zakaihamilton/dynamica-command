@@ -4,7 +4,9 @@ import { HEIGHT_STEP, TILE_H, TILE_W, cameraViewQuad, screenToGroundTile, type C
 export const PAN_STEP = 10;
 export const MINIMAP_DRAG_THRESHOLD = 6;
 
-export type PanDir = "left" | "right" | "up" | "down";
+export type CardinalPanDir = "left" | "right" | "up" | "down";
+export type DiagonalPanDir = "up-left" | "up-right" | "down-left" | "down-right";
+export type PanDir = CardinalPanDir | DiagonalPanDir;
 
 export type CameraBounds = {
   minX: number;
@@ -87,6 +89,14 @@ export function canPan(cam: Camera, bounds: CameraBounds, dir: PanDir, epsilon =
       return cam.y < bounds.maxY - epsilon;
     case "down":
       return cam.y > bounds.minY + epsilon;
+    case "up-left":
+      return canPan(cam, bounds, "up", epsilon) && canPan(cam, bounds, "left", epsilon);
+    case "up-right":
+      return canPan(cam, bounds, "up", epsilon) && canPan(cam, bounds, "right", epsilon);
+    case "down-left":
+      return canPan(cam, bounds, "down", epsilon) && canPan(cam, bounds, "left", epsilon);
+    case "down-right":
+      return canPan(cam, bounds, "down", epsilon) && canPan(cam, bounds, "right", epsilon);
   }
 }
 
@@ -109,6 +119,14 @@ export function panOffset(dir: PanDir, step = PAN_STEP): { dx: number; dy: numbe
       return { dx: 0, dy: step };
     case "down":
       return { dx: 0, dy: -step };
+    case "up-left":
+      return { dx: step, dy: step };
+    case "up-right":
+      return { dx: -step, dy: step };
+    case "down-left":
+      return { dx: step, dy: -step };
+    case "down-right":
+      return { dx: -step, dy: -step };
   }
 }
 
@@ -160,11 +178,28 @@ export function panDirFromPointer(
   avail?: PanAvailability,
 ): PanDir | null {
   if (x < 0 || y < 0 || x > width || y > height) return null;
-  const candidates: { dir: PanDir; dist: number }[] = [];
-  if (x <= band) candidates.push({ dir: "left", dist: x });
-  if (width - x <= band) candidates.push({ dir: "right", dist: width - x });
-  if (y <= band) candidates.push({ dir: "up", dist: y });
-  if (height - y <= band) candidates.push({ dir: "down", dist: height - y });
+  const horizontal = x <= band
+    ? { dir: "left" as const, dist: x }
+    : width - x <= band
+      ? { dir: "right" as const, dist: width - x }
+      : null;
+  const vertical = y <= band
+    ? { dir: "up" as const, dist: y }
+    : height - y <= band
+      ? { dir: "down" as const, dist: height - y }
+      : null;
+
+  if (horizontal && vertical) {
+    // The mission directive lives in this corner; keep its collapse/expand
+    // control free of edge-pan side effects.
+    if (horizontal.dir === "right" && vertical.dir === "up") return null;
+    const diagonal = `${vertical.dir}-${horizontal.dir}` as DiagonalPanDir;
+    if (!avail || (avail[horizontal.dir] && avail[vertical.dir])) return diagonal;
+  }
+
+  const candidates: { dir: CardinalPanDir; dist: number }[] = [];
+  if (horizontal) candidates.push(horizontal);
+  if (vertical) candidates.push(vertical);
   const allowed = avail ? candidates.filter((c) => avail[c.dir]) : candidates;
   if (!allowed.length) return null;
   allowed.sort((a, b) => a.dist - b.dist);
