@@ -1,4 +1,4 @@
-import { BUILDING_STATS, MAX_PRODUCTION_QUEUE, TICKS_PER_SECOND, UNIT_STATS, labelFor } from "@/lib/catalog";
+import { BUILDING_DEFINITIONS, BUILDING_STATS, MAX_PRODUCTION_QUEUE, TICKS_PER_SECOND, UNIT_STATS, labelFor } from "@/lib/catalog";
 import { ProgressMeter } from "@/components/ui/ProgressMeter";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { cx } from "@/lib/ui/cx";
@@ -27,6 +27,7 @@ export function SelectionPanel({
   onFormation?: (formation: Formation) => void;
 }) {
   const friendlyUnit = selected && selected.owner === 0 && selected.class === "unit" && !selected.neutral;
+  const friendlyProducer = selected && isBuildingEntity(selected) && selected.owner === 0 && selected.constructing <= 0 && Boolean(BUILDING_DEFINITIONS[selected.kind].production);
   const stance = selected?.stance ?? "aggressive";
   const formation = selected?.formation;
   return (
@@ -68,6 +69,11 @@ export function SelectionPanel({
                   : `${Math.ceil(selected.producing.remaining / TICKS_PER_SECOND)}s`
               }
             />
+          ) : null}
+          {friendlyProducer ? (
+            <span className={styles.orderStatus} data-testid="rally-status">
+              {selected.rallyPoint ? `Rally point ${selected.rallyPoint.x}, ${selected.rallyPoint.y}` : "Rally point not set"}
+            </span>
           ) : null}
           {selected.repairing ? (
             <ProgressMeter

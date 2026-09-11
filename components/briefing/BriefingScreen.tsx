@@ -6,7 +6,7 @@ import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
 import { ConsoleNotice } from "@/components/ui/ConsoleNotice";
 import { DocumentTitle } from "@/components/ui/DocumentTitle";
 import { MetalPanel } from "@/components/ui/MetalPanel";
-import { formatSeed } from "@/lib/seed/rng";
+import { APP_NAME } from "@/lib/site";
 import { createCampaign } from "@/lib/gen/campaign";
 import { missionObjectives } from "@/lib/gen/story";
 import { biomeArt } from "@/lib/gen/visualAssets";
@@ -84,7 +84,7 @@ export function BriefingScreen({ seed, mission, returnToGame = false, origin = "
       data-testid="briefing-screen"
       style={{ "--scene-art": `url("${biomeArt(def.biome)}")` } as CSSProperties}
     >
-      <DocumentTitle title={`Briefing · Seed ${formatSeed(seed)} · Operation ${mission + 1} | Shifting Front`} />
+      <DocumentTitle title={APP_NAME} />
       <div className={styles.inner}>
         <div className={styles.mast}>
           <BriefingMast seed={seed} mission={mission} campaign={campaign} def={def} />

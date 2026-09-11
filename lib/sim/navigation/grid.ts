@@ -14,6 +14,27 @@ export const PATH_DIRS: Vec2[] = [
   { x: -1, y: -1 },
 ];
 
+/** Whether a candidate step turns back against the unit's last tile-to-tile move. */
+export function reversesPreviousStep(
+  width: number,
+  currentX: number,
+  currentY: number,
+  nextX: number,
+  nextY: number,
+  previousCell?: number,
+): boolean {
+  if (previousCell === undefined) return false;
+  const previousX = previousCell % width;
+  const previousY = Math.floor(previousCell / width);
+  const incomingX = currentX - previousX;
+  const incomingY = currentY - previousY;
+  if (incomingX === 0 && incomingY === 0) return false;
+  if (Math.max(Math.abs(incomingX), Math.abs(incomingY)) > 1) return false;
+  const outgoingX = nextX - currentX;
+  const outgoingY = nextY - currentY;
+  return incomingX * outgoingX + incomingY * outgoingY < 0;
+}
+
 export function inBoundsNavigation(navigation: ReturnType<typeof staticNavigationFor>, x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < navigation.width && y < navigation.height;
 }

@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { MenuScreen } from "@/components/menu/MenuScreen";
 import { parseSeed, formatSeed } from "@/lib/seed/rng";
 import { createCampaign } from "@/lib/gen/campaign";
-import { weeklyIndex, weeklySeed } from "@/components/menu/menuLaunch";
+import { weeklySeed } from "@/components/menu/menuLaunch";
 import { biomeLabel } from "@/lib/gen/names";
+import { APP_NAME } from "@/lib/site";
 
 type Props = {
   searchParams: Promise<{ seed?: string }>;
@@ -15,13 +16,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const parsed = seedQuery ? parseSeed(seedQuery) : null;
   const activeSeed = parsed !== null ? parsed : (parseSeed(currentWeekly) ?? 0);
   const seedStr = parsed !== null ? formatSeed(parsed) : currentWeekly;
-  const isWeekly = seedStr === currentWeekly;
-  const week = weeklyIndex();
   const campaign = createCampaign(activeSeed);
 
-  const title = isWeekly
-    ? `Week ${week} Campaign (Seed ${seedStr}) | Shifting Front`
-    : `Seed ${seedStr} // ${campaign.world.name} | Shifting Front`;
+  const title = APP_NAME;
 
   const description = `${campaign.world.name} (${biomeLabel(campaign.world.biome)}). ${campaign.world.conflict}. ${campaign.factions[0].name} vs ${campaign.factions[1].name}. 6 operations — Wordle for RTS.`;
 

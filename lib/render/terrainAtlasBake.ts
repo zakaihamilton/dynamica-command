@@ -78,7 +78,17 @@ export function atlasRectForTile(x: number, y: number, _mapWidth: number): { sx:
   };
 }
 
-function bakeWaterShoreDist(state: AtlasWorld, cols: number, rows: number): Uint8Array {
+type AtlasSceneryGrid = {
+  cols: number;
+  rows: number;
+  kind: Uint8Array;
+  elev: Uint8Array;
+  waterNeighbors: Uint8Array;
+};
+
+function bakeWaterShoreDist(grid: AtlasSceneryGrid): Uint8Array {
+  const { cols, rows, kind } = grid;
+  const stride = cols + 2;
   const dist = new Uint8Array(cols * rows);
   dist.fill(255);
   const queue = new Int32Array(cols * rows);
@@ -86,9 +96,7 @@ function bakeWaterShoreDist(state: AtlasWorld, cols: number, rows: number): Uint
   let head = 0;
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const gx = col - MAP_SKIRT;
-      const gy = row - MAP_SKIRT;
-      if (sceneryAt(state, gx, gy).kind === TILE_WATER) continue;
+      if (kind[(row + 1) * stride + col + 1] === TILE_WATER) continue;
       const i = row * cols + col;
       dist[i] = 0;
       queue[tail++] = i;
@@ -116,14 +124,6 @@ function bakeWaterShoreDist(state: AtlasWorld, cols: number, rows: number): Uint
   }
   return dist;
 }
-
-type AtlasSceneryGrid = {
-  cols: number;
-  rows: number;
-  kind: Uint8Array;
-  elev: Uint8Array;
-  waterNeighbors: Uint8Array;
-};
 
 function bakeAtlasSceneryGrid(state: AtlasWorld, cols: number, rows: number): AtlasSceneryGrid {
   const cachedCols = cols + 2;
@@ -183,11 +183,17 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
   const classes = new Uint8Array(cols * rows);
   const features = new Array<TerrainFeatureSample>(cols * rows);
   const waterCells = new Uint8Array(cols * rows);
-  const shoreDist = bakeWaterShoreDist(state, cols, rows);
   const sceneryGrid = bakeAtlasSceneryGrid(state, cols, rows);
+  const shoreDist = bakeWaterShoreDist(sceneryGrid);
   const salt = artSalt(state);
   const mats = materialsFor(state);
   const rig = terrainLightRigFor(state.seed);
+  const pixelFractions = Array.from({ length: ATLAS_CELL }, (_, index) => (index + 0.5) / ATLAS_CELL);
+  const edgeFactors = Array.from({ length: ATLAS_CELL * ATLAS_CELL }, (_, index) => {
+    const lx = index % ATLAS_CELL;
+    const ly = Math.floor(index / ATLAS_CELL);
+    return terrainEdgeDarkening(rig, lx / ATLAS_CELL, ly / ATLAS_CELL);
+  });
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const gx = col - MAP_SKIRT;
@@ -257,22 +263,20 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
       const n22 = same === WATER_CELL_CLASS ? readShoreCell(shoreDist, cols, rows, col + 1, row + 1, cellDist) : 0;
       for (let ly = 0; ly < ATLAS_CELL; ly++) {
         const fy = ly / ATLAS_CELL;
+        const mapY = gy + pixelFractions[ly]!;
         const py = row * ATLAS_CELL + ly;
         for (let lx = 0; lx < ATLAS_CELL; lx++) {
           const fx = lx / ATLAS_CELL;
+          const mapX = gx + pixelFractions[lx]!;
           let r: number;
           let g: number;
           let b: number;
           if (same === WATER_CELL_CLASS) {
-            const mapX = gx + (lx + 0.5) / ATLAS_CELL;
-            const mapY = gy + (ly + 0.5) / ATLAS_CELL;
-            const pxFx = (lx + 0.5) / ATLAS_CELL;
-            const pxFy = (ly + 0.5) / ATLAS_CELL;
             const wet = tintWater(
               mats,
               Math.min(
-                bilinearFromNeighborhood(pxFx, pxFy, n00, n10, n20, n01, cellDist, n21, n02, n12, n22),
-                landEdgeDistFromMask(pxFx, pxFy, waterMask),
+                bilinearFromNeighborhood(pixelFractions[lx]!, pixelFractions[ly]!, n00, n10, n20, n01, cellDist, n21, n02, n12, n22),
+                landEdgeDistFromMask(pixelFractions[lx]!, pixelFractions[ly]!, waterMask),
               ),
               mapX,
               mapY,
@@ -299,7 +303,7 @@ export function bakeTerrainAtlasData(state: AtlasWorld, grainGeneration = 0): Te
             r = pat.r;
             g = pat.g;
             b = pat.b;
-            const edgeFactor = terrainEdgeDarkening(rig, fx, fy);
+            const edgeFactor = edgeFactors[ly * ATLAS_CELL + lx]!;
             r *= edgeFactor;
             g *= edgeFactor;
             b *= edgeFactor;

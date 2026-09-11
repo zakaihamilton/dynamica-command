@@ -3,7 +3,7 @@ import { ConsoleNotice, ConsoleNoticeLink } from "@/components/ui/ConsoleNotice"
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Signal not found | Shifting Front",
+    absolute: "Shifting Front",
   },
 };
 

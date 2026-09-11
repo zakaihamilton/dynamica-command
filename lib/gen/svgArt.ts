@@ -1,5 +1,13 @@
 import { BUILDING_STATS } from "../catalog";
-import { SPRITE_ART, TEXTURE_ART, UNIT_DIRECTION_ART, UNIT_DIRECTION_CROPS, unitViewForFacing } from "./visualAssets";
+import {
+  SPRITE_ART,
+  TEXTURE_ART,
+  UNIT_DIRECTION_ART,
+  UNIT_DIRECTION_CROPS,
+  UNIT_WALK_CYCLE_ART,
+  unitWalkFrameCrop,
+  unitViewForFacing,
+} from "./visualAssets";
 import type {
   BuildingKind,
   BuildingSpriteOptions,
@@ -123,19 +131,24 @@ export function unitSprite(kind: UnitKind, palette: Palette, options: UnitSprite
   const h = infantry ? 42 : antiArmor ? 46 : 60;
   const facing = options.facing ?? 0;
   const view = unitViewForFacing(facing);
+  const walkArt = options.motion === "walk" && (kind === "infantry" || kind === "antiArmor" || kind === "medic")
+    ? UNIT_WALK_CYCLE_ART[kind]
+    : undefined;
+  const imageSrc = walkArt?.[view] ?? UNIT_DIRECTION_ART[kind][view];
+  const imageCrop = walkArt ? unitWalkFrameCrop(frame) : UNIT_DIRECTION_CROPS[kind]?.[view];
   // Raster units are bottom-aligned inside their logical frame. The rotation
   // pivot must be the contact point at the feet/base, not the visual center.
   const ground = h;
   return {
-    id: `unit:directional-v1:${kind}:${facing}:${view}:${palette.primary}:${visualKey(profile)}:${variant}:${frame}:${dmg}`,
+    id: `unit:directional-v1:${kind}:${facing}:${view}:${palette.primary}:${visualKey(profile)}:${variant}:${walkArt ? "walk" : "static"}:${frame}:${dmg}`,
     kind: "unit",
     w,
     h,
     palette,
     shapes: [],
-    imageSrc: UNIT_DIRECTION_ART[kind][view],
+    imageSrc,
     imageTint: rasterTreatment(profile, palette),
-    imageCrop: UNIT_DIRECTION_CROPS[kind]?.[view],
+    imageCrop,
     anchorX: w / 2,
     anchorY: ground,
     pixelScale: 1,

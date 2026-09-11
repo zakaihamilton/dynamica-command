@@ -159,6 +159,7 @@ export function renderEntityPhase(
           variant: entityVariant(state, e),
           facing,
           animationFrame: uAnim?.frame,
+          motion: uAnim?.pose === "move" ? "walk" : undefined,
           damageStage,
           profile,
         })

@@ -12,6 +12,7 @@ import { objectiveProgress } from "../../lib/sim/objectives";
 import { distToEntity } from "../../lib/sim/world";
 import { guardScenarioObjectives } from "../../lib/sim/ai/director";
 import { deserializeState, serializeState } from "../../lib/persist/save";
+import { inRescueFlank } from "../../lib/gen/map/generator/rescuePlacement";
 import type { MissionKind } from "../../lib/types";
 
 function missionOfKind(kind: MissionKind, missionIndex: number) {
@@ -161,7 +162,7 @@ describe("tactical expansion", () => {
     expect(destinations.every((destination) => Math.hypot(destination.x - map.enemyStart.x, destination.y - map.enemyStart.y) > 6)).toBe(true);
   });
 
-  it("stages rescue targets in the 55%-80% portion of the route", () => {
+  it("stages rescue targets on the enemy base's mirrored flank", () => {
     let sample: { state: ReturnType<typeof createMission>; map: ReturnType<typeof generateMap> } | undefined;
     for (let seed = 0; seed < 200 && !sample; seed++) {
       const campaign = createCampaign(seed);
@@ -172,13 +173,22 @@ describe("tactical expansion", () => {
 
     expect(sample).toBeDefined();
     const { state, map } = sample!;
-    const routeDistance = Math.hypot(map.enemyStart.x - map.playerStart.x, map.enemyStart.y - map.playerStart.y);
     for (const id of state.runtime?.targetIds ?? []) {
       const target = state.entities.find((entity) => entity.id === id)!;
-      const distanceFromPlayer = Math.hypot(target.x - map.playerStart.x, target.y - map.playerStart.y);
-      expect(distanceFromPlayer).toBeGreaterThanOrEqual(routeDistance * 0.55);
-      expect(distanceFromPlayer).toBeLessThanOrEqual(routeDistance * 0.8);
+      expect(inRescueFlank(map, target.x, target.y)).toBe(true);
     }
+  });
+
+  it("keeps seed 3207 rescue targets away from the enemy base approach", () => {
+    const campaign = createCampaign(3207);
+    const mission = campaign.missions[0]!;
+    const map = generateMap(3207, mission);
+    const state = createMission({ seed: 3207, missionIndex: mission.index });
+    const targets = state.runtime!.targetIds.map((id) => state.entities.find((entity) => entity.id === id)!);
+
+    expect(mission.win.kind).toBe("rescue");
+    expect(targets.every((target) => inRescueFlank(map, target.x, target.y))).toBe(true);
+    expect(targets.every((target) => Math.hypot(target.x - map.enemyStart.x, target.y - map.enemyStart.y) > 12)).toBe(true);
   });
 
   it("holds deterministic defensive patrols near rescue and extraction targets", () => {

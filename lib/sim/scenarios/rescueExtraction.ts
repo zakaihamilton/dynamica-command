@@ -1,20 +1,20 @@
 import type { GeneratedMap } from "../../gen/map";
+import { clampPoint } from "../../gen/map/generator/placement";
+import { rescueFlankCenter } from "../../gen/map/generator/rescuePlacement";
 import { inObjectiveZone, RESCUE_CONTACT_RADIUS } from "../../types";
 import type { SimState, Vec2 } from "../../types";
 
 export function rescuePoint(
-  map: Pick<GeneratedMap, "playerStart" | "enemyStart">,
+  map: Pick<GeneratedMap, "playerStart" | "enemyStart" | "width" | "height">,
   index: number,
   count: number,
 ): Vec2 {
-  // Rescue missions already place the stranded units on a visible route band.
-  // Keep the contested profile's extra risk in the approach lanes and alerts,
-  // rather than pushing the rescue targets deeper and starving the base guard.
-  const t = 0.55 + (index / Math.max(1, count - 1)) * 0.25;
-  return {
-    x: Math.round(map.playerStart.x + (map.enemyStart.x - map.playerStart.x) * t),
-    y: Math.round(map.playerStart.y + (map.enemyStart.y - map.playerStart.y) * t),
-  };
+  const center = rescueFlankCenter(map);
+  const spread = (index - (count - 1) / 2) * 4;
+  return clampPoint({
+    x: center.x + spread,
+    y: center.y + (index % 2 === 0 ? -2 : 2),
+  }, map.width, map.height);
 }
 
 export function centerPoint(

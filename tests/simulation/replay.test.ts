@@ -41,6 +41,16 @@ describe("simulation replay", () => {
     expect(simulationFingerprint(state)).not.toBe(before);
   });
 
+  it("excludes control-group membership from the simulation fingerprint", () => {
+    const first = createMission({ seed: 421, missionIndex: 0 });
+    const second = createMission({ seed: 421, missionIndex: 0 });
+    const unit = first.entities.find((entity) => entity.owner === 0 && entity.class === "unit");
+    expect(unit).toBeDefined();
+    first.controlGroups = { 1: [unit!.id] };
+
+    expect(simulationFingerprint(first)).toBe(simulationFingerprint(second));
+  });
+
   it("reports terminal loss, scheduled rejection, and the emitted events", () => {
     const result = runReplay({
       seed: 0,

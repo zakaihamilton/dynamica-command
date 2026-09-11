@@ -8,6 +8,7 @@ import { tryBuildForwardInfrastructure, tryBuildPower, tryBuildRefinery, tryBuil
 import { assignAttack, assignAssault, assignMove, sendHome } from "./combat";
 import { contestedResourcePoint, distance, queueUnit, shouldAutoRepair, shouldRetreat } from "./helpers";
 import { enemyKnownPlayerEntities, nearestKnownPlayer } from "./visibility";
+import { isCombatTarget } from "../combat/grid";
 
 const YARD_DEFENSE_RANGE = 14;
 
@@ -174,8 +175,12 @@ export function tickAi(state: SimState): void {
     );
     const supportProducer = supportWant === "medic" ? barracks : supportWant === "repairTruck" ? factory : undefined;
     const power = powerFor(state, 1);
-    if (power < 0 && tryBuildPower(state, yard.x, yard.y)) {
-      // Restore the grid before expanding.
+    if (power < 0) {
+      // Restore the grid before expanding. If a plant is already under
+      // construction (or no valid site/credits are available), stop here;
+      // falling through would spend the remaining budget on unrelated
+      // barracks while the deficit is still active.
+      tryBuildPower(state, yard.x, yard.y);
     } else if (phase !== "opening" && tryBuildForwardInfrastructure(state, yard, knownPlayers)) {
       // Contest a remote resource lane before committing to another assault wave.
     } else if (!hasRefinery && tryBuildRefinery(state, yard.x, yard.y)) {
@@ -228,7 +233,7 @@ export function tickAi(state: SimState): void {
   const threat = nearestKnownPlayer(
     state,
     yard,
-    (e) => e.owner === 0 && isUnitEntity(e) && e.kind !== "harvester" && !isSupportUnit(e.kind) && (
+    (e) => e.owner === 0 && isUnitEntity(e) && isCombatTarget(state, e) && e.kind !== "harvester" && !isSupportUnit(e.kind) && (
       (!e.neutral || e.scenarioRole === "convoy")
     ) && !(e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined),
     knownPlayers,

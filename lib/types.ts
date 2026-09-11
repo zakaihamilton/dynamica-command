@@ -42,6 +42,8 @@ export type MissionProfile = {
 export type BalanceStrategy = "competent" | "baseline" | "rush" | "turtle" | "greed" | "infantry" | "vehicles";
 export type Formation = "line" | "column" | "wedge";
 export type Stance = "aggressive" | "defensive" | "hold";
+export type ControlGroupSlot = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type ControlGroups = Partial<Record<ControlGroupSlot, number[]>>;
 export type ScenarioRole = "convoy" | "stranded" | "cargo";
 export type OrderMode = "move" | "attackMove" | "attack";
 export type LossReason = "yardDestroyed" | "deadline" | "objectiveTargetLost";
@@ -181,6 +183,8 @@ export type Entity = {
   repairing?: boolean;
   neutral?: boolean;
   scenarioRole?: ScenarioRole;
+  /** Ground destination used by newly produced units from this building. */
+  rallyPoint?: Vec2;
   orderMode?: OrderMode;
   orderDestination?: Vec2;
   /** Shared terrain destination for group flow-field routing. */
@@ -370,6 +374,8 @@ export type UnitSpriteOptions = {
   variant?: number;
   facing?: Facing;
   animationFrame?: AnimFrame;
+  /** Selects the generated four-frame walk cycle for bipedal units. */
+  motion?: "walk";
   damageStage?: 0 | 1 | 2;
   profile?: FactionVisualProfile;
 };
@@ -422,6 +428,8 @@ export type SimState = {
   aiRetreatLocked?: boolean;
   /** Deterministic, serializable last-known player contacts used by enemy AI. */
   aiContacts?: Record<string, AiContact>;
+  /** Player control-group membership, persisted with the mission but ignored by simulation identity. */
+  controlGroups: ControlGroups;
   /** Increments whenever a building footprint changes the static navigation grid. */
   navigationRevision: number;
 };
@@ -434,6 +442,7 @@ export type Command =
   | { type: "harvest"; unitIds: number[]; x: number; y: number }
   | { type: "build"; building: BuildingKind; x: number; y: number }
   | { type: "produce"; fromId: number; unit: UnitKind }
+  | { type: "rally"; buildingId: number; x: number; y: number }
   | { type: "cancelBuild"; building: BuildingKind }
   | { type: "cancelProduce"; unit: UnitKind }
   | { type: "repair"; buildingId: number }

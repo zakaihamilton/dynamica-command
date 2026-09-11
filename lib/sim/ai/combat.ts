@@ -75,7 +75,10 @@ export function scenarioAssaultTarget(state: SimState, from: Entity): Entity | u
       if (!entity || entity.hp <= 0 || entity.owner !== 0) return false;
       if (runtime.kind === "escort") return runtime.convoyStartTick === undefined && entity.scenarioRole === "convoy";
       if (runtime.kind === "extraction") return entity.scenarioRole === "cargo" && !entity.neutral && !runtime.extractedIds?.includes(entity.id);
-      if (runtime.kind === "rescue") return entity.scenarioRole === "stranded" && !entity.neutral;
+      // Contacted evacuees are protected from automatic enemy acquisition
+      // while they return to HQ. The player still controls their movement;
+      // enemy units focus the escorting force instead of invalidating contact.
+      if (runtime.kind === "rescue") return false;
       return false;
     });
   const sorted = candidates.sort((a, b) => distToEntity(from, a) - distToEntity(from, b) || a.id - b.id);

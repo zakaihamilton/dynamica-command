@@ -1,9 +1,10 @@
-import type { Entity, SimState } from "../../../types";
+import { isBuildingEntity, type Entity, type SimState } from "../../../types";
+import { BUILDING_DEFINITIONS } from "../../../catalog";
 import { animClock } from "../../anim";
 import { type Camera } from "../../../iso";
 import { isPerfHudEnabled, type WorldPhaseTimings } from "../../perfHud";
 import { drawCombatEffects, drawFxLayer } from "../../renderCombat";
-import { drawCommandMarker, drawSelectBox } from "../../renderOverlays";
+import { drawCommandMarker, drawRallyPoint, drawSelectBox } from "../../renderOverlays";
 import type { RenderExtras } from "../../renderOverlays";
 import { facingFor as resolveFacing } from "../../renderEntities";
 import { drawList, entityById } from "../cache";
@@ -48,6 +49,20 @@ export function renderWorld(
   });
 
   lap("entities");
+
+  const selectedProducer = state.entities.find((entity) =>
+    selected.has(entity.id) &&
+    entity.hp > 0 &&
+    entity.owner === 0 &&
+    isBuildingEntity(entity) &&
+    entity.constructing <= 0 &&
+    Boolean(BUILDING_DEFINITIONS[entity.kind].production) &&
+    Boolean(entity.rallyPoint),
+  );
+  const rallyPoint = selectedProducer?.rallyPoint;
+  if (selectedProducer && rallyPoint) {
+    drawRallyPoint(ctx, state, cam, { ...selectedProducer, rallyPoint }, clock ?? 0, extras.reducedMotion);
+  }
 
   const timeMs = animClock(state.tick, clock);
   drawCombatEffects(ctx, state, cam, drawList, entityById, (st: SimState, ent: Entity) => resolveFacing(st, ent, entityById), clock);

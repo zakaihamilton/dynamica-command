@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
-import type { SimState } from "@/lib/types";
+import type { ControlGroupSlot, SimState } from "@/lib/types";
 import type { MissionUxTelemetry } from "@/lib/persist/telemetry";
 
 export function useGameSelection({
@@ -32,6 +32,32 @@ export function useGameSelection({
     }
   }, [setState, stateRef, uxRef]);
 
+  const assignControlGroup = useCallback((slot: ControlGroupSlot): number => {
+    const state = stateRef.current;
+    const ids = [...selected.current].filter((id) => {
+      const entity = state.entities.find((candidate) => candidate.id === id);
+      return Boolean(entity && entity.hp > 0 && entity.owner === 0 && entity.class === "unit" && !entity.neutral);
+    });
+    const controlGroups = { ...(state.controlGroups ?? {}), [slot]: ids };
+    state.controlGroups = controlGroups;
+    setState({ ...state, controlGroups });
+    return ids.length;
+  }, [setState, stateRef]);
+
+  const recallControlGroup = useCallback((slot: ControlGroupSlot): number => {
+    const state = stateRef.current;
+    const existing = state.controlGroups?.[slot] ?? [];
+    const ids = [...new Set(existing)].filter((id) => {
+      const entity = state.entities.find((candidate) => candidate.id === id);
+      return Boolean(entity && entity.hp > 0 && entity.owner === 0 && entity.class === "unit" && !entity.neutral);
+    });
+    const controlGroups = { ...(state.controlGroups ?? {}), [slot]: ids };
+    state.controlGroups = controlGroups;
+    setState({ ...state, controlGroups });
+    commitSelection(ids);
+    return ids.length;
+  }, [commitSelection, setState, stateRef]);
+
   const setSelectionModeState = useCallback((active: boolean) => {
     selectionModeRef.current = active;
     setSelectionMode(active);
@@ -43,6 +69,8 @@ export function useGameSelection({
     selectionMode,
     selectionModeRef,
     commitSelection,
+    assignControlGroup,
+    recallControlGroup,
     setSelectionMode: setSelectionModeState,
   };
 }

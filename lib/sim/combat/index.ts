@@ -1,6 +1,6 @@
 import { distToEntity, livingView } from "../world";
 import { rngFromState } from "../../seed/rng";
-import { buildGrid, statsFor, isCombatThreat, acquire, acquirePreferred, closestEnemy } from "./grid";
+import { buildGrid, statsFor, isCombatTarget, isCombatThreat, acquire, acquirePreferred, closestEnemy } from "./grid";
 import { lineOfSight, firingPosition } from "./targeting";
 import { strike, chase } from "./damage";
 import { createPendingAlerts, flushPlayerAlerts } from "./alerts";
@@ -25,7 +25,9 @@ export function tickCombat(state: SimState, eventSink?: SimEvent[], collectEvent
     if (ordered && e.orderMode === "attackMove") e.attackTarget = undefined;
     if (ordered && e.attackTarget !== undefined && e.orderMode !== "attackMove") {
       const assignedCandidate = grid.byId[e.attackTarget];
-      const assigned = assignedCandidate && assignedCandidate.hp > 0 ? assignedCandidate : undefined;
+      const assigned = assignedCandidate && assignedCandidate.hp > 0 && isCombatTarget(state, assignedCandidate)
+        ? assignedCandidate
+        : undefined;
       if (!assigned) {
         e.attackTarget = undefined;
       } else {
@@ -70,7 +72,11 @@ export function tickCombat(state: SimState, eventSink?: SimEvent[], collectEvent
       continue;
     }
 
-    if (ordered) e.idle = true;
+    // A grouped travel order can briefly have an empty path while its flow
+    // field is waiting for the next lane prefix. Do not mark that unit idle:
+    // doing so prevents the movement system from recovering the route on the
+    // following tick and can strand an assault force short of its target.
+    if (ordered && !e.flowGoal) e.idle = true;
 
     const stance = e.class === "unit" ? (e.stance ?? "aggressive") : "aggressive";
     const hold = stance === "hold";

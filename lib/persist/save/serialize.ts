@@ -108,6 +108,7 @@ function normalizeState(value: unknown): SimState {
   if (!s.buildingsCompletedByKind || typeof s.buildingsCompletedByKind !== "object") {
     s.buildingsCompletedByKind = {};
   }
+  if (s.controlGroups === undefined) s.controlGroups = {};
   if (!Array.isArray(s.entities)) s.entities = [];
   const scenarioRole =
     s.runtime?.kind === "escort" ? "convoy" :

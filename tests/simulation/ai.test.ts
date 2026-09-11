@@ -115,6 +115,18 @@ describe("enemy AI", () => {
     expect(s.entities.some((e) => e.kind === "factory")).toBe(false);
   });
 
+  it("does not spend on unrelated buildings while power recovery is pending", () => {
+    const s = makeFixture({ width: 24, height: 24, win: { kind: "razeAll" } });
+    addBuilding(s, 1, "constructionYard", 12, 12);
+    addBuilding(s, 1, "power", 16, 12, 100);
+    s.credits[1] = 5000;
+    s.tick = missionDifficulty(0).enemyProductionStart;
+
+    tickAi(s);
+
+    expect(s.entities.filter((e) => e.owner === 1 && e.kind === "barracks")).toHaveLength(0);
+  });
+
   it("assigns idle combat units to a player threat near the yard", () => {
     const s = makeFixture({ width: 20, height: 20, win: { kind: "annihilate" } });
     addBuilding(s, 1, "constructionYard", 8, 8);

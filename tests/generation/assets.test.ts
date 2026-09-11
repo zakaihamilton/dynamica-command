@@ -15,7 +15,13 @@ import {
   wreckSprite,
 } from "../../lib/gen/assets";
 import { generateFactions } from "../../lib/gen/factions";
-import { listTacticalRasterSources, SPRITE_ART, UNIT_DIRECTION_ART } from "../../lib/gen/visualAssets";
+import {
+  listTacticalRasterSources,
+  SPRITE_ART,
+  UNIT_DIRECTION_ART,
+  UNIT_WALK_CYCLE_ART,
+  unitWalkFrameCrop,
+} from "../../lib/gen/visualAssets";
 import { opaquePixelBounds, rotatedSpriteBounds } from "../../lib/render/sprites";
 
 describe("tactical procedural assets", () => {
@@ -97,6 +103,61 @@ describe("tactical procedural assets", () => {
       }
       expect(a.id).not.toEqual(b.id);
     }
+  });
+
+  it("selects transparent, frame-specific walk sheets only for bipedal units", async () => {
+    const frames = [0, 1, 2, 3] as const;
+    expect(frames.map(unitWalkFrameCrop)).toEqual([
+      { x: 0, y: 0, w: 512, h: 512, sourceW: 1024, sourceH: 1024, refW: 512, refH: 512 },
+      { x: 512, y: 0, w: 512, h: 512, sourceW: 1024, sourceH: 1024, refW: 512, refH: 512 },
+      { x: 0, y: 512, w: 512, h: 512, sourceW: 1024, sourceH: 1024, refW: 512, refH: 512 },
+      { x: 512, y: 512, w: 512, h: 512, sourceW: 1024, sourceH: 1024, refW: 512, refH: 512 },
+    ]);
+
+    const walkerKinds = Object.keys(UNIT_WALK_CYCLE_ART) as Array<keyof typeof UNIT_WALK_CYCLE_ART>;
+    expect(walkerKinds.sort()).toEqual(["antiArmor", "infantry", "medic"]);
+    for (const kind of walkerKinds) {
+      for (const src of Object.values(UNIT_WALK_CYCLE_ART[kind])) {
+        const path = resolve(process.cwd(), "public", src.slice(1));
+        expect(existsSync(path), src).toBe(true);
+        const metadata = await sharp(path).metadata();
+        expect(metadata.width).toBe(1024);
+        expect(metadata.height).toBe(1024);
+        expect(metadata.hasAlpha).toBe(true);
+
+        const { data, info } = await sharp(path).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        let transparentPixels = 0;
+        const frameAnchors = [0, 1, 2, 3].map((frame) => {
+          const offsetX = (frame & 1) * 512;
+          const offsetY = ((frame >> 1) & 1) * 512;
+          let minX = 512;
+          let maxX = -1;
+          let maxY = -1;
+          for (let y = 0; y < 512; y++) {
+            for (let x = 0; x < 512; x++) {
+              const alpha = data[((offsetY + y) * info.width + offsetX + x) * 4 + 3]!;
+              if (alpha === 0) transparentPixels += 1;
+              if (alpha < 12) continue;
+              minX = Math.min(minX, x);
+              maxX = Math.max(maxX, x);
+              maxY = Math.max(maxY, y);
+            }
+          }
+          return { centerX: Math.round((minX + maxX) / 2), bottom: maxY };
+        });
+        expect(transparentPixels / (info.width * info.height)).toBeGreaterThan(0.65);
+        expect(new Set(frameAnchors.map(({ centerX }) => centerX)).size).toBe(1);
+        expect(new Set(frameAnchors.map(({ bottom }) => bottom)).size).toBe(1);
+      }
+    }
+
+    const moving = unitSprite("infantry", palette, { facing: 2, animationFrame: 2, motion: "walk" });
+    const staticSprite = unitSprite("infantry", palette, { facing: 2, animationFrame: 2 });
+    const vehicle = unitSprite("tank", palette, { facing: 2, animationFrame: 2, motion: "walk" });
+    expect(moving.imageSrc).toContain("/walk-cycle/");
+    expect(moving.imageCrop).toEqual(unitWalkFrameCrop(2));
+    expect(staticSprite.imageSrc).not.toContain("/walk-cycle/");
+    expect(vehicle.imageSrc).not.toContain("/walk-cycle/");
   });
 
   it("crops generated neighboring artwork from affected direction assets", () => {

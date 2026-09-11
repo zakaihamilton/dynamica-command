@@ -2,6 +2,7 @@ import { footprintOf, NEW_MISSION_KINDS } from "../../../lib/catalog";
 import { createCampaign } from "../../../lib/gen/campaign";
 import { generateMap, mapSizeForMission } from "../../../lib/gen/map";
 import { createMission } from "../../../lib/sim/api";
+import { inRescueFlank } from "../../../lib/gen/map/generator/rescuePlacement";
 import { canClimb, footprintFlat, inBounds, isStaticWalkable, terrainAccess } from "../../../lib/sim/world";
 import { diagonalCornerBlocked, PATH_DIRS } from "../../../lib/sim/pathfinding";
 import type { Entity, MissionKind, SimState, Vec2 } from "../../../lib/types";
@@ -132,20 +133,8 @@ export function assertScenarioTargets(start: number, end: number): void {
         if (!reachableTarget(state, reachableFromPlayer, target)) {
           throw new Error(`Seed ${seed} mission ${mission.index} placed unreachable target ${id}`);
         }
-        if (mission.win.kind === "rescue") {
-          const route = rescueMap && Math.hypot(
-            rescueMap.enemyStart.x - rescueMap.playerStart.x,
-            rescueMap.enemyStart.y - rescueMap.playerStart.y,
-          );
-          if (rescueMap && route) {
-            const distanceFromPlayer = Math.hypot(
-              target.x - rescueMap.playerStart.x,
-              target.y - rescueMap.playerStart.y,
-            );
-            if (distanceFromPlayer < route * 0.55 || distanceFromPlayer > route * 0.8) {
-              throw new Error(`Seed ${seed} mission ${mission.index} staged rescue target ${id} outside route band`);
-            }
-          }
+        if (mission.win.kind === "rescue" && rescueMap && !inRescueFlank(rescueMap, target.x, target.y)) {
+          throw new Error(`Seed ${seed} mission ${mission.index} staged rescue target ${id} outside mirrored flank`);
         }
       }
     }

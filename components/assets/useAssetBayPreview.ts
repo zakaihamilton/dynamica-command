@@ -40,7 +40,13 @@ export function useAssetBayPreview({
     const paint = (timeMs: number) => {
       const spec =
         selected.category === "unit"
-          ? unitSprite(selected.kind as UnitKind, palette, { facing, animationFrame: frame, variant: 11, profile })
+          ? unitSprite(selected.kind as UnitKind, palette, {
+              facing,
+              animationFrame: frame,
+              motion: playing ? "walk" : undefined,
+              variant: 11,
+              profile,
+            })
           : selected.category === "building"
             ? buildingSprite(selected.kind as BuildingKind, palette, {
                 constructionStage: construction,

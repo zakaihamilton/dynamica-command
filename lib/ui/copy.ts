@@ -15,6 +15,8 @@ const REJECTION_MESSAGES: Record<string, string> = {
   "building limit reached": "Only one of that structure is allowed on this mission.",
   "invalid placement": "That ground can't be built on.",
   "construction yard unavailable": `You need a ${labelFor("constructionYard")}.`,
+  "rally unavailable": "Select a completed Barracks or Vehicle Plant.",
+  "invalid rally target": "That rally point is not passable.",
   "invalid attack target": "That's not a valid attack target.",
   "invalid support target": "That unit can't be healed or repaired.",
   "no eligible support unit": "Select a Field Medic or Repair Truck first.",

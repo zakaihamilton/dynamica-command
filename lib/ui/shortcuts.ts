@@ -1,3 +1,5 @@
+import type { ControlGroupSlot } from "@/lib/types";
+
 export type KeyEventLike = {
   key: string;
   code?: string;
@@ -17,6 +19,8 @@ export type GameCommand =
   | { type: "pauseBack" }
   | { type: "tab"; tab: CommandTab }
   | { type: "cameo"; index: number; cancel: boolean }
+  | { type: "assignGroup"; slot: ControlGroupSlot }
+  | { type: "recallGroup"; slot: ControlGroupSlot }
   | { type: "home" }
   | { type: "center" }
   | { type: "repair" }
@@ -60,7 +64,7 @@ export const SHORTCUT = {
   construction: "Q",
   production: "E",
   selected: "T",
-  cameo: ["1", "2", "3", "4", "5", "6"] as const,
+  cameo: ["Alt+1", "Alt+2", "Alt+3", "Alt+4", "Alt+5", "Alt+6"] as const,
   pan: { up: "W", down: "S", left: "A", right: "D" },
   home: "H",
   center: "Space",
@@ -103,6 +107,15 @@ export function cameoIndexFromEvent(e: KeyEventLike): number | null {
   return null;
 }
 
+export function controlGroupSlotFromEvent(e: KeyEventLike): ControlGroupSlot | null {
+  const digit = e.code && /^Digit[1-9]$/.test(e.code)
+    ? Number(e.code.slice(5))
+    : e.key >= "1" && e.key <= "9"
+      ? Number(e.key)
+      : null;
+  return digit === null ? null : digit as ControlGroupSlot;
+}
+
 function letter(e: KeyEventLike): string {
   return e.key.length === 1 ? e.key.toLowerCase() : e.key;
 }
@@ -138,19 +151,19 @@ export function gameCommandFromKey(
     toolActive: boolean;
   },
 ): GameCommand | null {
-  if (ctx.typing || e.repeat || e.altKey) return null;
+  if (ctx.typing || e.repeat) return null;
   const ctrl = !!(e.ctrlKey || e.metaKey);
   const key = letter(e);
 
   if (ctx.result !== "playing") {
-    if (ctrl) return null;
+    if (ctrl || e.altKey) return null;
     if (isEnter(e)) return { type: "resultPrimary" };
     if (isEscape(e)) return { type: "resultMenu" };
     return null;
   }
 
   if (ctx.paused) {
-    if (ctrl) return null;
+    if (ctrl || e.altKey) return null;
     if (ctx.pauseView === "controls" || ctx.pauseView === "save" || ctx.pauseView === "load") {
       if (isEscape(e) || (ctx.pauseView === "controls" && isF1(e))) return { type: "pauseBack" };
       return null;
@@ -175,11 +188,18 @@ export function gameCommandFromKey(
 
   if (!ctx.playing) return null;
 
+  if (e.shiftKey) return null;
   const cameo = cameoIndexFromEvent(e);
-  if (cameo !== null) {
-    if (e.shiftKey) return null;
-    return { type: "cameo", index: cameo, cancel: ctrl };
+  if (e.altKey && !ctrl) {
+    return cameo === null ? null : { type: "cameo", index: cameo, cancel: false };
   }
+  const groupSlot = controlGroupSlotFromEvent(e);
+  if (groupSlot !== null) {
+    if (ctrl && !e.altKey) return { type: "assignGroup", slot: groupSlot };
+    if (!ctrl) return { type: "recallGroup", slot: groupSlot };
+    if (ctrl || e.altKey) return null;
+  }
+  if (e.altKey) return null;
   if (isF1(e) && !ctrl) return { type: "controls" };
   if (ctrl) return null;
   if (isEscape(e)) return ctx.toolActive ? { type: "cancelTool" } : { type: "pause" };

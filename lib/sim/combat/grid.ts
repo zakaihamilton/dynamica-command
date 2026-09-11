@@ -26,6 +26,10 @@ const TURRET_STATS: CombatStats = { damage: 9, range: 5.5, cooldown: 14, weapon:
 const NON_COMBAT_BUILDING_STATS: CombatStats = { damage: 0, range: 0, cooldown: 0, weapon: "smallArms", splashRadius: 0, suppression: 0 };
 
 export function isCombatTarget(state: SimState, e: Entity): boolean {
+  // Once a stranded rescue unit has been contacted, it is an evacuee rather
+  // than an active combatant. Letting the enemy director reacquire it makes a
+  // successful contact fail to the first patrol it passes on the way home.
+  if (state.runtime?.kind === "rescue" && e.scenarioRole === "stranded" && !e.neutral) return false;
   if (e.scenarioRole === "convoy" && state.runtime?.convoyStartTick !== undefined) return false;
   return !e.neutral || e.scenarioRole === "convoy";
 }

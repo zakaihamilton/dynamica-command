@@ -38,6 +38,7 @@ export function paintCinemaActor(
     profile: actor.owner === 0 ? profile0 : profile1,
     facing,
     animationFrame: frame,
+    motion: preview ? "walk" : undefined,
   });
   const img = rasterize(spec);
   const ax = (spec.anchorX ?? spec.w / 2) * cam.zoom;

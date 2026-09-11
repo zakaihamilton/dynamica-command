@@ -1,6 +1,6 @@
 import type { Entity, SimState, Vec2 } from "../../types";
 import { canClimb, inBounds, isStaticWalkable } from "../world";
-import { diagonalCornerBlocked, PATH_DIRS } from "./grid";
+import { diagonalCornerBlocked, PATH_DIRS, reversesPreviousStep } from "./grid";
 
 export function cellOf(state: SimState, x: number, y: number): number {
   return Math.round(y) * state.width + Math.round(x);
@@ -47,6 +47,7 @@ export function trySidestep(
   e: Entity,
   blockedX: number,
   blockedY: number,
+  previousCell?: number,
 ): boolean {
   if (!e.path.length) return false;
   const cx = Math.round(e.x);
@@ -58,6 +59,7 @@ export function trySidestep(
     const nx = cx + d.x;
     const ny = cy + d.y;
     if (nx === blockedX && ny === blockedY) continue;
+    if (e.owner === 0 && reversesPreviousStep(state.width, cx, cy, nx, ny, previousCell)) continue;
     if (!tileFree(state, occupancy, reserved, e, nx, ny)) continue;
     if (!canClimb(state, cx, cy, nx, ny)) continue;
     if (diagonalCornerBlocked(state, cx, cy, nx, ny)) continue;
@@ -86,10 +88,11 @@ export function nudgeIdle(
   occupancy: Uint8Array,
   reserved: Map<number, number>,
   blocker: Entity,
+  previousCell?: number,
 ): boolean {
   if (blocker.path.length || blocker.neutral) return false;
   if (blocker.orderDestination && !holdingDestination(blocker)) return false;
-  return stepBlockerAside(state, occupancy, reserved, blocker, false);
+  return stepBlockerAside(state, occupancy, reserved, blocker, false, previousCell);
 }
 
 export function giveWay(
@@ -97,11 +100,12 @@ export function giveWay(
   occupancy: Uint8Array,
   reserved: Map<number, number>,
   blocker: Entity,
+  previousCell?: number,
 ): boolean {
   if (blocker.neutral || holdingDestination(blocker)) return false;
-  if (!blocker.path.length) return nudgeIdle(state, occupancy, reserved, blocker);
+  if (!blocker.path.length) return nudgeIdle(state, occupancy, reserved, blocker, previousCell);
   if ((blocker.blockedTicks ?? 0) === 0) return false;
-  return stepBlockerAside(state, occupancy, reserved, blocker, true);
+  return stepBlockerAside(state, occupancy, reserved, blocker, true, previousCell);
 }
 
 export function stepBlockerAside(
@@ -110,6 +114,7 @@ export function stepBlockerAside(
   reserved: Map<number, number>,
   blocker: Entity,
   allowFarther: boolean,
+  previousCell?: number,
 ): boolean {
   const cx = Math.round(blocker.x);
   const cy = Math.round(blocker.y);
@@ -118,6 +123,7 @@ export function stepBlockerAside(
   for (const d of PATH_DIRS) {
     const nx = cx + d.x;
     const ny = cy + d.y;
+    if (blocker.owner === 0 && reversesPreviousStep(state.width, cx, cy, nx, ny, previousCell)) continue;
     if (!tileFree(state, occupancy, reserved, blocker, nx, ny)) continue;
     if (!canClimb(state, cx, cy, nx, ny)) continue;
     if (diagonalCornerBlocked(state, cx, cy, nx, ny)) continue;
@@ -129,6 +135,21 @@ export function stepBlockerAside(
   return false;
 }
 
+export function releaseHeadOnSwap(
+  swapped: Set<number>,
+  e: Entity,
+  blocker: Entity,
+): void {
+  // Do not exchange coordinates here. A full-tile teleport is especially
+  // visible when the units are still moving toward one another. Dropping the
+  // conflicting head waypoints below lets both units continue smoothly on
+  // the following tick while the swapped set still prevents double handling.
+  swapped.add(e.id);
+  swapped.add(blocker.id);
+  e.blockedTicks = 0;
+  blocker.blockedTicks = 0;
+}
+
 export function exchangePositions(
   state: SimState,
   occupancy: Uint8Array,
@@ -138,17 +159,17 @@ export function exchangePositions(
   blocker: Entity,
 ): void {
   const current = cellOf(state, e.x, e.y);
-  const bCell = cellOf(state, blocker.x, blocker.y);
-  const ax = e.x;
-  const ay = e.y;
+  const blockerCell = cellOf(state, blocker.x, blocker.y);
+  const startX = e.x;
+  const startY = e.y;
   e.x = blocker.x;
   e.y = blocker.y;
-  blocker.x = ax;
-  blocker.y = ay;
+  blocker.x = startX;
+  blocker.y = startY;
   occupancy[current] = 1;
-  occupancy[bCell] = 1;
+  occupancy[blockerCell] = 1;
   atTile.set(current, blocker);
-  atTile.set(bCell, e);
+  atTile.set(blockerCell, e);
   swapped.add(e.id);
   swapped.add(blocker.id);
   e.blockedTicks = 0;
@@ -162,6 +183,7 @@ export function tryCooperativeSwap(
   swapped: Set<number>,
   e: Entity,
   blocker: Entity,
+  smooth = false,
 ): boolean {
   if (blocker.neutral || swapped.has(blocker.id) || holdingDestination(blocker)) return false;
   if (blocker.path.length) return false;
@@ -171,7 +193,12 @@ export function tryCooperativeSwap(
   const by = Math.round(blocker.y);
   if (!canClimb(state, cx, cy, bx, by) || !canClimb(state, bx, by, cx, cy)) return false;
   if (diagonalCornerBlocked(state, cx, cy, bx, by)) return false;
-  exchangePositions(state, occupancy, atTile, swapped, e, blocker);
-  e.path.shift();
+  if (smooth) {
+    releaseHeadOnSwap(swapped, e, blocker);
+    e.path.shift();
+  } else {
+    exchangePositions(state, occupancy, atTile, swapped, e, blocker);
+    e.path.shift();
+  }
   return true;
 }

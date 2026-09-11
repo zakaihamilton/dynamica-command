@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeFixture, addUnit, addBuilding, setTile, TILE_RESOURCE } from "../../lib/sim/fixtures";
+import { makeFixture, addUnit, addBuilding, setTile, TILE_BLOCKED, TILE_RESOURCE } from "../../lib/sim/fixtures";
 import { issue } from "../../lib/sim/api";
 import type { SimState } from "../../lib/types";
 
@@ -158,5 +158,37 @@ describe("groundOrders", () => {
     issue(s, { type: "harvest", unitIds: [harvester.id], x: 10, y: 10 });
     expect(harvester.gatherX).toBe(10);
     expect(harvester.gatherY).toBe(10);
+  });
+});
+
+describe("production rally points", () => {
+  it("assigns and replaces a rally point on a friendly completed producer", () => {
+    const s = makePlayingState();
+    const barracks = s.entities.find((e) => e.kind === "barracks" && e.owner === 0)!;
+
+    expect(issue(s, { type: "rally", buildingId: barracks.id, x: 10, y: 10 })).toEqual([]);
+    expect(barracks.rallyPoint).toEqual({ x: 10, y: 10 });
+    expect(issue(s, { type: "rally", buildingId: barracks.id, x: 12, y: 11 })).toEqual([]);
+    expect(barracks.rallyPoint).toEqual({ x: 12, y: 11 });
+  });
+
+  it("rejects invalid owners, buildings, construction, and ground targets without replacing the point", () => {
+    const s = makePlayingState();
+    const barracks = s.entities.find((e) => e.kind === "barracks" && e.owner === 0)!;
+    barracks.rallyPoint = { x: 10, y: 10 };
+    const enemy = s.entities.find((e) => e.owner === 1 && e.class === "building")!;
+    const power = s.entities.find((e) => e.kind === "power" && e.owner === 0)!;
+    const unfinished = addBuilding(s, 0, "factory", 10, 2, 10);
+    const destroyed = addBuilding(s, 0, "barracks", 12, 2);
+    destroyed.hp = 0;
+    setTile(s, 11, 11, TILE_BLOCKED);
+
+    expect(issue(s, { type: "rally", buildingId: enemy.id, x: 12, y: 12 })).toContainEqual({ type: "commandRejected", reason: "rally unavailable" });
+    expect(issue(s, { type: "rally", buildingId: power.id, x: 12, y: 12 })).toContainEqual({ type: "commandRejected", reason: "rally unavailable" });
+    expect(issue(s, { type: "rally", buildingId: unfinished.id, x: 12, y: 12 })).toContainEqual({ type: "commandRejected", reason: "rally unavailable" });
+    expect(issue(s, { type: "rally", buildingId: destroyed.id, x: 12, y: 12 })).toContainEqual({ type: "commandRejected", reason: "rally unavailable" });
+    expect(issue(s, { type: "rally", buildingId: barracks.id, x: 11, y: 11 })).toContainEqual({ type: "commandRejected", reason: "invalid rally target" });
+    expect(issue(s, { type: "rally", buildingId: barracks.id, x: -1, y: 2 })).toContainEqual({ type: "commandRejected", reason: "invalid rally target" });
+    expect(barracks.rallyPoint).toEqual({ x: 10, y: 10 });
   });
 });

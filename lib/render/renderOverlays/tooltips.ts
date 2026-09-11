@@ -1,4 +1,4 @@
-import { TICKS_PER_SECOND, UNIT_STATS, labelFor, sellRefundFor } from "../../catalog";
+import { BUILDING_DEFINITIONS, TICKS_PER_SECOND, UNIT_STATS, labelFor, sellRefundFor } from "../../catalog";
 import { inObjectiveZone, missionUsesObjectiveZone, SURFACE_CONCRETE, SURFACE_NONE, SURFACE_ROAD, TILE_BLOCKED, TILE_RESOURCE, TILE_WATER } from "../../types";
 import { fogAt } from "../../sim/fog";
 import { isMountainScenery } from "../../gen/map";
@@ -6,7 +6,7 @@ import { biomeLabel } from "../../gen/names";
 import { terrainAccess } from "../../sim/world";
 import { canSell } from "../../sim/sell";
 import { isExtractableUnit, isLockedContactUnit } from "../renderCombat";
-import type { BuildingKind, Entity, SimState, UnitKind } from "../../types";
+import { isBuildingEntity, type BuildingKind, type Entity, type SimState, type UnitKind } from "../../types";
 import { SceneryMemo } from "../sceneryMemo";
 import type { RenderExtras } from "./types";
 import { chromeMonoFont } from "../../ui/chromeFont";
@@ -75,6 +75,9 @@ export function tooltipLines(state: SimState, e: Entity, extras: RenderExtras): 
     lines.push(`Training ${labelFor(e.producing.kind)} (${Math.ceil(e.producing.remaining / TICKS_PER_SECOND)}s)`);
     const queued = e.queue?.length ?? 0;
     if (queued > 0) lines.push(`In queue: ${queued}`);
+  }
+  if (isBuildingEntity(e) && e.owner === 0 && e.constructing <= 0 && BUILDING_DEFINITIONS[e.kind].production) {
+    lines.push(e.rallyPoint ? `Rally point ${e.rallyPoint.x}, ${e.rallyPoint.y}` : "Rally point not set");
   }
   if (e.repairing) lines.push("Repairing");
   if (e.marked && e.class === "building") lines.push("Marked objective");

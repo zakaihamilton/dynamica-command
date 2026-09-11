@@ -42,6 +42,17 @@ function tryPlaceBuilding(
 }
 
 export function tryBuildPower(state: SimState, yardX: number, yardY: number): boolean {
+  // A plant under construction does not contribute power yet, so the
+  // director can otherwise queue another one every tick while the deficit
+  // remains active. Keep one power project in flight and let it finish before
+  // committing more credits to the same recovery action.
+  const powerUnderConstruction = livingView(state).some(
+    (entity) => entity.owner === 1
+      && entity.class === "building"
+      && entity.kind === "power"
+      && entity.constructing > 0,
+  );
+  if (powerUnderConstruction) return false;
   return tryPlaceBuilding(state, "power", findBuildSite(state, "power", yardX + 3, yardY, 12, 1));
 }
 

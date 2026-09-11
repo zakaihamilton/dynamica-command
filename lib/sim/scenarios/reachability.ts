@@ -68,6 +68,7 @@ export function reachableScenarioPoint(
   desired: Vec2,
   seen?: Uint8Array,
   routeBand?: { start: Vec2; end: Vec2; min: number; max: number },
+  allowed?: (x: number, y: number) => boolean,
 ): Vec2 {
   if (!seen) return desired;
   let best: Vec2 | undefined;
@@ -81,6 +82,7 @@ export function reachableScenarioPoint(
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       if (!seen[y * state.width + x] || !isWalkable(state, x, y)) continue;
+      if (allowed && !allowed(x, y)) continue;
       const distance = Math.hypot(x - desired.x, y - desired.y);
       if (distance < bestDistance) {
         bestDistance = distance;

@@ -16,6 +16,8 @@ export function useGameKeyboard({
   setPauseNotice,
   setActiveTab,
   activateCameo,
+  assignControlGroup,
+  recallControlGroup,
   jumpHome,
   centerSelection,
   toggleRepair,
@@ -79,6 +81,8 @@ export function useGameKeyboard({
         setPauseNotice,
         setActiveTab,
         activateCameo,
+        assignControlGroup,
+        recallControlGroup,
         jumpHome,
         centerSelection,
         toggleRepair,
@@ -108,6 +112,7 @@ export function useGameKeyboard({
     };
   }, [
     activateCameo,
+    assignControlGroup,
     activeTabRef,
     cancelConfirmation,
     closeMobilePanel,
@@ -123,6 +128,7 @@ export function useGameKeyboard({
     place,
     repair,
     restartMission,
+    recallControlGroup,
     resultPrimary,
     resumeMission,
     saveMission,

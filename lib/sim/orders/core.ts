@@ -7,7 +7,7 @@ import { byId, inBounds, tileAt } from "../world";
 import { holdSupport } from "../support";
 import { moveUnits, attackMoveUnits } from "./movement";
 import { attackUnits, supportUnits, setStance, setFormation } from "./combat";
-import { startBuild, cancelBuild, sellBuilding, toggleRepair } from "./building";
+import { startBuild, cancelBuild, sellBuilding, setRallyPoint, toggleRepair } from "./building";
 import { startProduce, cancelProduce } from "./production";
 
 export function issue(state: SimState, command: Command): SimEvent[] {
@@ -46,6 +46,9 @@ export function issue(state: SimState, command: Command): SimEvent[] {
       break;
     case "produce":
       events = startProduce(state, command.fromId, command.unit);
+      break;
+    case "rally":
+      events = setRallyPoint(state, command.buildingId, command.x, command.y);
       break;
     case "cancelBuild":
       events = cancelBuild(state, command.building);

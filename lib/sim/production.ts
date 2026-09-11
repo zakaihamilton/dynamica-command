@@ -1,6 +1,7 @@
 import { BUILDING_DEFINITIONS, UNIT_STATS, footprintOf } from "../catalog";
 import { isBuildingEntity, type BuildingKind, type SimEvent, type SimState } from "../types";
 import { frontTileNear, invalidatePowerCache, openTileNear, powerFor, trySpawnUnit } from "./world";
+import { assignMoveDestination } from "./orders/movement";
 
 const playerPowerOk = new WeakMap<SimState, boolean>();
 
@@ -109,6 +110,7 @@ export function tickProduction(state: SimState, eventSink?: SimEvent[], collectE
           y: spawned.y,
           sourceId: e.id,
         });
+        if (e.rallyPoint) assignMoveDestination(state, spawned, e.rallyPoint.x, e.rallyPoint.y);
         const next = e.queue.shift();
         e.producing = next
           ? { kind: next, remaining: UNIT_STATS[next].buildTicks }

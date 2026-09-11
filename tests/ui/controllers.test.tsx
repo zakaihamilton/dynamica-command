@@ -433,6 +433,28 @@ describe("game lifecycle hooks", () => {
     expect(setState).toHaveBeenCalledOnce();
   });
 
+  it("assigns and recalls only living friendly units, pruning stale group members", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const infantry = addUnit(state, 0, "infantry", 2, 2);
+    const tank = addUnit(state, 0, "tank", 3, 2);
+    const dead = addUnit(state, 0, "infantry", 4, 2);
+    dead.hp = 0;
+    const neutral = addUnit(state, 0, "infantry", 5, 2);
+    neutral.neutral = true;
+    const stateRef = { current: state };
+    const setState = vi.fn();
+    const { result } = renderHook(() => useGameSelection({ stateRef, setState }));
+
+    act(() => result.current.commitSelection([infantry.id, tank.id, dead.id, neutral.id, 9999]));
+    expect(result.current.assignControlGroup(1)).toBe(2);
+    expect(state.controlGroups).toEqual({ 1: [infantry.id, tank.id] });
+
+    state.controlGroups = { 1: [infantry.id, tank.id, dead.id, neutral.id, 9999] };
+    act(() => result.current.recallControlGroup(1));
+    expect(result.current.selectedIds).toEqual([infantry.id, tank.id]);
+    expect(state.controlGroups).toEqual({ 1: [infantry.id, tank.id] });
+  });
+
   it("clears combat alerts after their display window and pauses mission music with menus and results", async () => {
     vi.useFakeTimers();
     try {
@@ -493,6 +515,8 @@ describe("useGameKeyboard", () => {
       setPauseNotice: vi.fn(),
       setActiveTab,
       activateCameo: vi.fn(),
+      assignControlGroup: vi.fn(),
+      recallControlGroup: vi.fn(),
       jumpHome: vi.fn(),
       centerSelection: vi.fn(),
       toggleRepair,
@@ -541,6 +565,8 @@ describe("useGameKeyboard", () => {
       setPauseNotice: vi.fn(),
       setActiveTab: vi.fn(),
       activateCameo: vi.fn(),
+      assignControlGroup: vi.fn(),
+      recallControlGroup: vi.fn(),
       jumpHome: vi.fn(),
       centerSelection: vi.fn(),
       toggleRepair: vi.fn(),

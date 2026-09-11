@@ -1,4 +1,4 @@
-import type { BiomeName, BuildingKind, Facing, SpriteCrop, UnitKind } from "../types";
+import type { AnimFrame, BiomeName, BuildingKind, Facing, SpriteCrop, UnitKind } from "../types";
 
 export type RasterArtKey = "menu" | "victory" | "defeat" | BiomeName;
 export type TextureArtKey = "brushed" | "worn" | "crt";
@@ -28,6 +28,11 @@ export type UnitView =
   | "back-left"
   | "back"
   | "back-right";
+
+export type WalkerKind = "infantry" | "antiArmor" | "medic";
+
+const WALK_CYCLE_SHEET_SIZE = 1024;
+const WALK_CYCLE_FRAME_SIZE = WALK_CYCLE_SHEET_SIZE / 2;
 
 /**
  * Every playable unit must ship a complete directional roster. Keep this map
@@ -105,6 +110,55 @@ export const UNIT_DIRECTION_ART: Record<UnitKind, Record<UnitView, string>> = {
     "back-right": "/art/sprites/sleek-modular/convoy-truck-back-right-v1.webp",
   },
 };
+
+/** Generated four-frame walk cycles for units with visible legs and feet. */
+export const UNIT_WALK_CYCLE_ART: Record<WalkerKind, Record<UnitView, string>> = {
+  infantry: {
+    front: "/art/sprites/sleek-modular/walk-cycle/infantry-front-walk-v1.webp",
+    "front-right": "/art/sprites/sleek-modular/walk-cycle/infantry-front-right-walk-v1.webp",
+    right: "/art/sprites/sleek-modular/walk-cycle/infantry-right-walk-v1.webp",
+    "front-left": "/art/sprites/sleek-modular/walk-cycle/infantry-front-left-walk-v1.webp",
+    left: "/art/sprites/sleek-modular/walk-cycle/infantry-left-walk-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/walk-cycle/infantry-back-left-walk-v1.webp",
+    back: "/art/sprites/sleek-modular/walk-cycle/infantry-back-walk-v1.webp",
+    "back-right": "/art/sprites/sleek-modular/walk-cycle/infantry-back-right-walk-v1.webp",
+  },
+  antiArmor: {
+    front: "/art/sprites/sleek-modular/walk-cycle/anti-armor-front-walk-v1.webp",
+    "front-right": "/art/sprites/sleek-modular/walk-cycle/anti-armor-front-right-walk-v1.webp",
+    right: "/art/sprites/sleek-modular/walk-cycle/anti-armor-right-walk-v1.webp",
+    "front-left": "/art/sprites/sleek-modular/walk-cycle/anti-armor-front-left-walk-v1.webp",
+    left: "/art/sprites/sleek-modular/walk-cycle/anti-armor-left-walk-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/walk-cycle/anti-armor-back-left-walk-v1.webp",
+    back: "/art/sprites/sleek-modular/walk-cycle/anti-armor-back-walk-v1.webp",
+    "back-right": "/art/sprites/sleek-modular/walk-cycle/anti-armor-back-right-walk-v1.webp",
+  },
+  medic: {
+    front: "/art/sprites/sleek-modular/walk-cycle/medic-front-walk-v1.webp",
+    "front-right": "/art/sprites/sleek-modular/walk-cycle/medic-front-right-walk-v1.webp",
+    right: "/art/sprites/sleek-modular/walk-cycle/medic-right-walk-v1.webp",
+    "front-left": "/art/sprites/sleek-modular/walk-cycle/medic-front-left-walk-v1.webp",
+    left: "/art/sprites/sleek-modular/walk-cycle/medic-left-walk-v1.webp",
+    "back-left": "/art/sprites/sleek-modular/walk-cycle/medic-back-left-walk-v1.webp",
+    back: "/art/sprites/sleek-modular/walk-cycle/medic-back-walk-v1.webp",
+    "back-right": "/art/sprites/sleek-modular/walk-cycle/medic-back-right-walk-v1.webp",
+  },
+};
+
+export function unitWalkFrameCrop(frame: AnimFrame): SpriteCrop {
+  const column = frame & 1;
+  const row = (frame >> 1) & 1;
+  return {
+    x: column * WALK_CYCLE_FRAME_SIZE,
+    y: row * WALK_CYCLE_FRAME_SIZE,
+    w: WALK_CYCLE_FRAME_SIZE,
+    h: WALK_CYCLE_FRAME_SIZE,
+    sourceW: WALK_CYCLE_SHEET_SIZE,
+    sourceH: WALK_CYCLE_SHEET_SIZE,
+    refW: WALK_CYCLE_FRAME_SIZE,
+    refH: WALK_CYCLE_FRAME_SIZE,
+  };
+}
 
 /** Generated direction sheets contain a few neighboring partial renders at the edge. */
 export const UNIT_DIRECTION_CROPS: Partial<Record<UnitKind, Partial<Record<UnitView, SpriteCrop>>>> = {
@@ -194,6 +248,9 @@ export function biomeArt(biome: BiomeName): string {
 export function listTacticalRasterSources(): string[] {
   const srcs = [...Object.values(SPRITE_ART)];
   for (const views of Object.values(UNIT_DIRECTION_ART)) {
+    srcs.push(...Object.values(views));
+  }
+  for (const views of Object.values(UNIT_WALK_CYCLE_ART)) {
     srcs.push(...Object.values(views));
   }
   return srcs;
