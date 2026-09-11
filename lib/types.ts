@@ -374,6 +374,8 @@ export type UnitSpriteOptions = {
   variant?: number;
   facing?: Facing;
   animationFrame?: AnimFrame;
+  /** Selects the generated four-frame walk cycle for bipedal units. */
+  motion?: "walk";
   damageStage?: 0 | 1 | 2;
   profile?: FactionVisualProfile;
 };

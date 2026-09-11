@@ -46,7 +46,7 @@ export function SpritePreview({
     let disposed = false;
     const paint = (animationFrame: 0 | 1 | 2 | 3) => {
       const spec = isUnitKind(kind)
-        ? unitSprite(kind, palette, { facing: 0, animationFrame, profile })
+        ? unitSprite(kind, palette, { facing: 0, animationFrame, motion: "walk", profile })
         : buildingSprite(kind, palette, { profile });
       const logicalWidth = SPRITE_PREVIEW_WIDTH;
       const logicalHeight = SPRITE_PREVIEW_HEIGHT;
