@@ -1,5 +1,6 @@
 import { ConsoleButton } from "@/components/ui/ConsoleButton";
 import { ConsoleLabel } from "@/components/ui/ConsoleLabel";
+import { useShortcutLabel } from "@/components/ui/useShortcutLabel";
 import { SHORTCUT } from "@/lib/ui/shortcuts";
 import styles from "./PauseMenu.module.css";
 
@@ -10,7 +11,7 @@ const ROWS: { label: string; keys: string }[] = [
   { label: "Jump to Command HQ", keys: SHORTCUT.home },
   { label: "Center selection", keys: SHORTCUT.center },
   { label: "Construction / production / selected", keys: `${SHORTCUT.construction} / ${SHORTCUT.production} / ${SHORTCUT.selected}` },
-  { label: "Cameos", keys: "Alt/Option + 1–6" },
+  { label: "Cameos", keys: "Alt+1–6" },
   { label: "Repair / sell / stop", keys: `${SHORTCUT.repair} / ${SHORTCUT.sell} / ${SHORTCUT.stop}` },
   { label: "Select", keys: "Left click / drag" },
   { label: "Select all of type", keys: "Double-click" },
@@ -22,6 +23,7 @@ const ROWS: { label: string; keys: string }[] = [
 ];
 
 export function PauseControls({ onBack }: { onBack: () => void }) {
+  const cameoShortcut = useShortcutLabel("Alt+1–6");
   return (
     <>
       <ConsoleLabel>Field manual</ConsoleLabel>
@@ -30,7 +32,7 @@ export function PauseControls({ onBack }: { onBack: () => void }) {
         {ROWS.map((row) => (
           <div className={styles.controlRow} key={row.label}>
             <dt>{row.label}</dt>
-            <dd><kbd>{row.keys}</kbd></dd>
+            <dd><kbd>{row.label === "Cameos" ? cameoShortcut : row.keys}</kbd></dd>
           </div>
         ))}
       </dl>

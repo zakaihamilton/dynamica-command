@@ -50,6 +50,32 @@ describe("production cameo availability", () => {
     expect(tank).toHaveAttribute("aria-keyshortcuts", "Alt+4");
   });
 
+  it("shows Option labels for cameo shortcuts on Mac", () => {
+    const originalPlatform = navigator.platform;
+    Object.defineProperty(navigator, "platform", { configurable: true, value: "MacIntel" });
+
+    try {
+      const state = makeFixture({ win: { kind: "annihilate" } });
+      render(
+        <ProductionCameos
+          state={state}
+          palette={state.factions[0].palette}
+          profile={generateVisualProfile(state.seed, 0)}
+          power={0}
+          availableProducer={() => undefined}
+          onQueueUnit={vi.fn()}
+          onCancelUnit={vi.fn()}
+        />,
+      );
+
+      const tank = screen.getByRole("button", { name: /Tank, 425 credits/ });
+      expect(tank.parentElement).toHaveAttribute("data-shortcut", "Option+4");
+      expect(tank).toHaveAttribute("aria-keyshortcuts", "Option+4");
+    } finally {
+      Object.defineProperty(navigator, "platform", { configurable: true, value: originalPlatform });
+    }
+  });
+
   it("explains how to unlock a gated unit", () => {
     const state = makeFixture({ win: { kind: "annihilate" } });
     state.missionIndex = -1;

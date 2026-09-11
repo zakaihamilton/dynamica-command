@@ -2,7 +2,7 @@ import { UNIT_STATS } from "../../catalog";
 import { animClock, facingVector } from "../anim";
 import { tileToScreen, type Camera } from "../../iso";
 import { entityElev } from "../renderPicking";
-import { turretAimMap } from "../renderStructures";
+import { turretAimMap, turretTargetInRange, turretTargetPoint } from "../renderStructures";
 import type { Entity, Facing, SimState, UnitKind } from "../../types";
 
 export function drawCombatProjectiles(
@@ -20,12 +20,14 @@ export function drawCombatProjectiles(
     if (e.attackTarget === undefined || e.cooldown <= 0) continue;
     const target = entityById.get(e.attackTarget);
     if (!target || target.hp <= 0) continue;
+    if (e.kind === "turret" && !turretTargetInRange(e, target)) continue;
     const maxCooldown = e.class === "unit" ? UNIT_STATS[e.kind as UnitKind].cooldown : e.kind === "turret" ? 14 : 0;
     if (maxCooldown <= 0 || e.cooldown < maxCooldown - 3) continue;
     const facing = facingFor(state, e);
     const dir = facingVector(facing);
     const a = tileToScreen(e.x, e.y, cam, entityElev(state, e));
-    const b = tileToScreen(target.x, target.y, cam, entityElev(state, target));
+    const targetPoint = e.kind === "turret" ? turretTargetPoint(e, target) : { x: target.x, y: target.y };
+    const b = tileToScreen(targetPoint.x, targetPoint.y, cam, entityElev(state, target));
     const age = maxCooldown - e.cooldown;
     const u = Math.max(0, Math.min(1, (age + (t % 80) / 80) / 2.4));
     let ax: number;

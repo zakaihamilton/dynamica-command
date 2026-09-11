@@ -93,6 +93,14 @@ export const SHORTCUT = {
   resultMenu: "Esc",
 } as const;
 
+export function isMacPlatform(platform: string, userAgent = ""): boolean {
+  return /Mac|iPhone|iPad|iPod/i.test(`${platform} ${userAgent}`);
+}
+
+export function formatShortcut(shortcut: string, mac: boolean): string {
+  return mac ? shortcut.replace(/^Alt\+/, "Option+") : shortcut;
+}
+
 export function isEditableTarget(target: unknown): boolean {
   if (!target || typeof target !== "object") return false;
   const el = target as { isContentEditable?: boolean; tagName?: string };

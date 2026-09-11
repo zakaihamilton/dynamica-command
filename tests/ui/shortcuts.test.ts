@@ -3,8 +3,10 @@ import {
   assetsCommandFromKey,
   briefingCommandFromKey,
   cameoIndexFromEvent,
+  formatShortcut,
   gameCommandFromKey,
   isEditableTarget,
+  isMacPlatform,
   menuCommandFromKey,
 } from "../../lib/ui/shortcuts";
 
@@ -18,6 +20,15 @@ const play = {
 };
 
 describe("shortcut matching", () => {
+  it("uses Option labels for Apple platforms without changing other labels", () => {
+    expect(isMacPlatform("MacIntel")).toBe(true);
+    expect(isMacPlatform("iPhone")).toBe(true);
+    expect(isMacPlatform("Linux x86_64")).toBe(false);
+    expect(isMacPlatform("", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)")).toBe(true);
+    expect(formatShortcut("Alt+4", true)).toBe("Option+4");
+    expect(formatShortcut("Alt+4", false)).toBe("Alt+4");
+  });
+
   it("treats form fields as typing targets so hotkeys stay out of the way", () => {
     expect(isEditableTarget({ tagName: "INPUT" })).toBe(true);
     expect(isEditableTarget({ tagName: "button" })).toBe(false);

@@ -154,7 +154,7 @@ describe("seeded terrain atlas", () => {
     const b = bakeTerrainAtlasData(second);
     const c = bakeTerrainAtlasData(other);
     expect(a.key).toBe(b.key);
-    expect(a.key).toContain("world-atlas-v13-grounded-surfaces");
+    expect(a.key).toContain("world-atlas-v14-organic-patches");
     expect(a.data).toEqual(b.data);
     expect(terrainAtlasKey(first)).toBe(a.key);
     expect(c.key).not.toBe(a.key);
@@ -811,6 +811,10 @@ describe("terrain scatter artifacts", () => {
 });
 
 describe("biome ground patches", () => {
+  const colorDistance = (a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }) => (
+    Math.abs(a.r - b.r) + Math.abs(a.g - b.g) + Math.abs(a.b - b.b)
+  );
+
   it("keeps patch sampling deterministic and biome-specific", () => {
     const mats = biomeMaterials("ash plains");
     const a = tintGroundPatches(mats.mid, mats, 4.2, 7.1, 41);
@@ -832,6 +836,23 @@ describe("biome ground patches", () => {
       jungleMarks.add(`${sample.r|0},${sample.g|0},${sample.b|0}`);
     }
     expect(jungleMarks.size).toBeGreaterThan(1);
+  });
+
+  it("smooths former square-cell transitions in biome patches", () => {
+    const cases = [
+      { biome: "ash plains" as const, x: 7.375, y: 4.5 },
+      { biome: "jungle wreckage" as const, x: 7.375, y: 0 },
+    ];
+    for (const { biome, x, y } of cases) {
+      const mats = biomeMaterials(biome);
+      const left = applyBiomeGroundPattern(mats.mid, biome, x - 0.001, y, 41, mats);
+      const right = applyBiomeGroundPattern(mats.mid, biome, x + 0.001, y, 41, mats);
+      const above = applyBiomeGroundPattern(mats.mid, biome, x, y - 0.001, 41, mats);
+      const below = applyBiomeGroundPattern(mats.mid, biome, x, y + 0.001, 41, mats);
+
+      expect(colorDistance(left, right)).toBeLessThan(8);
+      expect(colorDistance(above, below)).toBeLessThan(8);
+    }
   });
 
   it("varies open ground across tiles and biomes while leaving water and pads alone", () => {

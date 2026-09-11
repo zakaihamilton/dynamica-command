@@ -5,6 +5,7 @@ import { cx } from "@/lib/ui/cx";
 import type { BuildingKind, FactionVisualProfile, Palette, UnitKind } from "@/lib/types";
 import { SpritePreview } from "./SpritePreview";
 import styles from "./CommandCameo.module.css";
+import { useShortcutLabel } from "@/components/ui/useShortcutLabel";
 
 export function CommandCameo({
   kind,
@@ -33,6 +34,8 @@ export function CommandCameo({
   onClick: () => void;
   onContextMenu?: () => void;
 }) {
+  const formattedShortcut = useShortcutLabel(shortcut ?? "");
+  const displayShortcut = shortcut ? formattedShortcut : undefined;
   const busy = cameo.phase !== "idle";
   const showCount = cameo.queued > 1 || cameo.phase === "waiting";
   const cancellable = busy || active;
@@ -42,7 +45,7 @@ export function CommandCameo({
     <span
       className={styles.wrap}
       data-tooltip={tooltip}
-      data-shortcut={shortcut}
+      data-shortcut={displayShortcut}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -55,7 +58,7 @@ export function CommandCameo({
         className={cx(styles.card, active && styles.active, busy && styles.busy)}
         onClick={onClick}
         aria-label={`${labelFor(kind)}, ${cost} credits${busy ? `, ${cameo.phase === "waiting" ? `${cameo.queued} in queue` : `${Math.round(cameo.ratio * 100)} percent complete`}` : ""}${cancellable ? ", cancel available" : ""}${ariaStatus}`}
-        aria-keyshortcuts={shortcut}
+        aria-keyshortcuts={displayShortcut}
       >
         <span className={styles.art}>
           <SpritePreview kind={kind} palette={palette} profile={profile} className={styles.sprite} />

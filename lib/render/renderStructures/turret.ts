@@ -1,12 +1,39 @@
+import { footprintOf } from "../../catalog";
 import { tileToScreen, type Camera } from "../../iso";
 import { lerpAngle } from "../gl/glMath";
-import type { Entity, SimState } from "../../types";
+import { isBuildingEntity, type Entity, type SimState } from "../../types";
 import { iffColors } from "../iff";
 import { entityElev } from "../renderPicking";
 import { buildTurretHeadModel, type UnitModel } from "../gl/modelLoader";
 import { drawCachedTurretModel } from "../gl/turretRaster";
+import { distToEntity } from "../../sim/world";
 
 export const turretAimMap = new Map<number, { angle: number; lastMs: number }>();
+export const TURRET_WEAPON_RANGE = 5.5;
+
+/**
+ * Render locks only while the target is a valid nearby enemy. Combat can leave
+ * an attackTarget set for a frame while a target moves out of range; drawing
+ * that stale lock makes the laser stretch across the battlefield.
+ */
+export function turretTargetInRange(turret: Entity, target: Entity): boolean {
+  return turret.class === "building" &&
+    turret.kind === "turret" &&
+    target.hp > 0 &&
+    target.owner !== turret.owner &&
+    !target.neutral &&
+    distToEntity(turret, target) <= TURRET_WEAPON_RANGE;
+}
+
+/** Aim at the nearest cell of a building footprint instead of its top-left corner. */
+export function turretTargetPoint(turret: Entity, target: Entity): { x: number; y: number } {
+  if (!isBuildingEntity(target)) return { x: target.x, y: target.y };
+  const footprint = footprintOf(target.kind);
+  return {
+    x: Math.max(target.x, Math.min(target.x + footprint.w - 1, turret.x)),
+    y: Math.max(target.y, Math.min(target.y + footprint.h - 1, turret.y)),
+  };
+}
 
 export function clearTurretAimCache(): void {
   turretAimMap.clear();
@@ -31,14 +58,15 @@ export function drawTurretCannon(
   targetEntity?: Entity,
 ): void {
   if (e.hp <= 0 || e.constructing > 0) return;
-  const target = targetEntity;
+  const target = targetEntity && turretTargetInRange(e, targetEntity) ? targetEntity : undefined;
+  const targetPoint = target ? turretTargetPoint(e, target) : undefined;
 
   const mountX = s.x + 1.67 * z;
   const mountY = s.y + 15.34 * z;
 
   let targetAngle: number;
-  if (target && target.hp > 0) {
-    const b = tileToScreen(target.x, target.y, cam, entityElev(state, target));
+  if (target && targetPoint) {
+    const b = tileToScreen(targetPoint.x, targetPoint.y, cam, entityElev(state, target));
     const targetY = b.y + 6 * z;
     targetAngle = Math.atan2(targetY - mountY, b.x - mountX);
   } else {
@@ -65,8 +93,8 @@ export function drawTurretCannon(
   const iff = iffColors(e.owner);
   ctx.save();
 
-  if (target && target.hp > 0) {
-    const b = tileToScreen(target.x, target.y, cam, entityElev(state, target));
+  if (target && targetPoint) {
+    const b = tileToScreen(targetPoint.x, targetPoint.y, cam, entityElev(state, target));
     const muzzleX = mountX + cos * (24 * z - recoil);
     const muzzleY = mountY + sin * (24 * z - recoil);
     ctx.strokeStyle = iff.laser;
