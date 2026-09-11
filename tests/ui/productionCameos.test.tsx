@@ -46,6 +46,8 @@ describe("production cameo availability", () => {
     const tank = screen.getByRole("button", { name: /Tank, 425 credits/ });
     expect(tank).toBeDisabled();
     expect(tank.parentElement).toHaveAttribute("data-tooltip", expect.stringContaining("Build a Vehicle Plant"));
+    expect(tank.parentElement).toHaveAttribute("data-shortcut", "Alt+4");
+    expect(tank).toHaveAttribute("aria-keyshortcuts", "Alt+4");
   });
 
   it("explains how to unlock a gated unit", () => {

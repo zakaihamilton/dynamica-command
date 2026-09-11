@@ -46,8 +46,13 @@ describe("shortcut matching", () => {
     expect(gameCommandFromKey({ key: "F1" }, play)).toEqual({ type: "controls" });
     expect(gameCommandFromKey({ key: "Escape" }, { ...play, toolActive: true })).toEqual({ type: "cancelTool" });
     expect(gameCommandFromKey({ key: "s" }, play)).toBeNull();
-    expect(gameCommandFromKey({ key: "2" }, play)).toEqual({ type: "cameo", index: 1, cancel: false });
+    expect(gameCommandFromKey({ key: "2" }, play)).toEqual({ type: "recallGroup", slot: 2 });
+    expect(gameCommandFromKey({ key: "!", code: "Digit2", altKey: true }, play)).toEqual({ type: "cameo", index: 1, cancel: false });
     expect(gameCommandFromKey({ key: "2", ctrlKey: true }, play)).toEqual({ type: "assignGroup", slot: 2 });
+    expect(gameCommandFromKey({ key: "2", metaKey: true }, play)).toEqual({ type: "assignGroup", slot: 2 });
+    expect(gameCommandFromKey({ key: "7" }, play)).toEqual({ type: "recallGroup", slot: 7 });
+    expect(gameCommandFromKey({ key: "7", altKey: true }, play)).toBeNull();
+    expect(gameCommandFromKey({ key: "2", ctrlKey: true, altKey: true }, play)).toBeNull();
   });
 
   it("routes pause-menu letters and pops nested pause views", () => {

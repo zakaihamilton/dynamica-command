@@ -279,7 +279,7 @@ test("persists production rally points and control groups through save/load", as
   await page.keyboard.press("Control+1");
   await expect(page.getByTestId("command-notice")).toContainText("Control group 1 assigned");
   await page.mouse.click(barracksPoint.x, barracksPoint.y);
-  await page.keyboard.press("Alt+1");
+  await page.keyboard.press("1");
   await expect(page.getByTestId("selected-kind")).toHaveText("Infantry");
 
   const saved = await savedState(page, true);
@@ -305,7 +305,7 @@ test("persists production rally points and control groups through save/load", as
   await page.getByRole("tab", { name: "Production" }).click();
   const infantryCameo = page.getByRole("button", { name: /Infantry, 75 credits/ });
   await expect(infantryCameo).toBeEnabled();
-  await infantryCameo.click();
+  await page.keyboard.press("Alt+1");
   await expect(page.getByTestId("cameo-progress-infantry")).toBeVisible();
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won", { timeout: 10_000 });
   const producedSave = await savedState(page);

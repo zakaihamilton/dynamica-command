@@ -16,9 +16,10 @@ const play = {
 };
 
 describe("shortcuts uncovered branches", () => {
-  it("ignores alt key in game commands", () => {
+  it("uses alt for cameos and bare numbers for control-group recall", () => {
     expect(gameCommandFromKey({ key: "q", altKey: true }, play)).toBeNull();
-    expect(gameCommandFromKey({ key: "2", altKey: true }, play)).toEqual({ type: "recallGroup", slot: 2 });
+    expect(gameCommandFromKey({ key: "2", altKey: true }, play)).toEqual({ type: "cameo", index: 1, cancel: false });
+    expect(gameCommandFromKey({ key: "2" }, play)).toEqual({ type: "recallGroup", slot: 2 });
   });
 
   it("returns null when not playing and not paused", () => {
@@ -42,6 +43,11 @@ describe("shortcuts uncovered branches", () => {
 
   it("ignores shift key with cameo events", () => {
     expect(gameCommandFromKey({ key: "2", shiftKey: true }, play)).toBeNull();
+  });
+
+  it("leaves higher alt-number slots unused and rejects combined modifiers", () => {
+    expect(gameCommandFromKey({ key: "9", altKey: true }, play)).toBeNull();
+    expect(gameCommandFromKey({ key: "2", ctrlKey: true, altKey: true }, play)).toBeNull();
   });
 
   it("ignores ctrl/meta in playing state for non-cameo keys", () => {

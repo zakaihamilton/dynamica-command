@@ -64,7 +64,7 @@ export const SHORTCUT = {
   construction: "Q",
   production: "E",
   selected: "T",
-  cameo: ["1", "2", "3", "4", "5", "6"] as const,
+  cameo: ["Alt+1", "Alt+2", "Alt+3", "Alt+4", "Alt+5", "Alt+6"] as const,
   pan: { up: "W", down: "S", left: "A", right: "D" },
   home: "H",
   center: "Space",
@@ -189,18 +189,17 @@ export function gameCommandFromKey(
   if (!ctx.playing) return null;
 
   if (e.shiftKey) return null;
+  const cameo = cameoIndexFromEvent(e);
+  if (e.altKey && !ctrl) {
+    return cameo === null ? null : { type: "cameo", index: cameo, cancel: false };
+  }
   const groupSlot = controlGroupSlotFromEvent(e);
   if (groupSlot !== null) {
     if (ctrl && !e.altKey) return { type: "assignGroup", slot: groupSlot };
-    if (e.altKey && !ctrl) return { type: "recallGroup", slot: groupSlot };
+    if (!ctrl) return { type: "recallGroup", slot: groupSlot };
     if (ctrl || e.altKey) return null;
   }
   if (e.altKey) return null;
-
-  const cameo = cameoIndexFromEvent(e);
-  if (cameo !== null) {
-    return { type: "cameo", index: cameo, cancel: ctrl };
-  }
   if (isF1(e) && !ctrl) return { type: "controls" };
   if (ctrl) return null;
   if (isEscape(e)) return ctx.toolActive ? { type: "cancelTool" } : { type: "pause" };
