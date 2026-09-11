@@ -17,6 +17,7 @@ export function createBaseState(
     losses: { units: [0, 0], buildings: [0, 0] },
     result: "playing",
     aiContacts: {},
+    controlGroups: {},
     ...overrides,
   };
 }

@@ -1,10 +1,11 @@
 import { finalizeMultiSelect, pickEntity } from "@/lib/render/pick";
 import { pickTile, visibleBuildingAt } from "@/lib/render/renderer";
+import { BUILDING_DEFINITIONS } from "@/lib/catalog";
 import { TILE_H, screenToTile, tileToScreen, type Camera } from "@/lib/iso";
 import { groundOrders } from "@/lib/sim/orders";
 import { canSupportEntity } from "@/lib/sim/support";
 import { groundHeight, heightAt } from "@/lib/sim/world";
-import type { Command, Entity, SimState } from "@/lib/types";
+import { isBuildingEntity, type Command, type Entity, type SimState } from "@/lib/types";
 import type { MobileCommand } from "../mobileCommandTypes";
 import { selectionBoxProjection, type SelectionBox } from "./selectionBox";
 
@@ -49,7 +50,25 @@ export function friendlySupportOrders(s: SimState, ids: number[], target: SimSta
   return commands;
 }
 
+/** Returns a rally command for a selected producer, or undefined when the selection is not a producer. */
+export function productionRallyOrder(
+  s: SimState,
+  ids: number[],
+  target: SimState["entities"][number] | undefined,
+  x: number,
+  y: number,
+): Command[] | undefined {
+  if (ids.length !== 1) return undefined;
+  const building = s.entities.find((entity) => entity.id === ids[0] && entity.hp > 0);
+  if (!building || !isBuildingEntity(building) || building.owner !== 0 || building.constructing > 0 || !BUILDING_DEFINITIONS[building.kind].production) {
+    return undefined;
+  }
+  return target ? [] : [{ type: "rally", buildingId: building.id, x, y }];
+}
+
 export function contextOrders(s: SimState, ids: number[], target: SimState["entities"][number] | undefined, x: number, y: number, attackMove = false): Command[] {
+  const rallyOrders = productionRallyOrder(s, ids, target, x, y);
+  if (rallyOrders !== undefined) return rallyOrders;
   const supportOrders = target ? friendlySupportOrders(s, ids, target, x, y) : [];
   if (supportOrders.length) return supportOrders;
   if (target && target.owner === 1) return [{ type: "attack", unitIds: ids, targetId: target.id }];
@@ -64,6 +83,8 @@ export function mobileCommandOrders(
   x: number,
   y: number,
 ): Command[] {
+  const rallyOrders = command === "move" ? productionRallyOrder(s, ids, target, x, y) : undefined;
+  if (rallyOrders !== undefined) return rallyOrders;
   const supportOrders = target ? friendlySupportOrders(s, ids, target, x, y) : [];
   if (supportOrders.length) return supportOrders;
   if (command === "move") return groundOrders(s, ids, x, y, true);

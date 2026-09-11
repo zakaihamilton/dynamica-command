@@ -5,7 +5,7 @@ import { contextOrders, isContactTarget, mobileCommandOrders } from "../../compo
 import { dailySeed, menuLaunchPath } from "../../components/menu/menuLaunch";
 import { createCampaign } from "../../lib/gen/campaign";
 import { freshCampaignProgress } from "../../lib/persist/campaign";
-import { addUnit, makeFixture, setTile, TILE_RESOURCE } from "../../lib/sim/fixtures";
+import { addBuilding, addUnit, makeFixture, setTile, TILE_RESOURCE } from "../../lib/sim/fixtures";
 
 describe("menu navigation policy", () => {
   it("rejects incomplete seeds and routes valid launches to briefing", () => {
@@ -86,5 +86,17 @@ describe("mobile command policy", () => {
     ]);
     expect(mobileCommandOrders(state, "attack", [unit.id], undefined, 4, 4)).toEqual([]);
     expect(isContactTarget(state, contact)).toBe(true);
+  });
+
+  it("turns empty-ground move taps and right-clicks from a producer into rally commands", () => {
+    const state = makeFixture({ width: 12, height: 12, win: { kind: "annihilate" } });
+    const barracks = addBuilding(state, 0, "barracks", 2, 2);
+    expect(contextOrders(state, [barracks.id], undefined, 6, 6)).toEqual([
+      { type: "rally", buildingId: barracks.id, x: 6, y: 6 },
+    ]);
+    expect(mobileCommandOrders(state, "move", [barracks.id], undefined, 7, 7)).toEqual([
+      { type: "rally", buildingId: barracks.id, x: 7, y: 7 },
+    ]);
+    expect(contextOrders(state, [barracks.id], addUnit(state, 1, "infantry", 5, 5), 5, 5)).toEqual([]);
   });
 });

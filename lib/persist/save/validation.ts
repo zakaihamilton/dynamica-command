@@ -1,5 +1,5 @@
 import { BUILDING_KINDS, UNIT_KINDS } from "../../catalog";
-import type { AiContact, BuildingKind, CampaignProgress, Entity, SimState, UnitKind } from "../../types";
+import type { AiContact, BuildingKind, CampaignProgress, ControlGroups, Entity, SimState, UnitKind } from "../../types";
 import { fogGridHeight, fogGridWidth } from "../../sim/fog";
 import { MISSION_MAX, MISSION_MIN, SEED_MAX, SEED_MIN } from "../../seed/rng";
 import { isRecord } from "../utils";
@@ -73,6 +73,15 @@ function isVec2(value: unknown): value is { x: number; y: number } {
   return isRecord(value) && isFiniteNumber(value.x) && isFiniteNumber(value.y);
 }
 
+function isControlGroups(value: unknown): value is ControlGroups {
+  if (!isRecord(value) || Array.isArray(value)) return false;
+  return Object.entries(value).every(([slot, ids]) => {
+    if (!/^[1-9]$/.test(slot) || !Array.isArray(ids)) return false;
+    return ids.every((id) => isIntegerInRange(id, 0, Number.MAX_SAFE_INTEGER))
+      && new Set(ids).size === ids.length;
+  });
+}
+
 function isPalette(value: unknown): boolean {
   return isRecord(value) && ["primary", "secondary", "accent", "outline", "light", "dark"].every((key) => isString(value[key]));
 }
@@ -108,6 +117,7 @@ export function isEntity(value: unknown): value is Entity {
   if (value.scenarioRole !== undefined && !isOneOf(value.scenarioRole, SCENARIO_ROLES)) return false;
   if (value.orderMode !== undefined && !isOneOf(value.orderMode, ORDER_MODES)) return false;
   if (value.orderDestination !== undefined && !isVec2(value.orderDestination)) return false;
+  if (value.rallyPoint !== undefined && (!classIsBuilding || !isVec2(value.rallyPoint))) return false;
   if (value.flowGoal !== undefined && !isVec2(value.flowGoal)) return false;
   if (value.stance !== undefined && !isOneOf(value.stance, STANCES)) return false;
   if (value.suppression !== undefined && !isNonNegativeNumber(value.suppression)) return false;
@@ -229,6 +239,7 @@ export function isStateShape(value: unknown): value is SimState {
   if (!isRngState(value.rngState) || !isOneOf(value.biome, BIOMES)) return false;
   if (!Array.isArray(value.factions) || value.factions.length !== 2 || !isFaction(value.factions[0], 0) || !isFaction(value.factions[1], 1)) return false;
   if (!isString(value.missionName)) return false;
+  if (!isControlGroups(value.controlGroups)) return false;
   if (value.missionKind !== undefined && !isOneOf(value.missionKind, MISSION_KINDS)) return false;
   if (value.runtime !== undefined && !isRuntime(value.runtime)) return false;
   if (value.tutorialStage !== undefined && !isOneOf(value.tutorialStage, ["select", "move", "harvest", "build", "produce", "attack", "repair", "complete"] as const)) return false;

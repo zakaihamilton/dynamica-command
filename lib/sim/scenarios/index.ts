@@ -15,6 +15,7 @@ import { spawnBuildingAt, spawnUnit } from "../world";
 import { enemyApproachPoint, reachableBuildingFilter, reachableScenarioCells, reachableScenarioPoint } from "./reachability";
 import { convoyStartPoint, convoyZonePoint, tickEscort } from "./escort";
 import { centerPoint, rescuePoint, tickRescueExtraction } from "./rescueExtraction";
+import { inRescueFlank } from "../../gen/map/generator/rescuePlacement";
 import type { ScenarioDefinition, ScenarioProgress, ScenarioSetupContext, ScenarioSetupResult } from "./contract";
 
 export { CONVOY_COMPLETION_BUFFER_TICKS, CONVOY_STAGING_TICKS };
@@ -57,9 +58,6 @@ function setupTimedScenario({ state, map, mission, profile, reachable }: Scenari
   const targetIds: number[] = [];
   const contestedRoute = profile.variant === "contestedRoute";
   const count = mission.win.targetCount ?? 2;
-  const rescueRoute = kind === "rescue"
-    ? { start: map.playerStart, end: map.enemyStart, min: 0.55, max: 0.8 }
-    : undefined;
 
   if (kind === "sabotage") {
     for (let i = 0; i < count; i++) {
@@ -90,7 +88,13 @@ function setupTimedScenario({ state, map, mission, profile, reachable }: Scenari
         : kind === "rescue"
           ? rescuePoint(map, i, count)
           : centerPoint(map, i, count, contestedRoute);
-      const point = reachableScenarioPoint(state, desired, reachable, rescueRoute);
+      const point = reachableScenarioPoint(
+        state,
+        desired,
+        reachable,
+        undefined,
+        kind === "rescue" ? (x, y) => inRescueFlank(map, x, y) : undefined,
+      );
       const target = spawnUnit(state, 0, kind === "escort" ? "convoyTruck" : "infantry", point.x, point.y);
       target.neutral = kind === "escort" || kind === "rescue" || kind === "extraction";
       target.scenarioRole = kind === "escort" ? "convoy" : kind === "rescue" ? "stranded" : "cargo";

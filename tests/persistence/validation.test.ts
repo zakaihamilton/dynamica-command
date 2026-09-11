@@ -189,6 +189,12 @@ describe("isEntity", () => {
   it("rejects invalid supportMode", () => {
     expect(isEntity({ ...validUnit, supportMode: "invalid" })).toBe(false);
   });
+
+  it("accepts rally points only on buildings", () => {
+    expect(isEntity({ ...validBuilding, rallyPoint: { x: 8, y: 9 } })).toBe(true);
+    expect(isEntity({ ...validUnit, rallyPoint: { x: 8, y: 9 } })).toBe(false);
+    expect(isEntity({ ...validBuilding, rallyPoint: { x: 8 } })).toBe(false);
+  });
 });
 
 describe("isWin", () => {

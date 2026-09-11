@@ -90,7 +90,10 @@ export function useOrderDispatch({
     setMobileCommandState(null);
     const kind = beepForCommands(commands);
     if (kind) beep(kind);
-    if (commands.length) onCommandNotice?.(`${attackMove ? "Attack-move" : target ? "Attack" : "Move"} order issued.`, "success");
+    if (commands.length) {
+      const rally = commands.some((command) => command.type === "rally");
+      onCommandNotice?.(rally ? "Rally point set." : `${attackMove ? "Attack-move" : target ? "Attack" : "Move"} order issued.`, "success");
+    }
   }, [camRef, clearTools, markInvalidCommand, markUnitCommand, mobileCommandRef, onCommandNotice, onCommandRejection, repairRef, resolvedCommandPort, selectedRef, sellRef, setMobileCommandState, syncCursor, uxRef]);
 
   return { markUnitCommand, markInvalidCommand, issueContextOrder };

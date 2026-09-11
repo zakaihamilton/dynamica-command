@@ -1,6 +1,6 @@
 import type { MutableRefObject } from "react";
 import { beep } from "@/lib/audio/synth";
-import type { BuildingKind, SimState } from "@/lib/types";
+import type { BuildingKind, ControlGroupSlot, SimState } from "@/lib/types";
 import type { CommandTab, GameCommand, PauseView } from "@/lib/ui/shortcuts";
 
 export type GameCommandHandlers = {
@@ -11,6 +11,8 @@ export type GameCommandHandlers = {
   setPauseNotice: (notice: string) => void;
   setActiveTab: (tab: CommandTab) => void;
   activateCameo: (tab: "construction" | "production", index: number, cancel: boolean) => void;
+  assignControlGroup: (slot: ControlGroupSlot) => void;
+  recallControlGroup: (slot: ControlGroupSlot) => void;
   jumpHome: () => void;
   centerSelection: () => void;
   toggleRepair: () => void;
@@ -47,6 +49,8 @@ export function applyGameCommand(command: GameCommand, handlers: GameCommandHand
   else if (command.type === "resume") handlers.resumeMission();
   else if (command.type === "pauseBack") handlers.setPauseView("main");
   else if (command.type === "tab") handlers.setActiveTab(command.tab);
+  else if (command.type === "assignGroup") handlers.assignControlGroup(command.slot);
+  else if (command.type === "recallGroup") handlers.recallControlGroup(command.slot);
   else if (command.type === "cameo" && handlers.activeTab !== "selected") {
     handlers.activateCameo(handlers.activeTab, command.index, command.cancel);
   } else if (command.type === "home") handlers.jumpHome();

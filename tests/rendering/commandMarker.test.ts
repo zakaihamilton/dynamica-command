@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCamera } from "../../lib/iso";
 import { UNIT_STATS } from "../../lib/catalog";
-import { COMMAND_MARKER_COLORS, commandMarkerKind, commandMarkerReachedDestination, drawCommandMarker } from "../../lib/render/renderOverlays";
+import { COMMAND_MARKER_COLORS, commandMarkerKind, commandMarkerReachedDestination, drawCommandMarker, drawRallyPoint } from "../../lib/render/renderOverlays";
 import { drawCombatEffects } from "../../lib/render/renderCombat";
-import { addUnit, makeFixture } from "../../lib/sim/fixtures";
+import { addBuilding, addUnit, makeFixture } from "../../lib/sim/fixtures";
 
 function mockCtx() {
   return {
@@ -12,6 +12,7 @@ function mockCtx() {
     beginPath: vi.fn(),
     moveTo: vi.fn(),
     lineTo: vi.fn(),
+    setLineDash: vi.fn(),
     closePath: vi.fn(),
     stroke: vi.fn(),
     fill: vi.fn(),
@@ -31,6 +32,19 @@ function mockCtx() {
 }
 
 describe("command markers", () => {
+  it("draws a persistent rally marker and route from the selected producer", () => {
+    const state = makeFixture({ win: { kind: "annihilate" } });
+    const building = addBuilding(state, 0, "barracks", 2, 2);
+    building.rallyPoint = { x: 7, y: 7 };
+    const ctx = mockCtx();
+
+    drawRallyPoint(ctx, state, createCamera(), building, 80);
+
+    expect(ctx.setLineDash).toHaveBeenCalled();
+    expect(ctx.ellipse).toHaveBeenCalledTimes(1);
+    expect(ctx.fill).toHaveBeenCalled();
+  });
+
   it("maps order types onto attack, harvest, support, and move kinds", () => {
     expect(commandMarkerKind([{ type: "attack", unitIds: [1] }])).toBe("attack");
     expect(commandMarkerKind([{ type: "attackMove", unitIds: [1] }])).toBe("attack");

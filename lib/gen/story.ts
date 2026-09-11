@@ -1,5 +1,5 @@
 import { labelFor } from "../catalog";
-import type { BriefingLine, BuildingKind, Campaign, MissionDef, MissionProfile, UnitKind, WinCategory } from "../types";
+import type { BriefingLine, BuildingKind, Campaign, MissionDef, MissionKind, MissionProfile, UnitKind, WinCategory } from "../types";
 import { biomeLabel, characterLabel } from "./names";
 import { missionTimeLimitLabel } from "./objectives";
 import { formatMissionMinutesFromTicks } from "./pacing";
@@ -68,6 +68,218 @@ function profileTaunt(profile: MissionProfile): string {
 
 function themelessPlace(place: string): string {
   return place || "this ground";
+}
+
+type BriefingContext = {
+  seed: number;
+  mission: Pick<MissionDef, "win" | "index">;
+  profile: MissionProfile;
+  place: string;
+};
+
+type OptionalBriefingBeat = BriefingLine & { order: number };
+
+const ADVISOR_FOLLOWUPS: Record<MissionProfile["variant"], readonly string[]> = {
+  resourceRace: [
+    "The forward seam is exposed, but the nearer field will not win the race by itself.",
+    "Mark the richest ore lane first; every safe credit after that depends on keeping it screened.",
+  ],
+  forwardIndustry: [
+    "Power is the first constraint: one stalled grid leaves every production queue behind.",
+    "The industrial spine must move forward in steps, or the enemy will make each new structure a liability.",
+  ],
+  surgicalStrike: [
+    "Keep the strike group together until the breach is confirmed; a separated screen feeds the defense one target at a time.",
+    "The opening is narrow, so preserve the force that reaches it instead of trading units for ground too early.",
+  ],
+  siege: [
+    "Bring counters and a repair plan; the first defensive ring is designed to exhaust the force that reaches it.",
+    "The long approach is deliberate cover, not wasted distance—use it to rotate damaged units before the breach.",
+  ],
+  concentratedWaves: [
+    "Reserve one group for the weaker lane; a line that cannot rotate is only a delay.",
+    "The main push will look obvious, but the real test is whether the fallback position remains usable.",
+  ],
+  crossfire: [
+    "Watch both lanes, but do not split the force evenly; the enemy wants two small victories.",
+    "Coverage matters more than speed here—leave one route open for a controlled withdrawal.",
+  ],
+  directRoute: [
+    "The direct lane is a timing advantage, not a promise; shift to the fallback route when contact closes it.",
+    "Move before the alarm changes the ground, then keep enough force back to exploit the second lane.",
+  ],
+  contestedRoute: [
+    "Screen the exposed ground with your cheapest eyes first; keep the main force out of the first ambush.",
+    "Both lanes are usable, but neither is free—cross the open ground with support already in position.",
+  ],
+};
+
+const COMMANDER_FOLLOWUPS: Record<MissionKind, readonly string[]> = {
+  harvestQuota: [
+    "No heroics until the economy is online; every combat order must buy the harvesters another trip.",
+    "Build the income before the army, then spend the advantage where the field is hardest to hold.",
+  ],
+  forceQuota: [
+    "Keep the first production line moving, but do not turn the Command HQ into an undefended factory yard.",
+    "Numbers win this operation only if they arrive in time to reinforce the next contact.",
+  ],
+  structureQuota: [
+    "Site the first foundations for coverage, not convenience; unfinished structures are still part of the risk.",
+    "Build the grid in layers so one raid cannot erase the work that wins the operation.",
+  ],
+  destroyMarked: [
+    "Strike the marked targets in sequence and leave a route home before the counterattack finds us.",
+    "The targets matter more than the perimeter—break the defense only as far as the objective requires.",
+  ],
+  razeAll: [
+    "We can take the base apart one section at a time; do not spend the whole force on the first wall.",
+    "Demolition is the finish, not the opening—secure the approach before committing to the final structures.",
+  ],
+  decapitate: [
+    "Their Command HQ is the center of gravity; force the defense to turn, then finish the head.",
+    "Do not chase every unit away from the objective—their base is the operation, not the retreat.",
+  ],
+  annihilate: [
+    "Keep pressure on the survivors, but preserve enough strength to answer the last counterattack.",
+    "Nothing is complete while their production or escape route remains intact.",
+  ],
+  holdTheLine: [
+    "Rotate damaged units before they break, and keep the fallback position inside the HQ’s defensive ring.",
+    "The clock is an ally only while the line remains supplied, repaired, and ready to move back one step.",
+  ],
+  escort: [
+    "The convoy is the formation—screen its slowest vehicle and let the route determine the pace.",
+    "Do not outrun the cargo; every cleared lane must be safe long enough for the last truck to cross.",
+  ],
+  sabotage: [
+    "Take the outer systems first and keep a withdrawal route open before the alarm reaches the whole network.",
+    "A quiet approach buys us time, but the exit must already be planned when the first system goes dark.",
+  ],
+  rescue: [
+    "Contact is not enough; bring an escort to the return route before the survivors move for home.",
+    "Reach the stranded units with strength in reserve—the dangerous half of the mission begins after contact.",
+  ],
+  extraction: [
+    "Load the nearest asset first, then turn the route into a corridor the enemy cannot close behind us.",
+    "Cargo slows the withdrawal, so keep the force between the extraction point and the last vehicle out.",
+  ],
+};
+
+const ENEMY_FOLLOWUPS: Record<MissionProfile["variant"], readonly string[]> = {
+  resourceRace: [
+    "I will not chase your army while your harvesters keep you alive; expect my patrols where the ore is richest.",
+    "Your economy is a map I can read—every full load tells me where the next fight begins.",
+  ],
+  forwardIndustry: [
+    "Every new relay tells me where to aim; build forward and I will turn the grid against you.",
+    "Your factories need power, and power needs ground—take one away and the whole machine stalls.",
+  ],
+  surgicalStrike: [
+    "Bring your narrow force through the breach; I only need one stalled unit to close it behind you.",
+    "Precision is another word for having nowhere to hide when the first shot misses.",
+  ],
+  siege: [
+    "You may reach the outer wall, but every repair you spend there makes the inner ring stronger.",
+    "Count the distance to my base in damaged units; the walls are only doing their work.",
+  ],
+  concentratedWaves: [
+    "Hold one road if you like—I will make the other road expensive enough to split you.",
+    "A single strong line still has a flank, and I have time to find it.",
+  ],
+  crossfire: [
+    "Guard both approaches and you guard neither; choose a lane, and I will choose the other.",
+    "Your map shows two roads. My army only needs one opening.",
+  ],
+  directRoute: [
+    "The shortest road is mine to close; arrive late and you will find the detour waiting under fire.",
+    "Run for the direct lane while it is open—my first alarm is already written.",
+  ],
+  contestedRoute: [
+    "Every shortcut across this ground belongs to my patrols; your screen will find us by losing pieces of itself.",
+    "There is a safer lane, but safe is not the same as fast—and time is on my side.",
+  ],
+};
+
+function lineCountFor(context: BriefingContext): 3 | 4 | 5 {
+  const roll = variantIndex(
+    `${context.seed}:${context.mission.index}:${context.mission.win.kind}:${context.place}:${context.profile.variant}:line-count`,
+    10,
+  );
+  if (roll < 6) return 3;
+  if (roll < 9) return 4;
+  return 5;
+}
+
+function pickBriefingVariant(context: BriefingContext, label: string, size: number): number {
+  return variantIndex(
+    `${context.seed}:${context.mission.index}:${context.mission.win.kind}:${context.place}:${context.profile.variant}:${label}`,
+    size,
+  );
+}
+
+function optionalMissionSignal(context: BriefingContext, speaker: BriefingLine["speaker"]): string {
+  const objective = objectivePhrase(context.mission.win);
+  if (speaker === "advisor") return `That leaves one priority: ${objective}.`;
+  if (speaker === "commander") return `The current order remains to ${objective}.`;
+  return `You still intend to ${objective}, of course.`;
+}
+
+function optionalBriefingBeats(context: BriefingContext): OptionalBriefingBeat[] {
+  const advisor = ADVISOR_FOLLOWUPS[context.profile.variant];
+  const commander = COMMANDER_FOLLOWUPS[context.mission.win.kind];
+  const enemy = ENEMY_FOLLOWUPS[context.profile.variant];
+  return [
+    {
+      speaker: "advisor",
+      text: `${advisor[pickBriefingVariant(context, "advisor-followup", advisor.length)]!} ${optionalMissionSignal(context, "advisor")}`,
+      order: 0,
+    },
+    {
+      speaker: "commander",
+      text: `${commander[pickBriefingVariant(context, "commander-followup", commander.length)]!} ${optionalMissionSignal(context, "commander")}`,
+      order: 1,
+    },
+    {
+      speaker: "enemyLeader",
+      text: `${enemy[pickBriefingVariant(context, "enemy-followup", enemy.length)]!} ${optionalMissionSignal(context, "enemyLeader")}`,
+      order: 2,
+    },
+  ];
+}
+
+function addOptionalBriefingBeats(
+  context: BriefingContext,
+  required: BriefingLine[],
+): BriefingLine[] {
+  const optionalCount = lineCountFor(context) - required.length;
+  if (optionalCount <= 0) return required;
+
+  const selected = optionalBriefingBeats(context)
+    .map((beat) => ({
+      beat,
+      rank: pickBriefingVariant(context, `optional-order:${beat.speaker}`, 10_000),
+    }))
+    .sort((a, b) => a.rank - b.rank || a.beat.order - b.beat.order)
+    .slice(0, optionalCount)
+    .map(({ beat }) => beat);
+  const bySpeaker = new Map(selected.map((beat) => [beat.speaker, beat]));
+
+  const output: BriefingLine[] = [];
+  const advisor = required.find((line) => line.speaker === "advisor");
+  const commander = required.find((line) => line.speaker === "commander");
+  const enemy = required.find((line) => line.speaker === "enemyLeader");
+  if (!advisor || !commander || !enemy) return required;
+
+  output.push(advisor);
+  const advisorBeat = bySpeaker.get("advisor");
+  if (advisorBeat) output.push(advisorBeat);
+  output.push(commander);
+  const commanderBeat = bySpeaker.get("commander");
+  if (commanderBeat) output.push(commanderBeat);
+  output.push(enemy);
+  const enemyBeat = bySpeaker.get("enemyLeader");
+  if (enemyBeat) output.push(enemyBeat);
+  return output;
 }
 
 function objectivePhrase(win: WinCategory): string {
@@ -211,9 +423,15 @@ export function generateBriefing(
   const foe = characterLabel(enemyLeader);
   const win = mission.win;
   const profile = resolveMissionProfile(campaign.seedNumber ?? 0, mission.index, win.kind, mission.profile);
-  const pick = (mod: number) => variantIndex(`${mission.index}:${win.kind}:${place}`, mod);
-  const lead = ADVISOR_LEADS[pick(ADVISOR_LEADS.length)]!;
-  const ack = COMMANDER_ACKS[pick(COMMANDER_ACKS.length)]!(analyst);
+  const context: BriefingContext = {
+    seed: campaign.seedNumber ?? 0,
+    mission,
+    profile,
+    place,
+  };
+  const pick = (label: string, mod: number) => pickBriefingVariant(context, label, mod);
+  const lead = ADVISOR_LEADS[pick("advisor-lead", ADVISOR_LEADS.length)]!;
+  const ack = COMMANDER_ACKS[pick("commander-ack", COMMANDER_ACKS.length)]!(analyst);
 
   const report = (() => {
     switch (win.kind) {
@@ -234,13 +452,13 @@ export function generateBriefing(
       case "holdTheLine":
         return `${foe} is massing for a full push on ${place}. If we stand for ${holdDurationLabel(win.ticks ?? 0)}, their advance dies in the ${biome}. Expect everything they have left.`;
       case "escort":
-        return `A supply convoy crosses ${place} — ${win.targetCount ?? 1} slow movers through ambush country. ${foe} hunts soft targets first, and the ${biome} offers endless killing lanes.`;
+        return `A supply convoy crosses ${place} — ${win.targetCount ?? 1} slow movers through ambush country. ${foe} hunts soft targets first, and the ${biome} offers endless killing lanes; reach extraction within ${scenarioTimeLimitLabel(win)}.`;
       case "sabotage":
-        return `${foe} runs ${win.targetCount ?? 1} hardened systems beneath ${place}: comms, power, munitions. Drop all of them before the deadline and the ${them.name} goes blind in the ${biome}.`;
+        return `${foe} runs ${win.targetCount ?? 1} hardened systems beneath ${place}: comms, power, munitions. Drop all of them within ${scenarioTimeLimitLabel(win)} and the ${them.name} goes blind in the ${biome}.`;
       case "rescue":
-        return `Survivors are broadcasting from the ${biome} — ${win.targetCount ?? 1} of ours at ${place}, scattered but alive. ${foe}'s sweeps close by the hour.`;
+        return `Survivors are broadcasting from the ${biome} — ${win.targetCount ?? 1} of ours at ${place}, scattered but alive. ${foe}'s sweeps close by the hour; bring them home within ${scenarioTimeLimitLabel(win)}.`;
       case "extraction":
-        return `Our assets at ${place} are packed and ready — ${win.targetCount ?? 1} crates that cannot reach ${them.name} hands. Pull them out before ${foe} seals the corridor.`;
+        return `Our assets at ${place} are packed and ready — ${win.targetCount ?? 1} crates that cannot reach ${them.name} hands. Pull them out within ${scenarioTimeLimitLabel(win)}, before ${foe} seals the corridor.`;
       default:
         return `The ${them.name} holds the ${biome}, and ${foe} means to keep it. ${us.name} command requires that we ${objectivePhrase(win)} before they finish digging in.`;
     }
@@ -308,11 +526,12 @@ export function generateBriefing(
     }
   })();
 
-  return [
+  const required: BriefingLine[] = [
     { speaker: "advisor", text: `${lead} ${profileHook(profile, place, biome)}. ${report}` },
     { speaker: "commander", text: `${ack} ${profileOrder(profile)} ${orders}` },
     { speaker: "enemyLeader", text: `${profileTaunt(profile)} ${taunt}` },
   ];
+  return addOptionalBriefingBeats(context, required);
 }
 
 export function generateStory() {

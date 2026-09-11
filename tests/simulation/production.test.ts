@@ -80,3 +80,31 @@ describe("power shortage events", () => {
     expect(tickProduction(s).filter((event) => event.type === "powerShortage")).toHaveLength(0);
   });
 });
+
+describe("production rally routing", () => {
+  it("spawns at the exit and gives produced units a normal move order to the rally point", () => {
+    const s = readyBase();
+    const barracks = addBuilding(s, 0, "barracks", 6, 4);
+    barracks.producing = { kind: "infantry", remaining: 1 };
+    barracks.rallyPoint = { x: 14, y: 10 };
+
+    const events = tickProduction(s);
+    const produced = s.entities.find((entity) => entity.id === events.find((event) => event.type === "produced")?.id);
+    expect(produced?.class).toBe("unit");
+    expect(produced?.orderMode).toBe("move");
+    expect(produced?.orderDestination).toEqual({ x: 14, y: 10 });
+    expect((produced?.path.length ?? 0) > 0 || produced?.routePending).toBeTruthy();
+    expect(produced && (Math.round(produced.x) !== 14 || Math.round(produced.y) !== 10)).toBe(true);
+  });
+
+  it("keeps the default idle spawn behavior when no rally point is set", () => {
+    const s = readyBase();
+    const barracks = addBuilding(s, 0, "barracks", 6, 4);
+    barracks.producing = { kind: "infantry", remaining: 1 };
+
+    tickProduction(s);
+    const produced = s.entities.find((entity) => entity.class === "unit" && entity.kind === "infantry");
+    expect(produced?.orderDestination).toBeUndefined();
+    expect(produced?.idle).toBe(true);
+  });
+});

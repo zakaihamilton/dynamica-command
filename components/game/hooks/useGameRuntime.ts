@@ -89,7 +89,30 @@ export function useGameRuntime({
   }, [mission, seed, tutorial, uxRef]);
 
   const selection = useGameSelection({ stateRef, setState, uxRef });
-  const { selected, selectedIds, selectionMode, selectionModeRef, commitSelection, setSelectionMode } = selection;
+  const {
+    selected,
+    selectedIds,
+    selectionMode,
+    selectionModeRef,
+    commitSelection,
+    assignControlGroup,
+    recallControlGroup,
+    setSelectionMode,
+  } = selection;
+  const assignGroup = useCallback((slot: Parameters<typeof assignControlGroup>[0]) => {
+    const count = assignControlGroup(slot);
+    announceCommandFeedback(
+      count > 0 ? `Control group ${slot} assigned to ${count} unit${count === 1 ? "" : "s"}.` : `Control group ${slot} cleared.`,
+      "success",
+    );
+  }, [announceCommandFeedback, assignControlGroup]);
+  const recallGroup = useCallback((slot: Parameters<typeof recallControlGroup>[0]) => {
+    const count = recallControlGroup(slot);
+    announceCommandFeedback(
+      count > 0 ? `Control group ${slot} selected.` : `Control group ${slot} is empty.`,
+      count > 0 ? "success" : "info",
+    );
+  }, [announceCommandFeedback, recallControlGroup]);
   const { combatAlert, combatAlertKind, onAlert } = useCombatAlert();
 
   const camera = useGameCamera({ stateRef, canvasRef, hostRef });
@@ -284,6 +307,8 @@ export function useGameRuntime({
     setPauseNotice,
     setActiveTab,
     activateCameo,
+    assignControlGroup: assignGroup,
+    recallControlGroup: recallGroup,
     jumpHome,
     centerSelection: () => centerSelection(selected.current),
     toggleRepair,

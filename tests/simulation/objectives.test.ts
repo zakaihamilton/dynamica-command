@@ -363,21 +363,77 @@ describe("mission briefing objectives", () => {
 });
 
 describe("mission briefing dialogue", () => {
-  it("attributes each transmission to a distinct speaker", () => {
+  it("keeps every transmission between three and five lines with all speakers present", () => {
     const campaign = createCampaign(421);
     for (const mission of campaign.missions) {
       const speakers = mission.briefing.map((line) => line.speaker);
-      expect(new Set(speakers).size).toBe(speakers.length);
+      expect(speakers.length).toBeGreaterThanOrEqual(3);
+      expect(speakers.length).toBeLessThanOrEqual(5);
       expect(speakers).toContain("advisor");
       expect(speakers).toContain("commander");
       expect(speakers).toContain("enemyLeader");
       for (const line of mission.briefing) {
         expect(line.text.length).toBeGreaterThan(12);
+        expect(line.text.length).toBeLessThanOrEqual(500);
         expect(line.text).not.toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+:/);
       }
       const joined = mission.briefing.map((line) => line.text).join(" ");
+      expect(joined.length).toBeLessThanOrEqual(1600);
+      expect(new Set(mission.briefing.map((line) => line.text)).size).toBe(mission.briefing.length);
       expect(joined).not.toContain(mission.name);
       expect(joined.toLowerCase()).toContain("command hq");
+    }
+  });
+
+  it("keeps line count and dialogue text deterministic while varying count across seeds", () => {
+    const lineCounts = new Set<number>();
+    for (let seed = 0; seed < 128; seed++) {
+      const first = createCampaign(seed);
+      const second = createCampaign(seed);
+      expect(second.missions.map((mission) => mission.briefing)).toEqual(first.missions.map((mission) => mission.briefing));
+      for (const mission of first.missions) lineCounts.add(mission.briefing.length);
+    }
+    expect(lineCounts).toEqual(new Set([3, 4, 5]));
+  });
+
+  it("keeps objective facts and profile hooks in the generated transmission", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const campaign = createCampaign(seed);
+      for (const mission of campaign.missions) {
+        const text = mission.briefing.map((line) => line.text).join(" ");
+        switch (mission.win.kind) {
+          case "harvestQuota":
+          case "forceQuota":
+          case "structureQuota":
+            expect(text).toContain(String(mission.win.target));
+            break;
+          case "destroyMarked":
+            expect(text).toContain(String(mission.win.targetCount ?? 1));
+            break;
+          case "holdTheLine":
+            expect(text).toContain(`${Math.ceil((mission.win.ticks ?? 0) / TICKS_PER_SECOND / 60)} min`);
+            break;
+          case "escort":
+          case "sabotage":
+          case "rescue":
+          case "extraction":
+            expect(text).toContain(String(mission.win.targetCount ?? 1));
+            expect(text).toMatch(/within \d+ min/);
+            break;
+          default:
+            break;
+        }
+        const variant = mission.profile!.variant;
+        const hook = variant === "resourceRace" ? /ore|harvest/i
+          : variant === "forwardIndustry" ? /industry|refinery|power/i
+            : variant === "surgicalStrike" ? /breach|precision/i
+              : variant === "siege" ? /siege|layered|approach/i
+                : variant === "concentratedWaves" ? /one line|concentrating/i
+                  : variant === "crossfire" ? /two approach|split|flank/i
+                    : variant === "directRoute" ? /shortest route|direct route/i
+                      : /exposed|flanks|screen/i;
+        expect(text).toMatch(hook);
+      }
     }
   });
 

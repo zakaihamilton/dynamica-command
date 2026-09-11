@@ -13,6 +13,7 @@ import { missionObjectives, objectiveHeadline } from "@/lib/gen/story";
 import { biomeLabel } from "@/lib/gen/names";
 import { biomeArt, RASTER_ART } from "@/lib/gen/visualAssets";
 import { formatSeed } from "@/lib/seed/rng";
+import { APP_NAME } from "@/lib/site";
 import { objectivePriorityFor } from "@/lib/sim/objectives";
 import { briefingPath } from "../game/hooks/missionRoutes";
 import styles from "./CampaignCompleteScreen.module.css";
@@ -206,7 +207,7 @@ export function CampaignCompleteScreen({ seed, mode = "record" }: { seed: number
       className={`${styles.screen} ${operations ? styles.operationsScreen : ""}`}
       style={{ "--scene-art": `url("${RASTER_ART.victory}")` } as React.CSSProperties}
     >
-      <DocumentTitle title={`Seed ${formatSeed(seed)} · ${operations ? "Operations" : "Campaign Record"} | Shifting Front`} />
+      <DocumentTitle title={APP_NAME} />
       <div className={styles.vignette} />
       <div className={styles.content}>
         <MetalPanel

@@ -381,11 +381,73 @@ describe("pathfinding", () => {
     const b = addUnit(s, 0, "infantry", 10, 3);
     issue(s, { type: "move", unitIds: [a.id], x: 10, y: 3 });
     issue(s, { type: "move", unitIds: [b.id], x: 3, y: 3 });
-    for (let i = 0; i < 900; i++) tick(s);
+    let previousA = { x: a.x, y: a.y };
+    let previousB = { x: b.x, y: b.y };
+    for (let i = 0; i < 900; i++) {
+      tick(s);
+      expect(Math.hypot(a.x - previousA.x, a.y - previousA.y)).toBeLessThanOrEqual(UNIT_STATS.infantry.speed + 1e-6);
+      expect(Math.hypot(b.x - previousB.x, b.y - previousB.y)).toBeLessThanOrEqual(UNIT_STATS.infantry.speed + 1e-6);
+      previousA = { x: a.x, y: a.y };
+      previousB = { x: b.x, y: b.y };
+    }
     expect(Math.round(a.x)).toBe(10);
     expect(Math.round(a.y)).toBe(3);
     expect(Math.round(b.x)).toBe(3);
     expect(Math.round(b.y)).toBe(3);
+  });
+
+  it("crosses adjacent units smoothly when their destinations are exchanged", () => {
+    const s = makeFixture({ width: 8, height: 6, win: { kind: "harvestQuota", target: 99999 } });
+    addBuilding(s, 0, "constructionYard", 0, 0);
+    const a = addUnit(s, 0, "infantry", 2, 2);
+    const b = addUnit(s, 0, "infantry", 3, 2);
+    issue(s, { type: "move", unitIds: [a.id], x: 3, y: 2 });
+    issue(s, { type: "move", unitIds: [b.id], x: 2, y: 2 });
+    let previousA = { x: a.x, y: a.y };
+    let previousB = { x: b.x, y: b.y };
+    for (let i = 0; i < 100; i++) {
+      tick(s);
+      expect(Math.hypot(a.x - previousA.x, a.y - previousA.y)).toBeLessThanOrEqual(UNIT_STATS.infantry.speed + 1e-6);
+      expect(Math.hypot(b.x - previousB.x, b.y - previousB.y)).toBeLessThanOrEqual(UNIT_STATS.infantry.speed + 1e-6);
+      previousA = { x: a.x, y: a.y };
+      previousB = { x: b.x, y: b.y };
+    }
+    expect(Math.round(a.x)).toBe(3);
+    expect(Math.round(a.y)).toBe(2);
+    expect(Math.round(b.x)).toBe(2);
+    expect(Math.round(b.y)).toBe(2);
+  });
+
+  it("does not reverse a flow follower when occupancy removes its forward lane", () => {
+    const s = makeFixture({ width: 12, height: 8, win: { kind: "harvestQuota", target: 99999 } });
+    const mover = addUnit(s, 0, "infantry", 3, 3);
+    for (const [x, y] of [[4, 2], [4, 3], [4, 4], [3, 4]] as const) {
+      const blocker = addUnit(s, 0, "infantry", x, y);
+      blocker.idle = true;
+    }
+    mover.orderDestination = { x: 8, y: 3 };
+    mover.flowGoal = { x: 8, y: 3 };
+    mover.routePending = true;
+    mover.idle = false;
+
+    const history: { x: number; y: number }[] = [];
+    for (let i = 0; i < 120; i++) {
+      tick(s, undefined, { evaluateObjectives: false });
+      history.push({ x: mover.x, y: mover.y });
+    }
+
+    for (let i = 2; i < history.length; i++) {
+      const p0 = history[i - 2]!;
+      const p1 = history[i - 1]!;
+      const p2 = history[i]!;
+      const dx1 = p1.x - p0.x;
+      const dy1 = p1.y - p0.y;
+      const dx2 = p2.x - p1.x;
+      const dy2 = p2.y - p1.y;
+      expect(dx1 * dx2 + dy1 * dy2).toBeGreaterThanOrEqual(-1e-6);
+    }
+    expect(Math.round(mover.x)).toBe(8);
+    expect(Math.round(mover.y)).toBe(3);
   });
 
   it("spreads a group move across unique nearby tiles", () => {

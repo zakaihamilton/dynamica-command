@@ -1,6 +1,6 @@
 import { findPathDetailed, routePendingFor } from "../pathfinding";
 import { FOREGROUND_PATH_MAX_NODES, FOREGROUND_PATHS_PER_ORDER } from "../pathBudget";
-import { type Entity, type Formation, type SimEvent, type SimState } from "../../types";
+import { isUnitEntity, type Entity, type Formation, type SimEvent, type SimState } from "../../types";
 import { byId, inBounds, isStaticWalkable } from "../world";
 import { clearSupportOrder } from "../support";
 
@@ -10,6 +10,12 @@ export function moveUnits(state: SimState, ids: number[], x: number, y: number, 
 
 export function attackMoveUnits(state: SimState, ids: number[], x: number, y: number, formation?: Formation): SimEvent[] {
   return issueTravelOrder(state, ids, x, y, "attackMove", formation);
+}
+
+/** Assigns a single unit the same normal move order used by player commands. */
+export function assignMoveDestination(state: SimState, e: Entity, x: number, y: number): void {
+  if (!isUnitEntity(e)) return;
+  issueTravelOrder(state, [e.id], x, y, "move");
 }
 
 function issueTravelOrder(

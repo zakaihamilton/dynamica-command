@@ -1,6 +1,6 @@
 import { UNIT_STATS } from "../catalog";
 import { toIsometricFacing } from "../iso";
-import { isUnitEntity, type Entity, type SimState, type UnitEntity } from "../types";
+import { isUnitEntity, type Entity, type SimState, type UnitEntity, type Vec2 } from "../types";
 import { tryFindPathDetailed } from "./pathBudget";
 import { routePendingFor } from "./pathfinding";
 import { prepareFlowFieldRoutes } from "./flowFieldRouting";
@@ -12,6 +12,15 @@ type MovementBuffers = {
   reserved: Map<number, number>;
   swapped: Set<number>;
   movers: UnitEntity[];
+  previousCells: Map<number, number>;
+  pendingSwaps: Map<number, PendingSwap>;
+};
+
+type PendingSwap = {
+  partnerId: number;
+  target: Vec2;
+  orderDestination?: Vec2;
+  flowGoal?: Vec2;
 };
 
 const movementBuffers = new WeakMap<SimState, MovementBuffers>();
@@ -26,6 +35,8 @@ function buffersFor(state: SimState): MovementBuffers {
       reserved: new Map<number, number>(),
       swapped: new Set<number>(),
       movers: [],
+      previousCells: new Map<number, number>(),
+      pendingSwaps: new Map<number, PendingSwap>(),
     };
     movementBuffers.set(state, buffers);
   } else {
@@ -42,22 +53,25 @@ import {
   advanceAlongPath,
   cellOf,
   exchangePositions,
+  releaseHeadOnSwap,
   giveWay,
   goalDistance,
   holdingDestination,
   tileFree,
   tryCooperativeSwap,
   trySidestep,
+  reversesPreviousStep,
 } from "./navigation";
 
 export function tickMovement(state: SimState): void {
-  const { occupancy, atTile, reserved, swapped, movers } = buffersFor(state);
-  prepareFlowFieldRoutes(state, occupancy, reserved);
+  const { occupancy, atTile, reserved, swapped, movers, previousCells, pendingSwaps } = buffersFor(state);
+  advancePendingSwaps(state, occupancy, pendingSwaps, swapped, previousCells);
+  prepareFlowFieldRoutes(state, occupancy, reserved, previousCells, pendingSwaps);
   for (const e of state.entities) {
     // Convoys are neutral so combat targeting ignores them, but they still
     // need the normal background repath when a bounded search returned only
     // a partial route. Other neutral scenario actors have no movement orders.
-    if (e.hp <= 0 || e.class !== "unit" || (e.neutral && e.scenarioRole !== "convoy") || e.flowGoal || e.path.length || !e.orderDestination) continue;
+    if (e.hp <= 0 || e.class !== "unit" || pendingSwaps.has(e.id) || (e.neutral && e.scenarioRole !== "convoy") || e.flowGoal || e.path.length || !e.orderDestination) continue;
     if (holdingDestination(e)) continue;
     const dest = e.orderDestination;
     const destX = Math.round(dest.x);
@@ -123,19 +137,43 @@ export function tickMovement(state: SimState): void {
       if (blocker && blocker.id !== e.id && !swapped.has(blocker.id)) {
         const bNext = blocker.path[0];
         if (bNext && Math.round(bNext.x) === Math.round(e.x) && Math.round(bNext.y) === Math.round(e.y)) {
-          exchangePositions(state, occupancy, atTile, swapped, e, blocker);
-          e.path.shift();
-          blocker.path.shift();
+          if (smoothSwapFor(e, blocker)) {
+            const eStart = { x: e.x, y: e.y };
+            const blockerStart = { x: blocker.x, y: blocker.y };
+            releaseHeadOnSwap(swapped, e, blocker);
+            e.path.shift();
+            blocker.path.shift();
+            if (isUnitEntity(blocker)) queuePendingSwap(pendingSwaps, e, blocker, eStart, blockerStart);
+          } else {
+            exchangePositions(state, occupancy, atTile, swapped, e, blocker);
+            e.path.shift();
+            blocker.path.shift();
+          }
           continue;
         }
       }
 
-      if (trySidestep(state, occupancy, reserved, e, nx, ny)) {
+      if (trySidestep(state, occupancy, reserved, e, nx, ny, e.owner === 0 ? previousCells.get(e.id) : undefined)) {
         e.blockedTicks = 0;
-      } else if (blocker && blocker.id !== e.id && giveWay(state, occupancy, reserved, blocker)) {
+      } else if (blocker && blocker.id !== e.id && giveWay(
+        state,
+        occupancy,
+        reserved,
+        blocker,
+        blocker.owner === 0 ? previousCells.get(blocker.id) : undefined,
+      )) {
         e.blockedTicks = 0;
         continue;
-      } else if (blocker && blocker.id !== e.id && tryCooperativeSwap(state, occupancy, atTile, swapped, e, blocker)) {
+      } else if (blocker && blocker.id !== e.id && tryCooperativeSwap(state, occupancy, atTile, swapped, e, blocker, smoothSwapFor(e, blocker))) {
+        if (!e.path.length && isUnitEntity(blocker)) {
+          queuePendingSwap(
+            pendingSwaps,
+            e,
+            blocker,
+            { x: e.x, y: e.y },
+            { x: blocker.x, y: blocker.y },
+          );
+        }
         continue;
       } else {
         e.blockedTicks = (e.blockedTicks ?? 0) + 1;
@@ -168,7 +206,15 @@ export function tickMovement(state: SimState): void {
               const dx = Math.round(detourFirst.x);
               const dy = Math.round(detourFirst.y);
               const sameBlocked = dx === nx && dy === ny;
-              if (!sameBlocked && tileFree(state, occupancy, reserved, e, dx, dy)) {
+              const reverses = e.owner === 0 && reversesPreviousStep(
+                state.width,
+                Math.round(e.x),
+                Math.round(e.y),
+                dx,
+                dy,
+                previousCells.get(e.id),
+              );
+              if (!sameBlocked && !reverses && tileFree(state, occupancy, reserved, e, dx, dy)) {
                 e.path = detour;
               }
             }
@@ -198,6 +244,7 @@ export function tickMovement(state: SimState): void {
     advanceAlongPath(state, occupancy, reserved, e, speed);
     const after = cellOf(state, e.x, e.y);
     if (after !== before) {
+      previousCells.set(e.id, before);
       occupancy[before] = 0;
       occupancy[after] = 1;
       atTile.delete(before);
@@ -209,4 +256,107 @@ export function tickMovement(state: SimState): void {
   // Positions changed during this tick are not reflected in the O(1) unitAt
   // cache used by placement and closest-approach queries.
   invalidateUnitAtCache(state);
+}
+
+function smoothSwapFor(e: Entity, blocker: Entity): boolean {
+  return e.owner === 0 && blocker.owner === 0 && !e.neutral && !blocker.neutral;
+}
+
+function queuePendingSwap(
+  pendingSwaps: Map<number, PendingSwap>,
+  e: UnitEntity,
+  blocker: UnitEntity,
+  eStart: Vec2,
+  blockerStart: Vec2,
+): void {
+  if (e.path.length || blocker.path.length) return;
+  pendingSwaps.set(e.id, {
+    partnerId: blocker.id,
+    target: { ...blockerStart },
+    orderDestination: e.orderDestination ? { ...e.orderDestination } : undefined,
+    flowGoal: e.flowGoal ? { ...e.flowGoal } : undefined,
+  });
+  pendingSwaps.set(blocker.id, {
+    partnerId: e.id,
+    target: { ...eStart },
+    orderDestination: blocker.orderDestination ? { ...blocker.orderDestination } : undefined,
+    flowGoal: blocker.flowGoal ? { ...blocker.flowGoal } : undefined,
+  });
+}
+
+function advancePendingSwaps(
+  state: SimState,
+  occupancy: Uint8Array,
+  pendingSwaps: Map<number, PendingSwap>,
+  swapped: Set<number>,
+  previousCells: Map<number, number>,
+): void {
+  if (!pendingSwaps.size) return;
+  const entities = new Map<number, UnitEntity>();
+  for (const entity of state.entities) {
+    if (entity.hp > 0 && isUnitEntity(entity)) entities.set(entity.id, entity);
+  }
+
+  for (const [id, pending] of pendingSwaps) {
+    if (id > pending.partnerId) continue;
+    const e = entities.get(id);
+    const blocker = entities.get(pending.partnerId);
+    const blockerPending = pendingSwaps.get(pending.partnerId);
+    if (!e || !blocker || !blockerPending || blockerPending.partnerId !== e.id) {
+      pendingSwaps.delete(id);
+      pendingSwaps.delete(pending.partnerId);
+      continue;
+    }
+    if (!samePoint(e.orderDestination, pending.orderDestination) || !samePoint(e.flowGoal, pending.flowGoal)
+      || !samePoint(blocker.orderDestination, blockerPending.orderDestination)
+      || !samePoint(blocker.flowGoal, blockerPending.flowGoal)) {
+      pendingSwaps.delete(e.id);
+      pendingSwaps.delete(blocker.id);
+      continue;
+    }
+
+    swapped.add(e.id);
+    swapped.add(blocker.id);
+    advancePendingUnit(state, e, pending.target, previousCells);
+    advancePendingUnit(state, blocker, blockerPending.target, previousCells);
+
+    if (atPendingTarget(e, pending.target) && atPendingTarget(blocker, blockerPending.target)) {
+      pendingSwaps.delete(e.id);
+      pendingSwaps.delete(blocker.id);
+    }
+  }
+
+  // The occupancy cache was built before the smooth crossing advanced. Keep
+  // the movement-local copy in sync before the rest of the tick routes units.
+  occupancy.fill(0);
+  for (const entity of entities.values()) {
+    const cell = cellOf(state, entity.x, entity.y);
+    if (cell >= 0 && cell < occupancy.length) occupancy[cell] = 1;
+  }
+}
+
+function advancePendingUnit(state: SimState, e: UnitEntity, target: Vec2, previousCells: Map<number, number>): void {
+  const before = cellOf(state, e.x, e.y);
+  const speed = UNIT_STATS[e.kind].speed * (1 - Math.min(0.4, (e.suppression ?? 0) / 250));
+  const dx = target.x - e.x;
+  const dy = target.y - e.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance <= speed || distance < 0.001) {
+    e.x = target.x;
+    e.y = target.y;
+  } else {
+    e.x += (dx / distance) * speed;
+    e.y += (dy / distance) * speed;
+    e.facing = toIsometricFacing(dx, dy);
+  }
+  const after = cellOf(state, e.x, e.y);
+  if (after !== before) previousCells.set(e.id, before);
+}
+
+function atPendingTarget(e: UnitEntity, target: Vec2): boolean {
+  return Math.hypot(target.x - e.x, target.y - e.y) < 0.001;
+}
+
+function samePoint(a: Vec2 | undefined, b: Vec2 | undefined): boolean {
+  return a?.x === b?.x && a?.y === b?.y;
 }

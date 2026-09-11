@@ -137,7 +137,9 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
   if (pointerType === "touch" && mobileCommand) {
     const target = pickSelectableEntity(state, p.x, p.y, tx, ty, cam);
     const commands = selectedIds.length > 0 ? mobileCommandOrders(state, mobileCommand, selectedIds, target, tx, ty) : [];
-    const issuedLabel = commands.some((command) => command.type === "support")
+    const issuedLabel = commands.some((command) => command.type === "rally")
+      ? "Rally"
+      : commands.some((command) => command.type === "support")
       ? "Support"
       : mobileCommand === "attackMove" ? "Attack-move" : mobileCommand.charAt(0).toUpperCase() + mobileCommand.slice(1);
     return {
@@ -145,7 +147,7 @@ export function resolvePointerUp(input: PointerUpInput): PointerUpEffect {
       clearMobileCommand: true,
       beep: beepForCommands(commands),
       commandNotice: commands.length
-        ? { text: `${issuedLabel} order issued.`, kind: "success" }
+        ? { text: commands.some((command) => command.type === "rally") ? "Rally point set." : `${issuedLabel} order issued.`, kind: "success" }
         : {
             text: mobileCommand === "attack"
               ? "Select an enemy target for attack."

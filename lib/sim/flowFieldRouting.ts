@@ -32,10 +32,12 @@ export function prepareFlowFieldRoutes(
   state: SimState,
   occupancy: Uint8Array,
   reserved: Map<number, number>,
+  previousCells?: Map<number, number>,
+  skipIds?: { has(id: number): boolean },
 ): void {
   const { fields, followers, ranked } = buffersFor(state);
   for (const entity of state.entities) {
-    if (entity.hp <= 0 || entity.class !== "unit" || !entity.flowGoal || !entity.orderDestination) continue;
+    if (entity.hp <= 0 || entity.class !== "unit" || skipIds?.has(entity.id) || !entity.flowGoal || !entity.orderDestination) continue;
     const destination = entity.orderDestination;
     const personalCheb = Math.max(
       Math.abs(Math.round(entity.x) - Math.round(destination.x)),
@@ -70,7 +72,7 @@ export function prepareFlowFieldRoutes(
   ranked.sort((a, b) => a.dist - b.dist || a.entity.id - b.entity.id);
 
   for (const { entity, field } of ranked) {
-    assignFlowPrefix(state, occupancy, reserved, entity, field);
+    assignFlowPrefix(state, occupancy, reserved, previousCells, entity, field);
   }
 }
 
@@ -78,32 +80,50 @@ function assignFlowPrefix(
   state: SimState,
   occupancy: Uint8Array,
   reserved: Map<number, number>,
+  previousCells: Map<number, number> | undefined,
   entity: Entity,
   field: FlowField,
 ): void {
   const cursorX = Math.round(entity.x);
   const cursorY = Math.round(entity.y);
+  const previousCell = entity.owner === 0 ? previousCells?.get(entity.id) : undefined;
   const next = FLOW_PATH_PREFIX_LENGTH > 0
-    ? flowStep(field, cursorX, cursorY, { occupancy, reserved, ignoreId: entity.id, state })
+    ? flowStep(field, cursorX, cursorY, { occupancy, reserved, ignoreId: entity.id, state, previousCell })
     : undefined;
 
   const existing = entity.path[0];
   const nextFree = next ? prefixCellOpen(state, occupancy, reserved, entity.id, next.x, next.y) : false;
-  const existingFree = existing ? prefixCellOpen(state, occupancy, reserved, entity.id, existing.x, existing.y) : false;
+  const existingIsCurrent = existing && Math.round(existing.x) === cursorX && Math.round(existing.y) === cursorY;
+  const existingFree = existing
+    ? existingIsCurrent || prefixCellOpen(state, occupancy, reserved, entity.id, existing.x, existing.y)
+    : false;
 
+  if (existingFree && existing) {
+    // Keep the route prefix already in motion. Replacing it with a newly
+    // selected equal-cost neighbor at every tick can reverse a unit as its
+    // rounded position crosses a tile boundary.
+    entity.path = [existing];
+    entity.routePending = true;
+    reserveCell(state, reserved, entity.id, existing.x, existing.y);
+    return;
+  }
   if (next && nextFree) {
     entity.path = [next];
     entity.routePending = true;
     reserveCell(state, reserved, entity.id, next.x, next.y);
     return;
   }
-  if (existingFree && existing) {
-    entity.routePending = true;
-    reserveCell(state, reserved, entity.id, existing.x, existing.y);
-    return;
-  }
   if (next) {
     entity.path = [next];
+    entity.routePending = true;
+    return;
+  }
+  const currentDistance = field.distance[cursorY * field.width + cursorX] ?? -1;
+  if (currentDistance > 0) {
+    // A temporary occupancy conflict can remove every non-reversing prefix.
+    // Wait for the lane to open instead of falling back to a static route that
+    // sends the unit back through the cell it just left.
+    entity.path = [];
     entity.routePending = true;
     return;
   }

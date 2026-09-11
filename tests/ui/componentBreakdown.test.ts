@@ -27,6 +27,8 @@ function handlers(): GameCommandHandlers {
     setPauseNotice: vi.fn(),
     setActiveTab: vi.fn(),
     activateCameo: vi.fn(),
+    assignControlGroup: vi.fn(),
+    recallControlGroup: vi.fn(),
     jumpHome: vi.fn(),
     centerSelection: vi.fn(),
     toggleRepair: vi.fn(),

@@ -54,4 +54,22 @@ describe("briefing typewriter reveal", () => {
     expect(briefingActiveLineIndex(lines, 5)).toBe(1);
     expect(briefingActiveLineIndex(lines, 12)).toBe(-1);
   });
+
+  it("reveals a five-line transmission without dropping the final exchange", () => {
+    const fiveLines = [
+      { speaker: "advisor" as const, text: "Recon" },
+      { speaker: "advisor" as const, text: "reports" },
+      { speaker: "commander" as const, text: "Advance" },
+      { speaker: "commander" as const, text: "carefully" },
+      { speaker: "enemyLeader" as const, text: "Try." },
+    ];
+    const total = fiveLines.reduce((sum, line) => sum + line.text.length, 0);
+    const revealed = briefingRevealedLines(fiveLines, total);
+
+    expect(briefingLineStarts(fiveLines)).toHaveLength(6);
+    expect(revealed).toHaveLength(5);
+    expect(revealed.map((line) => line.visible)).toEqual(fiveLines.map((line) => line.text));
+    expect(revealed.every((line) => line.complete)).toBe(true);
+    expect(briefingActiveLineIndex(fiveLines, total)).toBe(-1);
+  });
 });

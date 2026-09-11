@@ -60,6 +60,7 @@ export function simulationFingerprint(state: SimState): string {
     factions: _factions,
     missionName: _missionName,
     missionKind: _missionKind,
+    controlGroups: _controlGroups,
     entities,
     ...dynamicState
   } = state;
@@ -74,6 +75,7 @@ export function simulationFingerprint(state: SimState): string {
   void _factions;
   void _missionName;
   void _missionKind;
+  void _controlGroups;
   // Resource depletion mutates tiles in place, so tiles must remain outside the
   // identity cache. Joining the numeric tile values keeps this projection
   // canonical without caching mutable terrain state.

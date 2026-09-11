@@ -1,6 +1,6 @@
-import { BUILDING_STATS, buildingLimitReached, sellRefundFor } from "../../catalog";
+import { BUILDING_DEFINITIONS, BUILDING_STATS, buildingLimitReached, sellRefundFor } from "../../catalog";
 import { isBuildingEntity, type BuildingKind, type Entity, type SimEvent, type SimState } from "../../types";
-import { byId, canPlaceBuilding, invalidateEntityCaches, invalidateNavigation, spawnBuilding } from "../world";
+import { byId, canPlaceBuilding, inBounds, invalidateEntityCaches, invalidateNavigation, isStaticWalkable, spawnBuilding, terrainAccess } from "../world";
 import { canRepair } from "../repair";
 import { canSell } from "../sell";
 import { UNIT_STATS } from "../../catalog";
@@ -49,6 +49,28 @@ export function toggleRepair(state: SimState, buildingId: number): SimEvent[] {
   if (!canRepair(e)) return [];
   e.repairing = true;
   return [{ type: "repairStarted", x: e.x, y: e.y }];
+}
+
+export function setRallyPoint(state: SimState, buildingId: number, x: number, y: number): SimEvent[] {
+  const building = byId(state, buildingId);
+  if (
+    !building ||
+    !isBuildingEntity(building) ||
+    building.hp <= 0 ||
+    building.owner !== 0 ||
+    building.constructing > 0 ||
+    !BUILDING_DEFINITIONS[building.kind].production
+  ) {
+    return [{ type: "commandRejected", reason: "rally unavailable" }];
+  }
+
+  const tx = Math.round(x);
+  const ty = Math.round(y);
+  if (!inBounds(state, tx, ty) || !terrainAccess(state, tx, ty).traversable || !isStaticWalkable(state, tx, ty)) {
+    return [{ type: "commandRejected", reason: "invalid rally target" }];
+  }
+  building.rallyPoint = { x: tx, y: ty };
+  return [];
 }
 
 export function refundQueuedUnits(state: SimState, e: Entity): void {

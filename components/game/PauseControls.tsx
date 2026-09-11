@@ -16,6 +16,8 @@ const ROWS: { label: string; keys: string }[] = [
   { label: "Select all of type", keys: "Double-click" },
   { label: "Move / attack / harvest", keys: "Right click" },
   { label: "Attack-move", keys: "Ctrl + right click" },
+  { label: "Set production rally point", keys: "Select producer + right click ground" },
+  { label: "Assign / recall control group", keys: "Ctrl/Cmd + 1–9 / Alt/Option + 1–9" },
 ];
 
 export function PauseControls({ onBack }: { onBack: () => void }) {

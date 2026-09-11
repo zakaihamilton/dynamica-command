@@ -18,6 +18,7 @@ const play = {
 describe("shortcuts uncovered branches", () => {
   it("ignores alt key in game commands", () => {
     expect(gameCommandFromKey({ key: "q", altKey: true }, play)).toBeNull();
+    expect(gameCommandFromKey({ key: "2", altKey: true }, play)).toEqual({ type: "recallGroup", slot: 2 });
   });
 
   it("returns null when not playing and not paused", () => {

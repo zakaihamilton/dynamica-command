@@ -1,6 +1,6 @@
 import type { SimState, Vec2 } from "../types";
 import { canClimb, inBounds, staticNavigationFor } from "./world";
-import { PATH_DIRS, diagonalCornerBlocked } from "./pathfinding";
+import { PATH_DIRS, diagonalCornerBlocked, reversesPreviousStep } from "./pathfinding";
 
 const UNREACHABLE = -1;
 const UNREACHABLE_SORT = 1_000_000_000;
@@ -10,6 +10,8 @@ export type FlowStepOptions = {
   reserved?: Map<number, number>;
   ignoreId?: number;
   state?: SimState;
+  /** Prevent a crowded route from immediately stepping back into the cell it left. */
+  previousCell?: number;
 };
 
 /**
@@ -130,6 +132,7 @@ function occupancyAwareFlowStep(field: FlowField, x: number, y: number, opts: Fl
     const nx = cx + direction.x;
     const ny = cy + direction.y;
     if (nx < 0 || ny < 0 || nx >= field.width || ny >= field.height) continue;
+    if (reversesPreviousStep(field.width, cx, cy, nx, ny, opts.previousCell)) continue;
     const distance = field.distance[ny * field.width + nx] ?? UNREACHABLE;
     if (distance < 0) continue;
     if (state && !flowTerrainStepOk(state, cx, cy, nx, ny)) continue;
@@ -137,9 +140,7 @@ function occupancyAwareFlowStep(field: FlowField, x: number, y: number, opts: Fl
     const free = !flowCellTaken(occupancy, reserved, field.width, nx, ny, ignoreId);
     let tier: number;
     if (free && distance < currentDistance) tier = 0;
-    else if (free && distance === currentDistance) tier = 1;
-    else if (free && distance === currentDistance + 1) tier = 2;
-    else if (!free && distance < currentDistance) tier = 3;
+    else if (!free && distance < currentDistance) tier = 1;
     else continue;
 
     if (tier < bestTier || (tier === bestTier && distance < bestDistance)) {

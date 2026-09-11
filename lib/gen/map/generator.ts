@@ -33,6 +33,7 @@ import {
   resourcePatch,
   resourceCenterNear,
 } from "./generator/index";
+import { rescueFlankCenter } from "./generator/rescuePlacement";
 
 export function generateMap(
   seed: number,
@@ -137,6 +138,16 @@ export function generateMap(
     const crossfireRoute = meanderingRoute(playerStart, enemyStart, width, height, salt + 27);
     carveRoute(tiles, heights, surfaces, width, height, crossfireRoute, 1, salt + 23);
     routePlans.push(crossfireRoute);
+  }
+  if (mission.win.kind === "rescue") {
+    const rescueRoute = meanderingRoute(
+      playerStart,
+      rescueFlankCenter({ width, height, enemyStart }),
+      width,
+      height,
+      salt + 37,
+    );
+    carveRoute(tiles, heights, surfaces, width, height, rescueRoute, 1, salt + 29);
   }
   let distances = walkDistances(tiles, heights, width, height, playerStart);
   let routeRepaired = false;

@@ -1,7 +1,8 @@
-import { canPlaceBuilding } from "@/lib/sim/world";
+import { canPlaceBuilding, isStaticWalkable } from "@/lib/sim/world";
 import { canRepair } from "@/lib/sim/repair";
 import { canSell } from "@/lib/sim/sell";
-import { TILE_RESOURCE, type BuildingKind, type Entity, type SimState } from "@/lib/types";
+import { BUILDING_DEFINITIONS } from "@/lib/catalog";
+import { isBuildingEntity, TILE_RESOURCE, type BuildingKind, type Entity, type SimState } from "@/lib/types";
 
 export type BattlefieldCursor = "crosshair" | "pointer" | "cell" | "not-allowed";
 
@@ -51,6 +52,18 @@ export function battlefieldCursor({
   if (sellMode) {
     if (!hoverEntity) return "not-allowed";
     return hoverEntity.owner === 0 && canSell(hoverEntity) ? "pointer" : "not-allowed";
+  }
+  const selectedProducer = selectedIds.length === 1
+    ? state.entities.find((entity) => entity.id === selectedIds[0] && entity.hp > 0)
+    : undefined;
+  if (
+    selectedProducer?.owner === 0 &&
+    isBuildingEntity(selectedProducer) &&
+    selectedProducer.constructing <= 0 &&
+    Boolean(BUILDING_DEFINITIONS[selectedProducer.kind].production)
+  ) {
+    if (!hoverTile || hoverEntity) return "not-allowed";
+    return isStaticWalkable(state, hoverTile.x, hoverTile.y) ? "cell" : "not-allowed";
   }
   if (hoverEntity?.owner === 0) return "pointer";
   if (hoverEntity && hoverEntity.owner === 1) {

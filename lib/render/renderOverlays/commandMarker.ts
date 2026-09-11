@@ -165,3 +165,59 @@ export function drawCommandMarker(
   ctx.fillStyle = colors.fill;
   ctx.restore();
 }
+
+export function drawRallyPoint(
+  ctx: CanvasRenderingContext2D,
+  state: SimState,
+  cam: Camera,
+  building: { x: number; y: number; rallyPoint?: { x: number; y: number } },
+  nowMs: number,
+  reducedMotion = false,
+): void {
+  const point = building.rallyPoint;
+  if (!point) return;
+  const z = cam.zoom;
+  const source = tileToScreen(building.x, building.y, cam, heightAt(state, Math.round(building.x), Math.round(building.y)));
+  const target = tileToScreen(point.x, point.y, cam, heightAt(state, point.x, point.y));
+  const sourceGroundY = source.y + (TILE_H / 2) * z;
+  const targetGroundY = target.y + (TILE_H / 2) * z;
+  const pulse = reducedMotion ? 0 : Math.sin(nowMs / 260) * 2;
+  const radius = (13 + pulse) * z;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.52;
+  ctx.strokeStyle = "#7ad4ff";
+  ctx.shadowColor = "#3aa0e0";
+  ctx.shadowBlur = 6 * z;
+  ctx.lineWidth = Math.max(1, z);
+  ctx.setLineDash([4 * z, 4 * z]);
+  ctx.beginPath();
+  ctx.moveTo(source.x, sourceGroundY);
+  ctx.lineTo(target.x, targetGroundY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.globalAlpha = 0.94;
+  ctx.lineWidth = Math.max(1.5, 2 * z);
+  ctx.beginPath();
+  ctx.ellipse(target.x, targetGroundY, radius, radius * 0.46, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#d4f2ff";
+  ctx.beginPath();
+  ctx.moveTo(target.x, targetGroundY - 6 * z);
+  ctx.lineTo(target.x + 6 * z, targetGroundY);
+  ctx.lineTo(target.x, targetGroundY + 6 * z);
+  ctx.lineTo(target.x - 6 * z, targetGroundY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#7ad4ff";
+  ctx.lineWidth = Math.max(1, z);
+  ctx.beginPath();
+  ctx.moveTo(target.x - 4 * z, targetGroundY);
+  ctx.lineTo(target.x + 4 * z, targetGroundY);
+  ctx.moveTo(target.x, targetGroundY - 4 * z);
+  ctx.lineTo(target.x, targetGroundY + 4 * z);
+  ctx.stroke();
+  ctx.restore();
+}

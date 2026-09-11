@@ -25,6 +25,25 @@ describe("persist", () => {
     expect(listed[0]!.campaignName).toBeTruthy();
   });
 
+  it("round-trips rally points and control groups and backfills legacy groups", () => {
+    const state = makeFixture({ seed: 421, win: { kind: "annihilate" } });
+    const barracks = addBuilding(state, 0, "barracks", 2, 2);
+    const infantry = addUnit(state, 0, "infantry", 4, 4);
+    barracks.rallyPoint = { x: 7, y: 8 };
+    state.controlGroups = { 1: [infantry.id] };
+
+    const loaded = deserializeState(serializeState(state));
+    expect(loaded.entities.find((entity) => entity.id === barracks.id)?.rallyPoint).toEqual({ x: 7, y: 8 });
+    expect(loaded.controlGroups).toEqual({ 1: [infantry.id] });
+
+    const legacy = JSON.parse(serializeState(state)) as { controlGroups?: unknown };
+    delete legacy.controlGroups;
+    expect(deserializeState(JSON.stringify(legacy)).controlGroups).toEqual({});
+
+    legacy.controlGroups = { 1: [infantry.id, infantry.id] };
+    expect(() => deserializeState(JSON.stringify(legacy))).toThrow("Invalid save state");
+  });
+
   it("round-trips the signed RNG state produced after a mission tick", () => {
     const state = createMission({ seed: 8212, missionIndex: 0 });
     tick(state);

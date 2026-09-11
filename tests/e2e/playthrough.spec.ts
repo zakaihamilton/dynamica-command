@@ -75,6 +75,16 @@ async function waitForBattlefield(page: Page) {
   }, { width: MIN_RENDER_WIDTH, height: MIN_RENDER_HEIGHT })).toBe(true);
 }
 
+async function loadAutosaveFromPause(page: Page) {
+  await page.getByRole("button", { name: "Load Mission" }).click();
+  await expect(page.getByRole("heading", { name: "Load mission" })).toBeVisible();
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  const confirmation = page.getByRole("dialog", { name: "Load mission?" });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole("button", { name: "Load mission" }).click();
+  await expect(page.getByRole("status")).toContainText("Loaded the autosave");
+}
+
 async function pageCamera(page: Page, state: SimState) {
   const canvas = page.getByTestId("battlefield-canvas");
   const dimensions = await canvas.evaluate((element) => ({
@@ -127,6 +137,15 @@ async function pointForEntity(page: Page, state: SimState, entity: Entity) {
   return canvasCssPoint({
     x: point.x,
     y: point.y + (TILE_H / 2) * camera.zoom - 12 * camera.zoom,
+  }, bounds, dimensions);
+}
+
+async function pointForTile(page: Page, state: SimState, x: number, y: number) {
+  const { dimensions, bounds, camera } = await pageCamera(page, state);
+  const point = tileToScreen(x, y, camera, heightAt(state, x, y));
+  return canvasCssPoint({
+    x: point.x,
+    y: point.y + (TILE_H / 2) * camera.zoom - 1,
   }, bounds, dimensions);
 }
 
@@ -224,4 +243,71 @@ test("completes a prepared mission through repair, production, and autosave", as
   await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won");
   expect((await savedState(page))?.result).toBe("won");
   expect(errors).toEqual([]);
+});
+
+test("persists production rally points and control groups through save/load", async ({ page }) => {
+  const state = createMission({ seed: TEST_SEED, missionIndex: TEST_MISSION });
+  const barracks = state.entities.find((entity) => entity.owner === 0 && entity.kind === "barracks");
+  const infantry = state.entities.find((entity) => entity.owner === 0 && entity.class === "unit" && entity.kind === "infantry");
+  expect(barracks).toBeDefined();
+  expect(infantry).toBeDefined();
+  state.credits[0] = 5_000;
+  state.tick = AUTOSAVE_INTERVAL_TICKS - 1;
+  state.win = { kind: "forceQuota", target: 1 };
+  state.missionKind = "forceQuota";
+  state.runtime = undefined;
+
+  await page.addInitScript(({ key, raw }) => localStorage.setItem(key, raw), {
+    key: saveKey(TEST_SEED),
+    raw: saveEnvelope(state),
+  });
+  await page.goto(`/play?seed=0421&mission=${TEST_MISSION}&resume=1`);
+  await waitForBattlefield(page);
+
+  await page.getByRole("tab", { name: "Selected" }).click();
+  const barracksPoint = await pointForEntity(page, state, barracks!);
+  const rally = { x: Math.round(barracks!.x) + 8, y: Math.round(barracks!.y) + 5 };
+  const rallyPoint = await pointForTile(page, state, rally.x, rally.y);
+  await page.mouse.click(barracksPoint.x, barracksPoint.y);
+  await expect(page.getByTestId("rally-status")).toHaveText("Rally point not set");
+  await page.mouse.click(rallyPoint.x, rallyPoint.y, { button: "right" });
+  await expect(page.getByTestId("command-notice")).toContainText("Rally point set.");
+  await expect(page.getByTestId("rally-status")).toHaveText(`Rally point ${rally.x}, ${rally.y}`);
+
+  const infantryPoint = await pointForEntity(page, state, infantry!);
+  await page.mouse.click(infantryPoint.x, infantryPoint.y);
+  await page.keyboard.press("Control+1");
+  await expect(page.getByTestId("command-notice")).toContainText("Control group 1 assigned");
+  await page.mouse.click(barracksPoint.x, barracksPoint.y);
+  await page.keyboard.press("Alt+1");
+  await expect(page.getByTestId("selected-kind")).toHaveText("Infantry");
+
+  const saved = await savedState(page, true);
+  expect(saved?.entities.find((entity) => entity.id === barracks!.id)?.rallyPoint).toEqual(rally);
+  expect(saved?.controlGroups).toEqual({ 1: [infantry!.id] });
+  await page.reload();
+  await waitForBattlefield(page);
+  await page.evaluate(({ key, state: savedStateValue, version, contentVersion }) => {
+    localStorage.setItem(key, JSON.stringify({
+      version,
+      contentVersion,
+      savedAt: Date.now(),
+      state: savedStateValue,
+    }));
+  }, { key: saveKey(TEST_SEED), version: SAVE_VERSION, contentVersion: SAVE_CONTENT_VERSION, state: saved });
+  await page.keyboard.press("Escape");
+  await loadAutosaveFromPause(page);
+  await page.getByRole("button", { name: "Resume Mission" }).click();
+  const restored = await savedState(page);
+  expect(restored?.entities.find((entity) => entity.id === barracks!.id)?.rallyPoint).toEqual(rally);
+  expect(restored?.controlGroups).toEqual({ 1: [infantry!.id] });
+
+  await page.getByRole("tab", { name: "Production" }).click();
+  const infantryCameo = page.getByRole("button", { name: /Infantry, 75 credits/ });
+  await expect(infantryCameo).toBeEnabled();
+  await infantryCameo.click();
+  await expect(page.getByTestId("cameo-progress-infantry")).toBeVisible();
+  await expect(page.getByTestId("mission-result")).toHaveAttribute("data-result", "won", { timeout: 10_000 });
+  const producedSave = await savedState(page);
+  expect(producedSave?.entities.some((entity) => entity.class === "unit" && entity.orderDestination?.x === rally.x && entity.orderDestination?.y === rally.y)).toBe(true);
 });

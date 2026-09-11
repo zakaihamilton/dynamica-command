@@ -47,7 +47,7 @@ describe("shortcut matching", () => {
     expect(gameCommandFromKey({ key: "Escape" }, { ...play, toolActive: true })).toEqual({ type: "cancelTool" });
     expect(gameCommandFromKey({ key: "s" }, play)).toBeNull();
     expect(gameCommandFromKey({ key: "2" }, play)).toEqual({ type: "cameo", index: 1, cancel: false });
-    expect(gameCommandFromKey({ key: "2", ctrlKey: true }, play)).toEqual({ type: "cameo", index: 1, cancel: true });
+    expect(gameCommandFromKey({ key: "2", ctrlKey: true }, play)).toEqual({ type: "assignGroup", slot: 2 });
   });
 
   it("routes pause-menu letters and pops nested pause views", () => {
